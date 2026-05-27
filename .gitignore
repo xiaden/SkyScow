@@ -1,0 +1,26 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies
+node_modules/
+
+# Docker overrides
+data/
+local-cache/
+workspace/
+docker-compose.override.yaml
+docker-compose.override.yml

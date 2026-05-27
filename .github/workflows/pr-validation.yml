@@ -1,0 +1,22 @@
+name: HolyCode - PR Validation
+
+on:
+  pull_request:
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Build image
+        run: docker build -t holycode-pr-test .
+
+      - name: Smoke test OpenCode binary
+        run: docker run --rm holycode-pr-test opencode --version
