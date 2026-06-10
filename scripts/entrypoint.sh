@@ -177,24 +177,6 @@ fi
 
 sync_shipped_skills
 
-if [ "${ENABLE_HERMES}" = "true" ]; then
-    export HERMES_HOME="${HERMES_HOME:-$OC_HOME/.hermes}"
-    mkdir -p "$HERMES_HOME"
-    chown "$PUID:$PGID" "$HERMES_HOME" 2>/dev/null || true
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/hermes
-else
-    rm -f /etc/s6-overlay/s6-rc.d/user/contents.d/hermes
-fi
-
-if [ "${ENABLE_PAPERCLIP}" = "true" ]; then
-    export PAPERCLIP_HOME="${PAPERCLIP_HOME:-$OC_HOME/.paperclip}"
-    mkdir -p "$PAPERCLIP_HOME"
-    chown "$PUID:$PGID" "$PAPERCLIP_HOME" 2>/dev/null || true
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/paperclip
-else
-    rm -f /etc/s6-overlay/s6-rc.d/user/contents.d/paperclip
-fi
-
 # ---------- Plugin toggles (run every boot for enable/disable) ----------
 CONFIG_FILE="$OC_HOME/.config/opencode/opencode.json"
 if [ -f "$CONFIG_FILE" ]; then

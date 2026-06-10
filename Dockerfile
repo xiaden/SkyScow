@@ -3,16 +3,15 @@
 # https://github.com/coderluii/holycode
 # ==============================================================================
 
-FROM node:22-bookworm-slim
+FROM node:trixie-slim
 
-LABEL org.opencontainers.image.source=https://github.com/CoderLuii/HolyCode
+LABEL org.opencontainers.image.source=https://github.com/xiaden/HolyCode
 
 # ---------- Build args ----------
 ARG S6_OVERLAY_VERSION=3.2.3.0
-ARG LAZYGIT_VERSION=0.62.0
+ARG LAZYGIT_VERSION=0.62.1
 ARG DELTA_VERSION=0.19.2
 ARG EZA_VERSION=0.23.4
-ARG HERMES_AGENT_REF=v2026.5.16
 ARG TARGETARCH
 
 # ---------- Environment ----------
@@ -77,7 +76,8 @@ RUN ln -sf /usr/bin/batcat /usr/local/bin/bat 2>/dev/null || true
 
 # ---------- Python 3 (for user projects) ----------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv \
+    python3 python3-pip python3-venv pyenv autoflake\
+    python-is-python3\
     && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -123,7 +123,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir --break-system-packages playwright==1.60.0
 
 RUN pip install --no-cache-dir --break-system-packages \
-    requests==2.34.2 httpx==0.28.1 beautifulsoup4==4.14.3 lxml==6.1.1 \
+    requests==2.34.2 httpx==0.28.1 beautifulsoup4==4.15.0 lxml==6.1.1 \
     Pillow==12.2.0 openpyxl==3.1.5 python-docx==1.2.0 \
     pandas==3.0.3 numpy==2.4.6 matplotlib==3.10.9 seaborn==0.13.2 \
     rich==15.0.0 click==8.4.1 tqdm==4.67.3 apprise==1.10.0 \
@@ -134,7 +134,7 @@ RUN rm -f /usr/local/bin/dotenv
 
 # ---------- OpenCode (AI coding agent) ----------
 # Installed via npm as root (global install needs write access to /usr/local/lib)
-RUN npm i -g opencode-ai@1.15.10
+RUN npm i -g opencode-ai
 
 WORKDIR /workspace
 USER opencode
@@ -144,7 +144,7 @@ ENV PATH="/home/opencode/.local/bin:${PATH}"
 
 RUN npm i -g \
     typescript@6.0.3 tsx@4.22.3 \
-    pnpm@11.3.0 \
+    pnpm@11.5.2 \
     vite@8.0.14 esbuild@0.28.0 \
     eslint@10.4.0 prettier@3.8.3 \
     serve@14.2.6 nodemon@3.1.14 concurrently@9.2.1 \
@@ -154,11 +154,6 @@ RUN npm i -g \
     prisma@7.8.0 drizzle-kit@0.31.10 \
     lighthouse@13.3.0 @lhci/cli@0.15.1 \
     sharp-cli@5.2.0 json-server@0.17.4 http-server@14.1.1
-
-RUN pip install --no-cache-dir --break-system-packages \
-    "hermes-agent[pty,mcp,messaging] @ git+https://github.com/NousResearch/hermes-agent.git@${HERMES_AGENT_REF}"
-
-RUN npm i -g paperclipai@2026.525.0
 
 # ---------- Copy config files ----------
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -178,12 +173,6 @@ COPY s6-overlay/s6-rc.d/xvfb/type /etc/s6-overlay/s6-rc.d/xvfb/type
 COPY s6-overlay/s6-rc.d/xvfb/run /etc/s6-overlay/s6-rc.d/xvfb/run
 RUN chmod +x /etc/s6-overlay/s6-rc.d/xvfb/run && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/xvfb
-
-COPY s6-overlay/s6-rc.d/hermes/type /etc/s6-overlay/s6-rc.d/hermes/type
-COPY s6-overlay/s6-rc.d/hermes/run /etc/s6-overlay/s6-rc.d/hermes/run
-COPY s6-overlay/s6-rc.d/paperclip/type /etc/s6-overlay/s6-rc.d/paperclip/type
-COPY s6-overlay/s6-rc.d/paperclip/run /etc/s6-overlay/s6-rc.d/paperclip/run
-RUN chmod +x /etc/s6-overlay/s6-rc.d/hermes/run /etc/s6-overlay/s6-rc.d/paperclip/run
 
 # ---------- Working directory ----------
 WORKDIR /workspace
