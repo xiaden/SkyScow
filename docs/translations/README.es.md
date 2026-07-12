@@ -1,5 +1,7 @@
 🌍 [English](../../README.md) | **Español** | [Français](README.fr.md) | [Italiano](README.it.md) | [Português](README.pt.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [हिन्दी](README.hi.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
+> **📝 Note:** The [English README](../../README.md) is the canonical version. This translation may lag behind. Check the English version for the most current feature set and configuration options.
+
 <a name="top"></a>
 
 # <img src="../../assets/logo.png" alt="HolyCode" width="39" valign="bottom"> HolyCode
@@ -27,10 +29,6 @@
 ### Un contenedor. Todas las herramientas. Cualquier proveedor.
 
 OpenCode ejecutándose en un contenedor con todo ya instalado. Más de 50 herramientas de desarrollo, más de 10 proveedores de IA, navegador sin cabeza, estado persistente. Ponlo en cualquier máquina y continúa exactamente donde lo dejaste.
-
-**Funciona con tu suscripción de Claude.** Activa el plugin Claude Auth y usa tu plan Claude Max/Pro existente. No necesitas una clave API separada.
-
-**Orquestación multi-agente integrada.** Activa oh-my-openagent y convierte OpenCode en un sistema de agentes coordinados con ejecución paralela.
 
 **Ibas a pasar una hora recuperando tu entorno. O simplemente puedes ejecutar `docker compose up`.**
 > **¿No quieres hacer el alojamiento propio?** [HolyCode Cloud](https://holycode.coderluii.dev/cloud) está llegando. Las mismas herramientas, sin configuración. El acceso anticipado es gratuito.
@@ -312,16 +310,7 @@ services:
       # - OPENCODE_SERVER_PASSWORD=your-password
       # - OPENCODE_SERVER_USERNAME=opencode
 
-      # --- Claude Auth (use Claude subscription instead of API key) ---
-      # Reads credentials from ./data/opencode/.claude/.credentials.json
-      # NOTE: May violate Anthropic TOS. Use at your own risk.
-      # Toggle on/off with docker compose down && up -d
-      # - ENABLE_CLAUDE_AUTH=true
 
-      # --- oh-my-openagent (multi-agent orchestration for OpenCode) ---
-      # Installs automatically on first boot when enabled
-      # Toggle on/off with docker compose down && up -d
-      # - ENABLE_OH_MY_OPENAGENT=true
 
 ```
 
@@ -359,26 +348,6 @@ services:
 | `OPENCODE_ENABLE_EXA` | (ninguno) | Activa la integración de búsqueda web Exa |
 | `OPENCODE_SERVER_PASSWORD` | (ninguno) | Protege la interfaz web con autenticación básica |
 | `OPENCODE_SERVER_USERNAME` | `opencode` | Nombre de usuario para la autenticación básica de la interfaz web |
-| `ENABLE_CLAUDE_AUTH` | (ninguno) | Establece `true` para usar la suscripción de Claude en lugar de la clave API |
-| `ENABLE_OH_MY_OPENAGENT` | (ninguno) | Establece `true` para activar el plugin de orquestación multi-agente |
-| `ENABLE_PAPERCLIP` | (ninguno) | Establece `true` para iniciar el panel de control y tablero de agentes de Paperclip |
-| `PAPERCLIP_PORT` | `3100` | Sobreescribe el puerto del contenedor usado por Paperclip |
-| `PAPERCLIP_INSTANCE_ID` | `default` | Nombre de instancia local de Paperclip para estado aislado |
-| `ENABLE_HERMES` | (ninguno) | Establece `true` para iniciar Hermes como API de meta-agente incluida |
-| `HERMES_PORT` | `8642` | Sobreescribe el puerto del contenedor usado por Hermes |
-| `HOLYCODE_PLUGIN_UPDATE` | `manual` | Modo de actualización de plugins: `manual` (instala si falta) o `auto` (instala y actualiza en cada arranque) |
-
-> Los toggles de plugins (`ENABLE_CLAUDE_AUTH`, `ENABLE_OH_MY_OPENAGENT`) tienen efecto al reiniciar el contenedor. Establece la variable de entorno y ejecuta `docker compose down && up -d`.
-
-> `HOLYCODE_PLUGIN_UPDATE` controla las actualizaciones de paquetes de plugins. `manual` (por defecto) instala los plugins habilitados solo si faltan. `auto` instala los plugins faltantes y actualiza los habilitados en cada arranque. Esto es independiente de `OPENCODE_DISABLE_AUTOUPDATE`, que solo afecta a OpenCode.
-
-> `ENABLE_OH_MY_OPENAGENT=true` activa el plugin y expone la skill integrada `/oh-my-openagent-setup`. La skill solo aparece cuando el plugin está habilitado. Úsala para crear o actualizar el archivo de configuración específico del plugin en `~/.config/opencode/oh-my-openagent.jsonc`.
-
-> La política de selector predeterminada de HolyCode es: visibles: `sisyphus`, `hephaestus`, `prometheus`, `atlas`; subagentes ocultos: `oracle`, `librarian`, `explore`, `metis`, `momus`, `multimodal-looker`, `sisyphus-junior`. Si añades un nuevo proveedor y el modelo visible por defecto parece desactualizado, vuelve a ejecutar `/oh-my-openagent-setup` y luego: `docker exec -it holycode bash -c "bunx oh-my-opencode doctor"` y `docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities"`.
-
-> `ENABLE_PAPERCLIP=true` inicia Paperclip en el puerto `3100` dentro del contenedor. Abre el panel de control, crea una empresa y contrata agentes respaldados por OpenCode desde allí. Paperclip persiste en `~/.paperclip` automáticamente.
-
-> `ENABLE_HERMES=true` inicia Hermes en el puerto `8642` dentro del contenedor. Hermes persiste en `~/.hermes`, usa el binario `opencode` ya instalado y puede exponer una API compatible con OpenAI mientras delega el trabajo de código de vuelta a HolyCode.
 
 > `GIT_USER_NAME` y `GIT_USER_EMAIL` solo se aplican en el primer arranque. Para volver a aplicarlos, elimina el archivo centinela y reinicia: `docker exec holycode rm /home/opencode/.config/opencode/.holycode-bootstrapped` y luego `docker compose restart`.
 
@@ -466,7 +435,6 @@ Incluye fuentes Liberation, DejaVu, Noto y Noto Color Emoji para renderizado cor
 |---------|---------|
 | Hermes Agent | Meta-agente automejorable con MCP, adaptadores de mensajería y delegación a OpenCode |
 | Paperclip | Tablero de agentes local que contrata trabajadores OpenCode y los activa por latido |
-| Claude Code CLI | Instalado para flujos de autenticación de suscripción Claude mediante `ENABLE_CLAUDE_AUTH` |
 
 </details>
 
@@ -481,44 +449,6 @@ Incluye fuentes Liberation, DejaVu, Noto y Noto Color Emoji para renderizado cor
 s6-overlay supervisa OpenCode y Xvfb. Si un proceso falla, se reinicia automáticamente. Las políticas de reinicio del contenedor se mantienen limpias porque el supervisor lo gestiona internamente.
 
 </details>
-
-<p align="right">
-  <a href="#top">volver arriba</a>
-</p>
-
----
-
-## 🧩 Servicios incluidos
-
-HolyCode ahora incluye dos capas opcionales sobre OpenCode. **No las necesitas** para usar el contenedor. Activa la variable de entorno, reinicia el contenedor y el servicio se levanta junto a la interfaz web normal.
-
-### Hermes Agent
-
-Hermes es la opción de "cerebro más inteligente". Se ejecuta como un meta-agente incluido, expone una API compatible con OpenAI en el puerto `8642` y delega el trabajo de código llamando al binario `opencode` local que HolyCode ya incluye.
-
-Actívalo con:
-
-```yaml
-environment:
-  - ENABLE_HERMES=true
-  - HERMES_PORT=8642
-```
-
-El estado de Hermes vive en `/home/opencode/.hermes`, siguiendo la misma historia de persistencia que el resto de HolyCode.
-
-### Paperclip
-
-Paperclip es la opción de "tablero de agentes". Te da un panel de control local en el puerto `3100` donde creas una empresa, contratas agentes y dejas que esos agentes se activen según un horario. Internamente lanza procesos `opencode run`, así que los trabajadores siguen siendo HolyCode.
-
-Actívalo con:
-
-```yaml
-environment:
-  - ENABLE_PAPERCLIP=true
-  - PAPERCLIP_PORT=3100
-```
-
-El estado de Paperclip vive en `/home/opencode/.paperclip`. Abre el panel de control, configura tu empresa y contrata empleados respaldados por OpenCode desde allí.
 
 <p align="right">
   <a href="#top">volver arriba</a>
@@ -548,7 +478,7 @@ graph TD
     M --> P[opencode attach localhost:4096]
 ```
 
-El punto de entrada gestiona la reasignación de usuario, los toggles de plugins, los toggles de servicios incluidos opcionales y la configuración del primer arranque. s6-overlay supervisa Xvfb, el servidor web de OpenCode y cualquier servicio incluido opcional que hayas habilitado. Si un proceso supervisado falla, s6 lo reinicia automáticamente. Accede a la interfaz web en el puerto 4096 o ejecuta dentro del contenedor para la experiencia completa de CLI.
+El punto de entrada gestiona la reasignación de usuario y la configuración del primer arranque. s6-overlay supervisa Xvfb, el servidor web de OpenCode. Si un proceso supervisado falla, s6 lo reinicia automáticamente. Accede a la interfaz web en el puerto 4096 o ejecuta dentro del contenedor para la experiencia completa de CLI.
 
 <p align="right">
   <a href="#top">volver arriba</a>
@@ -596,21 +526,6 @@ docker exec -it holycode bash -c "opencode providers list"
 docker exec -it holycode bash -c "opencode providers login"
 ```
 
-### Configuración y reconfiguración de oh-my-openagent
-
-Si habilitaste `ENABLE_OH_MY_OPENAGENT=true`, la skill `/oh-my-openagent-setup` queda disponible. Úsala para crear o actualizar la configuración específica del plugin:
-
-```text
-/oh-my-openagent-setup
-```
-
-Si añades un nuevo proveedor y el modelo visible por defecto parece desactualizado, vuelve a ejecutar `/oh-my-openagent-setup` y luego:
-
-```bash
-docker exec -it holycode bash -c "bunx oh-my-opencode doctor"
-docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities"
-```
-
 ### Comandos útiles
 
 | Comando | Qué hace |
@@ -622,8 +537,6 @@ docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities
 | `opencode serve` | Servidor API sin cabeza |
 | `opencode providers list` | Muestra los proveedores configurados |
 | `opencode providers login` | Añade o cambia de proveedor |
-| `bunx oh-my-opencode doctor` | Diagnostica la configuración de oh-my-openagent y la resolución de modelos |
-| `bunx oh-my-opencode refresh-model-capabilities` | Actualiza la caché de capacidades de proveedor/modelo |
 | `opencode models` | Lista los modelos disponibles |
 | `opencode models <provider>` | Lista modelos para un proveedor específico |
 | `opencode stats` | Muestra el uso de tokens y costes |
@@ -866,7 +779,6 @@ image: holycode:local
 4. Haz push: `git push origin feature/your-feature`
 5. Abre un pull request
 
-Consulta [CONTRIBUTING.md](../../.github/CONTRIBUTING.md) para las pautas completas.
 
 <p align="right">
   <a href="#top">volver arriba</a>

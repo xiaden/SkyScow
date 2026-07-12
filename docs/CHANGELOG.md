@@ -4,6 +4,8 @@ All notable changes to HolyCode will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+> **Note:** Prior to the fork, changelog entries described features (Claude Auth, oh-my-openagent, Hermes Agent, Paperclip, CLIProxyAPI sidecar, HOLYCODE_PLUGIN_UPDATE) that were not yet carried over to this repo. The documentation has been trimmed to reflect what is actually implemented in the current codebase.
+
 ## [1.0.9] - 05/27/2026
 
 ### Added

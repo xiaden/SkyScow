@@ -134,12 +134,23 @@ RUN rm -f /usr/local/bin/dotenv
 
 # ---------- OpenCode (AI coding agent) ----------
 # Installed via npm as root (global install needs write access to /usr/local/lib)
-RUN npm i -g opencode-ai
+RUN npm i -g opencode-ai@1.17.18
+
+# ---------- Sleev (context compression gateway) ----------
+RUN npm i -g sleev && \
+    mv /usr/local/bin/sleev /usr/local/bin/sleev.real
+COPY scripts/sleev-wrapper.sh /usr/local/bin/sleev
+RUN chmod +x /usr/local/bin/sleev
+
+# ---------- unique-names-generator (background-agents plugin dependency) ----------
+RUN npm i -g unique-names-generator
+
+# ---------- AFT (code search and analysis) ----------
+RUN npm i -g @cortexkit/aft @cortexkit/aft-opencode
+# ONNX Runtime enables semantic code search (aft_search)
+RUN apt-get update && apt-get install -y --no-install-recommends libonnxruntime1.21 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
-USER opencode
-RUN curl -fsSL https://claude.ai/install.sh | bash
-USER root
 ENV PATH="/home/opencode/.local/bin:${PATH}"
 
 RUN npm i -g \
@@ -159,7 +170,8 @@ RUN npm i -g \
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY scripts/bootstrap.sh /usr/local/bin/bootstrap.sh
 COPY config/opencode.json /usr/local/share/holycode/opencode.json
-COPY config/skills /usr/local/share/holycode/skills
+COPY config/plugin /usr/local/share/holycode/plugin
+COPY config/commands /usr/local/share/holycode/commands
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/bootstrap.sh
 
 # ---------- s6-overlay service: opencode web ----------
@@ -173,6 +185,13 @@ COPY s6-overlay/s6-rc.d/xvfb/type /etc/s6-overlay/s6-rc.d/xvfb/type
 COPY s6-overlay/s6-rc.d/xvfb/run /etc/s6-overlay/s6-rc.d/xvfb/run
 RUN chmod +x /etc/s6-overlay/s6-rc.d/xvfb/run && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/xvfb
+
+# ---------- s6-overlay service: sleev (context compression gateway) ----------
+COPY s6-overlay/s6-rc.d/sleev/type /etc/s6-overlay/s6-rc.d/sleev/type
+COPY s6-overlay/s6-rc.d/sleev/run /etc/s6-overlay/s6-rc.d/sleev/run
+COPY s6-overlay/s6-rc.d/sleev/finish /etc/s6-overlay/s6-rc.d/sleev/finish
+RUN chmod +x /etc/s6-overlay/s6-rc.d/sleev/run /etc/s6-overlay/s6-rc.d/sleev/finish && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/sleev
 
 # ---------- Working directory ----------
 WORKDIR /workspace

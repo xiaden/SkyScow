@@ -1,5 +1,7 @@
 🌍 [English](../../README.md) | [Español](README.es.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Português](README.pt.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | **हिन्दी** | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
+> **📝 Note:** The [English README](../../README.md) is the canonical version. This translation may lag behind. Check the English version for the most current feature set and configuration options.
+
 <a name="top"></a>
 
 # <img src="../../assets/logo.png" alt="HolyCode" width="39" valign="bottom"> HolyCode
@@ -27,10 +29,6 @@
 ### एक कंटेनर। हर टूल। कोई भी प्रोवाइडर।
 
 OpenCode एक कंटेनर में चलता है जिसमें सब कुछ पहले से इंस्टॉल है। 50+ dev टूल, 10+ AI प्रोवाइडर, हेडलेस ब्राउज़र, परसिस्टेंट स्टेट। किसी भी मशीन पर डालें और ठीक वहीं से शुरू करें जहाँ छोड़ा था।
-
-**आपकी Claude सब्स्क्रिप्शन के साथ काम करता है।** Claude Auth प्लगइन इनेबल करें और अपना मौजूदा Claude Max/Pro प्लान उपयोग करें। अलग API key की जरूरत नहीं।
-
-**मल्टी-एजेंट ऑर्केस्ट्रेशन बिल्ट-इन।** oh-my-openagent इनेबल करें और OpenCode को पैरेलल एग्जीक्यूशन के साथ एक कोऑर्डिनेटेड एजेंट सिस्टम में बदलें।
 
 **आप अपना एनवायरनमेंट वापस पाने में एक घंटा लगाने वाले थे। या बस `docker compose up` चला सकते हैं।**
 > **सेल्फ-होस्ट नहीं करना चाहते?** [HolyCode Cloud](https://holycode.coderluii.dev/cloud) आ रहा है। वही टूल, ज़ीरो सेटअप। अर्ली एक्सेस फ्री है।
@@ -312,16 +310,7 @@ services:
       # - OPENCODE_SERVER_PASSWORD=your-password
       # - OPENCODE_SERVER_USERNAME=opencode
 
-      # --- Claude Auth (use Claude subscription instead of API key) ---
-      # Reads credentials from ./data/opencode/.claude/.credentials.json
-      # NOTE: May violate Anthropic TOS. Use at your own risk.
-      # Toggle on/off with docker compose down && up -d
-      # - ENABLE_CLAUDE_AUTH=true
 
-      # --- oh-my-openagent (multi-agent orchestration for OpenCode) ---
-      # Installs automatically on first boot when enabled
-      # Toggle on/off with docker compose down && up -d
-      # - ENABLE_OH_MY_OPENAGENT=true
 
 ```
 
@@ -359,26 +348,6 @@ services:
 | `OPENCODE_ENABLE_EXA` | (कोई नहीं) | Exa वेब सर्च इंटीग्रेशन इनेबल करें |
 | `OPENCODE_SERVER_PASSWORD` | (कोई नहीं) | वेब UI को बेसिक ऑथ से प्रोटेक्ट करें |
 | `OPENCODE_SERVER_USERNAME` | `opencode` | वेब UI बेसिक ऑथ के लिए यूज़रनेम |
-| `ENABLE_CLAUDE_AUTH` | (कोई नहीं) | API key की बजाय Claude सब्स्क्रिप्शन उपयोग करने के लिए `true` सेट करें |
-| `ENABLE_OH_MY_OPENAGENT` | (कोई नहीं) | मल्टी-एजेंट ऑर्केस्ट्रेशन प्लगइन इनेबल करने के लिए `true` सेट करें |
-| `ENABLE_PAPERCLIP` | (कोई नहीं) | Paperclip डैशबोर्ड और एजेंट बोर्ड शुरू करने के लिए `true` सेट करें |
-| `PAPERCLIP_PORT` | `3100` | Paperclip के लिए कंटेनर पोर्ट ओवरराइड करें |
-| `PAPERCLIP_INSTANCE_ID` | `default` | आइसोलेटेड स्टेट के लिए लोकल Paperclip इंस्टेंस नाम |
-| `ENABLE_HERMES` | (कोई नहीं) | Hermes को बंडल्ड मेटा-एजेंट API के रूप में शुरू करने के लिए `true` सेट करें |
-| `HERMES_PORT` | `8642` | Hermes के लिए कंटेनर पोर्ट ओवरराइड करें |
-| `HOLYCODE_PLUGIN_UPDATE` | `manual` | प्लगइन अपडेट मोड: `manual` (गायब होने पर इंस्टॉल करें) या `auto` (बूट पर इंस्टॉल और अपडेट करें) |
-
-> प्लगइन टॉगल (`ENABLE_CLAUDE_AUTH`, `ENABLE_OH_MY_OPENAGENT`) कंटेनर रीस्टार्ट पर प्रभावी होते हैं। env var सेट करें और `docker compose down && up -d` चलाएं।
-
-> `HOLYCODE_PLUGIN_UPDATE` प्लगइन पैकेज अपडेट को कंट्रोल करता है। `manual` (डिफ़ॉल्ट) इनेबल्ड प्लगइन केवल तभी इंस्टॉल करता है जब वे गायब हों। `auto` गायब प्लगइन इंस्टॉल करता है और हर बूट पर इनेबल्ड प्लगइन अपडेट करता है। यह `OPENCODE_DISABLE_AUTOUPDATE` से अलग है, जो केवल OpenCode को प्रभावित करता है।
-
-> `ENABLE_OH_MY_OPENAGENT=true` प्लगइन इनेबल करता है और बिल्ट-इन `/oh-my-openagent-setup` स्किल एक्सपोज़ करता है। स्किल केवल तभी दिखती है जब प्लगइन इनेबल हो। इसे `~/.config/opencode/oh-my-openagent.jsonc` पर प्लगइन-स्पेसिफिक कॉन्फ़िग फ़ाइल बनाने या अपडेट करने के लिए उपयोग करें।
-
-> HolyCode की डिफ़ॉल्ट पिकर पॉलिसी: दृश्यमान: `sisyphus`, `hephaestus`, `prometheus`, `atlas`; छुपे सबएजेंट: `oracle`, `librarian`, `explore`, `metis`, `momus`, `multimodal-looker`, `sisyphus-junior`। अगर आप नया प्रोवाइडर जोड़ते हैं और दृश्यमान डिफ़ॉल्ट मॉडल पुराना लगे, तो `/oh-my-openagent-setup` दोबारा चलाएं, फिर: `docker exec -it holycode bash -c "bunx oh-my-opencode doctor"` और `docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities"`।
-
-> `ENABLE_PAPERCLIP=true` कंटेनर के अंदर पोर्ट `3100` पर Paperclip शुरू करता है। डैशबोर्ड खोलें, एक कंपनी बनाएं, फिर वहाँ से OpenCode-बैक्ड एजेंट हायर करें। Paperclip ऑटोमेटिक `~/.paperclip` में परसिस्ट होता है।
-
-> `ENABLE_HERMES=true` कंटेनर के अंदर पोर्ट `8642` पर Hermes शुरू करता है। Hermes `~/.hermes` में परसिस्ट होता है, पहले से इंस्टॉल `opencode` बाइनरी उपयोग करता है, और OpenAI-कम्पेटिबल API एक्सपोज़ कर सकता है जबकि कोड काम HolyCode को वापस डेलीगेट करता है।
 
 > `GIT_USER_NAME` और `GIT_USER_EMAIL` केवल पहले बूट पर लागू होते हैं। दोबारा लागू करने के लिए, sentinel फ़ाइल हटाएं और रीस्टार्ट करें: `docker exec holycode rm /home/opencode/.config/opencode/.holycode-bootstrapped` फिर `docker compose restart`।
 
@@ -466,7 +435,6 @@ services:
 |---------|---------|
 | Hermes Agent | MCP, मैसेजिंग एडेप्टर और OpenCode डेलीगेशन के साथ सेल्फ-इम्प्रूविंग मेटा-एजेंट |
 | Paperclip | लोकल एजेंट बोर्ड जो OpenCode वर्कर हायर करता है और हार्टबीट पर जगाता है |
-| Claude Code CLI | `ENABLE_CLAUDE_AUTH` के ज़रिए Claude सब्स्क्रिप्शन ऑथ फ्लो के लिए इंस्टॉल्ड |
 
 </details>
 
@@ -481,44 +449,6 @@ services:
 s6-overlay OpenCode और Xvfb को सुपरवाइज़ करता है। अगर कोई प्रोसेस क्रैश होती है, यह ऑटोमेटिक रीस्टार्ट होती है। कंटेनर रीस्टार्ट पॉलिसी क्लीन रहती हैं क्योंकि सुपरवाइज़र इसे आंतरिक रूप से हैंडल करता है।
 
 </details>
-
-<p align="right">
-  <a href="#top">ऊपर जाएं</a>
-</p>
-
----
-
-## 🧩 बंडल्ड सर्विसेज़
-
-HolyCode अब OpenCode के ऊपर दो ऑप्शनल लेयर के साथ आता है। कंटेनर उपयोग करने के लिए आपको **इनकी जरूरत नहीं**। env var फ्लिप करें, कंटेनर रीस्टार्ट करें, और सर्विस नॉर्मल वेब UI के साथ शुरू हो जाती है।
-
-### Hermes Agent
-
-Hermes "स्मार्टर ब्रेन" ऑप्शन है। यह बंडल्ड मेटा-एजेंट के रूप में चलता है, पोर्ट `8642` पर OpenAI-कम्पेटिबल API एक्सपोज़ करता है, और HolyCode में पहले से शिप लोकल `opencode` बाइनरी को कॉल करके कोडिंग काम डेलीगेट करता है।
-
-इसे इनेबल करें:
-
-```yaml
-environment:
-  - ENABLE_HERMES=true
-  - HERMES_PORT=8642
-```
-
-Hermes स्टेट `/home/opencode/.hermes` में रहती है, HolyCode के बाकी हिस्से जैसी ही परसिस्टेंस स्टोरी के साथ।
-
-### Paperclip
-
-Paperclip "एजेंट बोर्ड" ऑप्शन है। यह पोर्ट `3100` पर एक लोकल डैशबोर्ड देता है जहाँ आप एक कंपनी बनाते हैं, एजेंट हायर करते हैं, और उन एजेंट को शेड्यूल पर जगने देते हैं। अंदर से यह `opencode run` प्रोसेस स्पॉन करता है, इसलिए वर्कर अभी भी HolyCode हैं।
-
-इसे इनेबल करें:
-
-```yaml
-environment:
-  - ENABLE_PAPERCLIP=true
-  - PAPERCLIP_PORT=3100
-```
-
-Paperclip स्टेट `/home/opencode/.paperclip` में रहती है। डैशबोर्ड खोलें, अपनी कंपनी सेटअप करें, और वहाँ से OpenCode-बैक्ड एम्प्लॉई हायर करें।
 
 <p align="right">
   <a href="#top">ऊपर जाएं</a>
@@ -596,21 +526,6 @@ docker exec -it holycode bash -c "opencode providers list"
 docker exec -it holycode bash -c "opencode providers login"
 ```
 
-### oh-my-openagent सेटअप और रीकॉन्फ़िगरेशन
-
-अगर आपने `ENABLE_OH_MY_OPENAGENT=true` इनेबल किया है, तो `/oh-my-openagent-setup` स्किल उपलब्ध हो जाती है। प्लगइन-स्पेसिफिक कॉन्फ़िग बनाने या रिफ्रेश करने के लिए इसका उपयोग करें:
-
-```text
-/oh-my-openagent-setup
-```
-
-अगर आप नया प्रोवाइडर जोड़ते हैं और दृश्यमान डिफ़ॉल्ट मॉडल पुराना लगे, तो `/oh-my-openagent-setup` दोबारा चलाएं, फिर:
-
-```bash
-docker exec -it holycode bash -c "bunx oh-my-opencode doctor"
-docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities"
-```
-
 ### उपयोगी कमांड
 
 | कमांड | क्या करती है |
@@ -622,8 +537,6 @@ docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities
 | `opencode serve` | हेडलेस API सर्वर |
 | `opencode providers list` | कॉन्फ़िगर्ड प्रोवाइडर दिखाएं |
 | `opencode providers login` | प्रोवाइडर जोड़ें या बदलें |
-| `bunx oh-my-opencode doctor` | oh-my-openagent कॉन्फ़िग और मॉडल रेज़ोल्यूशन डायग्नोज़ करें |
-| `bunx oh-my-opencode refresh-model-capabilities` | प्रोवाइडर/मॉडल कैपेबिलिटी कैश रिफ्रेश करें |
 | `opencode models` | उपलब्ध मॉडल लिस्ट करें |
 | `opencode models <provider>` | किसी प्रोवाइडर के लिए मॉडल लिस्ट करें |
 | `opencode stats` | टोकन उपयोग और लागत दिखाएं |
@@ -867,7 +780,6 @@ image: holycode:local
 4. पुश करें: `git push origin feature/your-feature`
 5. एक pull request खोलें
 
-पूर्ण गाइडलाइन के लिए [CONTRIBUTING.md](../../.github/CONTRIBUTING.md) देखें।
 
 <p align="right">
   <a href="#top">ऊपर जाएं</a>

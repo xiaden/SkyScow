@@ -2,7 +2,7 @@
 
 Podman can run the same HolyCode image as Docker. Use this guide when you prefer a daemonless or rootless container runtime, especially on Fedora, RHEL, CoreOS, Rocky, AlmaLinux, or similar Linux hosts.
 
-This guide mirrors the minimal HolyCode web UI setup. For the full Docker Compose profile and sidecar services, use the main README and `docker-compose.full.yaml`.
+This guide mirrors the minimal HolyCode web UI setup. For the full Docker Compose reference, use the main README and `docker-compose.full.yaml`.
 
 ## What this guide covers
 
@@ -11,7 +11,6 @@ This guide mirrors the minimal HolyCode web UI setup. For the full Docker Compos
 - Loading provider keys from `.env` with `--env-file .env`
 - SELinux labels for Fedora/RHEL/CoreOS hosts
 - Rootless Podman permission and user namespace notes
-- Optional service boundaries for Paperclip, Hermes, and CLIProxyAPI
 - Safe update and recreate behavior
 
 ## Prerequisites
@@ -101,33 +100,6 @@ Check these if files are unexpectedly owned or blocked:
 - SELinux hosts use `:Z` or `:z` labels as described above.
 
 Some rootless setups use custom user namespace modes such as `--userns=keep-id`. Do not add that flag by default for HolyCode; it changes how the container process user is mapped. Use it only after testing that it matches your host policy and does not interfere with HolyCode's `PUID`/`PGID` remapping.
-
-## Optional services
-
-The command above runs the minimal HolyCode web UI on port `4096`.
-
-Paperclip and Hermes can be enabled with the same environment variables used by the Docker Compose examples:
-
-```env
-ENABLE_PAPERCLIP=true
-PAPERCLIP_PORT=3100
-PAPERCLIP_DEPLOYMENT_MODE=authenticated
-PAPERCLIP_ALLOWED_HOSTNAMES=192.168.1.50,my-host.local
-ENABLE_HERMES=true
-HERMES_PORT=8642
-```
-
-If you enable them, publish the ports you need:
-
-```bash
--p 4096:4096 \
--p 3100:3100 \
--p 8642:8642
-```
-
-Paperclip listens on `3100` when enabled. Hermes exposes an API service on `8642`; a `404` at `/` is normal as long as the process stays healthy.
-
-CLIProxyAPI is different. In HolyCode it is documented as a full Compose sidecar profile, not as part of the one-container Podman command. Use `docker-compose.full.yaml` when you need the supported CLIProxyAPI sidecar workflow.
 
 ## Updating HolyCode
 

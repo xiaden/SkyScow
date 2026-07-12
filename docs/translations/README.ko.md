@@ -1,5 +1,7 @@
 🌍 [English](../../README.md) | [Español](README.es.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Português](README.pt.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [हिन्दी](README.hi.md) | [中文](README.zh.md) | [日本語](README.ja.md) | **한국어**
 
+> **📝 Note:** The [English README](../../README.md) is the canonical version. This translation may lag behind. Check the English version for the most current feature set and configuration options.
+
 <a name="top"></a>
 
 # <img src="../../assets/logo.png" alt="HolyCode" width="39" valign="bottom"> HolyCode
@@ -27,10 +29,6 @@
 ### 하나의 컨테이너. 모든 도구. 어떤 프로바이더든.
 
 OpenCode가 컨테이너 안에서 실행되며 모든 것이 이미 설치되어 있습니다. 50개 이상의 개발 도구, 10개 이상의 AI 프로바이더, 헤드리스 브라우저, 영속 상태. 어떤 머신에든 배포하고 정확히 멈춘 곳에서 다시 시작하세요.
-
-**Claude 구독으로 작동합니다.** Claude Auth 플러그인을 활성화하고 기존 Claude Max/Pro 플랜을 사용하세요. 별도의 API 키가 필요 없습니다.
-
-**멀티 에이전트 오케스트레이션 내장.** oh-my-openagent를 활성화하여 OpenCode를 병렬 실행이 가능한 조율된 에이전트 시스템으로 전환하세요.
 
 **환경을 복구하는 데 한 시간을 쓸 뻔했습니다. 아니면 그냥 `docker compose up`을 실행하세요.**
 > **셀프 호스팅을 원하지 않으시나요?** [HolyCode Cloud](https://holycode.coderluii.dev/cloud)가 출시됩니다. 동일한 도구, 제로 설정. 얼리 액세스는 무료입니다.
@@ -312,16 +310,7 @@ services:
       # - OPENCODE_SERVER_PASSWORD=your-password
       # - OPENCODE_SERVER_USERNAME=opencode
 
-      # --- Claude Auth (use Claude subscription instead of API key) ---
-      # Reads credentials from ./data/opencode/.claude/.credentials.json
-      # NOTE: May violate Anthropic TOS. Use at your own risk.
-      # Toggle on/off with docker compose down && up -d
-      # - ENABLE_CLAUDE_AUTH=true
 
-      # --- oh-my-openagent (multi-agent orchestration for OpenCode) ---
-      # Installs automatically on first boot when enabled
-      # Toggle on/off with docker compose down && up -d
-      # - ENABLE_OH_MY_OPENAGENT=true
 
 ```
 
@@ -359,26 +348,6 @@ services:
 | `OPENCODE_ENABLE_EXA` | (없음) | Exa 웹 검색 통합 활성화 |
 | `OPENCODE_SERVER_PASSWORD` | (없음) | 기본 인증으로 웹 UI 보호 |
 | `OPENCODE_SERVER_USERNAME` | `opencode` | 웹 UI 기본 인증 사용자 이름 |
-| `ENABLE_CLAUDE_AUTH` | (없음) | API 키 대신 Claude 구독을 사용하려면 `true`로 설정 |
-| `ENABLE_OH_MY_OPENAGENT` | (없음) | 멀티 에이전트 오케스트레이션 플러그인을 활성화하려면 `true`로 설정 |
-| `ENABLE_PAPERCLIP` | (없음) | Paperclip 대시보드와 에이전트 보드를 시작하려면 `true`로 설정 |
-| `PAPERCLIP_PORT` | `3100` | Paperclip이 사용하는 컨테이너 포트 재정의 |
-| `PAPERCLIP_INSTANCE_ID` | `default` | 격리된 상태를 위한 로컬 Paperclip 인스턴스 이름 |
-| `ENABLE_HERMES` | (없음) | Hermes를 번들 메타 에이전트 API로 시작하려면 `true`로 설정 |
-| `HERMES_PORT` | `8642` | Hermes가 사용하는 컨테이너 포트 재정의 |
-| `HOLYCODE_PLUGIN_UPDATE` | `manual` | 플러그인 업데이트 모드: `manual`(없을 때 설치) 또는 `auto`(부팅 시 설치 및 업데이트) |
-
-> 플러그인 토글(`ENABLE_CLAUDE_AUTH`, `ENABLE_OH_MY_OPENAGENT`)은 컨테이너 재시작 시 적용됩니다. env var를 설정하고 `docker compose down && up -d`를 실행하세요.
-
-> `HOLYCODE_PLUGIN_UPDATE`는 플러그인 패키지 업데이트를 제어합니다. `manual`(기본값)은 활성화된 플러그인이 없을 때만 설치합니다. `auto`는 없는 플러그인을 설치하고 매 부팅 시 활성화된 플러그인을 업데이트합니다. 이는 OpenCode 자체에만 영향을 미치는 `OPENCODE_DISABLE_AUTOUPDATE`와 별개입니다.
-
-> `ENABLE_OH_MY_OPENAGENT=true`는 플러그인을 활성화하고 내장 `/oh-my-openagent-setup` 스킬을 노출합니다. 스킬은 플러그인이 활성화된 경우에만 나타납니다. `~/.config/opencode/oh-my-openagent.jsonc`의 플러그인 전용 설정 파일을 만들거나 업데이트하는 데 사용하세요.
-
-> HolyCode의 기본 피커 정책: 표시: `sisyphus`, `hephaestus`, `prometheus`, `atlas`; 숨겨진 서브에이전트: `oracle`, `librarian`, `explore`, `metis`, `momus`, `multimodal-looker`, `sisyphus-junior`. 새 프로바이더를 추가하고 기본 표시 모델이 오래된 것처럼 보이면 `/oh-my-openagent-setup`을 다시 실행한 다음: `docker exec -it holycode bash -c "bunx oh-my-opencode doctor"` 및 `docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities"`를 실행하세요.
-
-> `ENABLE_PAPERCLIP=true`는 컨테이너 내 포트 `3100`에서 Paperclip을 시작합니다. 대시보드를 열고, 회사를 만들고, 거기서 OpenCode 기반 에이전트를 고용하세요. Paperclip은 자동으로 `~/.paperclip`에 영속화됩니다.
-
-> `ENABLE_HERMES=true`는 컨테이너 내 포트 `8642`에서 Hermes를 시작합니다. Hermes는 `~/.hermes`에 영속화되고, 이미 설치된 `opencode` 바이너리를 사용하며, 코드 작업을 HolyCode로 다시 위임하면서 OpenAI 호환 API를 노출할 수 있습니다.
 
 > `GIT_USER_NAME`과 `GIT_USER_EMAIL`은 첫 번째 부팅 시에만 적용됩니다. 재적용하려면 센티넬 파일을 삭제하고 재시작하세요: `docker exec holycode rm /home/opencode/.config/opencode/.holycode-bootstrapped` 그런 다음 `docker compose restart`.
 
@@ -466,7 +435,6 @@ services:
 |---------|---------|
 | Hermes Agent | MCP, 메시징 어댑터, OpenCode 위임을 갖춘 자기 개선형 메타 에이전트 |
 | Paperclip | OpenCode 워커를 고용하고 하트비트로 깨우는 로컬 에이전트 보드 |
-| Claude Code CLI | `ENABLE_CLAUDE_AUTH`를 통한 Claude 구독 인증 흐름을 위해 설치됨 |
 
 </details>
 
@@ -481,44 +449,6 @@ services:
 s6-overlay가 OpenCode와 Xvfb를 감독합니다. 프로세스가 크래시하면 자동으로 재시작됩니다. 슈퍼바이저가 내부적으로 처리하기 때문에 컨테이너 재시작 정책이 깔끔하게 유지됩니다.
 
 </details>
-
-<p align="right">
-  <a href="#top">맨 위로</a>
-</p>
-
----
-
-## 🧩 번들 서비스
-
-HolyCode는 이제 OpenCode 위에 두 가지 선택적 레이어를 함께 제공합니다. 컨테이너를 사용하는 데 **이것들이 필요하지 않습니다**. 환경 변수를 전환하고, 컨테이너를 재시작하면 일반 웹 UI와 함께 서비스가 시작됩니다.
-
-### Hermes Agent
-
-Hermes는 "더 스마트한 두뇌" 옵션입니다. 번들된 메타 에이전트로 실행되고, 포트 `8642`에서 OpenAI 호환 API를 노출하며, HolyCode가 이미 제공하는 로컬 `opencode` 바이너리를 호출하여 코딩 작업을 위임합니다.
-
-다음으로 활성화하세요:
-
-```yaml
-environment:
-  - ENABLE_HERMES=true
-  - HERMES_PORT=8642
-```
-
-Hermes 상태는 `/home/opencode/.hermes`에 저장되며, HolyCode의 나머지 부분과 동일한 영속성 방식을 따릅니다.
-
-### Paperclip
-
-Paperclip은 "에이전트 보드" 옵션입니다. 포트 `3100`의 로컬 대시보드에서 회사를 만들고, 에이전트를 고용하고, 해당 에이전트가 일정에 따라 깨어나도록 할 수 있습니다. 내부적으로 `opencode run` 프로세스를 생성하므로 워커는 여전히 HolyCode입니다.
-
-다음으로 활성화하세요:
-
-```yaml
-environment:
-  - ENABLE_PAPERCLIP=true
-  - PAPERCLIP_PORT=3100
-```
-
-Paperclip 상태는 `/home/opencode/.paperclip`에 저장됩니다. 대시보드를 열고, 회사를 설정하고, 거기서 OpenCode 기반 직원을 고용하세요.
 
 <p align="right">
   <a href="#top">맨 위로</a>
@@ -548,7 +478,7 @@ graph TD
     M --> P[opencode attach localhost:4096]
 ```
 
-엔트리포인트가 사용자 리매핑, 플러그인 토글, 선택적 번들 서비스 토글, 첫 번째 부팅 설정을 처리합니다. s6-overlay가 Xvfb, OpenCode 웹 서버, 그리고 활성화한 선택적 번들 서비스를 감독합니다. 감독되는 프로세스가 크래시하면 s6가 자동으로 재시작합니다. 포트 4096에서 웹 UI에 접근하거나 컨테이너로 exec하여 전체 CLI 경험을 얻으세요.
+엔트리포인트가 사용자 리매핑, 첫 번째 부팅 설정을 처리합니다. s6-overlay가 Xvfb, OpenCode 웹 서버, 그리고 활성화한 선택적 번들 서비스를 감독합니다. 감독되는 프로세스가 크래시하면 s6가 자동으로 재시작합니다. 포트 4096에서 웹 UI에 접근하거나 컨테이너로 exec하여 전체 CLI 경험을 얻으세요.
 
 <p align="right">
   <a href="#top">맨 위로</a>
@@ -596,21 +526,6 @@ docker exec -it holycode bash -c "opencode providers list"
 docker exec -it holycode bash -c "opencode providers login"
 ```
 
-### oh-my-openagent 설정 및 재구성
-
-`ENABLE_OH_MY_OPENAGENT=true`를 활성화하면 `/oh-my-openagent-setup` 스킬을 사용할 수 있습니다. 플러그인 전용 설정을 만들거나 새로 고치는 데 사용하세요:
-
-```text
-/oh-my-openagent-setup
-```
-
-새 프로바이더를 추가하고 기본 표시 모델이 오래된 것처럼 보이면 `/oh-my-openagent-setup`을 다시 실행한 다음:
-
-```bash
-docker exec -it holycode bash -c "bunx oh-my-opencode doctor"
-docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities"
-```
-
 ### 유용한 명령어
 
 | 명령어 | 기능 |
@@ -622,8 +537,6 @@ docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities
 | `opencode serve` | 헤드리스 API 서버 |
 | `opencode providers list` | 설정된 프로바이더 표시 |
 | `opencode providers login` | 프로바이더 추가 또는 전환 |
-| `bunx oh-my-opencode doctor` | oh-my-openagent 설정 및 모델 해석 진단 |
-| `bunx oh-my-opencode refresh-model-capabilities` | 프로바이더/모델 능력 캐시 새로 고침 |
 | `opencode models` | 사용 가능한 모델 나열 |
 | `opencode models <provider>` | 특정 프로바이더의 모델 나열 |
 | `opencode stats` | 토큰 사용량 및 비용 표시 |
@@ -866,7 +779,6 @@ image: holycode:local
 4. 푸시: `git push origin feature/your-feature`
 5. 풀 리퀘스트 열기
 
-전체 가이드라인은 [CONTRIBUTING.md](../../.github/CONTRIBUTING.md)를 참조하세요.
 
 <p align="right">
   <a href="#top">맨 위로</a>

@@ -1,0 +1,7 @@
+#!/command/with-contenv sh
+
+HOME=/home/opencode
+
+exec s6-setuidgid opencode \
+  /home/opencode/.local/share/sleev/gateway/current \
+  --config /home/opencode/.config/sleev/gateway.json

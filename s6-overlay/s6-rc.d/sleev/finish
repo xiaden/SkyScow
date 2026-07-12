@@ -1,0 +1,5 @@
+#!/command/with-contenv sh
+if [ ! -x "/home/opencode/.local/share/sleev/gateway/current" ]; then
+  exit 125
+fi
+exit "$1"

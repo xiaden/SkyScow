@@ -1,5 +1,7 @@
 🌍 [English](../../README.md) | [Español](README.es.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Português](README.pt.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [हिन्दी](README.hi.md) | **中文** | [日本語](README.ja.md) | [한국어](README.ko.md)
 
+> **📝 Note:** The [English README](../../README.md) is the canonical version. This translation may lag behind. Check the English version for the most current feature set and configuration options.
+
 <a name="top"></a>
 
 # <img src="../../assets/logo.png" alt="HolyCode" width="39" valign="bottom"> HolyCode
@@ -27,10 +29,6 @@
 ### 一个容器。所有工具。任意提供商。
 
 OpenCode 在容器中运行，一切都已预先安装。50+ 开发工具，10+ AI 提供商，无头浏览器，持久状态。部署到任何机器上，从上次离开的地方继续。
-
-**支持你的 Claude 订阅。** 启用 Claude Auth 插件，使用你现有的 Claude Max/Pro 计划。无需单独的 API 密钥。
-
-**内置多代理编排。** 启用 oh-my-openagent，将 OpenCode 变成具有并行执行能力的协调代理系统。
 
 **你本来要花一个小时恢复环境。或者直接运行 `docker compose up`。**
 > **不想自托管？** [HolyCode Cloud](https://holycode.coderluii.dev/cloud) 即将推出。相同的工具，零配置。抢先体验免费。
@@ -312,16 +310,7 @@ services:
       # - OPENCODE_SERVER_PASSWORD=your-password
       # - OPENCODE_SERVER_USERNAME=opencode
 
-      # --- Claude Auth (use Claude subscription instead of API key) ---
-      # Reads credentials from ./data/opencode/.claude/.credentials.json
-      # NOTE: May violate Anthropic TOS. Use at your own risk.
-      # Toggle on/off with docker compose down && up -d
-      # - ENABLE_CLAUDE_AUTH=true
 
-      # --- oh-my-openagent (multi-agent orchestration for OpenCode) ---
-      # Installs automatically on first boot when enabled
-      # Toggle on/off with docker compose down && up -d
-      # - ENABLE_OH_MY_OPENAGENT=true
 
 ```
 
@@ -359,26 +348,6 @@ services:
 | `OPENCODE_ENABLE_EXA` | （无） | 启用 Exa 网络搜索集成 |
 | `OPENCODE_SERVER_PASSWORD` | （无） | 使用基本认证保护 Web UI |
 | `OPENCODE_SERVER_USERNAME` | `opencode` | Web UI 基本认证用户名 |
-| `ENABLE_CLAUDE_AUTH` | （无） | 设置为 `true` 以使用 Claude 订阅而非 API 密钥 |
-| `ENABLE_OH_MY_OPENAGENT` | （无） | 设置为 `true` 以启用多代理编排插件 |
-| `ENABLE_PAPERCLIP` | （无） | 设置为 `true` 以启动 Paperclip 仪表板和代理看板 |
-| `PAPERCLIP_PORT` | `3100` | 覆盖 Paperclip 使用的容器端口 |
-| `PAPERCLIP_INSTANCE_ID` | `default` | 用于隔离状态的本地 Paperclip 实例名称 |
-| `ENABLE_HERMES` | （无） | 设置为 `true` 以将 Hermes 作为捆绑的元代理 API 启动 |
-| `HERMES_PORT` | `8642` | 覆盖 Hermes 使用的容器端口 |
-| `HOLYCODE_PLUGIN_UPDATE` | `manual` | 插件更新模式：`manual`（缺失时安装）或 `auto`（启动时安装并更新） |
-
-> 插件开关（`ENABLE_CLAUDE_AUTH`、`ENABLE_OH_MY_OPENAGENT`）在容器重启时生效。设置环境变量并运行 `docker compose down && up -d`。
-
-> `HOLYCODE_PLUGIN_UPDATE` 控制插件包更新。`manual`（默认）仅在插件缺失时安装已启用的插件。`auto` 安装缺失的插件并在每次启动时更新已启用的插件。这与 `OPENCODE_DISABLE_AUTOUPDATE` 不同，后者只影响 OpenCode 本身。
-
-> `ENABLE_OH_MY_OPENAGENT=true` 启用插件并公开内置的 `/oh-my-openagent-setup` 技能。该技能仅在插件启用时出现。使用它在 `~/.config/opencode/oh-my-openagent.jsonc` 创建或更新插件专用配置文件。
-
-> HolyCode 的默认选择器策略：可见：`sisyphus`、`hephaestus`、`prometheus`、`atlas`；隐藏子代理：`oracle`、`librarian`、`explore`、`metis`、`momus`、`multimodal-looker`、`sisyphus-junior`。如果你添加了新提供商且默认可见模型看起来过时，请重新运行 `/oh-my-openagent-setup`，然后：`docker exec -it holycode bash -c "bunx oh-my-opencode doctor"` 和 `docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities"`。
-
-> `ENABLE_PAPERCLIP=true` 在容器内的端口 `3100` 上启动 Paperclip。打开仪表板，创建公司，然后在那里雇用 OpenCode 支持的代理。Paperclip 自动持久化到 `~/.paperclip`。
-
-> `ENABLE_HERMES=true` 在容器内的端口 `8642` 上启动 Hermes。Hermes 持久化到 `~/.hermes`，使用已安装的 `opencode` 二进制文件，并可以公开 OpenAI 兼容的 API，同时将代码工作委托回 HolyCode。
 
 > `GIT_USER_NAME` 和 `GIT_USER_EMAIL` 仅在首次启动时应用。要重新应用，删除哨兵文件并重启：`docker exec holycode rm /home/opencode/.config/opencode/.holycode-bootstrapped` 然后 `docker compose restart`。
 
@@ -466,7 +435,6 @@ services:
 |---------|---------|
 | Hermes Agent | 具有 MCP、消息适配器和 OpenCode 委托的自我改进元代理 |
 | Paperclip | 本地代理看板，雇用 OpenCode 工作者并在心跳时唤醒它们 |
-| Claude Code CLI | 通过 `ENABLE_CLAUDE_AUTH` 为 Claude 订阅认证流程安装 |
 
 </details>
 
@@ -481,44 +449,6 @@ services:
 s6-overlay 监督 OpenCode 和 Xvfb。如果进程崩溃，它会自动重启。容器重启策略保持干净，因为监控器在内部处理它。
 
 </details>
-
-<p align="right">
-  <a href="#top">返回顶部</a>
-</p>
-
----
-
-## 🧩 捆绑服务
-
-HolyCode 现在在 OpenCode 之上附带两个可选层。使用容器**不需要**它们。切换环境变量，重启容器，服务就会在正常 Web UI 旁边启动。
-
-### Hermes Agent
-
-Hermes 是"更智能大脑"选项。它作为捆绑的元代理运行，在端口 `8642` 上公开 OpenAI 兼容的 API，并通过调用 HolyCode 已附带的本地 `opencode` 二进制文件来委托编码工作。
-
-使用以下方式启用：
-
-```yaml
-environment:
-  - ENABLE_HERMES=true
-  - HERMES_PORT=8642
-```
-
-Hermes 状态存储在 `/home/opencode/.hermes`，与 HolyCode 其余部分遵循相同的持久化方式。
-
-### Paperclip
-
-Paperclip 是"代理看板"选项。它在端口 `3100` 上提供本地仪表板，你可以在那里创建公司、雇用代理，并让这些代理按计划唤醒。在底层，它会生成 `opencode run` 进程，所以工作者仍然是 HolyCode。
-
-使用以下方式启用：
-
-```yaml
-environment:
-  - ENABLE_PAPERCLIP=true
-  - PAPERCLIP_PORT=3100
-```
-
-Paperclip 状态存储在 `/home/opencode/.paperclip`。打开仪表板，设置你的公司，然后从那里雇用 OpenCode 支持的员工。
 
 <p align="right">
   <a href="#top">返回顶部</a>
@@ -596,21 +526,6 @@ docker exec -it holycode bash -c "opencode providers list"
 docker exec -it holycode bash -c "opencode providers login"
 ```
 
-### oh-my-openagent 设置和重新配置
-
-如果你启用了 `ENABLE_OH_MY_OPENAGENT=true`，`/oh-my-openagent-setup` 技能就会可用。使用它来创建或刷新插件专用配置：
-
-```text
-/oh-my-openagent-setup
-```
-
-如果你添加了新提供商且默认可见模型看起来过时，请重新运行 `/oh-my-openagent-setup`，然后：
-
-```bash
-docker exec -it holycode bash -c "bunx oh-my-opencode doctor"
-docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities"
-```
-
 ### 常用命令
 
 | 命令 | 功能 |
@@ -622,8 +537,6 @@ docker exec -it holycode bash -c "bunx oh-my-opencode refresh-model-capabilities
 | `opencode serve` | 无头 API 服务器 |
 | `opencode providers list` | 显示已配置的提供商 |
 | `opencode providers login` | 添加或切换提供商 |
-| `bunx oh-my-opencode doctor` | 诊断 oh-my-openagent 配置和模型解析 |
-| `bunx oh-my-opencode refresh-model-capabilities` | 刷新提供商/模型能力缓存 |
 | `opencode models` | 列出可用模型 |
 | `opencode models <provider>` | 列出特定提供商的模型 |
 | `opencode stats` | 显示 token 用量和费用 |
@@ -864,7 +777,6 @@ image: holycode:local
 4. 推送：`git push origin feature/your-feature`
 5. 打开 pull request
 
-完整指南见 [CONTRIBUTING.md](../../.github/CONTRIBUTING.md)。
 
 <p align="right">
   <a href="#top">返回顶部</a>
