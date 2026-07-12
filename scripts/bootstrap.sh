@@ -24,13 +24,43 @@ else
 fi
 
 # ---------- Copy shipped plugins ----------
-SOURCE_PLUGIN_DIR="$SOURCE_DIR/plugin"
-TARGET_PLUGIN_DIR="$OC_HOME/.config/opencode/plugin"
+SOURCE_PLUGIN_DIR="$SOURCE_DIR/plugins"
+TARGET_PLUGIN_DIR="$OC_HOME/.config/opencode/plugins"
 if [ -d "$SOURCE_PLUGIN_DIR" ] && [ -z "$(ls -A "$TARGET_PLUGIN_DIR" 2>/dev/null)" ]; then
     mkdir -p "$TARGET_PLUGIN_DIR"
     cp -R "$SOURCE_PLUGIN_DIR/." "$TARGET_PLUGIN_DIR/"
     chown -R "$PUID:$PGID" "$TARGET_PLUGIN_DIR"
     echo "[bootstrap] Copied shipped plugins"
+fi
+
+# ---------- Copy shipped agents ----------
+SOURCE_AGENTS_DIR="$SOURCE_DIR/agents"
+TARGET_AGENTS_DIR="$OC_HOME/.config/opencode/agents"
+if [ -d "$SOURCE_AGENTS_DIR" ] && [ -z "$(ls -A "$TARGET_AGENTS_DIR" 2>/dev/null)" ]; then
+    mkdir -p "$TARGET_AGENTS_DIR"
+    cp -R "$SOURCE_AGENTS_DIR/." "$TARGET_AGENTS_DIR/"
+    chown -R "$PUID:$PGID" "$TARGET_AGENTS_DIR"
+    echo "[bootstrap] Copied shipped agents"
+fi
+
+# ---------- Copy shipped skills ----------
+SOURCE_SKILLS_DIR="$SOURCE_DIR/skills"
+TARGET_SKILLS_DIR="$OC_HOME/.config/opencode/skills"
+if [ -d "$SOURCE_SKILLS_DIR" ] && [ -z "$(ls -A "$TARGET_SKILLS_DIR" 2>/dev/null)" ]; then
+    mkdir -p "$TARGET_SKILLS_DIR"
+    cp -R "$SOURCE_SKILLS_DIR/." "$TARGET_SKILLS_DIR/"
+    chown -R "$PUID:$PGID" "$TARGET_SKILLS_DIR"
+    echo "[bootstrap] Copied shipped skills"
+fi
+
+# ---------- Copy shipped tools ----------
+SOURCE_TOOLS_DIR="$SOURCE_DIR/tools"
+TARGET_TOOLS_DIR="$OC_HOME/.config/opencode/tools"
+if [ -d "$SOURCE_TOOLS_DIR" ] && [ -z "$(ls -A "$TARGET_TOOLS_DIR" 2>/dev/null)" ]; then
+    mkdir -p "$TARGET_TOOLS_DIR"
+    cp -R "$SOURCE_TOOLS_DIR/." "$TARGET_TOOLS_DIR/"
+    chown -R "$PUID:$PGID" "$TARGET_TOOLS_DIR"
+    echo "[bootstrap] Copied shipped tools"
 fi
 
 # ---------- Copy shipped commands ----------

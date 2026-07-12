@@ -1,6 +1,6 @@
 # ==============================================================================
 # HolyCode - Pre-configured Docker Environment for OpenCode
-# https://github.com/coderluii/holycode
+# https://github.com/xiaden/HolyCode
 # ==============================================================================
 
 FROM node:trixie-slim
@@ -170,7 +170,10 @@ RUN npm i -g \
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY scripts/bootstrap.sh /usr/local/bin/bootstrap.sh
 COPY config/opencode.json /usr/local/share/holycode/opencode.json
-COPY config/plugin /usr/local/share/holycode/plugin
+COPY config/plugins /usr/local/share/holycode/plugins
+COPY config/agents /usr/local/share/holycode/agents
+COPY config/skills /usr/local/share/holycode/skills
+COPY config/tools /usr/local/share/holycode/tools
 COPY config/commands /usr/local/share/holycode/commands
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/bootstrap.sh
 

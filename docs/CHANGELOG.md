@@ -132,4 +132,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - CI/CD pipeline for Docker Hub + GHCR (amd64 + arm64)
 - Docker Compose quick-start and full reference configurations
 - Comprehensive README with quick start, troubleshooting, and architecture docs
-- Landing page at holycode.coderluii.dev
+- Landing page at github.com/xiaden/HolyCode

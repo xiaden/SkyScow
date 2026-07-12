@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions & Discussion
-    url: https://github.com/coderluii/holycode/discussions
+    url: https://github.com/xiaden/HolyCode/discussions
     about: Ask questions, share setups, or discuss ideas
   - name: Security Vulnerability
-    url: https://github.com/coderluii/holycode/security/advisories/new
+    url: https://github.com/xiaden/HolyCode/security/advisories/new
     about: Report security issues privately

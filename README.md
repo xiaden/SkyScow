@@ -1,4 +1,4 @@
-🌍 **English** | [Español](docs/translations/README.es.md) | [Français](docs/translations/README.fr.md) | [Italiano](docs/translations/README.it.md) | [Português](docs/translations/README.pt.md) | [Deutsch](docs/translations/README.de.md) | [Русский](docs/translations/README.ru.md) | [हिन्दी](docs/translations/README.hi.md) | [中文](docs/translations/README.zh.md) | [日本語](docs/translations/README.ja.md) | [한국어](docs/translations/README.ko.md)
+
 
 <a name="top"></a>
 
@@ -11,16 +11,9 @@
 <p align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Docker Pulls](https://badgen.net/docker/pulls/coderluii/holycode?icon=docker)](https://hub.docker.com/r/coderluii/holycode)
-[![Full Image](https://img.shields.io/docker/image-size/coderluii/holycode/latest?label=full&color=blue&logo=docker)](https://hub.docker.com/r/coderluii/holycode)
-[![GitHub Stars](https://img.shields.io/github/stars/coderluii/holycode?style=social)](https://github.com/coderluii/holycode)
-[![Twitter Follow](https://img.shields.io/twitter/follow/CoderLuii?style=social)](https://x.com/CoderLuii)
-[![PayPal](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?hosted_button_id=PM2UXGVSTHDNL)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/CoderLuii)
-[![Website](https://img.shields.io/badge/website-coderluii.dev-orange?logo=astro)](https://coderluii.dev)
-[![GitHub Release](https://img.shields.io/github/v/release/coderluii/holycode)](https://github.com/coderluii/holycode/releases)
-[![Issues](https://img.shields.io/github/issues/coderluii/holycode)](https://github.com/coderluii/holycode/issues)
-[![Contributors](https://img.shields.io/github/contributors/coderluii/holycode)](https://github.com/coderluii/holycode/graphs/contributors)
+[![GitHub Stars](https://img.shields.io/github/stars/xiaden/HolyCode?style=social)](https://github.com/xiaden/HolyCode)
+[![GitHub Release](https://img.shields.io/github/v/release/xiaden/HolyCode)](https://github.com/xiaden/HolyCode/releases)
+[![Issues](https://img.shields.io/github/issues/xiaden/HolyCode)](https://github.com/xiaden/HolyCode/issues)
 
 </p>
 
@@ -36,7 +29,7 @@ HolyCode is a pre-configured Docker environment for [OpenCode](https://opencode.
 
 Your settings, sessions, MCP configs, plugins, and tool history live in a bind mount outside the container. Rebuild, update, or move machines — your state persists.
 
-Based on the same approach as [HolyClaude](https://github.com/coderluii/holyclaude), but wrapping OpenCode instead of Claude Code. OpenCode is provider-agnostic: point it at Anthropic, OpenAI, Google Gemini, Groq, AWS Bedrock, Azure OpenAI, or any OpenAI-compatible endpoint.
+OpenCode is provider-agnostic: point it at Anthropic, OpenAI, Google Gemini, Groq, AWS Bedrock, Azure OpenAI, or any OpenAI-compatible endpoint.
 
 ---
 
@@ -71,7 +64,7 @@ Based on the same approach as [HolyClaude](https://github.com/coderluii/holyclau
 **Step 1.** Pull the image.
 
 ```bash
-docker pull coderluii/holycode:latest
+docker pull ghcr.io/xiaden/holycode:latest
 ```
 
 **Step 2.** Create a `docker-compose.yaml`.
@@ -79,7 +72,7 @@ docker pull coderluii/holycode:latest
 ```yaml
 services:
   holycode:
-    image: coderluii/holycode:latest
+    image: ghcr.io/xiaden/holycode:latest
     container_name: holycode
     restart: unless-stopped
     shm_size: 2g
@@ -176,7 +169,7 @@ The minimal setup. Copy, fill in your key, run.
 ```yaml
 services:
   holycode:
-    image: coderluii/holycode:latest
+    image: ghcr.io/xiaden/holycode:latest
     container_name: holycode
     restart: unless-stopped
     shm_size: 2g              # Required for Chromium stability
@@ -207,7 +200,7 @@ Every option documented. Copy to `docker-compose.yaml` and uncomment what you ne
 
 services:
   holycode:
-    image: coderluii/holycode:latest
+    image: ghcr.io/xiaden/holycode:latest
     container_name: holycode
     restart: unless-stopped
     shm_size: 2g
@@ -764,8 +757,8 @@ If you are using the default HolyCode Compose files, the cache mount is `./local
 Clone the repo, build the image, swap it into your compose file.
 
 ```bash
-git clone https://github.com/coderluii/holycode.git
-cd holycode
+git clone https://github.com/xiaden/HolyCode.git
+cd HolyCode
 docker build -t holycode:local .
 ```
 
@@ -797,9 +790,6 @@ If HolyCode saved you from another hour of environment setup, here's how to pay 
 
 - Star the repo on GitHub
 - Share it with someone who'd find it useful
-- [Buy Me A Coffee](https://buymeacoffee.com/CoderLuii)
-- [PayPal](https://www.paypal.com/donate/?hosted_button_id=PM2UXGVSTHDNL)
-- [GitHub Sponsors](https://github.com/sponsors/CoderLuii)
 
 
 
@@ -815,6 +805,6 @@ MIT License - see [LICENSE](LICENSE).
 
 <div align="center">
 
-Built by [CoderLuii](https://github.com/coderluii) · [coderluii.dev](https://coderluii.dev)
+Forked from [CoderLuii/HolyCode](https://github.com/CoderLuii/HolyCode) · MIT Licensed
 
 </div>

@@ -4,16 +4,15 @@
 
 OpenCode AI coding agent with built-in web UI, 50+ dev tools, headless browser, and process supervision. Provider-agnostic — bring any API key.
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/coderluii/holycode?style=flat-square&logo=docker)](https://hub.docker.com/r/coderluii/holycode)
-[![GitHub Stars](https://img.shields.io/github/stars/coderluii/holycode?style=flat-square&logo=github)](https://github.com/CoderLuii/HolyCode)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://github.com/CoderLuii/HolyCode/blob/main/LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/xiaden/HolyCode?style=flat-square&logo=github)](https://github.com/xiaden/HolyCode)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://github.com/xiaden/HolyCode/blob/main/LICENSE)
 
 ## Quick Start
 
 ```yaml
 services:
   holycode:
-    image: coderluii/holycode:latest
+    image: ghcr.io/xiaden/holycode:latest
     container_name: holycode
     restart: unless-stopped
     shm_size: 2g
@@ -64,7 +63,5 @@ docker compose up -d
 
 ## Links
 
-- [GitHub](https://github.com/coderluii/holycode)
-- [HolyCode Page](https://holycode.coderluii.dev)
-- [Full Documentation](https://github.com/coderluii/holycode#readme)
-- [Podman Guide](https://github.com/CoderLuii/HolyCode/blob/main/docs/podman.md)
+- [GitHub](https://github.com/xiaden/HolyCode)
+- [Podman Guide](https://github.com/xiaden/HolyCode/blob/main/docs/podman.md)

@@ -5,7 +5,7 @@
 If you discover a security vulnerability in HolyCode:
 
 1. **Do not** open a public GitHub issue
-2. Email **CoderLuii@outlook.com** with:
+2. Open a security advisory at https://github.com/xiaden/HolyCode/security/advisories/new with:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact

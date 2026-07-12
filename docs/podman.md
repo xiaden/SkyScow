@@ -49,7 +49,7 @@ podman run -d \
   --env-file .env \
   -e PUID=$(id -u) \
   -e PGID=$(id -g) \
-  docker.io/coderluii/holycode:latest
+  ghcr.io/xiaden/holycode:latest
 ```
 
 Open http://localhost:4096.
@@ -63,7 +63,7 @@ What the important options do:
 - `./workspace:/workspace` mounts your project files.
 - `--env-file .env` loads provider keys and optional HolyCode toggles without putting secrets in shell history.
 - `PUID` and `PGID` tell HolyCode which host UID/GID to use for file ownership inside mounted paths.
-- `docker.io/coderluii/holycode:latest` fully qualifies the Docker Hub image for Podman.
+- `ghcr.io/xiaden/holycode:latest` pulls from GitHub Container Registry.
 
 If you use a different host folder, keep the container paths unchanged. `/home/opencode`, `/home/opencode/.cache/opencode`, and `/workspace` are the paths HolyCode expects inside the container.
 
@@ -83,7 +83,7 @@ podman run -d \
   --env-file .env \
   -e PUID=$(id -u) \
   -e PGID=$(id -g) \
-  docker.io/coderluii/holycode:latest
+  ghcr.io/xiaden/holycode:latest
 ```
 
 Use `:z` only when the same host path must be shared by multiple containers. Do not casually relabel broad system paths or your entire home directory.
@@ -106,7 +106,7 @@ Some rootless setups use custom user namespace modes such as `--userns=keep-id`.
 Pull the latest image:
 
 ```bash
-podman pull docker.io/coderluii/holycode:latest
+podman pull ghcr.io/xiaden/holycode:latest
 ```
 
 Then recreate the container:
