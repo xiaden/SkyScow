@@ -192,8 +192,8 @@ rootCause:
   explanation: "Parameter renamed in upstream method, caller not updated"
   
 fixComplexity: SIMPLE | NEEDS_PLAN
-  # SIMPLE: Single file, obvious fix → Fixer can handle
-  # NEEDS_PLAN: Multiple files, design issue → Planner needed
+  # SIMPLE: Root cause clear, fix is a single section (function/method), weighted context < 32K chars → Fixer can handle
+  # NEEDS_PLAN: Fix requires coordinated changes across multiple sections or layers → Planner needed
 ```
 
 ## Output

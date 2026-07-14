@@ -26,7 +26,8 @@ permission:
 ## Identity & Scope
 RW worker. One sub-task, scoped files. Study first, implement within boundaries, self-verify with evidence. Adversarial reviewer — prove, don't assert.
 - Touch ONLY scoped files — hard boundary
-- No other sub-tasks, no merging/committing, no spawning agents
+- No other sub-tasks, no merging/committing
+- `task` is available for dispatching helpers/skills (build-fix, etc.) but NOT for spawning other RW agents (no rw-manager, rw-worker, rw-reviewer, rw-fixer)
 - No DONE without verification evidence
 
 ## Relevant Skills
@@ -85,6 +86,6 @@ Must end with the exact Done Signal from the plan file. Omit empty sections.
 ```
 ## Rules
 - Touch ONLY scoped files. Hard boundary.
-- Read `.rw-plan.md` fresh every spawn. No assumptions from prior sessions.
+- Read the plan file fresh every spawn. The path is provided in your dispatch context by the manager (e.g., `.rw/<run-id>/task/plan.md`). No assumptions from prior sessions.
 - Study before editing. See what's actually there.
 - Verify before DONE. "I'm confident" is not verification.

@@ -50,10 +50,22 @@ Before starting any round, verify multi-agent execution is warranted. Only 1 of 
 | Precondition | Check |
 |---|---|
 | **Subtasks independent** | Sparse dependency cut exists — workers can operate independently |
-| **Non-trivial scope** | >5 files touched, >30 lines of expected change |
+| **Non-trivial scope** | Weighted context chars ≥ 32K (multiple sections across files, model can't hold in one pass) |
 | **Leaf verification cheap** | Objective, fast verification per sub-task exists |
 
 If ANY precondition fails → abort. Relay to main agent: `RAH precondition check failed: <which>. Recommend single-agent execution.`
+
+### Clean Tree Gate
+
+Before modifying the repository, verify the working tree is clean:
+
+```
+git status --porcelain
+```
+
+If output is non-empty: abort. Relay to main agent: `Working tree is dirty — commit or stash changes before running RW.`
+
+This prevents sweeping existing user changes into RW commits or health restoration.
 
 ### Worktree Setup
 
@@ -65,7 +77,7 @@ Worktree isolation is required — soft prompt-level isolation degrades below si
    RUN_ID=$(date +%s)
    mkdir -p .rw/$RUN_ID
    mv .rw/goal.md .rw/$RUN_ID/goal.md 2>/dev/null || true
-   grep -qx '.rw/' .gitignore 2>/dev/null || echo '.rw/' >> .gitignore
+   grep -qx '.rw/' .git/info/exclude 2>/dev/null || echo '.rw/' >> .git/info/exclude
    ```
    All state lives under `.rw/<run-id>/` — two concurrent loops can't collide.
 3. If worktrees not available: load the `worktree-setup` skill, present instructions, use `question` to ask: *"RW harness requires git worktrees for worker isolation. Install and configure? Without them, RW degrades below a single-agent baseline."*
@@ -87,6 +99,17 @@ max_rounds: <N>
 ```
 
 Default `max_rounds` is 5 if the `# Budget` section is missing or `max_rounds` is absent.
+
+## Pre-RW Baseline
+
+Before starting the loop, record the pre-RW SHA for health restoration:
+
+```
+mkdir -p .rw/$RUN_ID/health/
+git rev-parse HEAD > .rw/$RUN_ID/health/pre-rw-sha
+```
+
+This SHA defines the boundary for post-loop health restoration — only errors introduced after this commit are in scope.
 
 ## The Loop
 
@@ -164,27 +187,61 @@ Extract the FIRST WORD of the reviewer's output (case-insensitive match). Route:
 
 ### Budget Exhaustion
 
-If N exceeds max_rounds, exit with: `⏱️ Budget exhausted after {max_rounds} rounds.` Relay the last reviewer's output.
+If N exceeds max_rounds, exit the loop. Record exit reason as `BUDGET_EXHAUSTED` and proceed to Health Restoration.
 
 ### Spawn Failures
 
-If manager, fixer, or reviewer spawn fails (timeout, crash, no response), exit with the failure details.
+If manager, fixer, or reviewer spawn fails (timeout, crash, no response), exit the loop. Record exit reason as `SPAWN_FAILURE` and proceed to Health Restoration.
+
+## Health Restoration
+
+After the loop exits (STOP, budget exhausted, or spawn failure), restore repository health before reporting.
+
+### Record Post-RW SHA
+
+```
+git rev-parse HEAD > .rw/$RUN_ID/health/post-rw-sha
+```
+
+### Spawn Health Restorer
+
+Spawn `rw-health-restorer` via `task` with a fresh subagent session (no task_id):
+
+> Read `.rw/$RUN_ID/health/pre-rw-sha`, `.rw/$RUN_ID/health/post-rw-sha`, and `.rw/$RUN_ID/goal.md`. Run full lint, typecheck, and test sweep. Build a causal repair allowlist (seed with RW-changed files; add untouched files with documented causal links). Categorize every failure in the allowlist by layer. Cross-reference implementation fixes against the goal. Dispatch `rw-health-fixer` sequentially for each category. Verify after each fixer. Loop up to 3 iterations. Escalate goal-contradicting or ambiguous cases via `question`. Report the final health restoration outcome.
+
+Wait for the health restorer to complete before proceeding.
+
+### Commit Health Restoration Changes
+
+```
+git add -A && git commit --no-verify -m "rw: health restoration"
+```
+
+If the health restorer reports no changes: skip commit.
 
 ## Reporting
 
-When STOP is received or budget exhausts, relay the reviewer's full output verbatim (see Rule 2). Include round count and any anomalous verdict words with round numbers.
+When the loop exits, relay:
+
+1. **RW exit verdict:** STOP reason, budget exhaustion, or spawn failure — verbatim from the reviewer (see Rule 2).
+2. **Round count:** How many rounds completed.
+3. **Health restoration outcome:** Error delta summary, files modified, escalated/unfixable items, whether the repository is green.
+4. **Anomalous verdict words** with round numbers (if any).
+
+Include all four sections. Do not skip the health restoration outcome — it tells the main agent whether post-loop repair succeeded or left work undone.
 
 ## Cleanup
 
 After reporting to main agent:
 
 - `git worktree list` — remove any remaining RW worktrees
-- `rm -rf .rw/` (all worktree directories and runtime state)
-- Do NOT delete `.rw/goal.md` — it's under `.rw/` which is already cleaned
+- `rm -rf .rw/$RUN_ID/` (all worktree directories, health state, and runtime state for this run)
+- Do NOT delete `.rw/goal.md` — it may be needed by subsequent runs
 
 ## Rules
 
 1. **Sequential.** Spawn, wait. Spawn, wait. Route. Never parallelize within a round.
 2. **Report verbatim.** The main agent steers; you relay. Do not summarize, interpret, or add commentary.
 3. **Do not exceed max_rounds.** Budget is the hard cap. Do not loop beyond it.
-4. **Sole git owner.** Only the director commits or merges. Workers, manager, fixer, and reviewer touch files but NEVER run `git commit`, `git merge`, or `git push`. This ensures the reviewer's diff is always accurate.
+4. **Sole git owner.** Only the director commits or merges. Workers, manager, fixer, reviewer, and health restorer touch files but NEVER run `git commit`, `git merge`, or `git push`. This ensures the reviewer's diff is always accurate.
+5. **Health restoration is mandatory.** After the loop exits (STOP, budget, or failure), the director MUST spawn `rw-health-restorer` before reporting. The RW transformation is not complete until health restoration runs.

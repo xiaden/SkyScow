@@ -51,4 +51,6 @@ Context files to read:
 - **Fresh context.** Each spawn starts fresh — no prior state. Include all needed context in the dispatch.
 - **No reviewer spawning.** RW-Reviewer is RW-Director's responsibility. RW-Manager decomposes and fans out only.
 - **Isolated sub-tasks.** Workers must not overlap in scope. Physical isolation (different files) or contractual isolation (different functions in same file) enforced.
+- **Detached worktrees.** Workers are isolated in detached worktrees (`git worktree add --detach`). Multiple linked worktrees cannot share a branch — detached avoids collisions.
+- **DAG propagation.** The director applies each layer's patches before creating the next layer's worktrees. The DAG controls both dispatch order AND repository state.
 - **One-shot.** RW-Manager plans once and fans out. It does not iterate — RW-Director handles the loop.

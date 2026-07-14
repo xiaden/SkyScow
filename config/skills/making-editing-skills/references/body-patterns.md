@@ -16,7 +16,7 @@ Patterns observed across the existing skill corpus. Choose based on what the ski
 | **Procedural workflow** | Multi-step processes with phase gates and entry/exit criteria | `feature-planning`, `doc-coauthoring` |
 | **Template + dispatch** | The skill is a fill-in-the-blank prompt for dispatching another agent | `dispatching-support-researcher` |
 | **Convention reference** | Encoding rules for a specific code area — what to do, what NOT to do | `code-migration`, `cliche-data-in-docs` |
-| **Meta-guide** | Teaching how to do something (the skill IS the exemplar) | `task-plans-guide`, `creating-auto-injected-instructions` |
+| **Meta-guide** | Teaching how to do something (the skill IS the exemplar) | `task-plans-guide`, `customize-opencode` |
 | **Decision tree** | Multiple products/tools/approaches for similar problems — branch on requirements, terminate at specific references | `cloudflare-skill` (60+ products, decision trees in SKILL.md → per-product references) |
 
 ### Decision Tree Pattern (Advanced)

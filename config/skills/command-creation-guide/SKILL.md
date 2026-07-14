@@ -14,7 +14,7 @@ Commands are reusable prompts that guide OpenCode to deliver consistent, high-qu
 **Do NOT use this skill when:**
 - Creating an agent definition (use `customize-opencode`)
 - Creating a skill (use `making-editing-skills`)
-- Creating auto-injected instruction files (use `creating-auto-injected-instructions`)
+
 
 ## What Are Commands?
 
@@ -189,4 +189,4 @@ Before committing a command:
   - [`references/patterns.md`](file:///home/opencode/.config/opencode/skills/command-creation-guide/references/patterns.md) — Full JSON examples for common patterns (basic, code generation, debugging, documentation, multi-step workflow, conditional logic)
   - [`references/troubleshooting.md`](file:///home/opencode/.config/opencode/skills/command-creation-guide/references/troubleshooting.md) — Command not appearing, command fails, command too slow
 - **Canonical source:** <https://opencode.ai/config.json> — JSON Schema for `commands` config
-- **Related skills:** `customize-opencode`, `making-editing-skills`, `creating-auto-injected-instructions`
+- **Related skills:** `customize-opencode`, `making-editing-skills`

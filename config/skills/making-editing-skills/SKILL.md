@@ -23,7 +23,6 @@ Skills are loaded on-demand via the native `skill` tool. The agent sees the skil
 
 **Do NOT use this skill when:**
 
-- Writing auto-injected instruction files (use `creating-auto-injected-instructions` instead)
 - Writing agent definitions (see `customize-opencode`)
 - Writing commands (see `command-creation-guide`)
 - Capturing codebase research (use `capture-subsystem` instead)
@@ -235,4 +234,4 @@ Q: Will an agent encounter this situation more than once?
   - [`references/body-patterns.md`](file:///home/opencode/.config/opencode/skills/making-editing-skills/references/body-patterns.md) — Full pattern catalog, formatting rules, directory templates
   - [`references/format-choice.md`](file:///home/opencode/.config/opencode/skills/making-editing-skills/references/format-choice.md) — Research-backed guidance on tables vs. lists vs. prose for skill content
   - [`references/frontmatter-rules.md`](file:///home/opencode/.config/opencode/skills/making-editing-skills/references/frontmatter-rules.md) — Complete frontmatter field documentation, naming constraints, description examples
-- **Related skills:** `customize-opencode` (config), `command-creation-guide` (commands), `creating-auto-injected-instructions` (instruction files), `capture-subsystem` (codebase research skills)
+- **Related skills:** `customize-opencode` (config), `command-creation-guide` (commands), `capture-subsystem` (codebase research skills)

@@ -136,11 +136,13 @@ Fixing a plan costs minutes; re-executing costs iterations.
 
 ### 2.1 Isolation
 
-Create worktrees under the task directory: `git worktree add .rw/<run-id>/task/S<N> main`. Workers see only their worktree. The director exports patches and applies them sequentially — do not run `git commit` or `git merge`.
+Create worktrees under the task directory: `git worktree add --detach .rw/<run-id>/task/S<N> HEAD`. Workers see only their worktree. Use detached worktrees — multiple linked worktrees cannot check out the same branch simultaneously.
 
 ### 2.2 Dispatch by Layer
 
 Process DAG layer by layer. Same-layer sub-tasks with disjoint scopes → concurrent. Any sub-task failure halts dependent layers — report failure and return.
+
+**DAG propagation:** The director applies each layer's patches to the main repository before the next layer's worktrees are created. Dependent workers are based on a snapshot that includes upstream changes — the DAG controls both dispatch order AND repository state. The manager defines the DAG; the director handles the mechanics of applying patches between layers.
 
 ### 2.3 Worker Format
 

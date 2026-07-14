@@ -57,13 +57,24 @@ Plans are parsed by planning tools. Invalid structure causes parse errors.
 
 ## Splitting Large Tasks
 
-Split a plan into sequential parts if ANY condition is true:
+Split a plan into sequential parts if the total validation scope exceeds the manager's context budget.
 
-- More than 4 phases
-- More than 16 steps total
-- Large tool result written to file
+### Plan Validation Weight
 
-**Resource link = absolute trigger.** If the plan output is too large, split immediately.
+Compute `plan_weighted_chars` using the estimator formula applied to validation artifacts:
+
+```
+plan_weighted_chars = plan_char_count × (1 + 0.03 × (validation_sections - 1) + 0.015 × max(plan_files - 1, 0))
+```
+
+Where:
+- **plan_char_count** = estimated chars of: plan text + contracts delta + expected worker output annotations + expected QA review report
+- **validation_sections** = distinct validation items: number of phases (each generates output to verify) + number of contracts entries (each must be checked) + expected QA checkpoints
+- **plan_files** = plan file + contracts file + QA context (typically 2-3 per plan)
+
+**If `plan_weighted_chars` exceeds ~30K, split the plan into letter-suffixed parts.** Each part is independently dispatched to the manager. This replaces the old phase-count and step-count rules — those were structural proxies. Weighted context is the measurement.
+
+**Resource link = absolute trigger.** If the plan output is too large, split immediately regardless of context weight.
 
 ### How to Split
 

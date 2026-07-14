@@ -41,17 +41,30 @@ Return effort estimate with file count breakdown. Read-only — estimation only.
 
 ## Expected Output
 
-| Tier | Description |
-|------|-------------|
-| `TRIVIAL` | < 3 files, < 50 lines changed |
-| `SMALL` | 3-5 files, < 200 lines changed |
-| `MEDIUM` | 5-15 files, < 1000 lines changed |
-| `LARGE` | 15-30 files, may span multiple layers |
-| `EPIC` | 30+ files, multiple layers, likely multi-plan |
+The Estimator sizes tasks by weighted context scope, not file count.
+
+**Cognitive weight formula:**
+```
+cognitive_weight = 1 + 0.03 × (sections - 1) + 0.015 × max(files - 1, 0)
+weighted_chars = char_count × cognitive_weight
+```
+
+Where **sections** = distinct edit locations (functions, methods, blocks) and **files** = files touched.
+
+| Size    | Weighted Chars | ~Tokens | Typical Scope                | Pipeline                         |
+|---------|---------------|---------|------------------------------|----------------------------------|
+| TRIVIAL | < 8K          | < 2K    | Single function, config      | Edit directly                    |
+| SMALL   | 8K-32K        | 2K-8K   | Few functions, 1-3 files     | Edit directly                    |
+| MEDIUM  | 32K-80K       | 8K-20K  | Multiple files, one layer    | Plan needed — can't hold in one pass |
+| LARGE   | 80K-320K      | 20K-80K | Cross-cutting, multi-layer   | DD + plan                        |
+| EPIC    | 320K+         | 80K+    | Multi-workflow, schema change| DD + decompose                   |
+
+**DD threshold:** LARGE or above, OR architecturally novel, OR incomplete/ambiguous requirements.
 
 Output includes:
 - Effort tier with rationale
-- Estimated file count and line changes
+- Estimated sections, files, char count, and weighted chars
+- Pipeline recommendation (plan_needed, dd_needed)
 - Key risk factors
 - Confidence level
 

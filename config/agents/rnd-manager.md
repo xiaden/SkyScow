@@ -243,8 +243,9 @@ Parse what's being asked. The shape determines the workflow:
 
 **Estimator gates the pipeline decision.** When you are uncertain whether a task requires the full pipeline, spawn Estimator *first*. Do not make the pipeline/no-pipeline decision based on prior belief. After Estimator returns:
 
-- **TRIVIAL** → proceed directly (existence checks only, no quality assessments)
-- **SMALL or above** → full pipeline runs, no exceptions
+- **TRIVIAL or SMALL** → proceed directly (existence checks only, no quality assessments). A plan at this scope adds more noise than signal.
+- **MEDIUM or above** → plan needed. MEDIUM means the model cannot comfortably hold all edit locations in one reasoning pass.
+- **LARGE or above, or architecturally novel, or incomplete requirements** → full pipeline with Design Document (DD). The DD records design intent and decomposition, not just scope.
 
 This replaces self-assessment. You do not estimate scope yourself — Estimator does.
 

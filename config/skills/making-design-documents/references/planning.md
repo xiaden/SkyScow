@@ -57,8 +57,12 @@ Each step must include:
 
 ## Phase Grouping
 
-Group steps into phases by dependency and cohesion:
+Group steps into phases by dependency and cohesion. Two budgets constrain this:
 
+- **Worker budget (~30K weighted edit scope):** Each phase is dispatched to one worker. The phase must fit in a single reasoning pass — keep phases under ~30K weighted chars of edit scope. If a conceptual unit is too large for one phase, split it into multiple phases grouped by domain sub-area.
+- **Manager budget (~30K validation scope):** The full plan is dispatched to one manager. The manager validates all phases, contracts, worker output, and QA reports within its context window. If the plan's total validation scope exceeds ~30K weighted chars, split into letter-suffixed plans (A, B, C...).
+
+Grouping guidelines:
 - Each phase should produce a **verifiable outcome** (compiling code, passing tests, deployable state)
 - Order phases by dependency chain — no phase should depend on a later phase
 - Minimize context switching within a phase
@@ -121,6 +125,7 @@ Group steps into phases by dependency and cohesion:
 5. **Enable testing** — structure changes to be easily testable
 6. **Think incrementally** — each step should be verifiable
 7. **Document decisions** — explain why, not just what
+8. **Budget by context, not counts** — Phase count and step count are proxies. Weighted context (chars × cognitive weight) is the measurement. One 300K phase fails where four 7K phases succeed. The ~30K threshold governs both per-phase (worker dispatch) and per-plan (manager validation) splitting decisions.
 
 ---
 

@@ -150,13 +150,26 @@ task:
 1. **Gather artifact context** — Spawn Support-Librarian with the feature scope. Incorporate constraints and warnings into the plan.
 2. **Research** — Use available code-reading tools (e.g., `Grep`, `Read`) to understand existing code
 3. **Identify scope** — What files will be created/modified
-4. **Define phases** — Group related work (persistence, workflows, etc.)
-5. **Define steps** — Actionable, verifiable steps within each phase
-6. **Document contracts** — Methods this plan creates, methods it calls
-7. **Write plan file** — Valid markdown per the `making-and-using-task-plans` skill
-8. **Update CONTRACTS.md** — Add new method signatures
-9. **Update README.md** — Add plan to dependency graph if needed
-10. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, spawn Support-PatternEnforcer to identify legacy sites. If high-confidence candidates are found, add a migration phase to the plan.
+4. **Define steps** — Actionable, verifiable steps (one semantic outcome per step)
+5. **Group into phases** — Group related steps by cohesion and dependency. Each phase must fit in one worker context.
+6. **Size phases (worker budget)** — Verify each phase ≤ ~30K weighted edit scope:
+   - Compute per-phase: `weighted_chars = char_count × (1 + 0.03 × (sections - 1) + 0.015 × max(files - 1, 0))`
+   - `char_count` = chars of code sections edited + adjacent context needed for understanding
+   - `sections` = distinct edit locations (functions, methods, blocks, types)
+   - `files` = files touched in the phase
+   - **If any phase > ~30K:** Split it into multiple phases — group steps by domain sub-area until each fits
+   - Self-estimate using research already done. Spawn Estimator subagent only for boundary cases with LOW confidence
+7. **Size plan (manager validation budget)** — Verify the full plan ≤ ~30K validation scope:
+   - Compute: `plan_weighted_chars = plan_char_count × (1 + 0.03 × (validation_sections - 1) + 0.015 × max(plan_files - 1, 0))`
+   - `plan_char_count` = estimated chars of plan text + contracts delta + expected worker output + expected QA report
+   - `validation_sections` = distinct validation items: phases + contracts entries + QA checkpoints
+   - `plan_files` = plan file + contracts file + QA context (typically 2-3 per plan)
+   - **If > ~30K:** Split into letter-suffixed plan files (A, B, C...) at a natural validation boundary
+8. **Document contracts** — Methods this plan creates, methods it calls
+9. **Write plan file** — Valid markdown per the `making-and-using-task-plans` skill
+10. **Update CONTRACTS.md** — Add new method signatures
+11. **Update README.md** — Add plan to dependency graph if needed
+12. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, spawn Support-PatternEnforcer to identify legacy sites. If high-confidence candidates are found, add a migration phase to the plan.
 
 ### For AMEND
 

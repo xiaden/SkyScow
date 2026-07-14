@@ -162,7 +162,9 @@ Return your review in this exact structure:
 
 **Classification guide:**
 - **NO_PLAN_NEEDED** — All issues are in already-identified files, no architectural decisions needed, a single subagent with file pointers can resolve them in one pass.
-- **PLAN_NEEDED** — Issues span multiple layers/files, require coordinated changes, involve architectural decisions (schema, contract drift, layer violations), or coverage is below threshold across multiple files.
+- **PLAN_NEEDED** — Issues span multiple sections/layers, require coordinated changes across
+  locations whose weighted context exceeds ~32K chars, involve architectural decisions
+  (schema, contract drift, layer violations), or coverage is below threshold across the scope.
 - **DISCUSS** — Fundamental problem: design is wrong, damage scope is unknown, requirements unclear, 3rd fix round, or security critical/high finding that requires user decision.
 
 ### Summary

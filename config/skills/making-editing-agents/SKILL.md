@@ -1,6 +1,6 @@
 ---
 name: making-editing-agents
-description: Design, write, and edit agent instruction files by applying research-backed principles for coding agents. Covers prompt composition architecture (conditional loading, priority ordering, component decomposition), delegation-as-first-class routing, responsibility framing, and context management. Use when creating a new agent, editing an existing agent instruction file, debugging agent misbehavior (wrong tool choices, failure to delegate, instruction fade-out, "me-first" execution bias), or evaluating whether an agent's instructions are architecturally sound. Do NOT use for writing skills (use making-editing-skills), commands (use command-creation-guide), or auto-injected layer instructions (use creating-auto-injected-instructions).
+description: Design, write, and edit agent instruction files by applying research-backed principles for coding agents. Covers prompt composition architecture (conditional loading, priority ordering, component decomposition), delegation-as-first-class routing, responsibility framing, and context management. Use when creating a new agent, editing an existing agent instruction file, debugging agent misbehavior (wrong tool choices, failure to delegate, instruction fade-out, "me-first" execution bias), or evaluating whether an agent's instructions are architecturally sound. Do NOT use for writing skills (use making-editing-skills) or commands (use command-creation-guide).
 ---
 
 # Making & Editing Agents
@@ -25,7 +25,6 @@ This skill distills findings from 20+ recent papers (plus production incident re
 
 - Writing skills (SKILL.md files) → use `making-editing-skills`
 - Writing commands (opencode.json entries) → use `command-creation-guide`
-- Auto-injected layer-specific instructions → use `creating-auto-injected-instructions`
 - Capturing codebase research → use `capture-subsystem`
 
 ---
@@ -265,6 +264,5 @@ Before declaring an agent file complete, verify every item:
 - **Related skills:**
   - `making-editing-skills` — for writing SKILL.md files (different format, different rules)
   - `customize-opencode` — for opencode.json agent registration and configuration
-  - `creating-auto-injected-instructions` — for layer-specific instruction files (auto-injected, not agent-level)
   - `dispatching-agents` — for the delegation dispatch templates that agents should use
   - `capture-subsystem` — for documenting codebase architecture (the "Knowledge" component of REprompt)

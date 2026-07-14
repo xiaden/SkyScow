@@ -152,9 +152,11 @@ All support agents are dispatched directly — they have no internal orchestrato
 | Decompose goal and fan-out to parallel workers | [`rw-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-manager.md) |
 | Isolated sub-task implementation | [`rw-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-worker.md) |
 | Validate diff for meaningful progress | [`rw-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-reviewer.md) |
-| Post-worker mechanical cleanup | [`rw-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-fixer.md) |
+| Post-worker mechanical cleanup (per-round) | [`rw-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-fixer.md) |
+| Post-loop health restoration (manager: build causal allowlist, dispatch goal-aware fixers, verify, loop) | [`rw-health-restorer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-health-restorer.md) |
+| Post-loop goal-aware cleanup (full RW scope, extends toward goal, escalates contradictions) | [`rw-health-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-health-fixer.md) |
 
-RW-Director is a dumb loop spawner — it delegates to RW-Manager (decomposition + fan-out) and RW-Reviewer (validation), routing on CONTINUE/STOP. Use for straightforward parallel work with no multi-phase dependencies.
+RW-Director is a dumb loop spawner — it delegates to RW-Manager (decomposition + fan-out), RW-Fixer (per-round cleanup), and RW-Reviewer (validation), routing on CONTINUE/STOP. After the loop exits, the director spawns RW-Health-Restorer for post-loop health restoration — the health restorer builds a causal repair allowlist, dispatches goal-aware RW-Health-Fixer agents sequentially per error category, verifies after each, and loops until clean. Use for straightforward parallel work with no multi-phase dependencies.
 
 ## Cross-Cutting Concerns
 
@@ -304,4 +306,4 @@ Research or investigation where output should persist across sessions?
   [`rw-reviewer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-reviewer.md) — Validate diff for meaningful progress.
   [`rw-fixer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-fixer.md) — Post-worker mechanical cleanup.
 
-- **Related skills:** `capture-subsystem` (codebase research skills), `creating-auto-injected-instructions` (instruction files for layer conventions)
+- **Related skills:** `capture-subsystem` (codebase research skills)

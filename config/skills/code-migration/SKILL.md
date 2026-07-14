@@ -181,4 +181,4 @@ When a migration breaks something — a test fails, a build errors, a file is ma
   - [`references/migration-workflow.md`](file:///home/opencode/.config/opencode/skills/code-migration/references/migration-workflow.md) — Step-by-step commands for each phase
   - [`references/enforcement-stack.md`](file:///home/opencode/.config/opencode/skills/code-migration/references/enforcement-stack.md) — Ruff, import-linter, skills, and tooling layers
   - [`references/anti-patterns.md`](file:///home/opencode/.config/opencode/skills/code-migration/references/anti-patterns.md) — Code examples of anti-patterns to avoid
-- **Related skills:** `creating-auto-injected-instructions` (layer conventions), `code-migration` enforces the "one canonical owner" rule that other skills document
+- **Related skills:** `code-migration` enforces the "one canonical owner" rule that other skills document

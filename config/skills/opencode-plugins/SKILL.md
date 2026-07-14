@@ -7,7 +7,7 @@ description: Use when creating or updating OpenCode plugin files in .opencode/pl
 
 Plugins extend OpenCode by hooking into events and customizing behavior. They provide deterministic automation: blocking dangerous operations, injecting context, adding custom tools, modifying LLM parameters, and logging.
 
-**Do NOT use this skill for:** configuring `opencode.json` or `opencode.jsonc` (use `customize-opencode`), writing commands (use `command-creation-guide`), creating auto-injected instructions (use `creating-auto-injected-instructions`), or creating standalone custom tools in `.opencode/tools/` (see [`references/standalone-tools.md`](file:///home/opencode/.config/opencode/skills/opencode-plugins/references/standalone-tools.md)).
+**Do NOT use this skill for:** configuring `opencode.json` or `opencode.jsonc` (use `customize-opencode`), writing commands (use `command-creation-guide`), or creating standalone custom tools in `.opencode/tools/` (see [`references/standalone-tools.md`](file:///home/opencode/.config/opencode/skills/opencode-plugins/references/standalone-tools.md)).
 
 ---
 
