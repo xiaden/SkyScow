@@ -19,7 +19,7 @@
 
 ### One container. Every tool. Any provider.
 
-OpenCode running in a container with 50+ dev tools, 10+ AI providers, headless browser, and persistent state pre-configured.
+OpenCode running in a container with 50+ dev tools, 10+ AI providers, headless browser, and persistent state pre-configured. Includes OmniRoute — a free AI gateway that gives you access to 290+ providers without any API keys.
 
 ---
 
@@ -29,7 +29,7 @@ HolyCode is a pre-configured Docker environment for [OpenCode](https://opencode.
 
 Your settings, sessions, MCP configs, plugins, and tool history live in a bind mount outside the container. Rebuild, update, or move machines — your state persists.
 
-OpenCode is provider-agnostic: point it at Anthropic, OpenAI, Google Gemini, Groq, AWS Bedrock, Azure OpenAI, or any OpenAI-compatible endpoint.
+OpenCode is provider-agnostic: point it at Anthropic, OpenAI, Google Gemini, Groq, AWS Bedrock, Azure OpenAI, or any OpenAI-compatible endpoint. OmniRoute provides free AI access via the `auto` model across 290+ providers — no API keys required.
 
 ---
 
@@ -153,10 +153,13 @@ OpenCode is provider-agnostic. Set whichever API key you use and you're done.
 | Vertex AI | (configured via OpenCode) | Google Vertex AI models |
 | GitHub Models | (configured via OpenCode) | GitHub-hosted models |
 | Ollama | (configured via OpenCode) | Local models via Ollama |
+| OmniRoute | (no key required) | Free AI gateway — 290+ providers via `auto` model on port 20128 |
 
 You only need to set keys for providers you actually use. Everything else is optional and ignored.
 
 Vertex AI, GitHub Models, and Ollama are configured through OpenCode's provider system. Run `opencode providers login` inside the container.
+
+**OmniRoute** runs as a built-in service on port 20128. It provides free AI access via the `auto` model, which automatically routes across 290+ providers (OpenRouter, Groq, Together, SambaNova, etc.) without requiring any API keys. Use it by selecting the `omniroute/auto` model in OpenCode.
 
 
 
@@ -207,6 +210,7 @@ services:
 
     ports:
       - "4096:4096"   # OpenCode web UI
+      - "20128:20128" # OmniRoute AI gateway (optional, for external access)
 
     volumes:
       # --- Main HolyCode data ---
@@ -429,6 +433,7 @@ Includes Liberation, DejaVu, Noto, and Noto Color Emoji fonts for correct page r
 | Tool | Purpose |
 |------|---------|
 | `opencode` | AI coding agent with web UI on port 4096 |
+| `omniroute` | Free AI gateway (290+ providers) on port 20128 |
 | `sleev` | Context compression gateway |
 | `aft` (`@cortexkit/aft`) | Code search and analysis |
 | `aft-opencode` (`@cortexkit/aft-opencode`) | AFT OpenCode plugin |
@@ -445,7 +450,7 @@ Includes Liberation, DejaVu, Noto, and Noto Color Emoji fonts for correct page r
 | s6-overlay v3 | Process supervisor and init system |
 | Custom entrypoint | UID/GID remapping, git setup, bootstrap |
 
-s6-overlay supervises OpenCode, Xvfb, and the Sleev gateway. If a process crashes, it restarts automatically. Container restart policies stay clean because the supervisor handles it internally.
+s6-overlay supervises OpenCode, Xvfb, the Sleev gateway, and OmniRoute. If a process crashes, it restarts automatically. Container restart policies stay clean because the supervisor handles it internally.
 
 </details>
 
@@ -467,16 +472,17 @@ graph TD
     G --> H[Xvfb :99]
     G --> I[opencode web :4096]
     G --> J[Sleev gateway]
-    I --> K[Web UI]
-    K --> L[Your Browser]
-    I --> M[CLI Access]
-    M --> N[docker exec -it holycode bash]
+    G --> K[OmniRoute :20128]
+    I --> L[Web UI]
+    L --> M[Your Browser]
+    I --> N[CLI Access]
     N --> O[opencode TUI]
     N --> P[opencode run 'message']
     N --> Q[opencode attach localhost:4096]
+    K --> R[Free AI via auto model]
 ```
 
-The entrypoint handles user remapping and first-boot setup. s6-overlay supervises Xvfb, the OpenCode web server, and the Sleev context compression gateway. Access the web UI at port 4096.
+The entrypoint handles user remapping and first-boot setup. s6-overlay supervises Xvfb, the OpenCode web server, the Sleev context compression gateway, and OmniRoute (free AI gateway). Access the web UI at port 4096.
 
 
 
@@ -544,6 +550,7 @@ docker exec -it holycode bash -c "opencode providers login"
 | `aft_inspect` | Codebase health diagnostics |
 | `aft_outline` | Structural code outline |
 | `sleev status` | Sleev gateway status |
+| `omniroute status` | OmniRoute gateway status and available providers |
 | `opencode-ralph-rlm setup` | Set up Ralph-RLM coding loop in current project |
 
 
@@ -745,6 +752,25 @@ sudo mount /mnt/share
 Restart HolyCode: `docker compose up -d --force-recreate`
 
 If you are using the default HolyCode Compose files, the cache mount is `./local-cache/opencode:/home/opencode/.cache/opencode`. Keep that path on local disk. If your entire HolyCode folder lives on network storage, replace it with an absolute local host path.
+
+</details>
+
+<details>
+<summary><strong>OmniRoute not responding or models unavailable</strong></summary>
+
+OmniRoute runs on port 20128 inside the container. Check its status:
+
+```bash
+docker exec holycode omniroute status
+```
+
+If OmniRoute is down, s6 will automatically restart it. Check the logs:
+
+```bash
+docker compose logs holycode | grep omniroute
+```
+
+The `auto` model routes across 290+ providers. If a specific provider is down, OmniRoute automatically falls back to the next available one. No action needed on your end.
 
 </details>
 

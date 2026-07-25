@@ -1,0 +1,6 @@
+#!/command/with-contenv sh
+
+HOME=/home/opencode
+
+exec s6-setuidgid opencode \
+  omniroute server --port 20128 --host 0.0.0.0

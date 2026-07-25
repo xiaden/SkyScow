@@ -4,5 +4,19 @@
     "@gotgenes/opencode-agent-identity",
     "@cortexkit/aft-opencode@latest",
     "opencode-research-papers"
-  ]
+  ],
+  "provider": {
+    "omniroute": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "OmniRoute (Free AI Gateway)",
+      "options": {
+        "baseURL": "http://localhost:20128/v1"
+      },
+      "models": {
+        "auto": {
+          "name": "Auto (Free, 290+ providers)"
+        }
+      }
+    }
+  }
 }
