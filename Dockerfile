@@ -149,8 +149,7 @@ RUN npm i -g unique-names-generator
 RUN npm i -g omniroute
 
 # ---------- AFT (code search and analysis) ----------
-RUN npm i -g @opentui/core@latest
-RUN npm i -g @cortexkit/aft @cortexkit/aft-opencode
+RUN npm i -g --legacy-peer-deps @cortexkit/aft @cortexkit/aft-opencode
 # ONNX Runtime enables semantic code search (aft_search)
 RUN apt-get update && apt-get install -y --no-install-recommends libonnxruntime1.21 && rm -rf /var/lib/apt/lists/*
 
