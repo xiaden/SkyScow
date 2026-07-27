@@ -3,4 +3,4 @@
 HOME=/home/opencode
 
 exec s6-setuidgid opencode \
-  omniroute server --port 20128 --host 0.0.0.0
+  omniroute server --port 20128 --no-open --daemon
