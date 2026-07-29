@@ -178,6 +178,7 @@ services:
     shm_size: 2g              # Required for Chromium stability
     ports:
       - "4096:4096"           # OpenCode web UI
+      - "20128:20128" # OmniRoute AI gateway (optional, for external access)
     volumes:
       - ./data/opencode:/home/opencode
       - ./local-cache/opencode:/home/opencode/.cache/opencode
