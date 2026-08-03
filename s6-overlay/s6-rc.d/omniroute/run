@@ -1,6 +1,0 @@
-#!/command/with-contenv sh
-
-HOME=/home/opencode
-
-exec s6-setuidgid opencode \
-  omniroute serve --port 20128 --no-open

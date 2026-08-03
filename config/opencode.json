@@ -7,23 +7,5 @@
   ],
   "compaction": {
     "prune": false
-  },
-  "provider": {
-    "omniroute": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "OmniRoute via Sleev",
-      "options": {
-        "baseURL": "http://127.0.0.1:17321",
-        "headers": {
-          "sleeve-harness": "opencode",
-          "sleeve-base-url": "http://localhost:20128/v1"
-        }
-      },
-      "models": {
-        "auto": {
-          "name": "Auto (Free, 290+ providers)"
-        }
-      }
-    }
   }
 }

@@ -145,9 +145,6 @@ RUN chmod +x /usr/local/bin/sleev
 # ---------- unique-names-generator (background-agents plugin dependency) ----------
 RUN npm i -g unique-names-generator
 
-# ---------- OmniRoute (free AI gateway, 290+ providers) ----------
-RUN npm i -g omniroute
-
 # ---------- AFT (code search and analysis) ----------
 RUN npm i -g --legacy-peer-deps @cortexkit/aft @cortexkit/aft-opencode
 # ONNX Runtime enables semantic code search (aft_search)
@@ -198,12 +195,6 @@ COPY s6-overlay/s6-rc.d/sleev/run /etc/s6-overlay/s6-rc.d/sleev/run
 COPY s6-overlay/s6-rc.d/sleev/finish /etc/s6-overlay/s6-rc.d/sleev/finish
 RUN chmod +x /etc/s6-overlay/s6-rc.d/sleev/run /etc/s6-overlay/s6-rc.d/sleev/finish && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/sleev
-
-# ---------- s6-overlay service: omniroute (free AI gateway) ----------
-COPY s6-overlay/s6-rc.d/omniroute/type /etc/s6-overlay/s6-rc.d/omniroute/type
-COPY s6-overlay/s6-rc.d/omniroute/run /etc/s6-overlay/s6-rc.d/omniroute/run
-RUN chmod +x /etc/s6-overlay/s6-rc.d/omniroute/run && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/omniroute
 
 # ---------- Working directory ----------
 WORKDIR /workspace
