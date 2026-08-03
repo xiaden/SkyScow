@@ -70,6 +70,10 @@ automation via Playwright and Puppeteer.
 Installed via pip. Uses the system Chromium binary, not Playwright's
 bundled browsers.
 
+HolyCode also vendors Playwright's Docker seccomp profile at
+`config/chromium-seccomp.json` under the same Apache-2.0 license. The profile
+permits the namespace syscalls required by Chromium's setuid sandbox.
+
 ## GitHub CLI (gh)
 
 - License: MIT

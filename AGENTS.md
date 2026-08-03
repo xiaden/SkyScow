@@ -72,6 +72,7 @@ Shipped config lives at `/usr/local/share/holycode/` inside the image. On first 
 - **No CI/CD in repo**: No `.github/workflows/` exists currently. The only automation is Renovate for dependency bumps.
 - **Multi-arch**: The Dockerfile supports `amd64` and `arm64` via `$TARGETARCH`. Binary downloads (s6, lazygit, delta, eza) branch on architecture.
 - **Container user**: The `node` user from the base image is renamed to `opencode` (UID 1000). `PUID`/`PGID` remap it at runtime.
+- **Chromium sandbox + seccomp**: Chromium runs sandboxed (setuid `chrome-sandbox`) and **requires** the `config/chromium-seccomp.json` profile attached via Compose `security_opt: - seccomp=...`. If Chromium won't start, check the profile is attached. Do NOT work around it with `--no-sandbox` or `seccomp=unconfined`. Validate the profile with `python3 scripts/validate_chromium_seccomp.py` (pinned SHA). The Dockerfile enforces a Chromium ≥151 version floor (a build-time security gate for CVE-2026-16804/805/806/807, which Debian Trixie only patches in 151+).
 
 ## When editing this repo
 

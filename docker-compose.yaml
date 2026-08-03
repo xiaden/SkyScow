@@ -8,6 +8,8 @@ services:
     container_name: holycode
     restart: unless-stopped
     shm_size: 2g
+    security_opt:
+      - seccomp=./config/chromium-seccomp.json
     ports:
       - "4096:4096"
     volumes:

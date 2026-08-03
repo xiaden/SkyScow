@@ -165,6 +165,16 @@ Vertex AI, GitHub Models, and Ollama are configured through OpenCode's provider 
 
 The minimal setup. Copy, fill in your key, run.
 
+HolyCode runs Chromium with its setuid sandbox enabled, which needs a
+constrained seccomp profile at runtime. If you are not running from a clone
+of this repository, download the profile first:
+
+```bash
+mkdir -p config
+curl -fsSLo config/chromium-seccomp.json \
+  https://raw.githubusercontent.com/xiaden/HolyCode/main/config/chromium-seccomp.json
+```
+
 ```yaml
 services:
   holycode:
@@ -172,6 +182,8 @@ services:
     container_name: holycode
     restart: unless-stopped
     shm_size: 2g              # Required for Chromium stability
+    security_opt:
+      - seccomp=./config/chromium-seccomp.json   # Chromium sandbox (required)
     ports:
       - "4096:4096"           # OpenCode web UI
     volumes:

@@ -22,7 +22,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     DBUS_SESSION_BUS_ADDRESS=disabled: \
     CHROME_PATH=/usr/bin/chromium \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-dev-shm-usage" \
+    CHROMIUM_FLAGS="--disable-gpu --disable-dev-shm-usage" \
     OPENCODE_DISABLE_AUTOUPDATE=true \
     OPENCODE_DISABLE_TERMINAL_TITLE=true
 
@@ -113,10 +113,21 @@ RUN EZA_ARCH=$(case "$TARGETARCH" in arm64) echo "aarch64";; *) echo "x86_64";; 
     rm /tmp/eza.tar.gz
 
 # ---------- Headless browser (Chromium + Xvfb + fonts) ----------
+# Chromium runs sandboxed as the opencode user. chromium-sandbox provides the
+# setuid chrome-sandbox; the constrained seccomp profile is applied at runtime
+# via Compose `security_opt` (see docker-compose*.yaml).
+# The >=151 floor is a security gate: it guarantees the four high-severity
+# CVEs from the 2026-07-23 emergency Chrome update (CVE-2026-16804/805/806/807,
+# fixed upstream in 150.0.7871.186) are present, since Debian Trixie only ships
+# those fixes in Chromium 151+ (151.0.7922.71).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium \
+    chromium chromium-sandbox \
     xvfb \
     fonts-liberation2 fonts-dejavu-core fonts-noto-core fonts-noto-color-emoji \
+    && chmod u+s /usr/lib/chromium/chrome-sandbox \
+    && test -u /usr/lib/chromium/chrome-sandbox \
+    && dpkg-query -W -f='${Version}\n' chromium | grep -E '^(15[1-9]|1[6-9][0-9]|[2-9][0-9]{2})\.' \
+    && test "$(dpkg-query -W -f='${Version}' chromium)" = "$(dpkg-query -W -f='${Version}' chromium-sandbox)" \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------- Playwright (Python, uses system Chromium via env vars) ----------

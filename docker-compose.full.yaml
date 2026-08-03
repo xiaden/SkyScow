@@ -9,6 +9,10 @@ services:
     restart: unless-stopped
     shm_size: 2g
 
+    # --- Chromium sandbox seccomp profile (required for sandboxed Chromium) ---
+    security_opt:
+      - seccomp=./config/chromium-seccomp.json
+
     ports:
       - "4096:4096" # OpenCode web UI
 
