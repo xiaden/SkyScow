@@ -2,7 +2,8 @@
 description: Artifact corpus navigator. Searches logs, ADRs, ASRs, and design docs to return curated, contextual summaries of what's relevant to the caller's current task. Saves callers from guessing search terms or interpreting raw artifact dumps. Can archive obsolete log entries with log_archive.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: low
 permission:
   read: allow
   glob: allow
@@ -65,7 +66,7 @@ You are the artifact corpus expert. Your callers need to understand what the pro
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 
@@ -122,7 +123,7 @@ The briefing may be informal prose instead of YAML. Adapt.
 
 ## Architecture Decision Records (ADR) & ASRs
 
-> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/nyx.md.
 
 **Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
 ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.

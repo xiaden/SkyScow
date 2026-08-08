@@ -2,7 +2,8 @@
 description: Design lead for R&D. Creates or refines design documents from requirements, user context, and codebase research. Spawns RnD-Ideator (creative options), RnD-Architect (implementation analysis), RnD-Estimator (sizing), and Support-Researcher (deep investigation). Invokable directly or via RnD-Manager.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/qwen3.7-plus
+model: omniroute/opencode-go/gpt-5.6-luna
+variant: high
 permission:
   read: allow
   glob: allow
@@ -77,7 +78,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 
@@ -129,6 +130,12 @@ The reason for defining phases is to organize the design so that the code moves 
 
 Tests are written against the specification in the DD and any plans/contracts derived from it. The intent is that tests pass once the DD is fully complete — not before. Tests may be written before or after implementation, at the executor's discretion. The DD should describe the behavior and contracts clearly enough that a test can be written against it without seeing the code.
 
+## Design Document Scope
+
+A DD contains **WHAT and WHY**. Implementation specs (file mappings, detailed specifications, adaptation details, dependency graphs, contracts, debate transcripts) belong in `artifacts/designs/parts/{feature}/` or `artifacts/designs/process/`.
+
+**Size constraint:** 200 lines max. If your DD exceeds this, extract implementation details.
+
 ## Input
 
 ```yaml
@@ -153,7 +160,7 @@ task:
 
 ## Architecture Decision Records (ADR) & ASRs
 
-> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/nyx.md.
 
 **Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
 ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.
@@ -182,23 +189,24 @@ List ambiguities explicitly. If critical decisions are missing, return `status: 
 
 ### 3. Absorb Adversarial Design History (if Refiner was run)
 
-If `refinerOutput` is provided, read the Refiner-produced DD file in full. This file contains the complete adversarial design history:
+If `refinerOutput` is provided, read TWO files:
 
-- **Proposed Approaches** — what the Ideator initially proposed with real-world citations
-- **Critique** — what the Counter-Ideator found (documented failures, postmortems, relevance-filtered)
-- **Refined Approaches** — how the Ideator adapted to survive the critique
-- **Surviving Concerns** — what risks persist after refinement
-- **Implementation Patterns** — concrete patterns proposed by the Improver
-- **Pattern Risks** — edge cases, library gotchas, integration risks from Counter-Improver
-- **Final Patterns** — refined patterns addressing risks
-- **Open Risks & Human Questions** — what evidence cannot resolve
+- The design document skeleton at `artifacts/designs/pending/DD-{slug}.md` (Manager's input)
+- The adversarial log at `artifacts/designs/process/ADVERSARIAL-{slug}.md` (the full debate)
 
-Fold this history into your design document:
+**When writing the DD:** The adversarial log is context for distillation, not content to copy. Extract:
 
-- **Architecture section:** The surviving approach is your starting point. Cite the evidence trail — "Approach A survived adversarial scrutiny: initially proposed with Stripe's pattern (Tier 1), critiqued for X (Netflix postmortem, Tier 1), refined to address X by using Y (GitHub's pattern, Tier 1)."
-- **Constraints section:** Include surviving concerns and pattern risks as known constraints.
-- **Open Questions section:** Carry forward the human-judgment questions from the Refiner output. These have already been filtered for substance.
-- **Appendix:** Optionally include a condensed adversarial history for readers who want the full evidence trail.
+- **Architecture:** Surviving approach with 1-2 sentence rationale and evidence trail
+- **Constraints:** Surviving concerns stated as constraints (not debate transcript)
+- **Open Questions:** Decisions deferred, with rationale
+- **Alternatives Considered:** 1-2 sentences per rejected approach with failure mode
+
+**When linking to evidence:** Include a link to the full adversarial log:
+
+```markdown
+## Evidence Trail
+Full adversarial refinement log: [ADVERSARIAL-{slug}.md](../process/ADVERSARIAL-{slug}.md)
+```
 
 The Refiner output is raw adversarial artifacts. Your job is to formalize them — same way you formalize requirements into architecture. Don't re-litigate the adversarial decisions. The fight happened. You're documenting what survived.
 
@@ -260,8 +268,14 @@ Structure the design document:
 ## Constraints
 {Non-functional requirements: performance, compatibility, migration}
 
+## Alternatives Considered
+{1-2 sentences per rejected approach with the specific failure mode}
+
 ## Open Questions
 {Decisions deferred to implementation}
+
+## Evidence Trail
+{Link to adversarial log if Refiner was run}
 
 ## Appendix: Research Findings
 {Key patterns discovered, reusable components identified}
@@ -276,6 +290,8 @@ Before finalizing, verify against the codebase:
 - [ ] New APIs follow existing naming conventions
 - [ ] Data model extends existing collections correctly (or justifies new ones)
 - [ ] Dependencies on existing code reference real methods (not guesses)
+- [ ] DD is under 200 lines — if not, extract implementation specs to parts/
+- [ ] No file mapping tables, dependency graphs, or debate transcripts in the DD
 
 If validation fails, revise. A design that can't pass its own checklist isn't ready to hand off.
 
@@ -316,7 +332,7 @@ These aren't abstract warnings — they're the actual failure modes of design do
 1. **Guessing APIs.** If you don't know whether a method exists, use available code-reading tools (e.g., `Grep`, `Read`) to verify. An implementation plan built on a nonexistent method wastes an entire executor cycle.
 2. **Layer violations.** The project's architecture rules define dependency direction — check them before designing cross-layer interactions.
 3. **Scope creep.** Design what was asked for. Note future possibilities in Open Questions. Building them into the architecture creates code that serves no current user.
-4. **Implementation details.** The design doc describes WHAT and WHY. HOW belongs in the plans. If you're writing pseudocode, you've gone too deep.
+4. **Implementation details and specification content.** The design doc describes WHAT and WHY. HOW belongs in plans and decomposition specs. Specific violations: file mapping tables, detailed skill/command/plugin specifications, plugin adaptation details (import paths, line numbers), dependency graphs, integration contracts, and adversarial debate transcripts. If your DD exceeds 200 lines, it's a spec document wearing a design mask. Extract the specs to `parts/` and keep the DD focused on decisions.
 5. **Orphan features.** Every new capability needs a path to invocation. If there's no API endpoint or UI trigger, it's not a feature — it's dead code waiting to be written.
 
 ## Web Search and Fetch

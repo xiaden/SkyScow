@@ -2,7 +2,8 @@
 description: RW fixer. Post-worker cleanup pass. Runs lint and tests on the current round's diff, fixes mechanical errors, reports what was fixed. No git operations. No implementation changes.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-pro
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: none
 permission:
   read: allow
   edit: allow
@@ -14,6 +15,7 @@ permission:
   aft_outline: allow
   aft_zoom: allow
   aft_inspect: allow
+  skill: allow
 ---
 
 ## Identity & Scope

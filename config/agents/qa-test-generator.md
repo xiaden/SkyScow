@@ -2,7 +2,8 @@
 description: Generates tests to fill coverage gaps identified by QA-TestAnalyzer. Writes test files following project conventions. Runs tests to verify they pass. Leaf agent — no children.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/qwen3.7-plus
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: low
 permission:
   read: allow
   glob: allow
@@ -81,7 +82,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 

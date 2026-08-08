@@ -17,27 +17,30 @@ Dispatch Exec-Worker to implement a scoped portion of an implementation plan —
 ## Dispatch Template
 
 ```
-Implement phase [PHASE_NUMBER] of plan [PLAN_PATH].
+Implement phase [PHASE_NUMBER] of plan [PLAN_IDENTIFIER].
 
-Context files to read:
-- [PLAN_PATH]  — the plan
+Your scope: steps [STEP_RANGE] only.
+
+Use plan_read("[PLAN_IDENTIFIER]") to discover the plan and your steps.
+
+Context:
 - [CONTRACTS_PATH]  — contracts ledger (if multi-part feature)
 - [DESIGN_DOC_PATH]  — design document
-- [any other relevant context files]
 
 task:
-  plan: "[plan identifier]"
-  phase: [phase number]
-  steps: "[step range, e.g., P1-S1 through P1-S4]"
+  plan: "[PLAN_IDENTIFIER]"
+  phase: [PHASE_NUMBER]
+  steps: "[STEP_RANGE]"
 
-Read the plan first, implement each step, mark completion with annotations. Report completion or blocked status.
+For each step: implement, lint, mark complete with plan_complete_step and an annotation.
+Report DONE when all steps in scope are complete.
 ```
 
 ## Required Fields
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `[PLAN_PATH]` | Path to the plan file | `artifacts/plans/pending/TASK-feature-A-scope.md` |
+| `[PLAN_IDENTIFIER]` | Plan name for plan_read | `TASK-feature-A-scope` |
 | `plan` | Plan identifier | `TASK-feature-A-scope` |
 | `phase` | Phase number to implement | `1` |
 | `steps` | Step range to implement | `P1-S1 through P1-S4` |

@@ -2,7 +2,8 @@
 description: RW health restorer. Post-loop repository health restoration manager. Dispatches goal-aware fixer agents to repair lint, type, and test errors plausibly associated with the RW transformation — without reverting intentional changes. Bounded by pre-RW and post-RW git status. Loops until clean or blocked.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-pro
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: low
 permission:
   read: allow
   edit: allow

@@ -2,7 +2,8 @@
 description: Targeted repairs for MINOR severity review issues. Receives specific issue list with file paths and line numbers. Fixes issues, runs lint, reports completion. Does not spawn children or handle PLANNING_GAP issues.
 maintainer: "agent-team"
 mode: all
-model: opencode-go/qwen3.7-plus
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: none
 permission:
   read: allow
   glob: allow
@@ -71,7 +72,7 @@ You fix specific issues identified by the Reviewer. You receive an explicit issu
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.

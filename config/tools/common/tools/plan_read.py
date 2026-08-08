@@ -37,7 +37,7 @@ def _resolve_plan_path(plan_name: str, workspace_root: Path) -> Path | None:
     return None
 
 
-def plan_read(plan_name: str, workspace_root: Path) -> dict[str, Any]:
+def plan_read(plan_name: str, workspace_root: Path, phase: int | None = None) -> dict[str, Any]:
     """Read a task plan and return structured JSON summary.
 
     Parses the entire plan markdown into a structured representation.
@@ -52,6 +52,8 @@ def plan_read(plan_name: str, workspace_root: Path) -> dict[str, Any]:
         plan_name: Plan name (with or without .md extension).
                    Must not contain path separators or traversal.
         workspace_root: Workspace root path (injected by MCP server).
+        phase: Optional phase number to scope output to a single phase.
+               When provided, returns only that phase's data.
 
     Returns:
         Structured plan data with phases and steps.
@@ -80,6 +82,24 @@ def plan_read(plan_name: str, workspace_root: Path) -> dict[str, Any]:
         import json as _json
 
         plan_dict = plan_to_dict(plan)
+
+        # Phase filtering: if phase is specified, return only that phase
+        if phase is not None:
+            matching = [p for p in plan_dict.get("phases", []) if p["number"] == phase]
+            if not matching:
+                return {
+                    "error": "phase_not_found",
+                    "message": f"Phase {phase} not found in plan '{plan_name}'",
+                }
+            phase_dict: dict[str, Any] = {"phase": matching[0]}
+            if plan_dict.get("title"):
+                phase_dict["title"] = plan_dict["title"]
+            return {
+                "output": _json.dumps(phase_dict),
+                "title": f"Read Plan Phase {phase}",
+                "metadata": {"target": plan_name, "phase": phase},
+            }
+
         return {
             "output": _json.dumps(plan_dict),
             "title": "Read Plan",
@@ -96,5 +116,6 @@ if __name__ == "__main__":
     result = plan_read(
         plan_name=args["plan_name"],
         workspace_root=Path(args["workspace_root"]),
+        phase=args.get("phase"),
     )
     print(json.dumps(result))

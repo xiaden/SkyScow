@@ -964,6 +964,188 @@ def _add_annotation_to_step(plan: Plan, step: Step, marker: str, text: str) -> b
     return True
 
 
+def _edit_annotation_on_step(plan: Plan, step: Step, marker: str, text: str) -> bool:
+    """Replace the entire content of an annotation marker under a step.
+
+    Mutates plan.raw_lines in place.
+
+    Behavior:
+    - If the marker already exists under the step, removes its entire block
+      (marker line + continuation lines) and inserts the new text in its place.
+    - If the marker does not exist, creates a new annotation block (same as add).
+    - Returns False if the new text is identical to existing single-line content
+      (idempotent).
+
+    Args:
+        plan: Parsed plan (will be mutated)
+        step: The step whose annotation to edit
+        marker: Annotation marker (e.g., "Notes", "Blocked", "Unmarked")
+        text: New annotation text (must be non-empty)
+
+    Returns:
+        True if annotation was modified, False if unchanged (idempotent)
+
+    """
+    step_line_idx = step.line_number
+    next_line_idx = step_line_idx + 1
+    marker_prefix = f"**{marker}:**"
+
+    # Find the extent of the indented block under this step
+    block_end_idx = step_line_idx
+    for i in range(next_line_idx, len(plan.raw_lines)):
+        line = plan.raw_lines[i]
+        if line.startswith("  ") and not line.strip().startswith("- ["):
+            block_end_idx = i
+        else:
+            break
+
+    # Find existing marker block for this marker
+    existing_start: int | None = None
+    existing_end: int | None = None
+
+    for i in range(next_line_idx, block_end_idx + 1):
+        line = plan.raw_lines[i]
+        stripped = line.strip()
+        if stripped.startswith(marker_prefix):
+            existing_start = i
+            existing_end = i
+            for j in range(i + 1, block_end_idx + 1):
+                cont_line = plan.raw_lines[j]
+                if cont_line.startswith("      ") and not cont_line.strip().startswith("**"):
+                    existing_end = j
+                else:
+                    break
+            break
+
+    if existing_start is not None:
+        # Check idempotency: if single-line existing matches new text, skip
+        if existing_start == existing_end:
+            existing_line = plan.raw_lines[existing_start].rstrip()
+            if existing_line.rstrip().endswith(f" {text}"):
+                return False
+
+        # Remove existing marker block, insert replacement at same position
+        del plan.raw_lines[existing_start : existing_end + 1]
+        plan.raw_lines.insert(existing_start, f"    {marker_prefix} {text}\n")
+    else:
+        # No existing marker — create new annotation block (same as add behavior)
+        plan.raw_lines.insert(next_line_idx, f"    {marker_prefix} {text}\n")
+
+    return True
+
+
+def annotate_step(
+    plan: Plan,
+    step_id: str,
+    op: str,
+    text: str,
+    marker: str,
+) -> tuple[str, bool]:
+    """Add or edit an annotation on a step without changing its completion status.
+
+    Mutates plan.raw_lines in place.
+
+    Args:
+        plan: Parsed plan (will be mutated)
+        step_id: Step ID in P<n>-S<m> format
+        op: "add" to append or "edit" to replace
+        text: Annotation text
+        marker: Annotation marker (e.g., "Notes", "Blocked", "Warning")
+
+    Returns:
+        Tuple of (updated_markdown, annotation_written)
+
+    Raises:
+        ValueError: If step_id not found or op is unknown
+
+    """
+    result = find_step(plan, step_id)
+    if result is None:
+        msg = f"Step {step_id} not found"
+        raise ValueError(msg)
+
+    _phase, step, _phase_num, _step_idx = result
+
+    if op == "add":
+        annotation_written = _add_annotation_to_step(plan, step, marker, text)
+    elif op == "edit":
+        annotation_written = _edit_annotation_on_step(plan, step, marker, text)
+    else:
+        msg = f"Unknown op '{op}': must be 'add' or 'edit'"
+        raise ValueError(msg)
+
+    # Re-parse to capture annotations in structure
+    updated_markdown = "".join(plan.raw_lines)
+    reparsed = parse_plan(updated_markdown)
+    plan.phases = reparsed.phases
+    plan.sections = reparsed.sections
+
+    return updated_markdown, annotation_written
+
+
+def unmark_step(
+    plan: Plan,
+    step_id: str,
+    agent: str,
+    reason: str | None = None,
+) -> tuple[str, bool]:
+    """Revert a step from complete back to pending.
+
+    Mutates plan.raw_lines in place.
+
+    - Changes [x] → [ ] in the checkbox line.
+    - Prepends an [UNMARKED by <agent>: <reason>] notice as a **Unmarked:**
+      annotation on the step. Multiple unmarks accumulate via the existing
+      append behavior.
+
+    Args:
+        plan: Parsed plan (will be mutated)
+        step_id: Step ID in P<n>-S<m> format
+        agent: Name of the agent performing the unmark
+        reason: Optional reason for unmarking
+
+    Returns:
+        Tuple of (updated_markdown, was_unmarked).
+        was_unmarked is True if the step was reverted from complete to pending.
+        was_unmarked is False if the step was already pending (no-op).
+
+    Raises:
+        ValueError: If step_id not found
+
+    """
+    result = find_step(plan, step_id)
+    if result is None:
+        msg = f"Step {step_id} not found"
+        raise ValueError(msg)
+
+    _phase, step, _phase_num, _step_idx = result
+
+    if not step.checked:
+        return "".join(plan.raw_lines), False
+
+    # Flip [x] / [X] → [ ]
+    line = plan.raw_lines[step.line_number]
+    updated_line = re.sub(r"\[[xX]\]", "[ ]", line, count=1)
+    plan.raw_lines[step.line_number] = updated_line
+    step.checked = False
+
+    # Build unmark notice
+    notice = f"[{agent}]"
+    if reason:
+        notice += f" {reason}"
+
+    # Add as **Unmarked:** annotation (appends on multiple unmarks)
+    _add_annotation_to_step(plan, step, "Unmarked", notice)
+
+    # Re-parse to capture changes in structure
+    updated_markdown = "".join(plan.raw_lines)
+    reparsed = parse_plan(updated_markdown)
+    plan.phases = reparsed.phases
+    plan.sections = reparsed.sections
+
+    return updated_markdown, True
+
+
 def get_phase_notes(plan: Plan, phase_title: str) -> str | list[str] | None:
     """Get notes for a specific phase by title.
 

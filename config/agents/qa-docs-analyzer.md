@@ -2,7 +2,8 @@
 description: Analyzes documentation coverage and accuracy for changed code. Identifies missing docstrings, stale docs, and doc/code drift. Routes by tier — PASS, MINOR_PASS (log only), MINOR_DISPATCH or MAJOR_DISPATCH (spawn DocsGenerator), MAJOR_RAISE (escalate). Returns tiered status.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: high
 permission:
   read: allow
   glob: allow
@@ -84,7 +85,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this: use a single message with multiple tool calls.
 
@@ -202,6 +203,7 @@ Now assess the tier based on the gaps found:
 
 **PASS** — Docs are accurate. Log minor observations but don't act:
 - Missing examples on obvious/single-purpose functions
+- Public symbols whose name, type signature, and context make behavior fully obvious (e.g. `get_user_by_id`)
 - Internal/private helpers without docstrings
 - Minor typos or formatting issues
 - Verbose docstrings that could be clearer
@@ -243,7 +245,7 @@ Now assess the tier based on the gaps found:
 - Path to the contracts file
 - The tier assessment
 
-DocsGenerator handles all docstring writing, doc updates, and lint. You wait for its result.
+DocsGenerator handles all docstring writing and doc updates. You wait for its result.
 
 After DocsGenerator returns:
 1. Re-analyze to confirm gaps are filled
@@ -308,6 +310,7 @@ Log findings that took real investigation — drift that wasn't obvious, pattern
 | Found a systematic documentation gap across a module (not just the scope) | `observation` | |
 | Symbol too complex to assess accurately — needed judgment call | `observation` | `needsreview` |
 | Minor doc issues logged but not dispatched | `observation` | `minor-docs` |
+| DocsGenerator reported symbol as UNNECESSARY — gap-detection may be over-broad | `observation` | `docsanalyzer-overbroad` |
 
 Log with `agent="qa-docs-analyzer"`.
 
@@ -335,7 +338,7 @@ Log with `agent="qa-docs-analyzer"`.
 3. **Specificity in gap reports.** Symbol name, file, line, exact discrepancy. DocsGenerator shouldn't need to re-investigate what you already found.
 4. **One generation cycle.** Dispatch once, verify once. If DocsGenerator can't fill a gap, report it honestly.
 5. **User docs matter.** The `docs/` folder is easy to forget because it's not in the import chain. Check it when the scope calls for it.
-6. **Don't over-document.** Internal methods, private helpers, obvious one-liners — these don't need docstrings. Focus on public API surfaces.
+6. **Don't over-document.** Internal methods, private helpers, obvious one-liners, and self-explanatory public symbols — if the name, type signature, and context make the behavior obvious, a docstring adds nothing. Focus on public API surfaces where documentation actually helps.
 7. **Accurate routing over clean PASS.** The goal isn't to avoid dispatch — it's to dispatch appropriately. A missing docstring on one helper doesn't need a generator. Three missing public methods do.
 
 ## Completion Gate

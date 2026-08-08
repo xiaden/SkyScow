@@ -2,7 +2,8 @@
 description: RW health fixer. Post-loop goal-aware cleanup agent. Fixes lint, type, and test errors in the full RW transformation scope. Can extend RW changes to satisfy the goal but escalates changes that contradict it. No git operations. No behavior reversions.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-pro
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: medium
 permission:
   read: allow
   edit: allow

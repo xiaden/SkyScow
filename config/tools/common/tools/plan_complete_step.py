@@ -164,6 +164,9 @@ def plan_complete_step(
         if ann_error:
             return ann_error
 
+    # Detect Blocked marker — will normalize to annotation-only below
+    is_blocked = annotation is not None and annotation.get("marker", "").lower() == "blocked"
+
     # Resolve path
     plan_path = _resolve_plan_path(plan_name, workspace_root)
 
@@ -198,14 +201,26 @@ def plan_complete_step(
 
     _phase, _step, _phase_idx, _step_idx = step_result
 
-    # Mark complete and optionally add annotation
-    updated_markdown, was_already_complete, annotation_written = mark_step_complete(
-        plan, step_id, annotation
-    )
+    if is_blocked:
+        # Blocked annotation: write annotation without marking complete
+        from ..helpers.plan_md import annotate_step as _annotate_step
 
-    # Write back if step was marked complete or annotation was written
-    if not was_already_complete or annotation_written:
-        plan_path.write_bytes(updated_markdown.encode("utf-8"))
+        updated_markdown, annotation_written = _annotate_step(
+            plan, step_id, "add", annotation["text"], annotation["marker"]
+        )
+        was_already_complete = False  # step was not completed — don't surface already_marked
+
+        if annotation_written:
+            plan_path.write_bytes(updated_markdown.encode("utf-8"))
+    else:
+        # Mark complete and optionally add annotation
+        updated_markdown, was_already_complete, annotation_written = mark_step_complete(
+            plan, step_id, annotation
+        )
+
+        # Write back if step was marked complete or annotation was written
+        if not was_already_complete or annotation_written:
+            plan_path.write_bytes(updated_markdown.encode("utf-8"))
 
     # Re-parse updated file and convert to dict (single source of truth for response)
     updated_markdown = plan_path.read_bytes().decode("utf-8")

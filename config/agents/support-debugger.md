@@ -2,7 +2,8 @@
 description: Root cause analysis agent for failures and unexpected behavior. Traces execution, forms hypotheses, gathers evidence, and returns diagnosis with suggested fix. Read-heavy, edit-free. Spawned by Director or Exec-Manager when something breaks.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/gpt-5.6-luna
+variant: high
 permission:
   read: allow
   glob: allow
@@ -68,7 +69,7 @@ You perform root cause analysis when something breaks. You trace execution paths
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 

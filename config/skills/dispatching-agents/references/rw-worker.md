@@ -35,7 +35,7 @@ Study the codebase, implement within scoped boundaries, self-verify with observa
 |-------|-------------|---------|
 | `[SUB-TASK]` | Short task label | "Add theme CSS variables to Button component" |
 | `task` | Specific description | "Replace all hardcoded colors in Button.css with CSS variable references. Use theme tokens from src/styles/theme.css." |
-| `scope` | Exact files this worker owns | `src/components/Button/Button.css`, `src/components/Button/Button.tsx` |
+| `scope` | Exact files and symbols this worker owns | Physical: `src/components/Button/Button.css`, `src/components/Button/Button.tsx`. Contractual: `src/auth/login.ts [validateEmail, auth]` |
 | `isolation` | How this worker is isolated from others | `physical` (different files) or `contractual` (different functions in shared file) |
 
 ## Expected Output

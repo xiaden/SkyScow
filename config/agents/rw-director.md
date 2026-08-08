@@ -2,12 +2,17 @@
 description: RW director. Dumb for-loop spawner. Delegates fresh manager per round, then reviewer. Routes on reviewer's CONTINUE or STOP verdict. Zero decisions. Async, steerable anchor.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-pro
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: none
 permission:
   read: allow
   write: allow
-  task: allow
+  task: {
+   "*": "deny",
+   "rw-manager":allow
+  }
   bash: allow
+  skill: allow
   question: allow
 ---
 

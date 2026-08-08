@@ -30,7 +30,7 @@ task:
   designDoc: "[design doc path]"
   contractsPath: "[contracts path or N/A]"
 
-Full review in one pass. All checks run. All issues reported in one round. Do NOT stop early.
+Full review in one pass. Run all checks. Report all issues in one round.
 ```
 
 ## Required Fields

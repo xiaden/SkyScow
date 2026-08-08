@@ -2,13 +2,15 @@
 description: Quality gate. Runs full review in one pass. Depth scales by change tier. Never stops early — all checks run, all issues reported in one round.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: high
 permission:
   read: allow
   glob: allow
   grep: allow
   log_write: allow
   task: allow
+  plan_read: allow
   bash: allow
   lint_*: allow
   read_module_*: allow
@@ -77,7 +79,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 
@@ -129,7 +131,7 @@ task:
 
 ## Architecture Decision Records (ADR) & ASRs
 
-> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/nyx.md.
 
 **Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
 ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.

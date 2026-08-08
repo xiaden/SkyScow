@@ -2,7 +2,8 @@
 description: Implementation options analyst. Takes a problem or idea and produces 2-4 concrete implementation approaches with tradeoffs matrix. Read-only — returns analysis, does not execute. Invokable directly or via RnD-Manager/RnD-DDAuthor.
 maintainer: "agent-team"
 mode: all
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/gpt-5.6-luna
+variant: high
 permission:
   read: allow
   glob: allow
@@ -82,7 +83,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 
@@ -265,7 +266,7 @@ Two tools for gathering external information. Choose based on what you know goin
 
 ## Architecture Decision Records (ADR) & ASRs
 
-> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/nyx.md.
 
 **Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
 ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.

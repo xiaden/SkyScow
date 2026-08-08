@@ -2,7 +2,8 @@
 description: Adversarial pattern critic. Reads implementation patterns from the shared design document, searches for edge cases, integration risks, and library-specific gotchas, ranks by context relevance, and appends risk assessment sections. White-hat adversary — success is measured by how much the final implementation plan improves. Spawned by RnD-Refiner across two turns.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: high
 permission:
   read: allow
   write: allow
@@ -70,7 +71,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. Independent websearches, file reads, and codebase lookups all run in parallel.
 

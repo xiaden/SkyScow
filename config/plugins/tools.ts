@@ -275,6 +275,7 @@ const tools = {
     description: "Read a task plan and return structured JSON summary.",
     args: {
       plan_name: requiredString("Plan name"),
+      phase: optionalNumber("Return only this phase by number"),
     },
     async execute(args: ToolArgs, context: ToolContext) {
       return runPythonTool("common.tools.plan_read", args, context)
@@ -304,6 +305,33 @@ const tools = {
         },
         context,
       )
+    },
+  }),
+
+  plan_annotate_step: tool({
+    description: "Add or edit an annotation on a plan step without changing its completion status. Use 'add' to append to existing annotations, 'edit' to replace them.",
+    args: {
+      plan_name: requiredString("Plan name"),
+      step_id: requiredString("Step ID, for example P1-S3"),
+      op: requiredString("'add' to append or 'edit' to replace"),
+      annotation_marker: requiredString("Annotation marker (e.g. Notes, Blocked, Warning)"),
+      annotation_text: requiredString("Annotation text"),
+    },
+    async execute(args: ToolArgs, context: ToolContext) {
+      return runPythonTool("common.tools.plan_annotate_step", args, context)
+    },
+  }),
+
+  plan_unmark_step: tool({
+    description: "Revert a step from complete back to pending. Prepends an [UNMARKED] notice to the step's annotations. Used by managers and QA to direct re-execution of prematurely-completed steps.",
+    args: {
+      plan_name: requiredString("Plan name"),
+      step_id: requiredString("Step ID, for example P1-S3"),
+      agent: requiredString("Agent performing the unmark (e.g. exec-manager, qa-reviewer)"),
+      reason: optionalString("Why the step is being unmarked"),
+    },
+    async execute(args: ToolArgs, context: ToolContext) {
+      return runPythonTool("common.tools.plan_unmark_step", args, context)
     },
   }),
 

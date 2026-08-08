@@ -1,7 +1,6 @@
 ---
 name: decomposing-design-documents
 description: Use when decomposing a design document into dependency-ordered implementation plans. Handles the full pipeline from design document to validated, cross-referenced plan files with minimal drift. Trigger when **any** of the following are true, with user requests (4) taking priority over the other conditions: (1) the feature involves 3+ implementation parts, (2) it spans multiple architectural layers, (3) it requires coordination across multiple sessions, or (4) the user explicitly asks to break down a design doc into implementation plans. Not for single plans or simple tasks — use the Exec-Planner subagent directly for those.
-applyTo: artifacts/plans/**, artifacts/designs/**
 ---
 
 # Decomposing Design Documents
@@ -152,11 +151,21 @@ Round 3: F (depends on Round 2 outputs)
 
 ### Part A: {title}
 {3-5 sentences: what this creates, files touched, contracts exposed downstream}
+
+Detailed scope: See `PART-A-scope.md`
 ```
 
-**No separate spec files per part.** The scope summary + design doc provide context. The plan's Problem Statement section serves as the spec. Eliminating the spec→plan hop prevents lossy translation.
+**Per-part scope documents.** Each part gets a detailed scope document in `artifacts/designs/parts/{feature}/PART-{letter}-scope.md` containing file paths, contracts, integration details, and testing requirements. These specs absorb implementation detail that does not belong in the DD.
 
 Present the README to the user for review before proceeding.
+
+### Phase 1 Validation: DD Content Audit
+
+Before presenting the README, verify:
+- [ ] DD contains zero non-design content (no file mappings, specifications, dependency graphs, contracts, or debate transcripts)
+- [ ] DD is under 200 lines
+
+If either fails, extract implementation details to part scope documents before proceeding.
 
 ---
 

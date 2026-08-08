@@ -2,7 +2,8 @@
 description: Top-level orchestrator for complex multi-plan features requiring cross-cutting coordination. Use for large features spanning multiple plans. For simpler work, invoke RnD-Manager, Exec-Manager, or advisory agents directly. Spawns RnD-Manager, Exec-Planner, Exec-Manager, Support-Researcher, Support-Debugger.
 maintainer: "agent-team"
 mode: all
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: low
 permission:
   read: allow
   glob: allow
@@ -76,7 +77,7 @@ You are a **dispatch-only orchestrator**. You spawn agents and ask the user ques
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in the primary agent (~/.config/opencode/agents/agent.md). This section is included here for self-containment but should remain consistent with the canonical version.
+> **@canonical:** See the authoritative definition in the primary agent (~/.config/opencode/agents/nyx.md). This section is included here for self-containment but should remain consistent with the canonical version.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 
@@ -109,7 +110,7 @@ Searching ADRs and logs:
 
 ## Architecture Decision Records (ADR) & ASRs
 
-> **@canonical:** See the authoritative ADR/ASR policy in the primary agent (~/.config/opencode/agents/agent.md).
+> **@canonical:** See the authoritative ADR/ASR policy in the primary agent (~/.config/opencode/agents/nyx.md).
 
 **Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
 ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.

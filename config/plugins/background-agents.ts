@@ -221,7 +221,7 @@ interface DelegationRecord {
 	startedAt?: Date
 	completedAt?: Date
 	updatedAt: Date
-	timeoutAt: Date
+	hangTimeoutAt: Date
 	progress: DelegationProgress
 	notification: DelegationNotificationState
 	retrieval: DelegationRetrievalState
@@ -230,9 +230,10 @@ interface DelegationRecord {
 	title?: string
 	description?: string
 	result?: string
+	capturedContent?: string
 }
 
-const DEFAULT_MAX_RUN_TIME_MS = 15 * 60 * 1000 // 15 minutes
+const DEFAULT_HANG_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
 const TERMINAL_WAIT_GRACE_MS = 10_000
 const READ_POLL_INTERVAL_MS = 250
 const ALL_COMPLETE_QUIET_PERIOD_MS = 50
@@ -244,6 +245,7 @@ interface DelegateInput {
 	parentAgent: string
 	prompt: string
 	agent: string
+	hangTimeoutMs?: number
 }
 
 interface DelegationListItem {
@@ -256,7 +258,7 @@ interface DelegationListItem {
 }
 
 interface DelegationManagerOptions {
-	maxRunTimeMs?: number
+	hangTimeoutMs?: number
 	readPollIntervalMs?: number
 	terminalWaitGraceMs?: number
 	allCompleteQuietPeriodMs?: number
@@ -387,11 +389,11 @@ class DelegationManager {
 	private delegations: Map<string, DelegationRecord> = new Map()
 	private delegationsBySession: Map<string, string> = new Map()
 	private terminalWaiters: Map<string, { promise: Promise<void>; resolve: () => void }> = new Map()
-	private timeoutTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
+	private hangTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
 	private client: OpencodeClient
 	private baseDir: string
 	private log: Logger
-	private maxRunTimeMs: number
+	private hangTimeoutMs: number
 	private readPollIntervalMs: number
 	private terminalWaitGraceMs: number
 	private allCompleteQuietPeriodMs: number
@@ -410,7 +412,7 @@ class DelegationManager {
 		this.client = client
 		this.baseDir = baseDir
 		this.log = log
-		this.maxRunTimeMs = options.maxRunTimeMs ?? DEFAULT_MAX_RUN_TIME_MS
+		this.hangTimeoutMs = options.hangTimeoutMs ?? DEFAULT_HANG_TIMEOUT_MS
 		this.readPollIntervalMs = options.readPollIntervalMs ?? READ_POLL_INTERVAL_MS
 		this.terminalWaitGraceMs = options.terminalWaitGraceMs ?? TERMINAL_WAIT_GRACE_MS
 		this.allCompleteQuietPeriodMs = options.allCompleteQuietPeriodMs ?? ALL_COMPLETE_QUIET_PERIOD_MS
@@ -441,6 +443,38 @@ class DelegationManager {
 			}
 		}
 		return currentID
+	}
+
+	/**
+	 * Find a delegation by walking up the session tree from any session.
+	 * Returns the delegation if the session or any of its ancestors is a delegation root.
+	 */
+	private async findDelegationBySessionTree(sessionID: string): Promise<DelegationRecord | undefined> {
+		let currentID = sessionID
+		// Walk up the parent chain (max depth 10 to prevent infinite loops)
+		for (let depth = 0; depth < 10; depth++) {
+			// Check if current session is a delegation root
+			const delegation = this.getDelegationBySession(currentID)
+			if (delegation) return delegation
+
+			// Walk up to parent
+			try {
+				const session = await this.client.session.get({
+					path: { id: currentID },
+				})
+
+				if (!session.data?.parentID) {
+					// No parent, stop walking
+					break
+				}
+
+				currentID = session.data.parentID
+			} catch {
+				// If we can't fetch the session, stop walking
+				break
+			}
+		}
+		return undefined
 	}
 
 	/**
@@ -481,19 +515,19 @@ class DelegationManager {
 		waiter.resolve()
 	}
 
-	private clearTimeoutTimer(id: string): void {
-		const timer = this.timeoutTimers.get(id)
+	private clearHangTimer(id: string): void {
+		const timer = this.hangTimers.get(id)
 		if (!timer) return
 		clearTimeout(timer)
-		this.timeoutTimers.delete(id)
+		this.hangTimers.delete(id)
 	}
 
-	private scheduleTimeout(id: string): void {
-		this.clearTimeoutTimer(id)
+	private scheduleHangCheck(id: string): void {
+		this.clearHangTimer(id)
 		const timer = setTimeout(() => {
-			void this.handleTimeout(id)
-		}, this.maxRunTimeMs + 5_000)
-		this.timeoutTimers.set(id, timer)
+			void this.handleHang(id)
+		}, this.hangTimeoutMs)
+		this.hangTimers.set(id, timer)
 	}
 
 	private updateDelegation(
@@ -519,6 +553,7 @@ class DelegationManager {
 		prompt: string
 		agent: string
 		artifactPath: string
+		hangTimeoutMs?: number
 	}): DelegationRecord {
 		if (!this.pendingByParent.has(input.parentSessionID)) {
 			this.pendingByParent.set(input.parentSessionID, new Set())
@@ -528,6 +563,9 @@ class DelegationManager {
 		const parentNotificationState = this.getParentNotificationState(input.parentSessionID)
 		const notificationCycle = parentNotificationState.allCompleteCycle
 		const notificationCycleToken = parentNotificationState.allCompleteCycleToken
+
+		// Use per-delegation hang timeout if provided, otherwise use manager default
+		const hangTimeoutMs = input.hangTimeoutMs ?? this.hangTimeoutMs
 
 		const now = new Date()
 		const delegation: DelegationRecord = {
@@ -544,7 +582,7 @@ class DelegationManager {
 			status: "registered",
 			createdAt: now,
 			updatedAt: now,
-			timeoutAt: new Date(now.getTime() + this.maxRunTimeMs),
+			hangTimeoutAt: new Date(now.getTime() + hangTimeoutMs),
 			progress: {
 				toolCalls: 0,
 				lastUpdateAt: now,
@@ -589,11 +627,15 @@ class DelegationManager {
 
 			delegation.progress.lastUpdateAt = now
 			delegation.progress.lastHeartbeatAt = now
+			delegation.hangTimeoutAt = new Date(now.getTime() + this.hangTimeoutMs)
 
 			if (messageText) {
 				delegation.progress.lastMessage = messageText
 				delegation.progress.lastMessageAt = now
 			}
+
+			// Reschedule hang check since we had activity
+			this.scheduleHangCheck(id)
 		})
 	}
 
@@ -625,7 +667,7 @@ class DelegationManager {
 			}
 		}
 
-		this.clearTimeoutTimer(id)
+		this.clearHangTimer(id)
 		this.resolveTerminalWaiter(id)
 
 		return { transitioned: true, delegation }
@@ -982,6 +1024,11 @@ class DelegationManager {
 		}
 
 		if (delegation.status === "timeout") {
+			// Use captured content if available (captured before session deletion)
+			if (delegation.capturedContent) {
+				return `${delegation.capturedContent}\n\n[TIMEOUT REACHED]`
+			}
+			// Otherwise try to fetch from session (may fail if session was deleted)
 			const partial = await this.getResult(delegation)
 			return `${partial}\n\n[TIMEOUT REACHED]`
 		}
@@ -997,15 +1044,28 @@ class DelegationManager {
 		const { transitioned, delegation } = this.markTerminal(delegationId, status, error)
 		if (!transitioned || !delegation) return
 
+		// Clear hang timer since delegation is done
+		this.clearHangTimer(delegation.id)
+
 		await this.debugLog(`finalizeDelegation(${delegation.id}, ${status}) started`)
 
 		const resolvedResult = await this.resolveDelegationResult(delegation)
 		delegation.result = resolvedResult
 
 		if (resolvedResult.trim().length > 0) {
+			// If content is a chat log (from capturedContent), extract assistant text for better metadata
+			let metadataInput = resolvedResult
+			if (delegation.capturedContent && resolvedResult.includes("## Conversation")) {
+				// Extract assistant text portions from the chat log
+				const assistantTexts = this.extractAssistantTexts(delegation.capturedContent)
+				if (assistantTexts.length > 0) {
+					metadataInput = assistantTexts.join("\n\n").slice(0, 2000)
+				}
+			}
+
 			const metadata = await this.metadataGenerator(
 				this.client,
-				resolvedResult,
+				metadataInput,
 				delegation.sessionID,
 				(msg) => this.debugLog(msg),
 			)
@@ -1015,6 +1075,32 @@ class DelegationManager {
 
 		await this.persistOutput(delegation, resolvedResult)
 		await this.notifyParent(delegation.id)
+	}
+
+	/**
+	 * Extract assistant text portions from a chat log for metadata generation
+	 */
+	private extractAssistantTexts(chatLog: string): string[] {
+		const texts: string[] = []
+		const lines = chatLog.split("\n")
+		let inAssistantSection = false
+
+		for (const line of lines) {
+			if (line.startsWith("**[Assistant]**")) {
+				inAssistantSection = true
+				continue
+			}
+			if (line.startsWith("**[") && inAssistantSection) {
+				// Hit another role marker, stop capturing
+				inAssistantSection = false
+				continue
+			}
+			if (inAssistantSection && line.trim().length > 0) {
+				texts.push(line)
+			}
+		}
+
+		return texts
 	}
 
 	private async notifyParent(delegationId: string): Promise<void> {
@@ -1116,10 +1202,11 @@ class DelegationManager {
 			prompt: input.prompt,
 			agent: input.agent,
 			artifactPath,
+			hangTimeoutMs: input.hangTimeoutMs,
 		})
 
 		await this.debugLog(`Registered delegation ${delegation.id} before execution`)
-		this.scheduleTimeout(delegation.id)
+		this.scheduleHangCheck(delegation.id)
 		this.markStarted(delegation.id)
 
 		// Fire the prompt (using prompt() instead of promptAsync() to properly initialize agent loop)
@@ -1143,16 +1230,42 @@ class DelegationManager {
 		return delegation
 	}
 
-	/**
-	 * Handle delegation timeout
-	 */
-	private async handleTimeout(delegationId: string): Promise<void> {
+	private async handleHang(delegationId: string): Promise<void> {
 		const delegation = this.delegations.get(delegationId)
 		if (!delegation || isTerminalStatus(delegation.status)) return
 
-		await this.debugLog(`handleTimeout for delegation ${delegation.id}`)
+		await this.debugLog(`handleHang for delegation ${delegation.id}`)
 
-		// Try to cancel the session
+		// Check if there's been recent activity (within hangTimeoutMs)
+		const lastActivity = delegation.progress.lastHeartbeatAt
+		const timeSinceActivity = Date.now() - lastActivity.getTime()
+
+		if (timeSinceActivity < this.hangTimeoutMs) {
+			// Activity occurred, reschedule
+			this.scheduleHangCheck(delegationId)
+			return
+		}
+
+		// No activity for hangTimeoutMs - trip
+		// Capture chat log BEFORE deleting the session
+		try {
+			const messages = await this.client.session.messages({
+				path: { id: delegation.sessionID },
+			})
+			const messageData = messages.data as SessionMessageItem[] | undefined
+			if (messageData && messageData.length > 0) {
+				delegation.capturedContent = this.formatChatLog(messageData)
+				await this.debugLog(
+					`handleHang: Captured ${messageData.length} messages for delegation ${delegation.id}`,
+				)
+			}
+		} catch (error) {
+			await this.debugLog(
+				`handleHang: Failed to capture messages: ${error instanceof Error ? error.message : "Unknown error"}`,
+			)
+		}
+
+		// Now safe to delete the session
 		try {
 			await this.client.session.delete({
 				path: { id: delegation.sessionID },
@@ -1164,7 +1277,7 @@ class DelegationManager {
 		await this.finalizeDelegation(
 			delegation.id,
 			"timeout",
-			`Delegation timed out after ${this.maxRunTimeMs / 1000}s`,
+			`Delegation hung: no activity for ${this.hangTimeoutMs / 1000}s`,
 		)
 	}
 
@@ -1192,7 +1305,7 @@ class DelegationManager {
 
 			if (!messageData || messageData.length === 0) {
 				await this.debugLog(`getResult: No messages found for session ${delegation.sessionID}`)
-				return `Delegation "${delegation.description}" completed but produced no output.`
+				return `Delegation "${delegation.id}" completed but produced no output.`
 			}
 
 			await this.debugLog(
@@ -1209,7 +1322,7 @@ class DelegationManager {
 				await this.debugLog(
 					`getResult: No assistant messages found in ${JSON.stringify(messageData.map((m) => ({ role: m.info.role, keys: Object.keys(m) })))}`,
 				)
-				return `Delegation "${delegation.description}" completed but produced no assistant response.`
+				return `Delegation "${delegation.id}" completed but produced no assistant response.`
 			}
 
 			const lastMessage = assistantMessages[assistantMessages.length - 1]
@@ -1222,7 +1335,8 @@ class DelegationManager {
 				await this.debugLog(
 					`getResult: No text parts found in message: ${JSON.stringify(lastMessage)}`,
 				)
-				return `Delegation "${delegation.description}" completed but produced no text content.`
+				// Fall back to full chat log instead of generic message
+				return this.formatChatLog(messageData)
 			}
 
 			return textParts.map((p) => p.text).join("\n")
@@ -1230,10 +1344,74 @@ class DelegationManager {
 			await this.debugLog(
 				`getResult error: ${error instanceof Error ? error.message : "Unknown error"}`,
 			)
-			return `Delegation "${delegation.description}" completed but result could not be retrieved: ${
+			return `Delegation "${delegation.id}" completed but result could not be retrieved: ${
 				error instanceof Error ? error.message : "Unknown error"
 			}`
 		}
+	}
+
+	/**
+	 * Format session messages into a readable chat log
+	 * Tail-truncates to 30KB to preserve the failure point
+	 */
+	private formatChatLog(messages: SessionMessageItem[]): string {
+		const MAX_SIZE = 30 * 1024 // 30KB
+		const lines: string[] = ["## Conversation", ""]
+
+		for (const msg of messages) {
+			const role = msg.info.role
+			const roleLabel = role === "user" ? "User" : role === "assistant" ? "Assistant" : role
+
+			lines.push(`**[${roleLabel}]**`)
+
+			for (const part of msg.parts) {
+				if (part.type === "text") {
+					const textPart = part as TextPart
+					if (textPart.text) {
+						lines.push(textPart.text)
+					}
+				} else if (part.type === "tool-call") {
+					const toolCall = part as { toolName?: string; args?: unknown }
+					const toolName = toolCall.toolName || "unknown"
+					const argsStr = toolCall.args ? JSON.stringify(toolCall.args, null, 2) : ""
+					const truncatedArgs =
+						argsStr.length > 200 ? `${argsStr.slice(0, 200)}...` : argsStr
+					lines.push(`**[Tool: ${toolName}]**`)
+					if (truncatedArgs) {
+						lines.push(`Called with: ${truncatedArgs}`)
+					}
+				} else if (part.type === "tool-result") {
+					const toolResult = part as { toolName?: string; result?: unknown }
+					const toolName = toolResult.toolName || "unknown"
+					const resultStr = toolResult.result
+						? typeof toolResult.result === "string"
+							? toolResult.result
+							: JSON.stringify(toolResult.result, null, 2)
+						: ""
+					const truncatedResult =
+						resultStr.length > 1000 ? `${resultStr.slice(0, 1000)}...` : resultStr
+					lines.push(`**[Tool Result: ${toolName}]**`)
+					if (truncatedResult) {
+						lines.push(truncatedResult)
+					}
+				} else {
+					lines.push(`[part type: ${part.type}]`)
+				}
+			}
+
+			lines.push("")
+		}
+
+		let chatLog = lines.join("\n")
+
+		// Tail-truncate if exceeds 30KB
+		if (chatLog.length > MAX_SIZE) {
+			const totalSize = chatLog.length
+			chatLog = chatLog.slice(-MAX_SIZE)
+			chatLog = `[Chat log truncated to last 30KB of ${Math.round(totalSize / 1024)}KB total]\n\n${chatLog}`
+		}
+
+		return chatLog
 	}
 
 	/**
@@ -1315,7 +1493,7 @@ ${description}
 
 		if (isActiveStatus(delegation.status)) {
 			const remainingMs = Math.max(
-				delegation.timeoutAt.getTime() - Date.now() + this.terminalWaitGraceMs,
+				delegation.hangTimeoutAt.getTime() - Date.now() + this.terminalWaitGraceMs,
 				this.readPollIntervalMs,
 			)
 
@@ -1325,7 +1503,7 @@ ${description}
 
 			const waitResult = await this.waitForTerminal(delegation.id, remainingMs)
 			if (waitResult === "timeout" && isActiveStatus(delegation.status)) {
-				await this.handleTimeout(delegation.id)
+				await this.handleHang(delegation.id)
 			}
 		}
 
@@ -1430,6 +1608,59 @@ ${description}
 	}
 
 	/**
+	 * Cancel a delegation by id (stops if running, preserves artifacts)
+	 * Used when user wants to terminate a delegation but keep any output produced
+	 */
+	async cancelDelegation(sessionID: string, id: string): Promise<boolean> {
+		const normalizedId = normalizeId(id)
+		const delegation = this.delegations.get(normalizedId)
+
+		if (!delegation) {
+			return false
+		}
+
+		if (isActiveStatus(delegation.status)) {
+			// Capture any partial output before killing the session
+			try {
+				const messages = await this.client.session.messages({
+					path: { id: delegation.sessionID },
+				})
+				const messageData = messages.data as SessionMessageItem[] | undefined
+				if (messageData && messageData.length > 0) {
+					delegation.capturedContent = this.formatChatLog(messageData)
+					await this.debugLog(
+						`cancelDelegation: Captured ${messageData.length} messages for delegation ${delegation.id}`,
+					)
+				}
+			} catch (error) {
+				await this.debugLog(
+					`cancelDelegation: Failed to capture messages: ${error instanceof Error ? error.message : "Unknown error"}`,
+				)
+			}
+
+			// Now safe to delete the session
+			try {
+				await this.client.session.delete({
+					path: { id: delegation.sessionID },
+				})
+			} catch {
+				// Session may already be deleted
+			}
+
+			// Mark as cancelled and finalize (which persists output)
+			await this.finalizeDelegation(delegation.id, "cancelled", "Delegation cancelled by user")
+		} else if (isTerminalStatus(delegation.status)) {
+			// Already terminal, just clean up memory
+			this.clearHangTimer(delegation.id)
+			this.terminalWaiters.delete(delegation.id)
+			this.delegationsBySession.delete(delegation.sessionID)
+			this.delegations.delete(delegation.id)
+		}
+
+		return true
+	}
+
+	/**
 	 * Delete a delegation by id (cancels if running, removes from storage)
 	 * Used internally for cleanup (timeout, etc.)
 	 */
@@ -1449,7 +1680,7 @@ ${description}
 				this.markTerminal(delegation.id, "cancelled", "Delegation deleted by cleanup")
 			}
 
-			this.clearTimeoutTimer(delegation.id)
+			this.clearHangTimer(delegation.id)
 			this.terminalWaiters.delete(delegation.id)
 			this.delegationsBySession.delete(delegation.sessionID)
 			this.delegations.delete(delegation.id)
@@ -1474,10 +1705,13 @@ ${description}
 	}
 
 	/**
-	 * Handle message events for progress tracking
+	 * Handle message events for progress tracking.
+	 * Walks up the session tree to find the parent delegation, so subagent activity
+	 * resets the hang timer for the delegation.
 	 */
-	handleMessageEvent(sessionID: string, messageText?: string): void {
-		const delegation = this.findBySession(sessionID)
+	async handleMessageEvent(sessionID: string, messageText?: string): Promise<void> {
+		// Walk up session tree to find delegation
+		const delegation = await this.findDelegationBySessionTree(sessionID)
 		if (!delegation) return
 		this.markProgress(delegation.id, messageText)
 	}
@@ -1553,6 +1787,7 @@ ${description}
 interface DelegateArgs {
 	prompt: string
 	agent: string
+	hangTimeoutMinutes?: number
 }
 
 function createDelegate(manager: DelegationManager): ReturnType<typeof tool> {
@@ -1572,9 +1807,11 @@ Use \`delegation_read\` with the ID to retrieve full persisted output (including
 				.describe("The full detailed prompt for the agent. Must be in English."),
 			agent: tool.schema
 				.string()
-				.describe(
-					'Agent to delegate to. Must be a read-only sub-agent (edit/write/bash denied), such as "researcher" or "explore".',
-				),
+				.describe("Agent to delegate to."),
+			hangTimeoutMinutes: tool.schema
+				.number()
+				.optional()
+				.describe("Hang detection timeout in minutes (default: 10). Delegation is terminated if no activity for this duration."),
 		},
 		async execute(args: DelegateArgs, toolCtx: ToolContext): Promise<string> {
 			if (!toolCtx?.sessionID) {
@@ -1591,6 +1828,7 @@ Use \`delegation_read\` with the ID to retrieve full persisted output (including
 					parentAgent: toolCtx.agent,
 					prompt: args.prompt,
 					agent: args.agent,
+					hangTimeoutMs: args.hangTimeoutMinutes ? args.hangTimeoutMinutes * 60 * 1000 : undefined,
 				})
 
 				// Get total active count for this parent session
@@ -1657,6 +1895,30 @@ Shows both running and completed delegations.`,
 	})
 }
 
+function createDelegationKill(manager: DelegationManager): ReturnType<typeof tool> {
+	return tool({
+		description: `Terminate a running delegation by ID.
+Cancels the delegation, deletes its session, and removes artifacts.
+Use when you need to stop a delegation that was spawned incorrectly or is no longer needed.`,
+		args: {
+			id: tool.schema.string().describe("The delegation ID to terminate (e.g., 'elegant-blue-tiger')"),
+		},
+		async execute(args: { id: string }, toolCtx: ToolContext): Promise<string> {
+			if (!toolCtx?.sessionID) {
+				return "delegation_kill requires sessionID. This is a system error."
+			}
+
+			const cancelled = await manager.cancelDelegation(toolCtx.sessionID, args.id)
+			
+			if (cancelled) {
+				return `Delegation "${args.id}" terminated. Any partial output has been preserved.`
+			}
+			
+			return `Delegation "${args.id}" not found or already terminated.`
+		},
+	})
+}
+
 // ==========================================
 // DELEGATION RULES (injected into system prompt)
 // ==========================================
@@ -1673,20 +1935,15 @@ You have tools for parallel background work:
 
 ## Delegation Routing
 
-Agents route based on their permissions:
-
-| Agent Type | Tool | Why |
-|------------|------|-----|
-| Read-only sub-agents (edit/write/bash denied) | \`delegate\` | Background session, async |
-| Write-capable sub-agents (any write permission) | \`task\` | Native task, preserves undo/branching |
-
-**Read-only sub-agents** have edit="deny", write="deny", bash={"*":"deny"}.
-**Write-capable sub-agents** have any write tool enabled.
+| Tool | Behavior |
+|------|----------|
+| \`delegate\` | Async, returns ID immediately. You can steer mid-flight via \`delegation_read\`. Output persists to disk and survives compaction. |
+| \`task\` | Blocks until agent finishes. Opaque mid-flight. Ephemeral output. Provides session tree tracking — required for managers that spawn workers. |
 
 ## How It Works
 
-1. For read-only sub-agents: Call \`delegate\` with detailed prompt
-2. For write-capable sub-agents: Call \`task\` with detailed prompt
+1. For research, fan-out, or durable output: call \`delegate\`
+2. For managers (Exec-Manager, RnD-Manager) that spawn workers: call \`task\`
 3. Continue productive work while it runs
 4. Receive notification when complete
 5. Call \`delegation_read(id)\` to retrieve results
@@ -1697,8 +1954,6 @@ Agents route based on their permissions:
 You WILL be notified via \`<task-notification>\`. Polling wastes tokens.
 
 **NEVER wait idle.** Always have productive work while delegations run.
-
-**Using wrong tool will fail fast with guidance.**
 
 </delegation-system>
 </task-notification>`
@@ -1827,6 +2082,7 @@ const BackgroundAgentsPlugin: Plugin = async (ctx) => {
 			delegate: createDelegate(manager),
 			delegation_read: createDelegationRead(manager),
 			delegation_list: createDelegationList(manager),
+			delegation_kill: createDelegationKill(manager),
 		},
 
 		// Inject delegation rules into system prompt
@@ -1909,7 +2165,7 @@ const BackgroundAgentsPlugin: Plugin = async (ctx) => {
 									.map((part) => part.text)
 									.join("\n") ?? undefined)
 							: undefined
-					manager.handleMessageEvent(sessionID, messageText)
+					await manager.handleMessageEvent(sessionID, messageText)
 				}
 			}
 		},

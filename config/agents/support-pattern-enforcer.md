@@ -2,7 +2,8 @@
 description: Consistency propagation agent. Given a new pattern, finds all files that should adopt it and reports locations. Addresses the "we migrated to X but forgot to update Y" problem. Read-only — returns list, does not execute. Shared support agent invokable by any department.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/gpt-5.6-luna
+variant: high
 permission:
   read: allow
   glob: allow
@@ -66,7 +67,7 @@ You find where patterns should be applied. This solves the "we migrated to edge-
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 

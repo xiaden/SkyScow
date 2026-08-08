@@ -2,7 +2,8 @@
 description: Enhancement suggester and implementation pattern designer. Analyzes existing code and suggests improvements, and in adversarial design flow proposes implementation patterns for chosen approaches with mandatory web-cited evidence. Appends to the shared DD file across two turns. Invokable directly or via RnD-Manager.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: high
 permission:
   read: allow
   glob: allow
@@ -84,7 +85,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 

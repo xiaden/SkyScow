@@ -2,7 +2,8 @@
 description: Semantic complexity analyst. Determines whether code is simpler than it could be by analyzing structure, not just metrics. Compares against existing project patterns to identify over-engineering or unnecessary abstraction. Read-only. Invokable directly or via RnD-Manager.
 maintainer: "agent-team"
 mode: subagent
-model: opencode-go/deepseek-v4-flash
+model: omniroute/opencode-go/deepseek-v4-flash
+variant: low
 permission:
   read: allow
   glob: allow
@@ -75,7 +76,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Parallel Tool Execution
 
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/agent.md.
+> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
 
 **Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
 
