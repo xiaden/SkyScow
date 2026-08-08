@@ -66,7 +66,6 @@ RUN set -eux; \
     \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-    \
     # Archive / file utilities
     xz-utils unzip zip tar \
     file rsync \
@@ -256,7 +255,8 @@ RUN python3 -m pip install \
         --no-cache-dir \
         --break-system-packages \
         "mcp>=1,<2" \
-        "tiktoken>=0,<1" \
+        "tiktoken>=0,<1";
+
 # ------------------------------------------------------------------------------
 # Core Node runtime
 #
