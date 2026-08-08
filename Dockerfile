@@ -16,6 +16,8 @@ ARG LAZYGIT_VERSION=0.62.1
 ARG DELTA_VERSION=0.19.2
 ARG EZA_VERSION=0.23.4
 ARG OPENCODE_VERSION=1.17.18
+ARG RGA_VERSION=0.10.10
+ARG DIFFTASTIC_VERSION=0.69.0
 ARG TARGETARCH
 
 # ------------------------------------------------------------------------------
@@ -23,13 +25,10 @@ ARG TARGETARCH
 # ------------------------------------------------------------------------------
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=en_US.UTF-8 \
-    LC_ALL=en_US.UTF-8 \
-    DISPLAY=:99 \
-    DBUS_SESSION_BUS_ADDRESS=disabled: \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
     CHROME_PATH=/usr/bin/chromium \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    CHROMIUM_FLAGS="--disable-gpu --disable-dev-shm-usage" \
     OPENCODE_DISABLE_AUTOUPDATE=true \
     OPENCODE_DISABLE_TERMINAL_TITLE=true \
     PATH="/home/opencode/.local/bin:${PATH}"
@@ -37,22 +36,26 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # ------------------------------------------------------------------------------
 # System packages
 #
-# Includes:
-#   - core shell/dev tools
-#   - Python
-#   - database clients
-#   - Chromium/Xvfb/fonts
-#   - ONNX Runtime for AFT
-#   - GitHub CLI
-#   - locale/sudo
+# Keep the image capable of:
+#   - operating on arbitrary repositories
+#   - compiling native dependencies
+#   - debugging processes/network/files
+#   - using Git/GitHub/SSH
+#   - running Python projects
+#   - running Chromium headlessly
+#   - using AFT semantic search
+#
+# Project-specific frameworks/toolchains belong to the project.
 # ------------------------------------------------------------------------------
 
 RUN set -eux; \
-    # Bootstrap packages required to add external apt repositories.
+    \
+    # Bootstrap requirements for external apt repositories.
     apt-get update; \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl; \
+    \
     # GitHub CLI repository.
     curl -fsSL \
         https://cli.github.com/packages/githubcli-archive-keyring.gpg \
@@ -61,88 +64,60 @@ RUN set -eux; \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
         > /etc/apt/sources.list.d/github-cli.list; \
     \
+    apt-get update; \
     apt-get install -y --no-install-recommends \
-        \
-        xz-utils \
-        locales \
-        sudo \
-        \
-        git \
-        wget \
-        jq \
-        unzip \
-        zip \
-        tar \
-        tree \
-        less \
-        vim \
-        tmux \
-        openssh-client \
-        \
-        ripgrep \
-        fd-find \
-        fzf \
-        bat \
-        bubblewrap \
-        \
-        htop \
-        procps \
-        iproute2 \
-        lsof \
-        strace \
-        \
-        build-essential \
-        pkg-config \
-        \
-        postgresql-client \
-        redis-tools \
-        sqlite3 \
-        \
-        python3 \
-        python3-pip \
-        python3-venv \
-        python-is-python3 \
-        pyenv \
-        autoflake \
-        \
-        pandoc \
-        ffmpeg \
-        imagemagick \
-        \
-        gh \
-        \
-        chromium \
-        chromium-sandbox \
-        xvfb \
-        \
-        fonts-inter \
-        fonts-liberation2 \
-        fonts-dejavu-core \
-        fonts-noto-core \
-        fonts-noto-color-emoji \
-        \
-        libonnxruntime1.21; \
     \
-    # Locale.
-    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen; \
-    locale-gen; \
+    # Archive / file utilities
+    xz-utils unzip zip tar \
+    file rsync \
+    # Repository / shell essentials
+    git git-lfs gh openssh-client git-sizer tokei \
+    sudo jq tree less vim tmux wget \
+    # Search / navigation
+    ripgrep fd-find fzf bat \
+    universal-ctags cscope cloc bear gron \
+    libxml2-utils xmlstarlet poppler-utils jc \
+    # Process / network diagnostics
+    htop procps psmisc iproute2 \
+    lsof strace netcat-openbsd dnsutils \
+    socat openssl \
+    # Native project builds
+    build-essential pkg-config \
+    # Python project support
+    python3 python3-pip python3-venv python-is-python3 \
+    # Database inspection / clients
+    sqlite3 postgresql-client redis-tools \
+    # Document / media tooling
+    pandoc ffmpeg imagemagick \
+    # Headless browser
+    chromium chromium-sandbox fonts-noto-core \
+    fonts-noto-color-emoji fonts-inter fonts-liberation2 fonts-dejavu-core \
+    # AFT semantic search runtime
+    libonnxruntime1.21 \
+    # Code / shell quality
+    shellcheck shfmt yq \
+    # Benchmarking / automation
+    hyperfine entr inotify-tools \
+    # Unix utility upgrades
+    moreutils bc \
+    # Filesystem / permissions debugging
+    acl attr;\
     \
-    # Rename the stock node UID/GID 1000 account.
+    # Rename stock node UID/GID 1000 account.
     usermod -l opencode -d /home/opencode -m node; \
     groupmod -n opencode node; \
     printf '%s\n' 'opencode ALL=(ALL) NOPASSWD:ALL' \
         > /etc/sudoers.d/opencode; \
     chmod 0440 /etc/sudoers.d/opencode; \
     \
-    # Debian names bat "batcat".
+    # Debian packages bat as batcat.
     ln -sf /usr/bin/batcat /usr/local/bin/bat; \
     \
-    # Sandbox helpers.
-    chmod u+s /usr/bin/bwrap; \
+    # Chromium sandbox validation.
     chmod u+s /usr/lib/chromium/chrome-sandbox; \
     test -u /usr/lib/chromium/chrome-sandbox; \
     \
-    # Chromium security/version guard.
+    # Chromium security/version floor.
     chromium_version="$(dpkg-query -W -f='${Version}' chromium)"; \
     chromium_sandbox_version="$(dpkg-query -W -f='${Version}' chromium-sandbox)"; \
     printf '%s\n' "$chromium_version" \
@@ -152,10 +127,10 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------------------
-# Standalone native tools
+# Native standalone tools
 #
-# s6-overlay, lazygit, delta and eza have different archive naming schemes
-# between amd64 and arm64, so handle architecture once here.
+# These don't belong to individual projects and are useful enough to keep in
+# the base environment.
 # ------------------------------------------------------------------------------
 
 RUN set -eux; \
@@ -192,7 +167,9 @@ RUN set -eux; \
     curl -fsSL \
         -o /tmp/lazygit.tar.gz \
         "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LAZYGIT_ARCH}.tar.gz"; \
-    tar -C /usr/local/bin -xzf /tmp/lazygit.tar.gz lazygit; \
+    tar -C /usr/local/bin \
+        -xzf /tmp/lazygit.tar.gz \
+        lazygit; \
     \
     # git-delta.
     curl -fsSL \
@@ -204,7 +181,8 @@ RUN set -eux; \
     curl -fsSL \
         -o /tmp/eza.tar.gz \
         "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${EZA_ARCH}-unknown-linux-gnu.tar.gz"; \
-    tar -C /usr/local/bin -xzf /tmp/eza.tar.gz; \
+    tar -C /usr/local/bin \
+        -xzf /tmp/eza.tar.gz; \
     \
     rm -f \
         /tmp/s6-overlay-noarch.tar.xz \
@@ -214,99 +192,120 @@ RUN set -eux; \
         /tmp/eza.tar.gz
 
 # ------------------------------------------------------------------------------
-# Python tooling
+# Code exploration binaries
+# ------------------------------------------------------------------------------
+
+RUN set -eux; \
+    case "$TARGETARCH" in \
+        amd64) \
+            RGA_TARGET="x86_64-unknown-linux-musl"; \
+            DIFFT_TARGET="x86_64-unknown-linux-gnu"; \
+            ;; \
+        arm64) \
+            RGA_TARGET="aarch64-unknown-linux-gnu"; \
+            DIFFT_TARGET="aarch64-unknown-linux-gnu"; \
+            ;; \
+        *) \
+            echo "Unsupported TARGETARCH: $TARGETARCH" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    \
+    mkdir -p /tmp/rga /tmp/difftastic; \
+    \
+    # ripgrep-all
+    curl -fsSL --retry 3 \
+        -o /tmp/rga.tar.gz \
+        "https://github.com/phiresky/ripgrep-all/releases/download/v${RGA_VERSION}/ripgrep_all-v${RGA_VERSION}-${RGA_TARGET}.tar.gz"; \
+    tar -xzf /tmp/rga.tar.gz -C /tmp/rga; \
+    \
+    for binary in rga rga-preproc rga-fzf rga-fzf-open; do \
+        path="$(find /tmp/rga -type f -name "$binary" -print -quit)"; \
+        test -n "$path"; \
+        install -m 0755 "$path" "/usr/local/bin/$binary"; \
+    done; \
+    \
+    # difftastic
+    curl -fsSL --retry 3 \
+        -o /tmp/difftastic.tar.gz \
+        "https://github.com/Wilfred/difftastic/releases/download/${DIFFTASTIC_VERSION}/difft-${DIFFT_TARGET}.tar.gz"; \
+    tar -xzf /tmp/difftastic.tar.gz -C /tmp/difftastic; \
+    \
+    path="$(find /tmp/difftastic -type f -name difft -print -quit)"; \
+    test -n "$path"; \
+    install -m 0755 "$path" /usr/local/bin/difft; \
+    \
+    # Build-time sanity check.
+    rga --version; \
+    difft --version; \
+    \
+    rm -rf \
+        /tmp/rga \
+        /tmp/rga.tar.gz \
+        /tmp/difftastic \
+        /tmp/difftastic.tar.gz
+
+# ------------------------------------------------------------------------------
+# HolyCode Python runtime dependencies
 #
-# Chromium is supplied by Debian. Playwright itself is installed here; callers
-# using Python Playwright should explicitly select /usr/bin/chromium where needed.
+# Do NOT turn system Python into a generic project environment.
+# Repositories being worked on should install their own dependencies.
 # ------------------------------------------------------------------------------
 
 RUN python3 -m pip install \
-    --no-cache-dir \
-    --break-system-packages \
-    "playwright>=1,<2" \
-    "requests>=2,<3" \
-    "httpx>=0.28,<1" \
-    "beautifulsoup4>=4,<5" \
-    "lxml>=6,<7" \
-    "Pillow>=12,<13" \
-    "openpyxl>=3,<4" \
-    "python-docx>=1,<2" \
-    "pandas>=3,<4" \
-    "numpy>=2.5,<3" \
-    "matplotlib>=3.11,<4" \
-    "seaborn>=0.13,<1" \
-    "rich>=15,<16" \
-    "click>=8,<9" \
-    "tqdm>=4,<5" \
-    "apprise>=1,<2" \
-    "jinja2>=3,<4" \
-    "pyyaml>=6,<7" \
-    "python-dotenv>=1,<2" \
-    "markdown>=3,<4" \
-    "fastapi>=0.139,<1" \
-    "uvicorn>=0.51,<1" \
-    && rm -f /usr/local/bin/dotenv
-
+        --no-cache-dir \
+        --break-system-packages \
+        "mcp>=1,<2" \
+        "tiktoken>=0,<1" \
 # ------------------------------------------------------------------------------
-# Node / OpenCode tooling
+# Core Node runtime
 #
-# OpenCode remains exactly pinned because it is the runtime itself.
-# General developer tools follow compatible major/minor release families.
+# OpenCode is pinned intentionally.
+# Sleev follows current releases.
+# pnpm is provided as a general package manager.
+#
+# AFT's OpenCode plugin is configured through opencode.json, so only the AFT
+# binary itself is installed globally here.
+#
+# unique-names-generator remains because HolyCode's local background-agent
+# plugin imports it directly.
 # ------------------------------------------------------------------------------
 
 RUN set -eux; \
     npm install -g \
         "opencode-ai@${OPENCODE_VERSION}" \
         sleev \
-        unique-names-generator \
-        \
-        typescript@7 \
-        tsx@4 \
         pnpm@11 \
-        vite@8 \
-        esbuild@0.28 \
-        eslint@10 \
-        prettier@3 \
-        serve@14 \
-        nodemon@3 \
-        concurrently@10 \
-        dotenv-cli@11 \
-        wrangler@4 \
-        vercel@58 \
-        netlify-cli@27 \
-        pm2@7 \
-        prisma@7 \
-        drizzle-kit@0.31 \
-        lighthouse@13 \
-        @lhci/cli@0.15 \
-        sharp-cli@5 \
-        json-server@0.17 \
-        http-server@14; \
+        unique-names-generator \
+        @ast-grep/cli; \
     \
-    # AFT currently needs legacy peer dependency resolution.
-    npm install -g --legacy-peer-deps \
-        @cortexkit/aft \
-        @cortexkit/aft-opencode; \
+    npm install -g \
+        --legacy-peer-deps \
+        @cortexkit/aft; \
     \
-    # Preserve the real Sleev CLI behind HolyCode's wrapper.
+    # Preserve the real Sleev executable behind HolyCode's wrapper.
     mv /usr/local/bin/sleev /usr/local/bin/sleev.real; \
     \
     npm cache clean --force
 
 # ------------------------------------------------------------------------------
 # HolyCode configuration
+#
+# Copy configuration as a unit instead of creating a layer for every directory.
 # ------------------------------------------------------------------------------
+
+COPY config/ /usr/local/share/holycode/
 
 COPY scripts/entrypoint.sh \
      scripts/bootstrap.sh \
      scripts/sleev-wrapper.sh \
      /tmp/holycode-scripts/
 
-COPY config/ /usr/local/share/holycode/
-
 COPY s6-overlay/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
 
 RUN set -eux; \
+    \
+    # Executables.
     install -m 0755 \
         /tmp/holycode-scripts/entrypoint.sh \
         /usr/local/bin/entrypoint.sh; \
@@ -317,15 +316,19 @@ RUN set -eux; \
         /tmp/holycode-scripts/sleev-wrapper.sh \
         /usr/local/bin/sleev; \
     rm -rf /tmp/holycode-scripts; \
+    \
+    # Xvfb is no longer used. Chromium runs natively headless.
+    rm -rf /etc/s6-overlay/s6-rc.d/xvfb; \
+    \
+    # s6 services.
     chmod +x \
         /etc/s6-overlay/s6-rc.d/opencode/run \
-        /etc/s6-overlay/s6-rc.d/xvfb/run \
         /etc/s6-overlay/s6-rc.d/sleev/run \
         /etc/s6-overlay/s6-rc.d/sleev/finish; \
+    \
     mkdir -p /etc/s6-overlay/s6-rc.d/user/contents.d; \
     touch \
         /etc/s6-overlay/s6-rc.d/user/contents.d/opencode \
-        /etc/s6-overlay/s6-rc.d/user/contents.d/xvfb \
         /etc/s6-overlay/s6-rc.d/user/contents.d/sleev
 
 # ------------------------------------------------------------------------------
