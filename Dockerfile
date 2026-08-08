@@ -5,16 +5,23 @@
 
 FROM node:trixie-slim
 
-LABEL org.opencontainers.image.source=https://github.com/xiaden/HolyCode
+LABEL org.opencontainers.image.source="https://github.com/xiaden/HolyCode"
 
-# ---------- Build args ----------
+# ------------------------------------------------------------------------------
+# Versions
+# ------------------------------------------------------------------------------
+
 ARG S6_OVERLAY_VERSION=3.2.3.0
 ARG LAZYGIT_VERSION=0.62.1
 ARG DELTA_VERSION=0.19.2
 ARG EZA_VERSION=0.23.4
+ARG OPENCODE_VERSION=1.17.18
 ARG TARGETARCH
 
-# ---------- Environment ----------
+# ------------------------------------------------------------------------------
+# Runtime environment
+# ------------------------------------------------------------------------------
+
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8 \
@@ -24,198 +31,316 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     CHROMIUM_FLAGS="--disable-gpu --disable-dev-shm-usage" \
     OPENCODE_DISABLE_AUTOUPDATE=true \
-    OPENCODE_DISABLE_TERMINAL_TITLE=true
+    OPENCODE_DISABLE_TERMINAL_TITLE=true \
+    PATH="/home/opencode/.local/bin:${PATH}"
 
-# ---------- s6-overlay v3 (multi-arch) ----------
-RUN apt-get update && apt-get install -y --no-install-recommends xz-utils curl ca-certificates && rm -rf /var/lib/apt/lists/*
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp/
-RUN S6_ARCH=$(case "$TARGETARCH" in arm64) echo "aarch64";; *) echo "x86_64";; esac) && \
-    curl -fsSL -o /tmp/s6-overlay-arch.tar.xz \
-      "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" && \
-    tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
-    tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz && \
-    rm /tmp/s6-overlay-*.tar.xz
+# ------------------------------------------------------------------------------
+# System packages
+#
+# Includes:
+#   - core shell/dev tools
+#   - Python
+#   - database clients
+#   - Chromium/Xvfb/fonts
+#   - ONNX Runtime for AFT
+#   - GitHub CLI
+#   - locale/sudo
+# ------------------------------------------------------------------------------
 
-# ---------- Locale configuration ----------
-RUN apt-get update && apt-get install -y --no-install-recommends locales sudo && rm -rf /var/lib/apt/lists/* && \
-    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-
-# ---------- Rename node user to opencode ----------
-# node:22-bookworm-slim already has UID 1000 as 'node', rename it to 'opencode'
-RUN usermod -l opencode -d /home/opencode -m node && \
-    groupmod -n opencode node && \
-    echo "opencode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/opencode && \
-    chmod 0440 /etc/sudoers.d/opencode
-
-# ==============================================================================
-# TOOL SECTIONS - Edit these to customize your image
-# ==============================================================================
-
-# ---------- Core tools ----------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Shell essentials
-    git curl wget jq unzip zip tar tree less vim \
-    # Search and navigation
-    ripgrep fd-find fzf bat bubblewrap \
-    # Process and network
-    htop procps iproute2 lsof strace \
-    # Build essentials (needed for native npm addons)
-    build-essential pkg-config \
-    postgresql-client redis-tools sqlite3 \
-    # SSH client (NOT server)
-    openssh-client \
-    imagemagick \
-    fonts-inter \
-    tmux \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN chmod u+s /usr/bin/bwrap
-
-# ---------- bat symlink (Debian names it batcat) ----------
-RUN ln -sf /usr/bin/batcat /usr/local/bin/bat 2>/dev/null || true
-
-# ---------- Python 3 (for user projects) ----------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv pyenv autoflake\
-    python-is-python3\
-    && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    pandoc ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-
-# ---------- GitHub CLI ----------
-RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null && \
+RUN set -eux; \
+    # Bootstrap packages required to add external apt repositories.
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl; \
+    # GitHub CLI repository.
+    curl -fsSL \
+        https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        -o /usr/share/keyrings/githubcli-archive-keyring.gpg; \
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg; \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-      > /etc/apt/sources.list.d/github-cli.list && \
-    apt-get update && apt-get install -y gh && rm -rf /var/lib/apt/lists/*
+        > /etc/apt/sources.list.d/github-cli.list; \
+    \
+    apt-get install -y --no-install-recommends \
+        \
+        xz-utils \
+        locales \
+        sudo \
+        \
+        git \
+        wget \
+        jq \
+        unzip \
+        zip \
+        tar \
+        tree \
+        less \
+        vim \
+        tmux \
+        openssh-client \
+        \
+        ripgrep \
+        fd-find \
+        fzf \
+        bat \
+        bubblewrap \
+        \
+        htop \
+        procps \
+        iproute2 \
+        lsof \
+        strace \
+        \
+        build-essential \
+        pkg-config \
+        \
+        postgresql-client \
+        redis-tools \
+        sqlite3 \
+        \
+        python3 \
+        python3-pip \
+        python3-venv \
+        python-is-python3 \
+        pyenv \
+        autoflake \
+        \
+        pandoc \
+        ffmpeg \
+        imagemagick \
+        \
+        gh \
+        \
+        chromium \
+        chromium-sandbox \
+        xvfb \
+        \
+        fonts-inter \
+        fonts-liberation2 \
+        fonts-dejavu-core \
+        fonts-noto-core \
+        fonts-noto-color-emoji \
+        \
+        libonnxruntime1.21; \
+    \
+    # Locale.
+    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen; \
+    locale-gen; \
+    \
+    # Rename the stock node UID/GID 1000 account.
+    usermod -l opencode -d /home/opencode -m node; \
+    groupmod -n opencode node; \
+    printf '%s\n' 'opencode ALL=(ALL) NOPASSWD:ALL' \
+        > /etc/sudoers.d/opencode; \
+    chmod 0440 /etc/sudoers.d/opencode; \
+    \
+    # Debian names bat "batcat".
+    ln -sf /usr/bin/batcat /usr/local/bin/bat; \
+    \
+    # Sandbox helpers.
+    chmod u+s /usr/bin/bwrap; \
+    chmod u+s /usr/lib/chromium/chrome-sandbox; \
+    test -u /usr/lib/chromium/chrome-sandbox; \
+    \
+    # Chromium security/version guard.
+    chromium_version="$(dpkg-query -W -f='${Version}' chromium)"; \
+    chromium_sandbox_version="$(dpkg-query -W -f='${Version}' chromium-sandbox)"; \
+    printf '%s\n' "$chromium_version" \
+        | grep -Eq '^(15[1-9]|1[6-9][0-9]|[2-9][0-9]{2})\.'; \
+    test "$chromium_version" = "$chromium_sandbox_version"; \
+    \
+    rm -rf /var/lib/apt/lists/*
 
-# ---------- lazygit ----------
-RUN LAZYGIT_ARCH=$(case "$TARGETARCH" in arm64) echo "arm64";; *) echo "x86_64";; esac) && \
-    curl -fsSL -o /tmp/lazygit.tar.gz \
-      "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LAZYGIT_ARCH}.tar.gz" && \
-    tar -C /usr/local/bin -xzf /tmp/lazygit.tar.gz lazygit && \
-    rm /tmp/lazygit.tar.gz
+# ------------------------------------------------------------------------------
+# Standalone native tools
+#
+# s6-overlay, lazygit, delta and eza have different archive naming schemes
+# between amd64 and arm64, so handle architecture once here.
+# ------------------------------------------------------------------------------
 
-# ---------- delta (git diff pager) ----------
-RUN DELTA_DEB_ARCH=$(case "$TARGETARCH" in arm64) echo "arm64";; *) echo "amd64";; esac) && \
-    curl -fsSL -o /tmp/delta.deb \
-      "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_${DELTA_DEB_ARCH}.deb" && \
-    dpkg -i /tmp/delta.deb && \
-    rm /tmp/delta.deb
+RUN set -eux; \
+    case "$TARGETARCH" in \
+        amd64) \
+            S6_ARCH="x86_64"; \
+            LAZYGIT_ARCH="x86_64"; \
+            DELTA_ARCH="amd64"; \
+            EZA_ARCH="x86_64"; \
+            ;; \
+        arm64) \
+            S6_ARCH="aarch64"; \
+            LAZYGIT_ARCH="arm64"; \
+            DELTA_ARCH="arm64"; \
+            EZA_ARCH="aarch64"; \
+            ;; \
+        *) \
+            echo "Unsupported TARGETARCH: $TARGETARCH" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    \
+    # s6-overlay.
+    curl -fsSL \
+        -o /tmp/s6-overlay-noarch.tar.xz \
+        "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz"; \
+    curl -fsSL \
+        -o /tmp/s6-overlay-arch.tar.xz \
+        "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz"; \
+    tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz; \
+    tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz; \
+    \
+    # lazygit.
+    curl -fsSL \
+        -o /tmp/lazygit.tar.gz \
+        "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LAZYGIT_ARCH}.tar.gz"; \
+    tar -C /usr/local/bin -xzf /tmp/lazygit.tar.gz lazygit; \
+    \
+    # git-delta.
+    curl -fsSL \
+        -o /tmp/delta.deb \
+        "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb"; \
+    dpkg -i /tmp/delta.deb; \
+    \
+    # eza.
+    curl -fsSL \
+        -o /tmp/eza.tar.gz \
+        "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${EZA_ARCH}-unknown-linux-gnu.tar.gz"; \
+    tar -C /usr/local/bin -xzf /tmp/eza.tar.gz; \
+    \
+    rm -f \
+        /tmp/s6-overlay-noarch.tar.xz \
+        /tmp/s6-overlay-arch.tar.xz \
+        /tmp/lazygit.tar.gz \
+        /tmp/delta.deb \
+        /tmp/eza.tar.gz
 
-# ---------- eza (modern ls replacement) ----------
-RUN EZA_ARCH=$(case "$TARGETARCH" in arm64) echo "aarch64";; *) echo "x86_64";; esac) && \
-    curl -fsSL -o /tmp/eza.tar.gz \
-      "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${EZA_ARCH}-unknown-linux-gnu.tar.gz" && \
-    tar -C /usr/local/bin -xzf /tmp/eza.tar.gz && \
-    rm /tmp/eza.tar.gz
+# ------------------------------------------------------------------------------
+# Python tooling
+#
+# Chromium is supplied by Debian. Playwright itself is installed here; callers
+# using Python Playwright should explicitly select /usr/bin/chromium where needed.
+# ------------------------------------------------------------------------------
 
-# ---------- Headless browser (Chromium + Xvfb + fonts) ----------
-# Chromium runs sandboxed as the opencode user. chromium-sandbox provides the
-# setuid chrome-sandbox; the constrained seccomp profile is applied at runtime
-# via Compose `security_opt` (see docker-compose*.yaml).
-# The >=151 floor is a security gate: it guarantees the four high-severity
-# CVEs from the 2026-07-23 emergency Chrome update (CVE-2026-16804/805/806/807,
-# fixed upstream in 150.0.7871.186) are present, since Debian Trixie only ships
-# those fixes in Chromium 151+ (151.0.7922.71).
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium chromium-sandbox \
-    xvfb \
-    fonts-liberation2 fonts-dejavu-core fonts-noto-core fonts-noto-color-emoji \
-    && chmod u+s /usr/lib/chromium/chrome-sandbox \
-    && test -u /usr/lib/chromium/chrome-sandbox \
-    && dpkg-query -W -f='${Version}\n' chromium | grep -E '^(15[1-9]|1[6-9][0-9]|[2-9][0-9]{2})\.' \
-    && test "$(dpkg-query -W -f='${Version}' chromium)" = "$(dpkg-query -W -f='${Version}' chromium-sandbox)" \
-    && rm -rf /var/lib/apt/lists/*
+RUN python3 -m pip install \
+    --no-cache-dir \
+    --break-system-packages \
+    "playwright>=1,<2" \
+    "requests>=2,<3" \
+    "httpx>=0.28,<1" \
+    "beautifulsoup4>=4,<5" \
+    "lxml>=6,<7" \
+    "Pillow>=12,<13" \
+    "openpyxl>=3,<4" \
+    "python-docx>=1,<2" \
+    "pandas>=3,<4" \
+    "numpy>=2.5,<3" \
+    "matplotlib>=3.11,<4" \
+    "seaborn>=0.13,<1" \
+    "rich>=15,<16" \
+    "click>=8,<9" \
+    "tqdm>=4,<5" \
+    "apprise>=1,<2" \
+    "jinja2>=3,<4" \
+    "pyyaml>=6,<7" \
+    "python-dotenv>=1,<2" \
+    "markdown>=3,<4" \
+    "fastapi>=0.139,<1" \
+    "uvicorn>=0.51,<1" \
+    && rm -f /usr/local/bin/dotenv
 
-# ---------- Playwright (Python, uses system Chromium via env vars) ----------
-RUN pip install --no-cache-dir --break-system-packages playwright==1.60.0
+# ------------------------------------------------------------------------------
+# Node / OpenCode tooling
+#
+# OpenCode remains exactly pinned because it is the runtime itself.
+# General developer tools follow compatible major/minor release families.
+# ------------------------------------------------------------------------------
 
-RUN pip install --no-cache-dir --break-system-packages \
-    requests==2.34.2 httpx==0.28.1 beautifulsoup4==4.15.0 lxml==6.1.1 \
-    Pillow==12.2.0 openpyxl==3.1.5 python-docx==1.2.0 \
-    pandas==3.0.3 numpy==2.4.6 matplotlib==3.10.9 seaborn==0.13.2 \
-    rich==15.0.0 click==8.4.1 tqdm==4.67.3 apprise==1.10.0 \
-    jinja2==3.1.6 pyyaml==6.0.3 python-dotenv==1.2.2 markdown==3.10.2 \
-    fastapi==0.136.3 uvicorn==0.48.0
+RUN set -eux; \
+    npm install -g \
+        "opencode-ai@${OPENCODE_VERSION}" \
+        sleev \
+        unique-names-generator \
+        \
+        typescript@7 \
+        tsx@4 \
+        pnpm@11 \
+        vite@8 \
+        esbuild@0.28 \
+        eslint@10 \
+        prettier@3 \
+        serve@14 \
+        nodemon@3 \
+        concurrently@10 \
+        dotenv-cli@11 \
+        wrangler@4 \
+        vercel@58 \
+        netlify-cli@27 \
+        pm2@7 \
+        prisma@7 \
+        drizzle-kit@0.31 \
+        lighthouse@13 \
+        @lhci/cli@0.15 \
+        sharp-cli@5 \
+        json-server@0.17 \
+        http-server@14; \
+    \
+    # AFT currently needs legacy peer dependency resolution.
+    npm install -g --legacy-peer-deps \
+        @cortexkit/aft \
+        @cortexkit/aft-opencode; \
+    \
+    # Preserve the real Sleev CLI behind HolyCode's wrapper.
+    mv /usr/local/bin/sleev /usr/local/bin/sleev.real; \
+    \
+    npm cache clean --force
 
-RUN rm -f /usr/local/bin/dotenv
+# ------------------------------------------------------------------------------
+# HolyCode configuration
+# ------------------------------------------------------------------------------
 
-# ---------- OpenCode (AI coding agent) ----------
-# Installed via npm as root (global install needs write access to /usr/local/lib)
-RUN npm i -g opencode-ai@1.17.18
+COPY scripts/entrypoint.sh \
+     scripts/bootstrap.sh \
+     scripts/sleev-wrapper.sh \
+     /tmp/holycode-scripts/
 
-# ---------- Sleev (context compression gateway) ----------
-RUN npm i -g sleev && \
-    mv /usr/local/bin/sleev /usr/local/bin/sleev.real
-COPY scripts/sleev-wrapper.sh /usr/local/bin/sleev
-RUN chmod +x /usr/local/bin/sleev
+COPY config/ /usr/local/share/holycode/
 
-# ---------- unique-names-generator (background-agents plugin dependency) ----------
-RUN npm i -g unique-names-generator
+COPY s6-overlay/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
 
-# ---------- AFT (code search and analysis) ----------
-RUN npm i -g --legacy-peer-deps @cortexkit/aft @cortexkit/aft-opencode
-# ONNX Runtime enables semantic code search (aft_search)
-RUN apt-get update && apt-get install -y --no-install-recommends libonnxruntime1.21 && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    install -m 0755 \
+        /tmp/holycode-scripts/entrypoint.sh \
+        /usr/local/bin/entrypoint.sh; \
+    install -m 0755 \
+        /tmp/holycode-scripts/bootstrap.sh \
+        /usr/local/bin/bootstrap.sh; \
+    install -m 0755 \
+        /tmp/holycode-scripts/sleev-wrapper.sh \
+        /usr/local/bin/sleev; \
+    rm -rf /tmp/holycode-scripts; \
+    chmod +x \
+        /etc/s6-overlay/s6-rc.d/opencode/run \
+        /etc/s6-overlay/s6-rc.d/xvfb/run \
+        /etc/s6-overlay/s6-rc.d/sleev/run \
+        /etc/s6-overlay/s6-rc.d/sleev/finish; \
+    mkdir -p /etc/s6-overlay/s6-rc.d/user/contents.d; \
+    touch \
+        /etc/s6-overlay/s6-rc.d/user/contents.d/opencode \
+        /etc/s6-overlay/s6-rc.d/user/contents.d/xvfb \
+        /etc/s6-overlay/s6-rc.d/user/contents.d/sleev
+
+# ------------------------------------------------------------------------------
+# Runtime
+# ------------------------------------------------------------------------------
 
 WORKDIR /workspace
-ENV PATH="/home/opencode/.local/bin:${PATH}"
 
-RUN npm i -g \
-    typescript@6.0.3 tsx@4.22.3 \
-    pnpm@11.5.2 \
-    vite@8.0.14 esbuild@0.28.0 \
-    eslint@10.4.0 prettier@3.8.3 \
-    serve@14.2.6 nodemon@3.1.14 concurrently@9.2.1 \
-    dotenv-cli@11.0.0 \
-    wrangler@4.95.0 vercel@54.5.0 netlify-cli@26.0.2 \
-    pm2@7.0.1 \
-    prisma@7.8.0 drizzle-kit@0.31.10 \
-    lighthouse@13.3.0 @lhci/cli@0.15.1 \
-    sharp-cli@5.2.0 json-server@0.17.4 http-server@14.1.1
-
-# ---------- Copy config files ----------
-COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY scripts/bootstrap.sh /usr/local/bin/bootstrap.sh
-COPY config/opencode.json /usr/local/share/holycode/opencode.json
-COPY config/plugins /usr/local/share/holycode/plugins
-COPY config/agents /usr/local/share/holycode/agents
-COPY config/skills /usr/local/share/holycode/skills
-COPY config/tools /usr/local/share/holycode/tools
-COPY config/commands /usr/local/share/holycode/commands
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/bootstrap.sh
-
-# ---------- s6-overlay service: opencode web ----------
-COPY s6-overlay/s6-rc.d/opencode/type /etc/s6-overlay/s6-rc.d/opencode/type
-COPY s6-overlay/s6-rc.d/opencode/run /etc/s6-overlay/s6-rc.d/opencode/run
-RUN chmod +x /etc/s6-overlay/s6-rc.d/opencode/run && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/opencode
-
-# ---------- s6-overlay service: xvfb ----------
-COPY s6-overlay/s6-rc.d/xvfb/type /etc/s6-overlay/s6-rc.d/xvfb/type
-COPY s6-overlay/s6-rc.d/xvfb/run /etc/s6-overlay/s6-rc.d/xvfb/run
-RUN chmod +x /etc/s6-overlay/s6-rc.d/xvfb/run && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/xvfb
-
-# ---------- s6-overlay service: sleev (context compression gateway) ----------
-COPY s6-overlay/s6-rc.d/sleev/type /etc/s6-overlay/s6-rc.d/sleev/type
-COPY s6-overlay/s6-rc.d/sleev/run /etc/s6-overlay/s6-rc.d/sleev/run
-COPY s6-overlay/s6-rc.d/sleev/finish /etc/s6-overlay/s6-rc.d/sleev/finish
-RUN chmod +x /etc/s6-overlay/s6-rc.d/sleev/run /etc/s6-overlay/s6-rc.d/sleev/finish && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/sleev
-
-# ---------- Working directory ----------
-WORKDIR /workspace
-
-# ---------- Expose web UI port ----------
 EXPOSE 4096
 
-# ---------- Health check ----------
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD curl -sf http://localhost:4096/ || exit 1
+HEALTHCHECK \
+    --interval=30s \
+    --timeout=5s \
+    --start-period=30s \
+    --retries=3 \
+    CMD curl -sf http://localhost:4096/ || exit 1
 
-# ---------- s6-overlay as PID 1 ----------
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
