@@ -127,5 +127,14 @@ permits the namespace syscalls required by Chromium's setuid sandbox.
 - License: ISC
 - Source: https://github.com/tmux/tmux
 
+## DeepSeek V4 Flash 0731 tokenizer
+
+- License: MIT
+- Copyright: DeepSeek AI
+- Source: https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-0731
+
+HolyCode includes the model's tokenizer.json artifact for deterministic
+context-size measurements. Model weights are not included.
+
 For a complete list of installed packages and their licenses, inspect the
 Docker image directly or refer to the Dockerfile.

@@ -28,6 +28,7 @@ permission:
   doom_loop: allow
   aft_*: allow
   ast_grep_*: allow
+  context_tokens: allow
   delegate: allow
   delegation_read: allow
   delegation_list: allow

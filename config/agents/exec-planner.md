@@ -11,6 +11,7 @@ permission:
   log_read: allow
   log_write: allow
   task: allow
+  context_tokens: allow
   plan_*: allow
   adr_read: allow
   adr_search: allow
@@ -154,10 +155,11 @@ task:
 4. **Define steps** — Actionable, verifiable steps (one semantic outcome per step)
 5. **Group into phases** — Group related steps by cohesion and dependency. Each phase must fit in one worker context.
 6. **Size phases (worker budget)** — Verify each phase ≤ ~30K weighted edit scope:
-   - Compute per-phase: `weighted_chars = char_count × (1 + 0.03 × (sections - 1) + 0.015 × max(files - 1, 0))`
-   - `char_count` = chars of code sections edited + adjacent context needed for understanding
-   - `sections` = distinct edit locations (functions, methods, blocks, types)
-   - `files` = files touched in the phase
+   - Use the `context_tokens` tool with the planned file line ranges whenever the source exists.
+   - Use the model-specific `weighted_tokens` result for the active model; when the model is unknown, use the larger of `o200k` and `DS_V4_F_0731`.
+   - The tool assembles ranges with a blank-line separator and computes: `weighted_tokens = ceil(source_tokens × (1 + 0.03 × (sections - 1) + 0.015 × (files - 1)))`.
+   - `sections` = number of requested line ranges; `files` = number of unique requested paths.
+   - For planned output that does not exist yet, record a clearly labeled estimate separately rather than presenting character estimates as measured tokens.
    - **If any phase > ~30K:** Split it into multiple phases — group steps by domain sub-area until each fits
    - Self-estimate using research already done. Spawn Estimator subagent only for boundary cases with LOW confidence
 7. **Size plan (manager validation budget)** — Verify the full plan ≤ ~30K validation scope:

@@ -49,6 +49,12 @@ const relatedDocumentSchema = tool.schema.object({
   description: tool.schema.string(),
 })
 
+const fileRangeSchema = tool.schema.object({
+  path: tool.schema.string().describe("Workspace-relative file path"),
+  start_line: tool.schema.number().describe("1-indexed inclusive start line"),
+  end_line: tool.schema.number().describe("1-indexed inclusive end line"),
+})
+
 function workspaceRoot(context: ToolContext): string {
   if (typeof context.directory === "string" && context.directory.length > 0) {
     return context.directory
@@ -343,6 +349,19 @@ const tools = {
     },
     async execute(args: ToolArgs, context: ToolContext) {
       return runPythonTool("common.tools.plan_archive", args, context)
+    },
+  }),
+
+  context_tokens: tool({
+    description:
+      "Count o200k and DeepSeek V4 Flash 0731 tokens for workspace file subsections, including weighted context estimates.",
+    args: {
+      files: tool.schema
+        .array(fileRangeSchema)
+        .describe("File line ranges to assemble and count"),
+    },
+    async execute(args: ToolArgs, context: ToolContext) {
+      return runPythonTool("common.tools.context_tokens", args, context)
     },
   }),
 

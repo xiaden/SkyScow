@@ -17,6 +17,7 @@ permission:
   edit: allow
   bash: allow
   skill: allow
+  context_tokens: allow
   task:
     {
       "*": "deny",

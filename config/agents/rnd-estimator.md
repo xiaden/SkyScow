@@ -14,6 +14,7 @@ permission:
   asr_read: allow
   asr_search: allow
   read_module_*: allow
+  context_tokens: allow
   question: allow
   list: allow
   skill: allow

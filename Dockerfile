@@ -18,6 +18,8 @@ ARG SLEEV_VERSION=1.6.16
 ENV SLEEV_VERSION=${SLEEV_VERSION}
 ARG HOLYCODE_VERSION=0.0.0
 ENV HOLYCODE_VERSION=${HOLYCODE_VERSION}
+ARG DEEPSEEK_TOKENIZER_REVISION=7872f01b1d1fe23eabc4c98b48bffcef5a386062
+ARG DEEPSEEK_TOKENIZER_SHA256=8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf
 ARG RGA_VERSION=0.10.10
 ARG DIFFTASTIC_VERSION=0.69.0
 ARG TARGETARCH
@@ -336,6 +338,20 @@ RUN python3 -m pip install \
         "mcp>=1,<2" \
         "tiktoken>=0,<1" \
         "tokenizers>=0.23,<1";
+
+# The tokenizer is shipped locally so context measurements are deterministic
+# and do not require runtime access to Hugging Face.
+RUN set -eux; \
+    tokenizer_dir=/usr/local/share/holycode/tokenizers/deepseek-v4-flash-0731; \
+    mkdir -p "$tokenizer_dir"; \
+    curl -fsSL --retry 3 \
+        -o "$tokenizer_dir/tokenizer.json" \
+        "https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-0731/resolve/${DEEPSEEK_TOKENIZER_REVISION}/tokenizer.json?download=true"; \
+    printf '%s  %s\n' \
+        "$DEEPSEEK_TOKENIZER_SHA256" \
+        "$tokenizer_dir/tokenizer.json" | sha256sum -c -; \
+    chmod 0644 "$tokenizer_dir/tokenizer.json"; \
+    python3 -c 'from tokenizers import Tokenizer; t = Tokenizer.from_file("/usr/local/share/holycode/tokenizers/deepseek-v4-flash-0731/tokenizer.json"); assert t.encode("HolyCode").ids';
 
 # ------------------------------------------------------------------------------
 # Core Node runtime
