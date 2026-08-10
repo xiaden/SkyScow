@@ -30,6 +30,7 @@ services:
       # --- Container user ---
       - PUID=1000 # Match your host UID for file permissions
       - PGID=1000 # Match your host GID for file permissions
+      # - SLEEV_VERSION=1.6.16 # Override; startup fetches/verifies CLI + gateway
 
       # --- Git identity (used on first boot) ---
       # - GIT_USER_NAME=Your Name

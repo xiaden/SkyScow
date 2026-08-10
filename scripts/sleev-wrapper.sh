@@ -1,6 +1,6 @@
 #!/bin/bash
 # ------------------------------------------------------------------
-# HolyCode sleev wrapper – runs the real sleev CLI with tolerant exit
+# HolyCode sleev wrapper – runs the selected Sleev CLI with tolerant exit
 # handling.
 #
 # Gateway synchronization and supervision are owned elsewhere:
@@ -9,19 +9,24 @@
 #   - s6-overlay runs the gateway binary directly via the `sleev` run
 #     script.
 #
-# This wrapper therefore does NOT trigger s6, download a gateway, or
-# replace the authoritative build-time gateway. It is purely CLI
-# passthrough. The real CLI tries to manage the gateway via systemd
-# (which does not exist in containers), so we tolerate its failure as
-# long as the gateway binary ends up on disk.
+# This wrapper therefore does NOT trigger s6 or manage the gateway. The
+# synchronizer selects both CLI and gateway before s6 starts. The selected CLI
+# still tries to manage the gateway via systemd (which does not exist in
+# containers), so we tolerate that failure while the S6 service remains the
+# gateway supervisor.
 # ------------------------------------------------------------------
 
-# Let the real CLI do its setup (download binary, write config, etc.).
+# Let the selected CLI do its setup (write config, auth, etc.).
 # It will probably fail trying to manage the gateway via systemd, and
 # that is expected inside a container – capture the exit code but do
 # NOT abort the script.
+cli_bin="/home/opencode/.local/share/sleev/cli/current"
+if [ ! -x "$cli_bin" ]; then
+  echo "sleev CLI is unavailable; container startup synchronization did not complete" >&2
+  exit 127
+fi
 set +e
-/usr/local/bin/sleev.real "$@"
+"$cli_bin" "$@"
 real_exit=$?
 set -e
 

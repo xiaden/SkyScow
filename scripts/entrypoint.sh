@@ -103,10 +103,11 @@ if [ ! -f "$SENTINEL" ]; then
 fi
 
 # ---------- Synchronize the persistent Sleev gateway ----------
-# The image-shipped gateway is authoritative and verified at build time; no
-# download happens here. This runs as root so it can chown the persistent
-# layout to the opencode user. It must succeed (or find a usable existing
-# current) before s6 starts, because the s6 `sleev` service execs gateway/current.
+# The requested Sleev release is verified and synchronized here before s6
+# starts. The default release is shipped in the image; an SLEEV_VERSION
+# override fetches and verifies both the CLI and gateway. This runs as root so
+# it can chown the persistent layout to the opencode user. It must succeed
+# before s6 starts because the services depend on the selected CLI and gateway.
 if ! /usr/local/bin/sleev-gateway-sync.sh; then
     echo "[entrypoint] ERROR: Sleev gateway unavailable; refusing to start" >&2
     exit 1

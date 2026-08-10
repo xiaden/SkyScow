@@ -1,177 +1,240 @@
 #!/bin/bash
 # ==============================================================================
-# HolyCode - Sleev Gateway Synchronizer
+# HolyCode - Sleev version synchronizer
 #
-# Ensures the persistent gateway layout (~/.local/share/sleev/gateway/) has a
-# usable `current` symlink pointing at a valid, executable gateway binary before
-# s6-overlay starts. The immutable, build-time-verified image artifact at
-# /usr/local/share/holycode/sleev/gateway/<version>/ is authoritative; no
-# download happens at startup.
+# Selects one complete Sleev release for the persistent volume before s6 starts:
+#   - the CLI at ~/.local/share/sleev/cli/current/sleev
+#   - the gateway at ~/.local/share/sleev/gateway/current
 #
-# Invoked from scripts/entrypoint.sh as root after UID/GID remapping and
-# first-boot bootstrap, but before `exec /init`. Ownership of everything we
-# create under the persistent layout is set to the remapped opencode user
-# (PUID/PGID) so the s6 `sleev` service (s6-setuidgid opencode) can read it.
+# The image's pinned release is available without network access. If SLEEV_VERSION
+# requests another release, both official artifacts are downloaded, checked, and
+# installed before either current symlink is changed.
 #
-# Fail-closed: if the desired artifact is unavailable/invalid AND no existing
-# persistent `current` gateway is independently usable, we exit non-zero so the
-# container refuses to start with a broken gateway.
-#
-# SECURITY: this script never logs gateway.json, environment secrets, or any
-# command argument that could carry credentials. Only paths and versions are
-# emitted.
+# Invoked as root from entrypoint.sh after UID/GID remapping. No credentials or
+# gateway configuration contents are printed. An explicit version failure is
+# fatal; an older installed release is never selected as a silent fallback.
 # ==============================================================================
 set -euo pipefail
 
-# Image-shipped, build-time-verified artifact (authoritative source).
-IMAGE_GATEWAY_ROOT="/usr/local/share/holycode/sleev/gateway"
-DESIRED_VERSION="${SLEEV_GATEWAY_VERSION:-}"
+RELEASE_BASE="https://storage.googleapis.com/sleeve-releases"
+DESIRED_VERSION="${SLEEV_VERSION:-}"
 if [[ ! "$DESIRED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "[sleev-gateway-sync] ERROR: invalid SLEEV_GATEWAY_VERSION" >&2
+    echo "[sleev-sync] ERROR: SLEEV_VERSION must be a stable semver" >&2
     exit 1
 fi
-IMAGE_GATEWAY_DIR="${IMAGE_GATEWAY_ROOT}/${DESIRED_VERSION}"
-IMAGE_BINARY="${IMAGE_GATEWAY_DIR}/sleeve-gateway"
 
-# Persistent per-user gateway layout consumed by the s6 service.
 OC_HOME="/home/opencode"
-PERSISTENT_ROOT="${OC_HOME}/.local/share/sleev/gateway"
-CURRENT_LINK="${PERSISTENT_ROOT}/current"
-
-# Ownership target (entrypoint remaps opencode to these before invoking us).
+CLI_ROOT="${OC_HOME}/.local/share/sleev/cli"
+GATEWAY_ROOT="${OC_HOME}/.local/share/sleev/gateway"
+CLI_CURRENT="${CLI_ROOT}/current"
+GATEWAY_CURRENT="${GATEWAY_ROOT}/current"
+PACKAGED_GATEWAY="/usr/local/share/holycode/sleev/gateway/packaged/sleeve-gateway"
+PACKAGED_CLI="/usr/local/bin/sleev.real"
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
+LEGAL_FILES=(LICENSE.md EULA.md THIRD_PARTY_NOTICES.md)
 
-LEGAL_FILES="LICENSE.md EULA.md THIRD_PARTY_NOTICES.md"
+case "$(uname -m)" in
+    x86_64|amd64) PLATFORM="linux-x64" ;;
+    aarch64|arm64) PLATFORM="linux-arm64" ;;
+    *)
+        echo "[sleev-sync] ERROR: unsupported runtime architecture $(uname -m)" >&2
+        exit 1
+        ;;
+esac
 
-# ------------------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------------------
-
-# reported_version <bin> -> echo the gateway version token (e.g. "1.6.16").
-# Returns non-zero if the binary cannot run or its --version output does not
-# contain a "gateway <semver>" line. Emits nothing on failure.
-reported_version() {
-    local bin="$1"
-    local out ver
-    out="$("$bin" --version 2>/dev/null)" || return 1
-    ver="$(printf '%s\n' "$out" | awk '/^gateway /{print $2; exit}')"
-    [ -n "$ver" ] || return 1
-    printf '%s\n' "$ver"
+reported_cli_version() {
+    local bin="$1" output version
+    output="$($bin --version 2>/dev/null)" || return 1
+    version="$(printf '%s\n' "$output" | awk '/^[0-9]+\.[0-9]+\.[0-9]+$/{print; exit}')"
+    [ -n "$version" ] || return 1
+    printf '%s\n' "$version"
 }
 
-# current_is_desired -> 0 if `current` resolves to an executable gateway
-# already reporting the desired version (idempotent fast path).
-current_is_desired() {
-    [ -L "$CURRENT_LINK" ] || return 1
-    [ -x "$CURRENT_LINK" ] || return 1
-    [ "$(reported_version "$CURRENT_LINK")" = "$DESIRED_VERSION" ] || return 1
-    return 0
+reported_gateway_version() {
+    local bin="$1" output version
+    output="$($bin --version 2>/dev/null)" || return 1
+    version="$(printf '%s\n' "$output" | awk '/^gateway [0-9]+\.[0-9]+\.[0-9]+$/{print $2; exit}')"
+    [ -n "$version" ] || return 1
+    printf '%s\n' "$version"
 }
 
-# current_is_usable -> 0 if `current` is a well-formed symlink resolving to an
-# executable gateway that runs and reports a valid version (any version). Used
-# as the fail-closed fallback when the image artifact is unavailable/invalid.
-current_is_usable() {
-    [ -L "$CURRENT_LINK" ] || return 1
-    local target
-    target="$(readlink "$CURRENT_LINK")" || return 1
-    case "$target" in
-        */sleeve-gateway) ;;
-        *) return 1 ;;
-    esac
-    [ -x "$CURRENT_LINK" ] || return 1
-    reported_version "$CURRENT_LINK" >/dev/null || return 1
-    return 0
+valid_current() {
+    [ -L "$CLI_CURRENT" ] && [ -x "$CLI_CURRENT" ] || return 1
+    [ -L "$GATEWAY_CURRENT" ] && [ -x "$GATEWAY_CURRENT" ] || return 1
+    [ "$(reported_cli_version "$CLI_CURRENT")" = "$DESIRED_VERSION" ] || return 1
+    [ "$(reported_gateway_version "$GATEWAY_CURRENT")" = "$DESIRED_VERSION" ] || return 1
 }
 
-# image_artifact_ok -> 0 if the build-time image artifact exists, is
-# executable, and reports the desired version.
-image_artifact_ok() {
-    [ -x "$IMAGE_BINARY" ] || return 1
-    [ "$(reported_version "$IMAGE_BINARY")" = "$DESIRED_VERSION" ] || return 1
-    return 0
+read_manifest_artifact() {
+    local kind="$1" manifest="$2" expected_name="$3" metadata
+    metadata="$(python3 - "$manifest" "$kind" "$DESIRED_VERSION" "$PLATFORM" "$expected_name" "$RELEASE_BASE" <<'PY'
+import json
+import re
+import sys
+
+manifest_path, kind, version, platform, expected_name, release_base = sys.argv[1:]
+with open(manifest_path, encoding="utf-8") as handle:
+    manifest = json.load(handle)
+
+if manifest.get("version") != version:
+    raise SystemExit("manifest version mismatch")
+artifact = manifest.get("artifacts", {}).get(platform)
+if not isinstance(artifact, dict):
+    raise SystemExit("manifest has no artifact for this platform")
+
+url = artifact.get("url")
+expected_url = f"{release_base}/{kind}/{version}/{expected_name}"
+if url != expected_url or not url.startswith("https://"):
+    raise SystemExit("manifest artifact URL is not the pinned official URL")
+
+sha256 = artifact.get("sha256")
+if not isinstance(sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", sha256):
+    raise SystemExit("manifest contains an invalid SHA-256")
+size = artifact.get("size")
+if not isinstance(size, int) or size <= 0:
+    raise SystemExit("manifest contains an invalid artifact size")
+
+print(url, sha256, size)
+PY
+)" || return 1
+    printf '%s\n' "$metadata"
 }
 
-# sync_from_image -> copies the verified image artifact into a versioned
-# persistent dir, validates it, then atomically repoints `current`.
-# Never replaces an existing versioned binary in place: we install to a temp
-# file and atomically rename within the same directory, then swap the symlink.
-sync_from_image() {
-    local versioned_dir="${PERSISTENT_ROOT}/${DESIRED_VERSION}"
-    local tmp_bin="${versioned_dir}/.sleeve-gateway.tmp"
-    local tmp_link="${PERSISTENT_ROOT}/current.tmp"
-    local legal src dst
+download_artifact() (
+    set -euo pipefail
+    local kind="$1" archive_name="$2" output_dir="$3"
+    local work manifest url sha256 size archive extracted binary installed_name
 
-    # Create/reuse the versioned persistent dir with opencode ownership.
-    mkdir -p "$versioned_dir"
-    chown "$PUID:$PGID" "$PERSISTENT_ROOT" "$versioned_dir"
+    work="$(mktemp -d)"
+    trap 'rm -rf "$work"' EXIT
+    manifest="$work/manifest.json"
+    archive="$work/$archive_name"
+    extracted="$work/extracted"
+    mkdir "$extracted"
 
-    # Copy the binary via a temp file so we never clobber a live binary in
-    # place. Validate version BEFORE activation.
-    install -m 0755 "$IMAGE_BINARY" "$tmp_bin"
-    if [ "$(reported_version "$tmp_bin")" != "$DESIRED_VERSION" ]; then
-        echo "[sleev-gateway-sync] ERROR: copied gateway failed version validation" >&2
-        rm -f "$tmp_bin"
+    curl -fsSL --proto '=https' --tlsv1.2 \
+        -o "$manifest" \
+        "${RELEASE_BASE}/${kind}/${DESIRED_VERSION}/manifest.json"
+    read -r url sha256 size < <(
+        read_manifest_artifact "$kind" "$manifest" "$archive_name"
+    )
+    [ -n "$url" ] && [ -n "$sha256" ] && [ -n "$size" ]
+
+    curl -fsSL --proto '=https' --tlsv1.2 -o "$archive" "$url"
+    [ "$(stat -c '%s' "$archive")" -eq "$size" ] || {
+        echo "[sleev-sync] ERROR: $kind archive size mismatch" >&2
         return 1
-    fi
-    mv -f "$tmp_bin" "${versioned_dir}/sleeve-gateway"
-    chown "$PUID:$PGID" "${versioned_dir}/sleeve-gateway"
+    }
+    printf '%s  %s\n' "$sha256" "$archive" | sha256sum -c - >/dev/null
 
-    # Copy the legal files (non-secret, restrictive metadata) alongside.
-    for legal in $LEGAL_FILES; do
-        src="${IMAGE_GATEWAY_DIR}/${legal}"
-        if [ -f "$src" ]; then
-            dst="${versioned_dir}/${legal}"
-            install -m 0644 "$src" "$dst"
-            chown "$PUID:$PGID" "$dst"
-        fi
-    done
-
-    # Re-validate the activated binary before repointing the symlink.
-    if [ "$(reported_version "${versioned_dir}/sleeve-gateway")" != "$DESIRED_VERSION" ]; then
-        echo "[sleev-gateway-sync] ERROR: activated gateway failed version validation" >&2
-        return 1
-    fi
-
-    # Atomic symlink swap: create a temp link in the same dir, then rename over
-    # `current`. Relative link keeps layout as gateway/<version>/sleeve-gateway.
-    rm -f "$tmp_link"
-    ln -s "${DESIRED_VERSION}/sleeve-gateway" "$tmp_link"
-    mv -Tf "$tmp_link" "$CURRENT_LINK"
-
-    echo "[sleev-gateway-sync] activated gateway ${DESIRED_VERSION}"
-    return 0
-}
-
-# ------------------------------------------------------------------------------
-# Main
-# ------------------------------------------------------------------------------
-main() {
-    # Fast path: current already satisfies the desired version.
-    if current_is_desired; then
-        echo "[sleev-gateway-sync] gateway already synchronized (${DESIRED_VERSION})"
-        return 0
-    fi
-
-    if image_artifact_ok; then
-        if sync_from_image; then
-            return 0
-        fi
-        # Sync failed - fall through to fail-closed handling.
-        echo "[sleev-gateway-sync] WARNING: image sync failed; checking persistent fallback" >&2
+    tar -xzf "$archive" -C "$extracted"
+    if [ "$kind" = cli ]; then
+        binary="${extracted}/sleev"
+        installed_name="sleev"
     else
-        echo "[sleev-gateway-sync] WARNING: desired image artifact unavailable/invalid" >&2
+        binary="${extracted}/sleeve-gateway-${PLATFORM}"
+        installed_name="sleeve-gateway"
+    fi
+    [ -x "$binary" ] || {
+        echo "[sleev-sync] ERROR: $kind archive has no executable" >&2
+        return 1
+    }
+
+    if [ "$kind" = cli ]; then
+        [ "$(reported_cli_version "$binary")" = "$DESIRED_VERSION" ] || return 1
+    else
+        [ "$(reported_gateway_version "$binary")" = "$DESIRED_VERSION" ] || return 1
     fi
 
-    # Fail closed unless an existing persistent `current` is independently usable.
-    if current_is_usable; then
-        echo "[sleev-gateway-sync] WARNING: keeping existing persistent current gateway" >&2
+    mkdir -p "$output_dir"
+    install -m 0755 "$binary" "${output_dir}/${installed_name}"
+    for legal in "${LEGAL_FILES[@]}"; do
+        [ -f "${extracted}/${legal}" ] || continue
+        install -m 0644 "${extracted}/${legal}" "${output_dir}/${legal}"
+    done
+)
+
+install_packaged_release() {
+    local cli_dir="${CLI_ROOT}/${DESIRED_VERSION}"
+    local gateway_dir="${GATEWAY_ROOT}/${DESIRED_VERSION}"
+    local legal source
+
+    [ -x "$PACKAGED_CLI" ] || return 1
+    [ "$(reported_cli_version "$PACKAGED_CLI")" = "$DESIRED_VERSION" ] || return 1
+    [ -x "$PACKAGED_GATEWAY" ] || return 1
+    [ "$(reported_gateway_version "$PACKAGED_GATEWAY")" = "$DESIRED_VERSION" ] || return 1
+
+    mkdir -p "$cli_dir" "$gateway_dir"
+    install -m 0755 "$PACKAGED_CLI" "${cli_dir}/sleev"
+    install -m 0755 "$PACKAGED_GATEWAY" "${gateway_dir}/sleeve-gateway"
+
+    for legal in "${LEGAL_FILES[@]}"; do
+        for source in \
+            "/usr/local/lib/node_modules/sleev/${legal}" \
+            "/usr/local/share/holycode/sleev/gateway/packaged/${legal}"; do
+            if [ -f "$source" ]; then
+                install -m 0644 "$source" "${gateway_dir}/${legal}"
+                install -m 0644 "$source" "${cli_dir}/${legal}"
+                break
+            fi
+        done
+    done
+}
+
+activate_release() {
+    local cli_dir="${CLI_ROOT}/${DESIRED_VERSION}"
+    local gateway_dir="${GATEWAY_ROOT}/${DESIRED_VERSION}"
+    local cli_tmp gateway_tmp old_cli old_gateway
+
+    [ "$(reported_cli_version "${cli_dir}/sleev")" = "$DESIRED_VERSION" ] || return 1
+    [ "$(reported_gateway_version "${gateway_dir}/sleeve-gateway")" = "$DESIRED_VERSION" ] || return 1
+
+    chown -R "$PUID:$PGID" "$cli_dir" "$gateway_dir"
+    chown "$PUID:$PGID" "$CLI_ROOT" "$GATEWAY_ROOT"
+
+    cli_tmp="${CLI_ROOT}/current.tmp"
+    gateway_tmp="${GATEWAY_ROOT}/current.tmp"
+    old_cli="$(readlink "$CLI_CURRENT" 2>/dev/null || true)"
+    old_gateway="$(readlink "$GATEWAY_CURRENT" 2>/dev/null || true)"
+    rm -f "$cli_tmp" "$gateway_tmp"
+    ln -s "${DESIRED_VERSION}/sleev" "$cli_tmp"
+    ln -s "${DESIRED_VERSION}/sleeve-gateway" "$gateway_tmp"
+    mv -Tf "$cli_tmp" "$CLI_CURRENT"
+    if ! mv -Tf "$gateway_tmp" "$GATEWAY_CURRENT"; then
+        rm -f "$CLI_CURRENT"
+        [ -n "$old_cli" ] && ln -s "$old_cli" "$CLI_CURRENT"
+        [ -n "$old_gateway" ] && ln -s "$old_gateway" "$GATEWAY_CURRENT"
+        return 1
+    fi
+    echo "[sleev-sync] activated Sleev ${DESIRED_VERSION} (${PLATFORM})"
+}
+
+main() {
+    mkdir -p "$CLI_ROOT" "$GATEWAY_ROOT"
+    chown "$PUID:$PGID" "$CLI_ROOT" "$GATEWAY_ROOT"
+
+    if valid_current; then
+        echo "[sleev-sync] Sleev ${DESIRED_VERSION} already active"
         return 0
     fi
 
-    echo "[sleev-gateway-sync] ERROR: no usable gateway available; refusing to start" >&2
-    return 1
+    # The image-shipped artifacts are used only when they report the requested
+    # version. Any other requested version must be fetched and verified.
+    if [ "$(reported_cli_version "$PACKAGED_CLI" 2>/dev/null || true)" = "$DESIRED_VERSION" ]; then
+        install_packaged_release || {
+            echo "[sleev-sync] ERROR: packaged Sleev ${DESIRED_VERSION} failed validation" >&2
+            exit 1
+        }
+    else
+        download_artifact cli "sleev-${PLATFORM}.tar.gz" "${CLI_ROOT}/${DESIRED_VERSION}"
+        download_artifact gateway "sleeve-gateway-${PLATFORM}.tar.gz" "${GATEWAY_ROOT}/${DESIRED_VERSION}"
+    fi
+
+    activate_release || {
+        echo "[sleev-sync] ERROR: Sleev ${DESIRED_VERSION} failed activation" >&2
+        exit 1
+    }
 }
 
 main "$@"

@@ -17,7 +17,7 @@ ARG DELTA_VERSION=0.19.2
 ARG EZA_VERSION=0.23.4
 ARG OPENCODE_VERSION=1.17.18
 ARG SLEEV_VERSION=1.6.16
-ENV SLEEV_GATEWAY_VERSION=${SLEEV_VERSION}
+ENV SLEEV_VERSION=${SLEEV_VERSION}
 ARG RGA_VERSION=0.10.10
 ARG DIFFTASTIC_VERSION=0.69.0
 ARG TARGETARCH
@@ -197,8 +197,9 @@ RUN set -eux; \
 #
 # The gateway is a native binary shipped in the image at build time under a
 # versioned path and run by s6. At startup it is synchronized into the
-# persistent volume (see scripts/sleev-gateway-sync.sh). Nothing here performs
-# runtime downloads or self-upgrades; the archive is verified before use.
+# persistent volume (see scripts/sleev-gateway-sync.sh). An override through
+# SLEEV_VERSION fetches and verifies the matching official CLI and gateway
+# archives before s6 starts.
 # ------------------------------------------------------------------------------
 
 RUN set -eux; \
@@ -256,6 +257,8 @@ RUN set -eux; \
     test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/LICENSE.md"; \
     test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/EULA.md"; \
     test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/THIRD_PARTY_NOTICES.md"; \
+    ln -s "${SLEEV_VERSION}" \
+        "/usr/local/share/holycode/sleev/gateway/packaged"; \
     # Do not leave the downloaded archive in the build layer.
     rm -f /tmp/sleeve-gateway.tar.gz
 
@@ -330,8 +333,9 @@ RUN python3 -m pip install \
 # Core Node runtime
 #
 # OpenCode is pinned intentionally.
-# Sleev is pinned to the same version as the gateway shipped below, so the
-# CLI and the native gateway artifact stay in lockstep.
+# Sleev defaults to the same version as the gateway shipped below, so the CLI
+# and native gateway artifact stay in lockstep. SLEEV_VERSION may be overridden
+# at runtime; startup then fetches and verifies both matching artifacts.
 # pnpm is provided as a general package manager.
 #
 # AFT's OpenCode plugin is configured through opencode.json, so only the AFT
