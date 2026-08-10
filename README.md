@@ -458,6 +458,8 @@ Includes Liberation, DejaVu, Noto, and Noto Color Emoji fonts for correct page r
 
 s6-overlay supervises OpenCode, Xvfb, and the Sleev gateway. If a process crashes, it restarts automatically. Container restart policies stay clean because the supervisor handles it internally.
 
+The Sleev CLI and its native gateway are pinned to matching version 1.6.16 and verified at image build time. Gateway artifacts are SHA256-checked before they are installed into the image, and container startup performs no arbitrary network download or systemd management.
+
 </details>
 
 
@@ -574,6 +576,8 @@ Plugin cache is mounted separately at `./local-cache/opencode` by default so you
 | `./local-cache/opencode` | `/home/opencode/.cache/opencode` | Plugin node_modules, auto-installed dependencies |
 
 \* These `./data/opencode/...` paths are example host paths from the sample compose file. If you bind `/home/opencode` to a different host path, the same subdirectories will appear there instead.
+
+The Sleev gateway uses a versioned layout under `/home/opencode/.local/share/sleev/gateway/<version>/`, with `current` a symlink pointing at the active version. On startup the synchronizer (`sleev-gateway-sync.sh`) copies the build-time-verified gateway from the image when the image version differs, then atomically repoints `current`; older versions are kept for rollback. Because synchronization runs during container startup, an image update requires you to restart/recreate the container for an existing volume to pick up the new gateway.
 
 Rebuild the container anytime. Run `docker compose pull && docker compose up -d` and your sessions, settings, and configs come back automatically.
 

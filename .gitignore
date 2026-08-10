@@ -18,6 +18,10 @@ desktop.ini
 # Dependencies
 node_modules/
 
+# OpenCode session and generated agent artifacts
+.opencode/
+artifacts/logs/
+
 # Docker overrides
 data/
 local-cache/

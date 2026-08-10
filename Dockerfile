@@ -16,6 +16,8 @@ ARG LAZYGIT_VERSION=0.62.1
 ARG DELTA_VERSION=0.19.2
 ARG EZA_VERSION=0.23.4
 ARG OPENCODE_VERSION=1.17.18
+ARG SLEEV_VERSION=1.6.16
+ENV SLEEV_GATEWAY_VERSION=${SLEEV_VERSION}
 ARG RGA_VERSION=0.10.10
 ARG DIFFTASTIC_VERSION=0.69.0
 ARG TARGETARCH
@@ -191,6 +193,73 @@ RUN set -eux; \
         /tmp/eza.tar.gz
 
 # ------------------------------------------------------------------------------
+# Sleev gateway (pinned, architecture-specific, verified)
+#
+# The gateway is a native binary shipped in the image at build time under a
+# versioned path and run by s6. At startup it is synchronized into the
+# persistent volume (see scripts/sleev-gateway-sync.sh). Nothing here performs
+# runtime downloads or self-upgrades; the archive is verified before use.
+# ------------------------------------------------------------------------------
+
+RUN set -eux; \
+    case "$TARGETARCH" in \
+        amd64) \
+            GATEWAY_ARCH="x64"; \
+            GATEWAY_SHA256="1d86668199689c22c08e6f65b0af94f2e4ba337c090ec368b2cf81c5412a7f93"; \
+            GATEWAY_SIZE="27371540"; \
+            ;; \
+        arm64) \
+            GATEWAY_ARCH="arm64"; \
+            GATEWAY_SHA256="d26f6b9b8c34cbd31c7d9fadc861eb1cc9e4007a59268bdcf0604a50b8612e1a"; \
+            GATEWAY_SIZE="25551336"; \
+            ;; \
+        *) \
+            echo "Unsupported TARGETARCH: $TARGETARCH" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    \
+    # Download the official gateway archive.
+    curl -fsSL \
+        -o /tmp/sleeve-gateway.tar.gz \
+        "https://storage.googleapis.com/sleeve-releases/gateway/${SLEEV_VERSION}/sleeve-gateway-linux-${GATEWAY_ARCH}.tar.gz"; \
+    \
+    # Verify SHA256 before extraction; fail the build on mismatch.
+    echo "${GATEWAY_SHA256}  /tmp/sleeve-gateway.tar.gz" | sha256sum -c -; \
+    \
+    # Optional size guard against truncated/mismatched downloads.
+    test "$(stat -c %s /tmp/sleeve-gateway.tar.gz)" -eq "$GATEWAY_SIZE"; \
+    \
+    # Extract the architecture-specific binary and legal files into the
+    # image-shipped versioned directory.
+    mkdir -p "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}"; \
+    tar -xzf /tmp/sleeve-gateway.tar.gz \
+        -C "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}" \
+        "sleeve-gateway-linux-${GATEWAY_ARCH}" \
+        LICENSE.md EULA.md THIRD_PARTY_NOTICES.md; \
+    \
+    # Rename the binary to a consistent name for the synchronizer.
+    install -m 0755 \
+        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway-linux-${GATEWAY_ARCH}" \
+        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway"; \
+    rm -f \
+        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway-linux-${GATEWAY_ARCH}"; \
+    \
+    # Legal files, non-secret, restrictive metadata.
+    chmod 0644 \
+        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/LICENSE.md" \
+        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/EULA.md" \
+        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/THIRD_PARTY_NOTICES.md"; \
+    \
+    # Extraction integrity checks.
+    test -x "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway"; \
+    test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/LICENSE.md"; \
+    test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/EULA.md"; \
+    test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/THIRD_PARTY_NOTICES.md"; \
+    # Do not leave the downloaded archive in the build layer.
+    rm -f /tmp/sleeve-gateway.tar.gz
+
+# ------------------------------------------------------------------------------
 # Code exploration binaries
 # ------------------------------------------------------------------------------
 
@@ -261,7 +330,8 @@ RUN python3 -m pip install \
 # Core Node runtime
 #
 # OpenCode is pinned intentionally.
-# Sleev follows current releases.
+# Sleev is pinned to the same version as the gateway shipped below, so the
+# CLI and the native gateway artifact stay in lockstep.
 # pnpm is provided as a general package manager.
 #
 # AFT's OpenCode plugin is configured through opencode.json, so only the AFT
@@ -274,7 +344,7 @@ RUN python3 -m pip install \
 RUN set -eux; \
     npm install -g \
         "opencode-ai@${OPENCODE_VERSION}" \
-        sleev \
+        "sleev@${SLEEV_VERSION}" \
         pnpm@11 \
         unique-names-generator \
         @ast-grep/cli; \
@@ -299,6 +369,7 @@ COPY config/ /usr/local/share/holycode/
 COPY scripts/entrypoint.sh \
      scripts/bootstrap.sh \
      scripts/sleev-wrapper.sh \
+     scripts/sleev-gateway-sync.sh \
      /tmp/holycode-scripts/
 
 COPY s6-overlay/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
@@ -315,6 +386,9 @@ RUN set -eux; \
     install -m 0755 \
         /tmp/holycode-scripts/sleev-wrapper.sh \
         /usr/local/bin/sleev; \
+    install -m 0755 \
+        /tmp/holycode-scripts/sleev-gateway-sync.sh \
+        /usr/local/bin/sleev-gateway-sync.sh; \
     rm -rf /tmp/holycode-scripts; \
     \
     # Xvfb is no longer used. Chromium runs natively headless.
