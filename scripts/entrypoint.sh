@@ -3,8 +3,8 @@ set -e
 
 # ==============================================================================
 # HolyCode - Container Entrypoint
-# Handles: UID/GID remapping, directory pre-creation, first-boot bootstrap,
-#          s6-overlay handoff
+# Handles: UID/GID remapping, directory pre-creation, configuration
+#          reconciliation, s6-overlay handoff
 # ==============================================================================
 
 OC_USER="opencode"
@@ -93,13 +93,12 @@ PY
 
 check_cifs_compatibility
 
-# ---------- First-boot bootstrap ----------
-SENTINEL="$OC_HOME/.config/opencode/.holycode-bootstrapped"
-if [ ! -f "$SENTINEL" ]; then
-    echo "[entrypoint] First boot detected, running bootstrap.sh"
-    if ! /usr/local/bin/bootstrap.sh; then
-        echo "[entrypoint] WARNING: bootstrap.sh failed, continuing anyway"
-    fi
+# ---------- Version-aware configuration bootstrap ----------
+# This is intentionally idempotent and runs on every start. The bootstrap
+# manifest, not a one-time sentinel, determines which files are image-owned.
+if ! /usr/local/bin/bootstrap.sh; then
+    echo "[entrypoint] ERROR: configuration reconciliation failed; refusing to start" >&2
+    exit 1
 fi
 
 # ---------- Synchronize the persistent Sleev gateway ----------

@@ -1,82 +1,66 @@
 # AGENTS.md — HolyCode
 
-## What this repo is
+## Repository shape
 
-A Docker image definition that packages [OpenCode](https://opencode.ai) (AI coding agent) into a container with 50+ dev tools, headless Chromium, and provider-agnostic model support. There is **no application source code** — no build step, no test suite, no package.json scripts. The repo produces a Docker image consumed via `docker compose`.
+HolyCode is a Docker image definition for OpenCode, not an application repository. There is no project `src/`, `package.json` script suite, typecheck, or test suite. The image provides general runtimes/tools; the project mounted at `/workspace` supplies its own dependencies and tests.
 
-## Architecture
+## Runtime architecture
 
 ```
-entrypoint.sh  →  UID/GID remap  →  bootstrap.sh (first boot only)  →  s6-overlay /init
-                                                                        ├── xvfb (:99)
-                                                                        ├── opencode web (:4096)
-                                                                        └── sleev gateway
+docker compose up → entrypoint.sh → UID/GID + directories → bootstrap.sh
+                  → sleev-gateway-sync.sh → s6-overlay /init
+                                                        ├── opencode web :4096
+                                                        └── sleev gateway
 ```
 
-- **s6-overlay v3** is the process supervisor (PID 1). Services live in `s6-overlay/s6-rc.d/`.
-- **entrypoint.sh** remaps the `opencode` user to host UID/GID via `PUID`/`PGID`, pre-creates XDG directories, checks CIFS/SMB SQLite WAL compatibility, and hands off to s6.
-- **bootstrap.sh** runs on first boot only (sentinel: `~/.config/opencode/.holycode-bootstrapped`). It copies shipped config, plugins, and commands into the bind-mounted home directory.
+- `scripts/entrypoint.sh` runs as root on every start: remaps `opencode` with `PUID`/`PGID`, creates XDG directories, checks SQLite WAL compatibility, reconciles config, synchronizes Sleev, then execs `/init`.
+- s6-overlay v3 is PID 1. Active services are `s6-overlay/s6-rc.d/opencode` and `s6-overlay/s6-rc.d/sleev`; the repository’s `xvfb` source is removed by the Dockerfile, so Chromium runs native headless.
+- `scripts/sleev-gateway-sync.sh` selects one versioned CLI/gateway release under `/home/opencode/.local/share/sleev/`, verifies downloaded artifacts by official manifest, size, SHA-256, and reported version, then atomically updates `current` symlinks. `SLEEV_VERSION` must be stable semver; failed sync aborts startup.
+- `scripts/sleev-wrapper.sh` is only a tolerant CLI shim. It does not supervise or restart the gateway; s6 owns gateway supervision.
 
-## Key files and directories
+## High-value files
 
-| Path | Role |
-|---|---|
-| `Dockerfile` | Single source of truth for all installed packages and versions |
-| `scripts/entrypoint.sh` | Container entrypoint — UID/GID, dirs, CIFS check, bootstrap gate |
-| `scripts/bootstrap.sh` | First-boot config copy + git identity setup |
-| `scripts/sleev-wrapper.sh` | Translates sleev CLI (expects systemd) to s6 supervision |
-| `config/opencode.json` | Shipped OpenCode config (enables AFT plugin) |
-| `config/agents/` | 30 OpenCode agent definitions |
-| `config/commands/` | Shipped OpenCode commands (`/onboard`, `/rw`, ECC suite) |
-| `config/skills/` | 20+ skill definitions |
-| `config/plugin/background-agents.ts` | Async delegation plugin |
-| `config/plugins/` | Additional plugins (ECC hooks, tools) |
-| `config/tools/` | Tool implementations (helpers, schemas) |
-| `s6-overlay/s6-rc.d/` | Service definitions for opencode, xvfb, sleev |
-| `renovate.json` | Automated dep bumps (Dockerfile ARGs, npm, pip, GitHub Actions) |
+- `Dockerfile` — source of truth for pinned image/tool versions, architecture branches, security gates, shipped config manifest, and installed entrypoints.
+- `scripts/entrypoint.sh`, `scripts/bootstrap.sh` — root startup and config reconciliation; use `runuser -u opencode` for user-level operations.
+- `scripts/sleev-gateway-sync.sh`, `scripts/sleev-wrapper.sh` — Sleev release selection and CLI compatibility shim.
+- `config/opencode.json`, `config/agents/`, `config/commands/`, `config/skills/`, `config/plugins/`, `config/tools/` — shipped OpenCode configuration. Note the directory is `plugins/` (plural).
+- `s6-overlay/s6-rc.d/` — service definitions. `run`/`finish` files are shell scripts and must remain executable; each active service’s `type` is `longrun`.
+- `.github/workflows/pr-validation.yml` — PR build plus `opencode --version` smoke test. `.github/workflows/docker-publish.yml` — multi-arch GHCR release on `v*` tags or manual dispatch.
+- `scripts/validate_chromium_seccomp.py` and `config/chromium-seccomp.json` — pinned Chromium sandbox profile validation.
 
-## Developer commands
+## Commands and verification
 
 ```bash
-# Build the image locally
-docker build -t holycode:local .
+# Required focused security check
+python3 scripts/validate_chromium_seccomp.py
 
-# Run with the quick-start compose file
-cp .env.example .env   # fill in at least one API key
-docker compose up -d   # web UI at http://localhost:4096
+# Match PR validation locally
+docker build -t holycode-pr-test .
+docker run --rm holycode-pr-test opencode --version
 
-# Exec into the running container
+# Run locally
+cp .env.example .env       # set at least one provider key
+docker compose up -d       # web UI: http://localhost:4096
 docker exec -it holycode bash
-
-# Re-trigger first-boot bootstrap (updates shipped configs)
-docker exec holycode rm /home/opencode/.config/opencode/.holycode-bootstrapped
-docker compose restart
 ```
 
-## Config update flow
+There is no repo-wide lint/test command; validate Dockerfile changes with the image build and smoke test, and review `git diff --check`. Do not run `npm test` or invent project-level checks for this repository.
 
-Shipped config lives at `/usr/local/share/holycode/` inside the image. On first boot, `bootstrap.sh` copies it to `~/.config/opencode/` **only if the target doesn't already exist**. This means:
-- Updating the image does NOT overwrite user-customized config.
-- To force a re-copy of shipped config, delete the sentinel file and restart.
-- New agents, skills, or commands added to `config/` will only reach existing users on a fresh data volume or after sentinel deletion.
+## Persistent config reconciliation
 
-## Conventions and gotchas
+The image ships `/usr/local/share/holycode/bootstrap-manifest.tsv`; `bootstrap.sh` reconciles it with `/home/opencode/.config/opencode/` on every start. Unchanged shipped files may update or be removed, but edited files, user deletions, and symlinks are preserved. Existing files without provenance are recorded as legacy `0.0.0` and preserved. Preview or review changes with:
 
-- **No app source**: don't look for `src/`, `package.json` scripts, `tsconfig.json`, or try `npm test`. There is no application — only Docker infrastructure and OpenCode configuration.
-- **Renovate manages versions**: `renovate.json` auto-bumps Dockerfile ARGs, npm packages, and pip packages. Don't manually bump versions without understanding the renovate rules — it may conflict.
-- **`bat` is `batcat`**: Debian names the binary `batcat`. The Dockerfile symlinks `bat` → `batcat`.
-- **sleev wrapper**: The real `sleev` CLI assumes systemd. `sleev-wrapper.sh` catches the expected failure and signals s6 to start the gateway binary instead.
-- **SQLite WAL on CIFS/SMB**: The entrypoint tests WAL locking. If the data mount is on a NAS, CIFS mount options `nobrl,mfsymlinks` are required.
-- **Two compose files**: `docker-compose.yaml` is the quick-start. `docker-compose.full.yaml` is the reference with every option documented and commented out. They serve different purposes — don't conflate them.
-- **Cache mount must be local disk**: `./local-cache/opencode` should always be on local storage, not NAS. If the whole project is on network storage, use an absolute local path for the cache volume.
-- **No CI/CD in repo**: No `.github/workflows/` exists currently. The only automation is Renovate for dependency bumps.
-- **Multi-arch**: The Dockerfile supports `amd64` and `arm64` via `$TARGETARCH`. Binary downloads (s6, lazygit, delta, eza) branch on architecture.
-- **Container user**: The `node` user from the base image is renamed to `opencode` (UID 1000). `PUID`/`PGID` remap it at runtime.
-- **Chromium sandbox + seccomp**: Chromium runs sandboxed (setuid `chrome-sandbox`) and **requires** the `config/chromium-seccomp.json` profile attached via Compose `security_opt: - seccomp=...`. If Chromium won't start, check the profile is attached. Do NOT work around it with `--no-sandbox` or `seccomp=unconfined`. Validate the profile with `python3 scripts/validate_chromium_seccomp.py` (pinned SHA). The Dockerfile enforces a Chromium ≥151 version floor (a build-time security gate for CVE-2026-16804/805/806/807, which Debian Trixie only patches in 151+).
+```bash
+docker exec holycode /usr/local/bin/bootstrap.sh --check
+docker exec -it holycode /usr/local/bin/bootstrap.sh --interactive
+```
 
-## When editing this repo
+Config changes are manifest-shipped to existing users; do not use the old sentinel-file workflow.
 
-- **Dockerfile changes**: pin exact versions. Renovate will bump them. Test with `docker build`.
-- **Config changes** (`config/agents/`, `config/commands/`, `config/skills/`, `config/plugin/`): these are shipped to new users on first boot. Existing users must delete the sentinel to receive updates. Consider this when changing behavior.
-- **s6 service changes**: service files are shell scripts run by s6-overlay. They must be executable (`chmod +x`). The `type` file must contain `longrun`.
-- **Script changes**: `entrypoint.sh` and `bootstrap.sh` run as root before s6 handoff. Use `runuser -u opencode` for user-level operations.
+## Operational constraints
+
+- Compose must attach `config/chromium-seccomp.json` via `security_opt`; Chromium’s setuid sandbox is required. Do not “fix” browser failures with `--no-sandbox` or `seccomp=unconfined`. Keep `shm_size: 2g`.
+- If `/home/opencode` data is on CIFS/SMB, mount with `nobrl,mfsymlinks` for SQLite WAL and plugin symlinks. Keep `/home/opencode/.cache/opencode` on local disk, even when the data/workspace mounts are on a NAS.
+- `PUID`/`PGID` control ownership of bind-mounted files. `GIT_USER_NAME` and `GIT_USER_EMAIL` are applied by bootstrap on each reconciliation unless `HOLYCODE_SKIP_GIT_CONFIG=1`.
+- Keep exact versions in `Dockerfile`; Renovate manages Dockerfile dependency pins, including its regex-managed npm/Python entries and GitHub Actions. Do not manually “float” versions.
+- Dockerfile builds target `amd64` and `arm64`. Binary download blocks must preserve both architecture branches and their integrity checks.

@@ -64,6 +64,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            HOLYCODE_VERSION=${{ startsWith(github.ref_name, 'v') && github.ref_name || '0.0.0' }}
+          outputs: >-
+            type=image,name=${{ env.GHCR_IMAGE }},annotation-index.org.opencontainers.image.description=Pre-configured OpenCode development environment with 50+ dev tools and headless Chromium
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

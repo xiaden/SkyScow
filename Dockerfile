@@ -5,8 +5,6 @@
 
 FROM node:trixie-slim
 
-LABEL org.opencontainers.image.source="https://github.com/xiaden/HolyCode"
-
 # ------------------------------------------------------------------------------
 # Versions
 # ------------------------------------------------------------------------------
@@ -18,9 +16,18 @@ ARG EZA_VERSION=0.23.4
 ARG OPENCODE_VERSION=1.17.18
 ARG SLEEV_VERSION=1.6.16
 ENV SLEEV_VERSION=${SLEEV_VERSION}
+ARG HOLYCODE_VERSION=0.0.0
+ENV HOLYCODE_VERSION=${HOLYCODE_VERSION}
 ARG RGA_VERSION=0.10.10
 ARG DIFFTASTIC_VERSION=0.69.0
 ARG TARGETARCH
+
+# OCI metadata is surfaced by GitHub Container Registry on the package page.
+LABEL \
+    org.opencontainers.image.source="https://github.com/xiaden/HolyCode" \
+    org.opencontainers.image.description="Pre-configured OpenCode development environment with 50+ dev tools and headless Chromium" \
+    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.version="${HOLYCODE_VERSION}"
 
 # ------------------------------------------------------------------------------
 # Runtime environment
@@ -327,7 +334,8 @@ RUN python3 -m pip install \
         --no-cache-dir \
         --break-system-packages \
         "mcp>=1,<2" \
-        "tiktoken>=0,<1";
+        "tiktoken>=0,<1" \
+        "tokenizers>=0.23,<1";
 
 # ------------------------------------------------------------------------------
 # Core Node runtime
@@ -379,6 +387,25 @@ COPY scripts/entrypoint.sh \
 COPY s6-overlay/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
 
 RUN set -eux; \
+    manifest=/usr/local/share/holycode/bootstrap-manifest.tsv; \
+    { \
+        printf 'schema\t1\n'; \
+        printf 'version\t%s\n' "$HOLYCODE_VERSION"; \
+        { \
+            printf '%s\n' /usr/local/share/holycode/opencode.json; \
+            find \
+                /usr/local/share/holycode/plugins \
+                /usr/local/share/holycode/agents \
+                /usr/local/share/holycode/skills \
+                /usr/local/share/holycode/tools \
+                /usr/local/share/holycode/commands \
+                -type f -print; \
+        } | LC_ALL=C sort | while IFS= read -r source; do \
+            path="${source#/usr/local/share/holycode/}"; \
+            hash="$(sha256sum "$source" | cut -d' ' -f1)"; \
+            printf 'file\t%s\t%s\n' "$path" "$hash"; \
+        done; \
+    } > "$manifest"; \
     \
     # Executables.
     install -m 0755 \
