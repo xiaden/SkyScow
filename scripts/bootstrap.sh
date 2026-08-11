@@ -290,7 +290,11 @@ configure_git_identity() {
     [[ "${HOLYCODE_SKIP_GIT_CONFIG:-0}" == 1 ]] && return 0
     local git_user_name="${GIT_USER_NAME:-HolyCode User}"
     local git_user_email="${GIT_USER_EMAIL:-noreply@holycode.local}"
-    runuser -u "$OC_USER" -- git config --global safe.directory /workspace
+    # safe.directory is a multi-valued setting. Preserve existing entries and
+    # add /workspace only when it is not already present.
+    if ! runuser -u "$OC_USER" -- git config --global --get-all safe.directory '^/workspace$' >/dev/null 2>&1; then
+        runuser -u "$OC_USER" -- git config --global --add safe.directory /workspace
+    fi
     runuser -u "$OC_USER" -- git config --global user.name "$git_user_name"
     runuser -u "$OC_USER" -- git config --global user.email "$git_user_email"
     log "configured git as '$git_user_name <$git_user_email>'"
