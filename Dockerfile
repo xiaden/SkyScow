@@ -369,8 +369,10 @@ RUN set -eux; \
 # plugin imports it directly.
 # ------------------------------------------------------------------------------
 
+# These packages have reviewed postinstall scripts; other dependency scripts stay blocked.
 RUN set -eux; \
     npm install -g \
+        --allow-scripts=opencode-ai,sleev,@ast-grep/cli \
         "opencode-ai@${OPENCODE_VERSION}" \
         "sleev@${SLEEV_VERSION}" \
         pnpm@11 \
