@@ -25,6 +25,7 @@ artifacts/logs/
 # Docker overrides
 data/
 local-cache/
+__pycache__/
 workspace/
 docker-compose.override.yaml
 docker-compose.override.yml
