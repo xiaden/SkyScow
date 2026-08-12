@@ -1,0 +1,9 @@
+model: DS_V4_F_0731
+worker_phase_limit: 48000
+manager_operational_limit: 96000
+physical_limit: 128000
+worker_return_tokens: 8000
+fixer_return_tokens: 8000
+qa_return_tokens: 12000
+phase_reread_tokens: 8000
+correction_multiplier: 3

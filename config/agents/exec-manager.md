@@ -4,6 +4,11 @@ maintainer: "agent-team"
 mode: all
 model: omniroute/opencode-go/deepseek-v4-flash
 variant: medium
+context_budget:
+  operational_limit: 96000
+  physical_limit: 128000
+  return_tokens: 12000
+  correction_multiplier: 3
 permission:
   read: allow
   glob: allow
@@ -28,6 +33,7 @@ permission:
   aft_inspect: allow
   aft_conflicts: allow
   ast_grep_search: allow
+  context_budget: allow
   delegate: allow
   delegation_read: allow
   delegation_list: allow
@@ -49,6 +55,7 @@ permission:
 - No code analysis — tools are for reading plan status, not implementation details
 - Must pass QA gate before DONE — QA-Reviewer with TestAnalyzer + DocsAnalyzer
 - Maximum 2 fix cycles — Round 3+ auto-escalates
+- Never compact; retain the plan, phase rereads, and validated child results in context.
 
 ## Scope Exclusions
 
@@ -183,7 +190,12 @@ Load the `dispatching-agents` skill and use the **Exec-Worker reference** for th
 
 Each worker discovers prior context via `plan_read`. The plan file is the channel for cross-phase context.
 
-**After Exec-Worker returns, route by report shape:**
+**After Exec-Worker returns, validate the bounded JSON result, then reread the
+completed phase with `plan_read(plan_name, phase=N)`. This reread is mandatory
+even for `DONE`; it is the manager's independent completion check. Budget a
+possible correction path at up to three times the normal phase-result context.**
+
+**Route by report shape:**
 
   | Exec-Worker report | You do |
   | ----------- | -------- |
@@ -204,7 +216,9 @@ After `plan_read(plan, phase=N)`, route based on step annotations:
 
 **Repeat for every phase. One spawn per phase. Never bundle phases.**
 
-**After ALL phases complete:** Run a single `plan_read` to verify all steps are marked complete before dispatching QA-Reviewer. This is the only re-read needed — it confirms the accumulated state matches what workers reported.
+**After ALL phases complete:** Run a final `plan_read` to verify all steps are
+marked complete before dispatching QA-Reviewer. The per-phase rereads above
+remain mandatory.
 
 ### Spec-First Testing (TDD-Style)
 

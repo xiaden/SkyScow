@@ -4,6 +4,10 @@ maintainer: "agent-team"
 mode: all
 model: omniroute/opencode-go/deepseek-v4-flash
 variant: none
+context_budget:
+  operational_limit: 48000
+  physical_limit: 128000
+  return_tokens: 8000
 permission:
   read: allow
   glob: allow
@@ -27,6 +31,7 @@ permission:
   doom_loop: allow
   aft_*: allow
   ast_grep_*: allow
+  context_tokens: allow
 ---
 
 ## Identity
@@ -163,22 +168,12 @@ For each issue:
 
 ## Output
 
-```yaml
-status: DONE | BLOCKED
-summary: "Fixed {N}/{total} issues"
-fixes:
-  - file: "src/persistence/builder.py"
-    line: 45
-    status: FIXED
-    description: "Updated the example to use the constructor-backed persistence path"
-  - file: "src/workflows/bar_wf.py"
-    line: 23
-    status: FIXED
-    description: "Replaced datetime.now() with now_ms().value"
-unfixable:  # Only if status: BLOCKED
-  - file: "..."
-    reason: "Requires upstream change in Plan A"
-lintErrors: 0  # Must be 0 for DONE
+Return one compact JSON object and no surrounding markdown. Keep it under the
+return-token budget supplied by the manager; do not include transcripts or
+source dumps.
+
+```json
+{"status":"DONE","summary":"Fixed 2/2 issues","fixes":[{"file":"src/example.py","line":45,"status":"FIXED","description":"..."}],"unfixable":[],"validation":[{"command":"...","status":"PASS","detail":"..."}],"lint_errors":0}
 ```
 
 ## Rules

@@ -45,6 +45,11 @@ Do NOT: [negative constraints — what the agent must not do]
 | **Be specific about output.** | "Tell me what you find" is a briefing, not a dispatch. "Return an ADR in artifacts/decisions/" is a dispatch. |
 | **One task per dispatch.** | "Execute the plan AND fix the tests AND update the docs" is three dispatches. Scope-creeping dispatches produce scope-creeping output. |
 
+For worker, fixer, QA, and manager dispatches, include the maximum serialized
+return-token budget and require one compact JSON result. The parent receives
+the result object, not a transcript, source dump, or repeated context. A
+malformed or oversized result is invalid and must be retried or escalated.
+
 ### Dispatch Decision Tree
 
 ```

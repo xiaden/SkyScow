@@ -365,6 +365,17 @@ const tools = {
     },
   }),
 
+  context_budget: tool({
+    description:
+      "Measure supplied files and project worker phases and manager plans: frontmatter-only agent model selection with DS_V4_F_0731 fallback, structured plan parsing with sequential-phase validation, per-phase worker-limit checks, and normal/worst-case projections from the shipped orchestration policy (config/agent-context-budgets.yaml).",
+    args: {
+      files: tool.schema.array(fileRangeSchema).describe("Files or line ranges to measure"),
+    },
+    async execute(args: ToolArgs, context: ToolContext) {
+      return runPythonTool("common.tools.context_budget", args, context)
+    },
+  }),
+
   log_write: tool({
     description: "Append an entry to an agent's JSONL log file.",
     args: {

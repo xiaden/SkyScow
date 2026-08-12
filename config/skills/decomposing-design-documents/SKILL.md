@@ -22,7 +22,16 @@ Requirements → [DDAuthor] → Design Doc → Decompose → Initialize Ledger �
 | 1 | Decompose design doc into lettered parts | `artifacts/designs/parts/{feature}/README.md` |
 | 2 | Create contracts ledger | `artifacts/designs/parts/{feature}/CONTRACTS.md` |
 | 3 | Dispatch Planner per part, validate, update ledger | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` |
-| 4 | Cross-validate all plans for gaps and conflicts | Fixes applied to plan files |
+ | 4 | Cross-validate all plans for gaps and conflicts | Fixes applied to plan files |
+
+### Context Budget Gate
+
+Before creating parts or dispatching planners, measure the known DD, required
+skills, instructions, existing patterns, and tests with `context_tokens`. Use
+`context_budget` to project manager orchestration with bounded worker/QA JSON
+returns. Treat 96,000 tokens as the operational manager limit and 128,000 as
+the physical ceiling. A plan must fit the worst-case projection, including the
+three-times correction allowance; split plans when it does not.
 
 ## Agent Integration
 
@@ -119,10 +128,10 @@ Read the design doc. Identify natural part boundaries:
  | Layer boundaries | Parts touching different architectural layers → separate |
  | System boundaries | Backend vs plugin vs frontend → separate |
  | Dependency depth | No part depends on more than 2 others |
- | Session scope | Each part ≤ 12 plan steps (≤ 2 phases) |
+   | Session scope | Each part must fit the measured context budget; use step count only as a secondary readability check |
  | Diamond avoidance | If parts A→C and B→C share most context → merge A+B |
  | Risk surface | Parts touching security, auth, or data integrity → flag for mandatory security review in plan. High-risk parts should be planned first to surface issues early. |
- | Complexity | Estimate per part: TRIVIAL/SMALL/MEDIUM/LARGE/EPIC. Use for model routing and session budget planning. |
+   | Complexity | Record measured context and projected phase/manager budgets; do not use time or arbitrary size labels. |
 
 Assign letters (A, B, C...) in topological order. Group into execution rounds.
 

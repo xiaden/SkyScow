@@ -1,0 +1,29 @@
+# Context budget orchestration policy — single shipped policy source.
+#
+# Owned by config/agent-context-budgets.yaml. Agent frontmatter must NOT
+# override these values; custom `context_budget:` frontmatter blocks are
+# ignored by the context_budget tool. The tool loads this file through
+# common.helpers.budget_policy.load_policy and falls back to the built-in
+# defaults (identical to these values) when the file is absent or malformed.
+#
+# Values are fixed production constants:
+#   worker_phase_limit      48,000  max tokens a single worker phase may carry
+#   manager_operational     96,000  normal manager budget (operational limit)
+#   physical_limit         128,000  hard ceiling (model context window)
+#   worker/fixer return      8,000  per-phase return envelope
+#   QA return               12,000  per-phase QA review envelope
+#   phase reread             8,000  per-phase re-read allowance
+#   correction_multiplier        3  worst-case correction rounds factor
+#
+# `model` is the deterministic fallback tokenizer used for unknown, missing,
+# mixed, or unsafe model metadata (see MODEL_TOKENIZER_MAP in budget_policy).
+
+model: DS_V4_F_0731
+worker_phase_limit: 48000
+manager_operational_limit: 96000
+physical_limit: 128000
+worker_return_tokens: 8000
+fixer_return_tokens: 8000
+qa_return_tokens: 12000
+phase_reread_tokens: 8000
+correction_multiplier: 3

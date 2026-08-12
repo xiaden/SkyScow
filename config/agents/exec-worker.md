@@ -4,6 +4,10 @@ maintainer: "agent-team"
 mode: subagent
 model: omniroute/opencode-go/deepseek-v4-flash
 variant: low
+context_budget:
+  operational_limit: 48000
+  physical_limit: 128000
+  return_tokens: 8000
 permission:
   read: allow
   glob: allow
@@ -28,6 +32,7 @@ permission:
   doom_loop: allow
   aft_*: allow
   ast_grep_*: allow
+  context_tokens: allow
 ---
 
 ## Identity
@@ -187,13 +192,16 @@ Log with `agent="exec-worker"`.
 
 ## Final Report
 
-After completing your scope, return:
+After completing your scope, return one compact JSON object and no surrounding
+markdown. Keep it within the return-token budget supplied by the manager; never
+include source dumps, tool transcripts, or repeated plan content.
 
-- **Status**: `DONE` or `BLOCKED`
-- **Summary**: steps completed / steps in scope
-- **Artifacts**: files created or modified (path + action)
-- **Blocked steps**: step IDs and reasons (if any)
-- **Lint errors**: must be 0 for `DONE`
+```json
+{"status":"DONE","summary":"Steps completed / steps in scope","completed_steps":["P1-S1"],"artifacts":[{"path":"src/example.py","action":"modified"}],"validation":[{"command":"...","status":"PASS","detail":"..."}],"blocked_steps":[],"risks":[],"observations":[]}
+```
+
+Use `status: BLOCKED` for genuine blockers and populate `blocked_steps` with
+step IDs and reasons. `DONE` requires evidence and zero lint errors.
 
 ## Never
 

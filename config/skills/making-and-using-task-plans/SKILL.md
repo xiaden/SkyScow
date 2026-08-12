@@ -63,6 +63,27 @@ This skill uses the **decision tree** pattern. The body is a dispatch index; loa
 - Measurable success condition
 ```
 
+Plans for delegated execution must also record a context budget block, based on
+`context_tokens` and `context_budget`:
+
+```yaml
+context_budget:
+  model: DS_V4_F_0731
+  operational_limit: 96000
+  physical_limit: 128000
+  known_context_tokens: 0
+  worker_return_tokens: 10000
+  qa_return_tokens: 10000
+  phase_reread_tokens: 8000
+  fix_multiplier: 3
+  worst_case_total_tokens: 0
+  status: VALID
+```
+
+The block is a projection, not a time estimate. Recalculate it after the plan
+is authored and before execution; split the plan if the worst-case result is
+over the operational limit.
+
 ### Format Rules
 
 | Element | Pattern | Note |
