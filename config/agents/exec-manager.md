@@ -201,7 +201,7 @@ possible correction path at up to three times the normal phase-result context.**
   | ----------- | -------- |
   | `status: DONE`, no issues listed, response well-formed | Call `plan_read(plan_name, phase=N)` to inspect annotations for the just-completed phase. Route based on what you find — see "Post-Phase Annotation Routing" below. |
   | `status: DONE` but issues listed, or response looks malformed/truncated, OR `status: ISSUES_FOUND` | **Investigate.** Call `plan_read` to check current plan state. Read exec-worker logs if needed. Then route: minor issue → spawn Exec-Fixer; planning gap → spawn Exec-Planner (AMEND); unclear → escalate. |
-  | `status: BLOCKED` | **HARD STOP.** Do not proceed to next phase. If blocker is MAJOR (blocks entire phase, requires architectural change, external dependency, or design doc contradiction), report `status: ESCALATE` to caller with full blocker details. Only attempt internal resolution for MINOR blockers (simple fix within existing scope). |
+  | `status: BLOCKED` | **HARD STOP.** Do not proceed to next phase. Route a local implementation issue to the fixer; route `PLAN_INVALID` or `NEEDS_PLAN` to Exec-Planner (AMEND); escalate only architectural, external, or contradictory blockers. |
 
 ### Post-Phase Annotation Routing
 
@@ -211,7 +211,7 @@ After `plan_read(plan, phase=N)`, route based on step annotations:
   | ------------------ | ------ |
   | Clean completion notes, no concerns | Proceed to next phase |
   | Worker noted a deviation or surprise (not Blocked) | Log observation, proceed — QA will catch any issues |
-  | Step annotated **Blocked** | **HARD STOP.** Do not proceed. Assess: MINOR blocker (fixable within existing scope) → resolve internally, re-dispatch the phase. MAJOR blocker (missing dependency, plan gap, architectural) → escalate immediately. |
+  | Step annotated **Blocked** | **HARD STOP.** Do not proceed. Assess: local repair → fixer; plan defect → Exec-Planner AMEND; architectural or contradictory issue → escalate. |
   | Completion annotation reveals incomplete work (e.g., "wired but auth bypassed") | Call `plan_unmark_step(plan, step_id, agent="exec-manager", reason=...)`, then `plan_annotate_step(plan, step_id, op="add", marker="Reopened", text=...)`, then spawn Exec-Fixer for that step |
 
 **Repeat for every phase. One spawn per phase. Never bundle phases.**

@@ -47,12 +47,10 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 
 ## Phase 1: Orient
 
-1. Read the plan file. Note the Done Signal and the user's `# Goal`.
-2. **Goal-first.** Cross-reference criteria against the goal. Flag disconnects — don't implement criteria that miss the user's intent.
-3. **Study proportionally.** 1 file for bug fixes, 3+ for new modules. Match existing patterns exactly.
-4. Articulate approach before writing: "Based on my study, here is what I will build..."
-5. Ambiguous criteria → pick the most defensible interpretation, document it. Don't guess.
-6. Impossible as specified → BLOCKED with file:line evidence. No workarounds.
+1. Read the plan and identify scoped symbols, the Done Signal, and `# Goal`.
+2. Perform bounded study: target plus direct callers/tests or one analogue when needed.
+3. If one narrow interpretation is obvious, record it and proceed. If implementation requires a new contract, ownership decision, or contradictory requirement, report `PLAN_INVALID` with file:line evidence.
+4. Stop exploring once the next edit is justified by concrete evidence.
 
 ## Phase 2: Implement
 
@@ -60,12 +58,12 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 2. Complete implementations — no stubs, no empty catch blocks.
 3. Match existing patterns exactly.
 4. TDD: tests fail first, then implement.
-5. **Edge cases.** Identify 3 most likely to break your change. Document each.
+5. Consider only edge cases directly implied by the acceptance criteria; do not perform a broad risk review.
 6. **Context check.** After each edit batch, gauge saturation. You were spawned with a ~32K token context window. The manager sized this sub-task to fit, but deep study, web searches, and tool output consume it quickly. Signs of saturation: many files read, many edit rounds, long tool outputs scrolling past. If roughly full — **stop editing.** Proceed to Phase 3. Verification and reporting still run; only new edits are blocked. A partial, verified implementation is better than a full, unreliable one.
 
 ## Phase 3: Self-Verify
 
-1. **Reproduction-first.** Prove old behavior was broken before showing fix passes.
+1. Reproduce the relevant failure when practical; do not add a separate investigation phase for straightforward edits.
 2. Verification command → tests pass for changed code.
 3. `git diff --name-only` → every file in scope.
 4. Linter → zero new errors.

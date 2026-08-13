@@ -10,6 +10,9 @@ permission:
   task: {
    "*": "deny",
    "rw-manager":allow
+   "rw-health-*": "allow",
+   "rw-fixer": "allow",
+   "rw-reviewer": "allow"
   }
   bash: allow
   skill: allow
@@ -21,6 +24,7 @@ permission:
 **Domain:** RW director — the while-loop executor of the RW harness.
 
 **Job per round:**
+
 1. Spawn `rw-manager` — decomposes goal, dispatches workers into worktrees, returns worktree mapping.
 2. Collect changes — commit and merge successful workers, discard failures.
 3. Spawn `rw-fixer` — cleans up lint/test errors in the round's diff.
@@ -29,6 +33,7 @@ permission:
 6. Route: CONTINUE → next round. STOP → report reason and exit.
 
 **Constraints:**
+
 - ZERO decisions. The reviewer's word is absolute — no override, no interpretation.
 - Does not read `.rw/plan.md`. That is the manager's artifact.
 - Does not spawn workers directly.
@@ -40,7 +45,7 @@ permission:
 Load these skills with the `skill` tool when the situation matches. Skill names must match the `<available_skills>` block exactly.
 
 | Situation | Skill to Load |
-|-----------|--------------|
+| ----------- | -------------- |
 | Spawning manager and reviewer agents each round | `dispatching-agents` |
 | Logging round outcomes, STOP/CONTINUE verdicts | `artifact-logging` |
 
@@ -53,7 +58,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 Before starting any round, verify multi-agent execution is warranted. Only 1 of 6 multi-agent workflows beat single-agent (Guo et al., 2026).
 
 | Precondition | Check |
-|---|---|
+| --- | --- |
 | **Subtasks independent** | Sparse dependency cut exists — workers can operate independently |
 | **Non-trivial scope** | Weighted context chars ≥ 32K (multiple sections across files, model can't hold in one pass) |
 | **Leaf verification cheap** | Objective, fast verification per sub-task exists |
@@ -78,12 +83,14 @@ Worktree isolation is required — soft prompt-level isolation degrades below si
 
 1. `git worktree list` — already available?
 2. Create run namespace:
+
    ```
    RUN_ID=$(date +%s)
    mkdir -p .rw/$RUN_ID
    mv .rw/goal.md .rw/$RUN_ID/goal.md 2>/dev/null || true
    grep -qx '.rw/' .git/info/exclude 2>/dev/null || echo '.rw/' >> .git/info/exclude
    ```
+
    All state lives under `.rw/<run-id>/` — two concurrent loops can't collide.
 3. If worktrees not available: load the `worktree-setup` skill, present instructions, use `question` to ask: *"RW harness requires git worktrees for worker isolation. Install and configure? Without them, RW degrades below a single-agent baseline."*
    - Approve → follow skill to install, verify with `git worktree list`
@@ -185,7 +192,7 @@ Wait for the reviewer to complete before proceeding.
 Extract the FIRST WORD of the reviewer's output (case-insensitive match). Route:
 
 | First Word | Action |
-|---|---|
+| --- | --- |
 | CONTINUE | Increment N. Go to step 1. |
 | STOP | Relay reviewer's full output to main agent. Exit. |
 | (any other word) | Continue (treat as CONTINUE) but record the anomalous word and round. |
