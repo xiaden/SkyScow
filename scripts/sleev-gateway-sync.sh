@@ -24,6 +24,7 @@ if [[ ! "$DESIRED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 OC_HOME="/home/opencode"
+SLEEV_ROOT="${OC_HOME}/.local/share/sleev"
 CLI_ROOT="${OC_HOME}/.local/share/sleev/cli"
 GATEWAY_ROOT="${OC_HOME}/.local/share/sleev/gateway"
 CLI_CURRENT="${CLI_ROOT}/current"
@@ -191,7 +192,7 @@ activate_release() {
     [ "$(reported_gateway_version "${gateway_dir}/sleeve-gateway")" = "$DESIRED_VERSION" ] || return 1
 
     chown -R "$PUID:$PGID" "$cli_dir" "$gateway_dir"
-    chown "$PUID:$PGID" "$CLI_ROOT" "$GATEWAY_ROOT"
+    chown "$PUID:$PGID" "$SLEEV_ROOT" "$CLI_ROOT" "$GATEWAY_ROOT"
 
     cli_tmp="${CLI_ROOT}/current.tmp"
     gateway_tmp="${GATEWAY_ROOT}/current.tmp"
@@ -212,7 +213,11 @@ activate_release() {
 
 main() {
     mkdir -p "$CLI_ROOT" "$GATEWAY_ROOT"
-    chown "$PUID:$PGID" "$CLI_ROOT" "$GATEWAY_ROOT"
+    # The gateway runs as opencode and tightens this directory to 0700 during
+    # startup. Establish ownership before s6 starts so that chmod succeeds,
+    # including when a native-Linux bind mount was created by root.
+    chown -R "$PUID:$PGID" "$SLEEV_ROOT"
+    chmod 0700 "$SLEEV_ROOT"
 
     if valid_current; then
         echo "[sleev-sync] Sleev ${DESIRED_VERSION} already active"
