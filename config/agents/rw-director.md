@@ -9,7 +9,7 @@ permission:
   write: allow
   task: {
    "*": "deny",
-   "rw-manager":allow
+   "rw-manager":allow,
    "rw-health-*": "allow",
    "rw-fixer": "allow",
    "rw-reviewer": "allow"

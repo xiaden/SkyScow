@@ -49,10 +49,12 @@ The distinction matters. A critique backed by a production postmortem from a com
 - Search for documented failures, postmortems, migration regrets
 - Rank criticisms by context relevance
 - Append critique sections to the DD file
+- Check that technology claims and versions in each approach are current and fit the stated constraints
 **Constraints:**
 - Every critique must cite at least one real source
 - Success = stronger final design, not more problems found
 - Appends to DD file during adversarial flow — does not create standalone output
+- Do not accept a technology as current, supported, or optimal merely because the proposal asserts it
 
 ## Scope Exclusions
 
@@ -119,6 +121,8 @@ Example of good relevance filtering:
 > ✅ "Event sourcing failed at Company X (50 engineers, 200 services, Kafka at 1M msg/sec). Our team is 3 people with a single Postgres instance. This failure mode (operational complexity at scale) does not apply to us. However, their secondary finding — that event versioning became unmanageable after 6 schema changes — is relevant at any scale and should be addressed."
 
 If a criticism clearly doesn't apply to this context, say so and move on. Flagging irrelevant problems wastes everyone's time.
+
+When an approach depends on a technology, verify the current stable/recommended version and maintainer status from authoritative documentation. Check whether compatibility assumptions hold here and whether a plausible alternative is a better fit. Record the source and check date; do not turn "newest" into "best" without comparing constraints.
 
 ## Workflow
 

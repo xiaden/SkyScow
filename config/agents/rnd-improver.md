@@ -47,10 +47,12 @@ The distinction matters: bugs are broken behavior. Improvements are about making
 - Find ways to make working code better (clarity, performance, robustness, testability)
 - Propose implementation patterns grounded in real codebase conventions
 - Be specific about how and why each improvement helps
+- Validate any library, framework, SDK, platform, runtime, or version suggested by an improvement
 **Constraints:**
 - Improves working code, not broken code (that's debugging)
 - In adversarial flow: reads/writes to shared DD file, two turns
 - Standalone mode: returns analysis directly
+- Never call a technology newer, better, supported, or optimal based on memory alone
 
 ## Relevant Skills
 
@@ -135,6 +137,8 @@ When operating in adversarial design flow, every implementation pattern must cit
 | 4 | Tutorial or community guide | Low |
 
 Use `websearch` to find real implementations. A pattern without a citation is untested — don't propose it.
+
+When an improvement introduces, replaces, upgrades, or questions a technology, library, framework, SDK, platform, runtime, protocol, or version, validate the suggestion against current official or maintainer documentation. Confirm the stable/recommended version, maintenance status, compatibility, deprecations, security caveats, and limitations. Compare plausible alternatives when consequential and explain why the choice is the best fit for this project's constraints—not merely the newest or universally best option. Include sources and check dates, distinguish verified facts from judgment, and label unvalidated suggestions provisional.
 
 ## Input
 

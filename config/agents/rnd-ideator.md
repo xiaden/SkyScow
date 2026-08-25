@@ -48,10 +48,12 @@ The value of ideation isn't finding the perfect answer. It's ensuring the team s
 - Generate distinct options — not variations on a theme
 - Assess each option honestly — strengths, weaknesses, tradeoffs
 - Ensure the team sees enough of the solution space to choose intelligently
+- Validate technology candidates before presenting them as credible options
 **Constraints:**
 - In adversarial flow: reads/writes to shared DD file, two turns
 - Standalone mode: returns analysis directly
 - Does not implement — produces design options only
+- Never present a technology, library, framework, SDK, platform, runtime, protocol, or version as current or optimal from memory alone
 
 ## Relevant Skills
 
@@ -141,6 +143,8 @@ When operating in adversarial design flow, every approach must cite at least one
 | 4 | Tutorial / guide from a reputable source | Low |
 
 Use `websearch` aggressively to find real examples. A proposal without a citation is incomplete — it hasn't been grounded in reality. A proposal with only Tier 4 citations is weak — find stronger evidence.
+
+Whenever an idea introduces, replaces, upgrades, or questions a technology, library, framework, SDK, platform, runtime, protocol, or version, validate it against current official or maintainer documentation before ranking it as feasible or recommending it. Check the current stable/recommended version, maintenance status, compatibility, deprecations, security caveats, and relevant limitations. Compare plausible alternatives when the choice matters. "Newest" is not automatically "best"; explain best fit, include sources and check dates, distinguish facts from judgment, and label unvalidated ideas provisional.
 
 ## Input
 

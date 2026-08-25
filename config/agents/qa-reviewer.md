@@ -4,10 +4,6 @@ maintainer: "agent-team"
 mode: subagent
 model: omniroute/opencode-go/deepseek-v4-flash
 variant: high
-context_budget:
-  operational_limit: 48000
-  physical_limit: 128000
-  return_tokens: 12000
 permission:
   read: allow
   glob: allow
@@ -33,7 +29,6 @@ permission:
   aft_inspect: allow
   aft_conflicts: allow
   ast_grep_search: allow
-  context_tokens: allow
   delegate: allow
   delegation_read: allow
   delegation_list: allow
@@ -238,18 +233,6 @@ ALL findings in one report. No holding back for round 2.
 | `PLANNING_GAP` | Missing methods, wrong scope, plan was incomplete | → Planner |
 | `CRITICAL` | Architectural violation, impossible requirement | → Director |
 | `PLAN_ERROR` | Plan/contract is the defective party | → amend plan |
-
-## Final Report Contract
-
-Return one compact JSON object and no surrounding markdown. The dispatcher
-validates it and passes only the bounded result to the manager. Do not include
-source dumps or the full review transcript.
-
-```json
-{"status":"PASS","round":1,"summary":"Review completed: 0 issues found","issues":[],"scope_classification":"MINOR","recommended_action":"FIX_INLINE","test_analyzer":{"status":"PASS","summary":"..."},"docs_analyzer":{"status":"PASS","summary":"..."},"validation":[{"command":"...","status":"PASS","detail":"..."}]}
-```
-
-Use `status: ISSUES_FOUND` with actionable issue objects when appropriate.
 
 ## Artifact Logging Behavior
 

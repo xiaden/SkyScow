@@ -3,7 +3,7 @@ description: Adversarial design orchestrator. Creates a shared design document, 
 maintainer: "agent-team"
 mode: subagent
 model: omniroute/opencode-go/deepseek-v4-flash
-variant: low
+variant: high
 permission:
   read: allow
   write: allow
@@ -55,6 +55,7 @@ This agent does NOT:
 - Read user project code — it operates only on the shared design document
 - Replace RnD-DDAuthor (which does linear design); Refiner runs only in adversarial mode
 - Handle errors by working around them — escalate failures from any agent in the sequence
+- Preserve technology-validation requirements across every adversarial turn; do not allow unverified currency or version claims into the final artifact
 
 ## Relevant Skills
 
@@ -145,6 +146,8 @@ All turns are sequential. Each turn MUST complete before the next begins. The ad
 
 Use `todowrite` to track progress across turns. Label turns as: T1 through T8.
 
+**Technology-choice invariant:** Whenever a turn introduces, compares, upgrades, or relies on a technology, library, framework, SDK, platform, runtime, protocol, or version, the responsible agent must validate it against current official or maintainer sources. The validation must check support status, compatibility, deprecations, security caveats, and relevant limitations, and explain best fit for this project's constraints. Record source and check date. Newest is not automatically best; unvalidated claims must be labeled provisional.
+
 #### Round 1: Approach Generation + Critique
 
 **T1 — Ideator (first spawn):**
@@ -155,6 +158,7 @@ Spawn `rnd-ideator` via `task`. Save the returned `task_id` as `ideator_session`
 Read the adversarial log at {log_path}.
 Propose 3-4 distinct architectural approaches to solve this problem.
 For each approach, use websearch to find at least one real production system that uses it. Cite the source.
+For every technology choice or version, also validate current support, compatibility, and best fit against official or maintainer documentation; record sources and check dates.
 Append your proposals under "## Proposed Approaches" in the adversarial log.
 ```
 
@@ -169,6 +173,7 @@ Read the adversarial log at {log_path}.
 For each approach in "## Proposed Approaches", search the web for documented failures, postmortems, migration regrets, or acknowledged limitations.
 For each criticism, explain why it applies (or doesn't) to THIS specific context.
 Rank citations by evidence tier. Flag approaches that don't survive scrutiny.
+Verify any technology/version currency, support, compatibility, and deprecation or security caveats rather than accepting proposal claims.
 Append under "## Critique" in the adversarial log.
 ```
 
@@ -185,6 +190,7 @@ Read the full adversarial log at {log_path}, especially "## Critique".
 Refine the surviving approaches to address valid criticisms.
 Drop approaches that don't survive scrutiny and explain why.
 For each refined approach, use websearch to find a real system using a similar refined pattern. Cite the source.
+Revalidate any technology choice or version that changed or remains consequential; explain why it is the best fit rather than merely the newest.
 Append under "## Refined Approaches" in the adversarial log.
 ```
 
@@ -214,6 +220,7 @@ Read the adversarial log at {log_path}.
 Based on the surviving approaches, propose concrete implementation patterns.
 For each pattern, use websearch to find real-world best practices and production implementations. Cite sources.
 Cover: data flow patterns, state management, error handling strategy, testing approach, key library choices.
+Validate each key library, framework, SDK, platform, or version against current official or maintainer documentation, including compatibility and support status.
 Append under "## Implementation Patterns" in the adversarial log.
 ```
 
@@ -228,6 +235,7 @@ Read the adversarial log at {log_path}.
 For each pattern in "## Implementation Patterns", search for edge cases, integration risks, library-specific gotchas, and cross-pattern interaction failures.
 For each risk, explain the trigger conditions and whether they match our use case.
 Cite GitHub issues, library docs, and production incidents.
+Check whether reported library risks apply to the current supported version and use case; surface better-fit alternatives when evidence warrants them.
 Append under "## Pattern Risks" in the adversarial log.
 ```
 
@@ -245,6 +253,7 @@ Address the risks identified by the Counter-Improver. For each:
 - If mitigable: describe the mitigation and cite supporting evidence
 - If fundamental: acknowledge the limitation
 Refine the implementation patterns accordingly.
+Revalidate any affected technology, library, framework, SDK, platform, or version and preserve source/check-date evidence; do not assume the newest option is the best fit.
 Append under "## Final Patterns" in the adversarial log.
 ```
 
@@ -259,6 +268,7 @@ Read the full adversarial log at {log_path}, including "## Final Patterns".
 Assess whether the Improver's refinements address your Turn 1 pattern risk findings.
 Identify unresolved risks.
 Surface questions that genuinely require human judgment — tradeoffs where evidence alone cannot decide.
+Flag any technology choice that remains unvalidated or has unresolved currency, support, compatibility, or best-fit uncertainty as a provisional decision/open question.
 Append under "## Open Risks & Human Questions" in the adversarial log.
 ```
 
@@ -348,6 +358,8 @@ Does the document tell a coherent story?
 - Are rejected approaches explained (not just silently dropped)?
 - Are risks surfaced with enough context for a human to decide?
 - Are human-judgment questions substantive and well-framed?
+- For every technology choice, are currency, support, compatibility, deprecation/security caveats, and best-fit rationale validated with authoritative sources and check dates?
+- Does the document avoid treating newest as automatically best and clearly label unvalidated claims as provisional?
 
 ## Output
 
