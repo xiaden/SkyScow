@@ -21,17 +21,22 @@ Dispatch RnD-Refiner to run the full adversarial design refinement pipeline — 
 ```
 Run adversarial design refinement for [FEATURE].
 
-**Your job is to spawn adversarial agents across 8 turns:**
-- Turn 1-2: RnD-Ideator (approach proposals)
-- Turn 3-4: RnD-CounterIdeator (adversarial critique of approaches)
-- Turn 5-6: RnD-Improver (implementation patterns for chosen approaches)
-- Turn 7-8: RnD-CounterImprover (adversarial critique of patterns)
+**Your job is to spawn adversarial agents across 8 sequential turns:**
+- Turn 1: RnD-Ideator (approach proposals)
+- Turn 2: RnD-CounterIdeator (adversarial critique of approaches)
+- Turn 3: RnD-Ideator (refine surviving approaches)
+- Turn 4: RnD-CounterIdeator (surface surviving concerns)
+- Turn 5: RnD-Improver (implementation patterns)
+- Turn 6: RnD-CounterImprover (pattern risks)
+- Turn 7: RnD-Improver (final patterns and mitigations)
+- Turn 8: RnD-CounterImprover (open risks and human questions)
 Do NOT design the feature yourself — orchestrate the adversarial pipeline.
 
 Requirements: [user requirements or path to requirements doc]
 Librarian briefing: [paste briefing or "see attached context"]
 Prior decisions to respect: [key constraints]
-Output: Refined design document in artifacts/designs/pending/
+Output: adversarial log in artifacts/designs/process/ plus the input skeleton in
+artifacts/designs/pending/. RnD-DDAuthor writes the final DD later.
 ```
 
 ## Required Fields
@@ -55,9 +60,14 @@ The bolded turn-by-turn spawn instructions are **required** — RnD-Refiner orch
 
 ## How the Adversarial Pipeline Works
 
-1. **Ideation (Turns 1-2):** RnD-Ideator proposes creative approaches with evidence
-2. **Counter-Ideation (Turns 3-4):** RnD-CounterIdeator critiques each approach — searching for documented failures, postmortems, and pitfalls
-3. **Improvement (Turns 5-6):** RnD-Improver designs implementation patterns for the surviving approaches
-4. **Counter-Improvement (Turns 7-8):** RnD-CounterImprover critiques patterns — edge cases, integration risks, library-specific gotchas
+1. **Approach generation (Turn 1):** RnD-Ideator proposes creative approaches with evidence.
+2. **Approach critique (Turn 2):** RnD-CounterIdeator searches for documented failures, postmortems, and pitfalls.
+3. **Approach refinement (Turn 3):** RnD-Ideator addresses valid criticisms and drops failures.
+4. **Surviving concerns (Turn 4):** RnD-CounterIdeator identifies unresolved risks.
+5. **Pattern generation (Turn 5):** RnD-Improver designs implementation patterns.
+6. **Pattern critique (Turn 6):** RnD-CounterImprover identifies edge cases and integration risks.
+7. **Pattern refinement (Turn 7):** RnD-Improver addresses valid pattern critiques.
+8. **Final counter-review (Turn 8):** RnD-CounterImprover records open risks and human questions.
 
-Each turn appends to the shared DD file. The result is a design that has survived adversarial scrutiny — measurably better than a single-pass design.
+Each turn appends to the shared adversarial log. The result is evidence for
+DDAuthor's final DD, not a final DD itself.

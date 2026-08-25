@@ -5,7 +5,7 @@ Dispatch Support-Librarian to gather artifact context (ADRs, logs, design docs) 
 ## When to Dispatch
 
 **Use when:**
-- Before dispatching RnD-Manager or RnD-DDAuthor (design work needs prior decisions)
+ - Before dispatching RnD-Manager (formal DD work is Manager-owned and needs prior decisions)
 - Before dispatching Exec-Planner (implementation needs architectural context)
 - Entering an unfamiliar module or subsystem
 - You need to avoid contradicting prior architectural decisions

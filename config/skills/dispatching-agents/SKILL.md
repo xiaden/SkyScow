@@ -7,6 +7,23 @@ description: Use when delegating work to any subagent. Covers dispatch templates
 
 Produce dispatch prompts that give subagents everything they need in a single pass.
 
+## Non-Negotiable Context Boundary
+
+Every dispatched or tasked agent starts with **NO context** from the calling
+agent. It does not inherit the conversation, reasoning, files read, tool
+results, decisions, assumptions, or working memory. `task` and `delegate` have
+the same context boundary; they differ only in execution visibility and result
+persistence.
+
+Before **any** dispatch, open the exact per-agent reference linked below and
+follow its template and output contract. Put every required fact in the prompt
+itself, or link to a specific file, artifact, plan, symbol, or line range the
+agent must read. Never write "as discussed," "the above," "use the context,"
+or "you know the codebase": those references do not exist for the new agent.
+
+The per-agent reference is the authority for that dispatch. This skill routes
+to it; it does not replace it.
+
 ## When NOT to Dispatch
 
 Do NOT use this skill — do the work directly — when:
@@ -24,6 +41,13 @@ Dispatching for anything in the left column wastes context and turns. The decisi
 
 Every agent dispatch follows this structure. Agent-specific templates in references/ extend it with their own required fields and output contracts.
 
+**Route directly to the per-agent file:** every dispatch prompt must name and
+follow the matching reference under
+`/home/opencode/.config/opencode/skills/dispatching-agents/references/` (for
+example, `references/exec-worker.md`). Do not invent an alternate template
+from this overview. The selected per-agent file must be opened before calling
+`task` or `delegate`.
+
 ```
 Dispatch [AGENT] to [TASK].
 
@@ -40,15 +64,11 @@ Do NOT: [negative constraints — what the agent must not do]
 | Rule | Why |
 |------|-----|
 | **Fill every bracketed field.** | Placeholder text like `[PLAN_PATH]` or `{feature}` gives the agent no information. If you leave a bracket, you haven't dispatched. |
-| **List every context file.** | The agent starts in a fresh context. It cannot see files you don't name. Every file it should read before acting must be listed. |
+| **List every context file.** | The agent starts with NO inherited context. It cannot see files you don't name. Every file it should read before acting must be listed, with relevant symbols or line ranges where useful. |
+| **Restate all non-file context.** | User requirements, constraints, prior decisions, hypotheses, failure output, and expected behavior must be directly stated or linked to a durable artifact. Never rely on conversation history. |
 | **Include negative constraints.** | Tell the agent what NOT to do. Research agents should not implement. Exec agents should not design. Without this, scope bleeds. |
 | **Be specific about output.** | "Tell me what you find" is a briefing, not a dispatch. "Return an ADR in artifacts/decisions/" is a dispatch. |
 | **One task per dispatch.** | "Execute the plan AND fix the tests AND update the docs" is three dispatches. Scope-creeping dispatches produce scope-creeping output. |
-
-For worker, fixer, QA, and manager dispatches, include the maximum serialized
-return-token budget and require one compact JSON result. The parent receives
-the result object, not a transcript, source dump, or repeated context. A
-malformed or oversized result is invalid and must be retried or escalated.
 
 ### Dispatch Decision Tree
 
@@ -63,8 +83,8 @@ Task at hand
 │  └─ Cause is unclear → Dispatch Support-Debugger
 ├─ Requires implementing from a plan? → Dispatch Exec-Manager
 ├─ Requires creating/amending a plan? → Dispatch Exec-Planner
-├─ Requires designing a feature? → Dispatch RnD-Manager
-│  └─ Needs adversarial validation? → Dispatch RnD-Refiner instead
+├─ Requires designing a feature or formal DD? → Dispatch RnD-Manager
+│  └─ RnD-Manager owns the complete DD workflow and dispatches RnD-Refiner when DD_REQUIRED
 ├─ Requires focused R&D analysis (not full design)?
 │  ├─ Implementation options + tradeoffs → RnD-Architect
 │  ├─ Creative brainstorming → RnD-Ideator
@@ -79,8 +99,8 @@ Task at hand
 
 ### Dispatch Lifecycle
 
-1. **Before dispatch:** Do your own investigation. Read the affected files and check logs/ADRs so you can give the agent concrete context — not "figure out what's wrong."
-2. **During dispatch:** Fill every field. List every file. State what the agent must NOT do.
+1. **Before dispatch:** Select and open the exact per-agent reference linked in the Agent Selection tables. Do your own investigation and check logs/ADRs so you can give the agent concrete context — not "figure out what's wrong."
+2. **During dispatch:** Fill every field in that per-agent reference. List every file and artifact. Directly state every requirement, decision, constraint, hypothesis, and expected output. State what the agent must NOT do.
 3. **After dispatch:** Verify the output against the expected contract. If malformed or incomplete, re-dispatch with clarification. Log significant findings. Route results to the next step.
 
 ### Common Dispatch Failures
@@ -89,6 +109,7 @@ Task at hand
 |---------|---------|-----|
 | Placeholder text | Agent reports back confused or asks "what plan?" | Fill every `[bracket]` with actual data before sending |
 | Missing context files | Agent wastes turns asking for files or reads the wrong ones | List every file the agent needs. Check: would YOU know what to read from this prompt? |
+| Implicit parent context | Agent assumes facts, decisions, or prior tool output that were only present in the caller's session | Restate it in the prompt or link a durable artifact; assume the agent knows nothing |
 | No negative constraints | Agent over-steps — researcher writes code, planner implements | Always add "Do NOT" — the bolded worker-spawn blocks in manager references exist for this reason |
 | Wrong agent for the task | Output doesn't match expectations or is formatted wrong | Check the selection table. Exec agents don't design. R&D agents don't execute. |
 | Too broad scope | Agent returns shallow, surface-level results | Narrow to one feature, one module, one decision. Multi-part work → multiple dispatches. |
@@ -113,15 +134,20 @@ Exec-Manager spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direc
 | Task | Reference |
 |------|-----------|
 | Full R&D workflow (design doc, tradeoffs, estimates) | [`rnd-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) |
-| Adversarial design refinement (8-turn pipeline) | [`rnd-refiner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) |
-| Create or refine a design document | [`rnd-dd-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-dd-author.md) |
+| Adversarial design refinement (8-turn pipeline; only from RnD-Manager) | [`rnd-refiner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) |
+| Create or refine a design document (only from RnD-Manager) | [`rnd-dd-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-dd-author.md) |
 | Implementation options + tradeoffs | [`rnd-architect`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-architect.md) |
 | Creative solution generation | [`rnd-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-ideator.md) |
 | Effort sizing (TRIVIAL→EPIC) | [`rnd-estimator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-estimator.md) |
 | Complexity/over-engineering audit | [`rnd-complexity-advisor`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-complexity-advisor.md) |
 | Code improvement suggestions | [`rnd-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-improver.md) |
 
-RnD-Manager and RnD-Refiner are orchestrators — they spawn the leaf R&D agents internally. Direct dispatch of leaf R&D agents is valid for focused analysis without a full design workflow.
+RnD-Manager is the sole orchestrator for a formal DD. It dispatches Librarian,
+Researcher, Refiner, Architect, ComplexityAdvisor, Estimator, DDAuthor, and
+PatternEnforcer in its canonical order. RnD-Refiner is a nested orchestrator
+only for its fixed eight-turn adversarial sequence. DDAuthor never orchestrates
+other R&D agents. Direct dispatch of leaf R&D agents is valid only for focused
+analysis outside a formal DD workflow.
 
 The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner in the adversarial pipeline. Direct dispatch is rare.
 
@@ -179,7 +205,12 @@ After a plan introduces a new pattern, verify it propagated everywhere via Suppo
 
 ## Dispatch Tools: `task` vs `delegate`
 
-Two tools for spawning agents. Both accept any agent type — there are no permission gates. They differ in **visibility/steering** (can you observe and redirect mid-flight) and **timing** (blocking vs async). The choice is purely about what you need from the execution model.
+Two tools for spawning agents. Both accept any agent type — there are no permission gates. Both spawn with **NO context** from the caller. They differ in **visibility/steering** (can you observe and redirect mid-flight) and **timing** (blocking vs async). The choice is purely about what you need from the execution model.
+
+The prompt is the complete handoff. A `delegate` agent cannot see the caller's
+conversation while it runs, and a `task` agent cannot either. Persisting output
+or tracking a session does not transfer input context. Include all information
+before the tool call; do not assume an omitted premise was understood.
 
 ### `delegate` — Async, Steerable, Survives Compaction
 

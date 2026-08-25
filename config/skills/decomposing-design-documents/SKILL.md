@@ -8,7 +8,7 @@ description: Use when decomposing a design document into dependency-ordered impl
 Pipeline for turning requirements or a design document into a set of validated, dependency-ordered implementation plans. Each plan is self-contained, references concrete codebase patterns, and declares its contracts for downstream plans.
 
 ```
-Requirements → [DDAuthor] → Design Doc → Decompose → Initialize Ledger → Plan in Rounds → Cross-Validate
+Requirements → [RnD-Manager DD workflow → DDAuthor] → Design Doc → Decompose → Initialize Ledger → Plan in Rounds → Cross-Validate
      ↓               ↓             ↓            ↓              ↓                    ↓                ↓
   Optional    DD Author agent   Already has  parts/README  CONTRACTS.md    artifacts/plans/pending/TASK-*-{A..Z}.md  Fixes
               for new features    one?
@@ -22,16 +22,7 @@ Requirements → [DDAuthor] → Design Doc → Decompose → Initialize Ledger �
 | 1 | Decompose design doc into lettered parts | `artifacts/designs/parts/{feature}/README.md` |
 | 2 | Create contracts ledger | `artifacts/designs/parts/{feature}/CONTRACTS.md` |
 | 3 | Dispatch Planner per part, validate, update ledger | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` |
- | 4 | Cross-validate all plans for gaps and conflicts | Fixes applied to plan files |
-
-### Context Budget Gate
-
-Before creating parts or dispatching planners, measure the known DD, required
-skills, instructions, existing patterns, and tests with `context_tokens`. Use
-`context_budget` to project manager orchestration with bounded worker/QA JSON
-returns. Treat 96,000 tokens as the operational manager limit and 128,000 as
-the physical ceiling. A plan must fit the worst-case projection, including the
-three-times correction allowance; split plans when it does not.
+| 4 | Cross-validate all plans for gaps and conflicts | Fixes applied to plan files |
 
 ## Agent Integration
 
@@ -39,7 +30,7 @@ This skill may dispatch agents from the `.opencode/agents/` hierarchy:
 
  | Agent | When Used |
  | ------- | ----------- |
- | `DDAuthor` | Phase 0: When requirements exist but no design doc |
+  | `RnD-Manager` | Phase 0: Run the complete DD workflow when requirements exist but no design doc |
  | `Planner` | Phase 3: For each plan in dependency order |
 
 See [.opencode/agents/](.opencode/agents/) for agent specifications.
@@ -84,10 +75,12 @@ _(Ensure plans account for the full implementation workflow: TDD → review → 
 
 **Skip this phase if:** A complete and reviewed design document already exists at `artifacts/designs/pending/DD-{feature}.md`
 
-If the user has requirements but no design doc, dispatch the DDAuthor agent:
+If the user has requirements but no design doc, dispatch RnD-Manager for its
+complete formal DD workflow. Do not dispatch DDAuthor directly; it is the final
+authoring stage owned by Manager:
 
 ```yaml
-# Dispatch to DDAuthor agent
+# Dispatch to RnD-Manager
 contextFiles:
   - AGENTS.md                                      # Architecture rules
   - {layer_instructions_file}  # Layer patterns
@@ -103,13 +96,13 @@ task:
     - "current {domain} implementation"
 ```
 
-**After DDAuthor returns, handle each status:**
+**After RnD-Manager returns, handle each status:**
 
 | Status | Action |
 | --- | --- |
 | `DONE` | Design doc created at `artifacts/designs/pending/DD-{feature}.md`. Present to user for review; once approved, proceed to Phase 1. |
-| `NEEDS_DECISION` | Present DDAuthor's questions to the user. Collect answers. Re-dispatch with answers appended to requirements. Do not proceed to Phase 1 until `DONE` is returned. |
-| `BLOCKED` | Critical information is missing and cannot be inferred. Stop execution and discuss the blocker with the user. Do not re-dispatch until the blocker is resolved. |
+| `NEEDS_DECISION` | Present Manager's questions to the user. Collect answers. Re-dispatch with answers appended to requirements. Do not proceed to Phase 1 until `DONE` is returned. |
+| `BLOCKED` | Critical information is missing or a DD stage failed. Stop execution and discuss the blocker with the user. Do not re-dispatch until the blocker is resolved. |
 
 ---
 
@@ -128,10 +121,10 @@ Read the design doc. Identify natural part boundaries:
  | Layer boundaries | Parts touching different architectural layers → separate |
  | System boundaries | Backend vs plugin vs frontend → separate |
  | Dependency depth | No part depends on more than 2 others |
-   | Session scope | Each part must fit the measured context budget; use step count only as a secondary readability check |
+ | Session scope | Each part ≤ 12 plan steps (≤ 2 phases) |
  | Diamond avoidance | If parts A→C and B→C share most context → merge A+B |
  | Risk surface | Parts touching security, auth, or data integrity → flag for mandatory security review in plan. High-risk parts should be planned first to surface issues early. |
-   | Complexity | Record measured context and projected phase/manager budgets; do not use time or arbitrary size labels. |
+ | Complexity | Estimate per part: TRIVIAL/SMALL/MEDIUM/LARGE/EPIC. Use for model routing and session budget planning. |
 
 Assign letters (A, B, C...) in topological order. Group into execution rounds.
 

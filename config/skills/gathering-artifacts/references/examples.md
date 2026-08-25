@@ -1,12 +1,12 @@
 # Artifact Context — Usage Examples
 
 ## Contents
-- [DDAuthor Using This Skill](#example-ddauthor-using-this-skill)
+- [RnD-Manager Using This Skill](#example-rnd-manager-using-this-skill)
 - [Director Using This Skill](#example-director-using-this-skill)
 
 ---
 
-## Example: DDAuthor Using This Skill
+## Example: RnD-Manager Using This Skill
 
 ```
 # Before writing the design doc:
@@ -28,7 +28,9 @@
    - Warning: Log shows WebSocket attempt was abandoned (connection pooling issues)
    - Context: DD-schema-refactor-v1 added event tracking tables
 
-4. DDAuthor writes design doc that:
+4. RnD-Manager passes the briefing into the complete DD workflow. After the
+   adversarial, architecture, complexity, and estimation stages, DDAuthor
+   writes the design doc that:
    - Uses state-flag polling instead of event pipeline (respects ADR-003)
    - Avoids WebSockets (heeds warning)
    - Leverages existing event tracking tables (uses context)

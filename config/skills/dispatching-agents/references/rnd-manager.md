@@ -1,176 +1,67 @@
 # RnD-Manager
 
-Dispatch RnD-Manager to design features or conduct R&D analysis. RnD-Manager owns the full "thinking" phase — it spawns its own workers and returns a design document or recommendations.
+Dispatch RnD-Manager when a request needs architectural design, a formal DD,
+options and tradeoffs, or R&D scope validation. RnD-Manager is the sole owner
+of the complete DD workflow and must orchestrate its workers.
 
-## When to Dispatch
+## Formal DD dispatch
 
-**Dispatch when:**
-- A feature needs architectural design before implementation
-- You need options, tradeoffs, or comparative analysis
-- You need a formal design document (DD) created
-- You need effort estimates and scope validation
+```text
+Design [FEATURE] and produce a formal DD.
 
-**Do NOT dispatch when:**
-- The task is a straightforward implementation with no design ambiguity → implement directly
-- You need deep codebase research only → use Support-Researcher
-- You need a single analysis (not full R&D) → use RnD-Architect or RnD-Ideator directly
-- The feature is trivial and the design is obvious from existing patterns
+You are the sole DD workflow owner. Run the complete canonical process; do not
+create the DD yourself and do not allow DDAuthor to orchestrate other agents.
 
-## Core Dispatch Template
+Requirements: [inline requirements or exact ASR path]
+Integration points: [modules/services/APIs, if known]
+Constraints: [technology, security, compatibility, timeline, or ADR constraints]
+Required output: a DD in artifacts/designs/pending/ plus all supporting reports.
 
+Canonical stages, in order:
+1. Support-Librarian: artifacts and prior decisions.
+2. Support-Researcher: codebase and current technology evidence.
+3. RnD-Refiner: complete eight-turn adversarial process, including Ideator,
+   Counter-Ideator, Improver, and Counter-Improver turns.
+4. RnD-Architect: concrete options and tradeoff matrix.
+5. RnD-ComplexityAdvisor: complexity and abstraction review.
+6. RnD-Estimator: final sizing only; it cannot downgrade DD_REQUIRED.
+7. RnD-DDAuthor: author the formal DD from every upstream artifact.
+8. Support-PatternEnforcer: validate coverage; route material gaps to DDAuthor
+   and rerun this gate after amendment.
+
+Once DD_REQUIRED is selected, no stage may be skipped or shortened.
+Completion requires the DD, adversarial log, research, architecture,
+complexity review, estimate, and PatternEnforcer approval.
 ```
-Design [FEATURE].
 
-**Your job is to spawn your workers:**
-- Spawn Support-Librarian if you need artifact context
-- Spawn RnD-DDAuthor to create the formal design document
-- Spawn RnD-Architect, RnD-Ideator, RnD-Estimator as needed for analysis
-Do NOT create the design document yourself.
+## Route-gate dispatch
 
-Requirements: [user requirements or path to requirements doc]
-Librarian briefing: [paste briefing or "see attached context"]
-Prior decisions to respect: [key constraints from Librarian]
+```text
+Assess [REQUEST] and choose the route.
+
+Run RnD-Estimator first unless the user explicitly requires a DD. Return
+PLAN_ONLY or DD_REQUIRED with sizing and rationale. If DD_REQUIRED, the route
+is immutable and the full formal DD dispatch above must follow.
+Do not create a DD or implementation plan yourself.
 ```
 
-## Required Fields
+## Research-only dispatch
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `[FEATURE]` | Feature name or short description | `Design the user authentication system` |
-| `[user requirements]` | What needs to be built — inline or path to ASR/DD | `Support OAuth2 + MFA, see artifacts/requirements/ASR-012.md` |
-| `[Librarian briefing]` | Librarian's artifact-context briefing | `see attached context` or paste the briefing |
-| `[key constraints]` | Critical constraints from prior decisions | `Must use existing AuthService (ADR-003)` |
-
-The worker-spawn instructions are **required** — without them, RnD-Manager may inline the design work instead of orchestrating its team.
-
-## Expected Output
-
-RnD-Manager returns:
-- A design document in `artifacts/designs/pending/`
-- Architectural recommendations with tradeoffs
-- Effort estimates (TRIVIAL/SMALL/MEDIUM/LARGE/EPIC)
-- Scope validation (via Support-PatternEnforcer)
-
-## Dispatch Variants
-
-### Research-Only R&D
-
-When you need analysis and recommendations but no formal design document. RnD-Manager spawns advisory agents but skips RnD-DDAuthor.
-
-```
+```text
 Research [TOPIC] for [PURPOSE].
 
-**Your job is to spawn your workers:**
-- Spawn Support-Librarian if you need artifact context
-- Spawn RnD-Architect for implementation options and tradeoffs
-- Spawn RnD-Ideator for creative approaches
-- Spawn RnD-Estimator for effort sizing
-Do NOT create a design document — research output only.
-
-Research question: [specific question or area to investigate]
-Constraints: [any boundaries — budget, tech stack, timeline]
-Librarian briefing: [paste briefing or "see attached context"]
-Prior decisions to respect: [key constraints from Librarian]
+Do not create a DD. Dispatch only the bounded workers needed for the question,
+then return an analysis report with evidence, constraints, and recommendation.
 ```
 
-**When to use:** Evaluating a technology choice, exploring feasibility, sizing work before committing.
+## Required output
 
-### Tradeoff-Focused Analysis
+RnD-Manager must return route, status, phase, artifact paths, recommendation,
+and blockers. For a DD, it must also report all eight adversarial turns and the
+PatternEnforcer gate. `DONE` means verified completion, not dispatch.
 
-When the question is "which approach is better?" rather than "design this feature."
+## Do not dispatch when
 
-```
-Analyze tradeoffs for [DECISION].
-
-**Your job is to spawn your workers:**
-- Spawn Support-Librarian if you need artifact context
-- Spawn RnD-Architect to compare approaches with concrete tradeoffs
-- Spawn RnD-Estimator for effort sizing per approach
-Do NOT create a design document — comparative analysis only.
-
-Decision: [what are we deciding between?]
-Candidates: [approach A, approach B, approach C]
-Evaluation criteria: [performance, maintainability, cost, timeline — pick 2-4]
-Constraints: [any non-negotiable boundaries]
-Librarian briefing: [paste briefing or "see attached context"]
-Prior decisions to respect: [key constraints from Librarian]
-```
-
-**When to use:** Choosing between libraries, patterns, architectures, or third-party services.
-
-### Greenfield Design
-
-For features with no existing codebase constraints. Skip the Librarian step.
-
-```
-Design [FEATURE] — greenfield, no existing codebase constraints.
-
-**Your job is to spawn your workers:**
-- Skip Support-Librarian (greenfield — no prior artifact context needed)
-- Spawn RnD-DDAuthor to create the formal design document
-- Spawn RnD-Ideator for creative approaches
-- Spawn RnD-Architect for implementation options
-- Spawn RnD-Estimator for effort sizing
-Do NOT create the design document yourself.
-
-Requirements: [user requirements]
-Tech stack: [languages, frameworks, platforms]
-Design goals: [scalability, simplicity, extensibility — pick 2-3]
-```
-
-**When to use:** New project, new service, or isolated subsystem.
-
-### Brownfield Design
-
-For features that must integrate with an existing, complex codebase.
-
-```
-Design [FEATURE] — must integrate with existing [SYSTEM/MODULE].
-
-**Your job is to spawn your workers:**
-- Spawn Support-Librarian FIRST to gather all relevant ADRs, logs, and design docs
-- Spawn RnD-DDAuthor to create the formal design document
-- Spawn RnD-Architect for implementation options (must respect existing patterns)
-- Spawn RnD-Estimator for effort sizing
-- Spawn Support-PatternEnforcer to validate consistency with existing patterns
-Do NOT create the design document yourself.
-
-Requirements: [user requirements]
-Integration points: [specific modules, services, or APIs to integrate with]
-Existing constraints: [ADRs, architectural patterns, tech debt to work around]
-Librarian briefing: [paste briefing or "see attached context"]
-Prior decisions to respect: [key constraints from Librarian]
-```
-
-**When to use:** Adding features to established codebases, integrating with legacy systems.
-
-### With Pre-Existing Artifact Context
-
-When you've already run Support-Librarian and have a briefing ready.
-
-```
-Design [FEATURE].
-
-**Your job is to spawn your workers:**
-- Librarian already completed — briefing attached below
-- Spawn RnD-DDAuthor to create the formal design document
-- Spawn RnD-Architect for implementation options
-- Spawn RnD-Estimator for effort sizing
-Do NOT create the design document yourself.
-
-Requirements: [user requirements]
-Librarian briefing:
-[paste the full Librarian briefing here]
-Prior decisions to respect:
-- [decision 1 from Librarian]
-- [decision 2 from Librarian]
-```
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| RnD-Manager created the DD itself instead of spawning RnD-DDAuthor | Ensure bolded worker-spawn block is present. Add: `Verify you spawned RnD-DDAuthor` |
-| RnD-Manager returned without a design document | Feature may be too small. Re-dispatch with: `A design document in artifacts/designs/pending/ is required output.` |
-| DD is missing effort estimates | Re-dispatch with: `Ensure RnD-Estimator is spawned and effort estimates are included.` |
-| DD contradicts an existing ADR | Support-Librarian wasn't spawned. Re-dispatch with explicit Librarian instruction and attach the conflicting ADR as a constraint. |
+- implementation is straightforward and has no design ambiguity;
+- the request is pure codebase research (use Support-Researcher);
+- the request is a single bounded analysis (use RnD-Architect or RnD-Ideator).

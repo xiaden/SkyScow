@@ -11,7 +11,7 @@ Before acting on any significant task, spawn `Support-Librarian` to search the a
 
  | You're about to... | Use this skill |
  | -------------------- | --------------- |
- | Design a feature (DDAuthor) | Yes — before writing the design doc |
+  | Design a feature (RnD-Manager) | Yes — before dispatching the DD workflow |
  | Create an implementation plan (Exec-Planner) | Yes — before creating the plan |
  | Route work to a department (Director, RnD-Manager) | Yes — before dispatching |
  | Execute a plan phase (Exec-Worker) | No — the plan should already reflect artifact context |
@@ -67,6 +67,13 @@ The Librarian returns a structured briefing. Use it:
 For detailed walkthroughs of this skill in action, see [`references/examples.md`](file:///home/opencode/.config/opencode/skills/gathering-artifacts/references/examples.md):
 - DDAuthor gathering artifact context before writing a design doc
 - Director gathering context before routing a feature to R&D
+
+## Formal DD ownership
+
+Gather context for and dispatch formal design work through RnD-Manager. It owns
+the complete DD workflow. RnD-DDAuthor is invoked by Manager only after the
+upstream research, full adversarial review, architecture, complexity, and
+estimation stages; do not dispatch DDAuthor directly for a new formal DD.
 
 ## Anti-Patterns
 

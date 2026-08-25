@@ -59,15 +59,6 @@ See [.opencode/agents/](.opencode/agents/) for agent specifications.
 
 ## Hard Rules
 
-### Context Budget Gate
-
-Before dispatching an Exec-Manager, measure the manager's known inputs with
-`context_tokens` and project all phase rereads, bounded worker/QA JSON returns,
-and a three-times correction path with `context_budget`. Keep the worst-case
-projection below the 96,000-token operational limit; 128,000 is a physical
-ceiling, never a target. Split or serialize plans when the projection exceeds
-the limit. Managers and workers must not compact.
-
 | Category | Rules | Purpose |
 | --- | --- | --- |
 | Dispatch Rules | 1–4 | Control how and when agents are invoked |
