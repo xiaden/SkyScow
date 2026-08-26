@@ -167,7 +167,7 @@ User Request
   → Support-Librarian         (artifact context)       → briefing
   → RnD-Manager               (explore, design)        → design doc
   → Support-PatternEnforcer   (validate DD coverage)   → scope gaps
-  → Exec-Planner              (create plans)           → plan files
+  → Exec-Planner              (create plans; gate 6+) → plan files + gate PASS
   → Support-PatternEnforcer   (validate plan coverage) → scope gaps
   → Exec-Manager × N          (execute each plan)      → completed code
   → Done
@@ -199,7 +199,8 @@ These are the prompts to use when dispatching each agent. Use the corresponding 
 |-------|----------------|
 | Support-Librarian | `dispatching-support-librarian` |
 | RnD-Manager | `dispatching-rnd-manager` |
-| Exec-Planner | `dispatching-exec-planner` (CREATE variant) |
+| Exec-Planner | `dispatching-exec-planner` (CREATE variant; includes Exec-PlanGate for 6+ plans) |
+| Exec-PlanGate | `dispatching-exec-plan-gate` (only through Exec-Planner for 6+ plan groups) |
 | Exec-Manager | `dispatching-exec-manager` |
 | Support-Researcher | `dispatching-support-researcher` |
 | Support-Debugger | `dispatching-support-debugger` |

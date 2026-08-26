@@ -1,6 +1,6 @@
 # Exec-Planner
 
-Dispatch Exec-Planner to create, amend, or reorder implementation plans. Choose the operation:
+Dispatch Exec-Planner to create, amend, or reorder implementation plans. For a complete group of more than five plans, Exec-Planner must also run the Exec-PlanGate preflight before returning the group as execution-ready. Choose the operation:
 
 | Scenario | Operation |
 |----------|-----------|
@@ -10,11 +10,25 @@ Dispatch Exec-Planner to create, amend, or reorder implementation plans. Choose 
 
 **Do NOT dispatch for:** executing plans (→ Exec-Manager), designing features (→ RnD-Manager), reviewing plans (→ QA-Reviewer), or single-step edits that don't need a plan.
 
+## Large Plan-Group Gate
+
+When CREATE or an amendment/reorder produces a coordinated group of six or more plans:
+
+1. Confirm the complete plan set is present and schema-valid.
+2. Load the `dispatching-agents` skill and use the Exec-PlanGate reference.
+3. Spawn exactly one Exec-PlanGate with the current Design Document, contracts ledger, feature README, and every plan path.
+4. Do not return the group as execution-ready until the gate returns `status: PASS`.
+5. Route `AMEND_REQUIRED` back into the appropriate plan amendment/reorder, then rerun the gate.
+6. Route `DD_CONTRADICTION`, `MISSING_ARTIFACT`, `NEEDS_DECISION`, and `BLOCKED` to the caller without guessing a resolution.
+
+The gate is mandatory for six or more plans and must be rerun after every plan amendment, reorder, or Design Document change. Exec-Planner owns plan repairs; Exec-PlanGate remains read-only and only validates.
+
 ## Expected Output
 
 - **CREATE**: One or more plan files in `artifacts/plans/pending/`
 - **AMEND**: Updated plan file with new/amended phases
 - **REORDER**: Confirmation of new plan order
+- **Large groups**: Current Exec-PlanGate report with `status: PASS` before execution handoff
 
 All outputs include `status: DONE` when complete.
 

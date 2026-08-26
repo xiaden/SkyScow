@@ -154,6 +154,8 @@ task:
   reviewRequired: true
 ```
 
+For a coordinated group of six or more plans, Exec-Planner must complete the Exec-PlanGate preflight and return `PASS` with the plan group before any Exec-Manager is dispatched. Exec-Manager verifies that result; it does not spawn the gate.
+
 **Exec-Manager handles internally:**
 
 - Dispatching Exec-Worker per phase

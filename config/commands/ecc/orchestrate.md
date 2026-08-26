@@ -39,7 +39,8 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 | Agent | Specialty | Use For |
 |-------|-----------|---------|
 | exec-manager | Plan execution lifecycle owner | Runs implementation plans, spawns workers, handles fix cycles |
-| exec-planner | Implementation plan author | Creates or amends plan files, may spawn researcher |
+| exec-plan-gate | Large plan-group preflight | Validates groups of more than five plans during planning; spawned by Exec-Planner |
+| exec-planner | Implementation plan author and gate owner | Creates/amends plan files and spawns Exec-PlanGate for groups of more than five |
 | exec-worker | Scoped phase implementer | Implements a phase or range of steps from a plan |
 | exec-fixer | Targeted build repair | Fixes MINOR severity review issues, runs lint, reports completion |
 

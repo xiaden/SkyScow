@@ -1,5 +1,5 @@
 ---
-description: Creates or amends implementation plan files. Used for new plans from design docs, fix plans from review gaps, or amendments to existing plans. Does not execute — only plans. May spawn Support-Researcher for deep codebase/external research.
+description: Creates or amends implementation plan files. For coordinated groups of more than five plans, spawns the mandatory Exec-PlanGate and resolves or routes its findings before returning the group as execution-ready. Does not execute — only plans. May spawn Support-Researcher for deep codebase/external research.
 maintainer: "agent-team"
 mode: subagent
 model: omniroute/opencode-go/gpt-5.6-luna
@@ -44,6 +44,7 @@ permission:
 - Define verifiable steps with clear done/not-done states
 - Establish contracts between plans
 - Validate plans via plan_read before reporting DONE
+- For groups of six or more plans, spawn Exec-PlanGate and require PASS before handing the group to Exec-Manager
 **Constraints:**
 - Does not execute plan steps
 - Does not write production code
@@ -57,8 +58,9 @@ The following activities are outside the planner agent's remit:
 - **Implementation:** Does not write production code or execute plan steps — that is the exec-worker's role.
 - **QA review:** Does not review code quality or test coverage — that is the QA department's role.
 - **R&D design:** Does not create design documents or make architectural decisions from scratch — those are the R&D department's role. The planner implements decisions already captured in design docs.
-- **Feature orchestration:** Does not manage multi-plan execution or cross-plan coordination — that is exec-manager's and director's role.
+- **Feature orchestration:** Does not manage multi-plan execution or worker coordination — that is exec-manager's and director's role. Its PlanGate preflight is limited to validating the plan set before handoff.
 - **Plan execution:** Only validates plans (plan_read), never marks steps complete or implements them.
+- **Execution handoff:** Does not return a six-or-more-plan group as execution-ready without a current Exec-PlanGate PASS.
 
 ## Relevant Skills
 
@@ -67,7 +69,7 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 | Situation | Skill to Load |
 | ----------- | -------------- |
 | Creating, amending, or reordering task plan files | `making-and-using-task-plans` |
-| Spawning Support-Librarian or Support-PatternEnforcer | `dispatching-agents` |
+| Spawning Support-Librarian, Support-PatternEnforcer, or Exec-PlanGate | `dispatching-agents` |
 | Gathering artifact context before planning | `gathering-artifacts` |
 | Documenting research findings as reusable skills | `capture-subsystem` |
 | Logging planning decisions, observations, discoveries | `artifact-logging` |
@@ -204,6 +206,18 @@ Triggered when a new plan must be inserted between existing plans, making letter
 3. **Minimal scope** — Only what's needed to pass review
 4. **Reference original** — "Fixes issues from Plan {letter} Round {N}"
 
+### Large plan-group preflight
+
+After CREATE, AMEND, or REORDER produces or changes the complete coordinated plan group:
+
+1. Count the complete group, including every plan that will be handed to Exec-Manager.
+2. For six or more plans, load the `dispatching-agents` skill and spawn exactly one Exec-PlanGate with the current DD, contracts ledger, feature README, and every plan path.
+3. If the gate returns `AMEND_REQUIRED`, repair the plans using the appropriate operation and rerun the gate.
+4. If the gate returns `DD_CONTRADICTION`, `MISSING_ARTIFACT`, `NEEDS_DECISION`, or `BLOCKED`, return that result to the caller without guessing a resolution.
+5. Do not report a six-or-more-plan group as execution-ready until the current gate returns `PASS`.
+
+This preflight belongs to planning. Exec-Manager receives the gate result and verifies it before dispatching workers; it does not spawn the gate.
+
 ## Output
 
 ```yaml
@@ -224,9 +238,12 @@ contracts:
     - "foo_aql.new_method(db, param) -> Result"
   calls:
     - "bar_aql.existing_method(db, id) -> Dict"
-blockers:  # Only if BLOCKED
-  - type: DESIGN_UNCLEAR | DEPENDENCY_UNKNOWN
-    detail: "..."
+  blockers:  # Only if BLOCKED
+    - type: DESIGN_UNCLEAR | DEPENDENCY_UNKNOWN
+      detail: "..."
+gate:  # Required for groups of six or more
+  status: PASS
+  report: "{full Exec-PlanGate YAML report}"
 ```
 
 ## Plan File Format

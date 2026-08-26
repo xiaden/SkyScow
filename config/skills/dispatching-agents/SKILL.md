@@ -123,11 +123,12 @@ Task at hand
 | Task | Reference |
 |------|-----------|
 | Execute an implementation plan | [`exec-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-manager.md) |
-| Create, amend, or reorder plans | [`exec-planner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) |
+| Validate a coordinated group of more than five plans during planning | [`exec-plan-gate`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-plan-gate.md) — spawned by Exec-Planner |
+| Create, amend, reorder, and gate large plan groups | [`exec-planner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) |
 | Targeted repairs for MINOR review issues | [`exec-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-fixer.md) |
 | Implement a scoped plan phase | [`exec-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-worker.md) |
 
-Exec-Manager spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direct dispatch of Exec-Worker or Exec-Fixer is rare — prefer routing through Exec-Manager.
+Exec-Planner spawns Exec-PlanGate for groups of six or more and must receive `PASS` before handing the group to Exec-Manager. Exec-Manager verifies that result, then spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direct dispatch of Exec-Worker or Exec-Fixer is rare — prefer routing through Exec-Manager.
 
 ### R&D Department
 
@@ -309,7 +310,8 @@ Research or investigation where output should persist across sessions?
 - **This skill's references:** — self-contained dispatch guides, one per agent type, organized by department:
 
   **Exec:** [`exec-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-manager.md) — Plan execution lifecycle, QA gate enforcement, fix cycles.
-  [`exec-planner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) — Plan creation, amendment, reordering.
+  [`exec-planner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) — Plan creation, amendment, reordering, and large-group preflight ownership.
+  [`exec-plan-gate.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-plan-gate.md) — Read-only validation of six-or-more-plan groups, spawned by Exec-Planner.
   [`exec-fixer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-fixer.md) — Targeted MINOR issue repairs.
   [`exec-worker.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-worker.md) — Scoped plan phase implementation.
 
