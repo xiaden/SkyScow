@@ -215,13 +215,13 @@ RUN set -eux; \
     case "$TARGETARCH" in \
         amd64) \
             GATEWAY_ARCH="x64"; \
-            GATEWAY_SHA256="1d86668199689c22c08e6f65b0af94f2e4ba337c090ec368b2cf81c5412a7f93"; \
-            GATEWAY_SIZE="27371540"; \
+            GATEWAY_SHA256="77f797e587ed545631dd759c2c4e4fe936a8a2b9f4a1c0b5c9881bf78e60c845"; \
+            GATEWAY_SIZE="33186030"; \
             ;; \
         arm64) \
             GATEWAY_ARCH="arm64"; \
-            GATEWAY_SHA256="d26f6b9b8c34cbd31c7d9fadc861eb1cc9e4007a59268bdcf0604a50b8612e1a"; \
-            GATEWAY_SIZE="25551336"; \
+            GATEWAY_SHA256="55da46a938212423d4d0488652160e19df41b47e5b36ec20eea06eab5f328756"; \
+            GATEWAY_SIZE="30520598"; \
             ;; \
         *) \
             echo "Unsupported TARGETARCH: $TARGETARCH" >&2; \
