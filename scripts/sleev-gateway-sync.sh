@@ -54,8 +54,9 @@ reported_cli_version() {
 
 reported_gateway_version() {
     local bin="$1" output version
-    output="$($bin --version 2>/dev/null)" || return 1
-    version="$(printf '%s\n' "$output" | awk '/^gateway [0-9]+\.[0-9]+\.[0-9]+$/{print $2; exit}')"
+    output="$("$bin" --version 2>/dev/null)" || return 1
+    version="$(printf '%s\n' "$output" |
+        awk '/^gateway [0-9]+\.[0-9]+\.[0-9]+([[:space:]].*)?$/{print $2; exit}')"
     [ -n "$version" ] || return 1
     printf '%s\n' "$version"
 }
