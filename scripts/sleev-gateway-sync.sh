@@ -158,7 +158,6 @@ download_artifact() (
 )
 
 install_packaged_release() {
-    local cli_dir="${CLI_ROOT}/${DESIRED_VERSION}"
     local gateway_dir="${GATEWAY_ROOT}/${DESIRED_VERSION}"
     local legal source
 
@@ -167,48 +166,60 @@ install_packaged_release() {
     [ -x "$PACKAGED_GATEWAY" ] || return 1
     [ "$(reported_gateway_version "$PACKAGED_GATEWAY")" = "$DESIRED_VERSION" ] || return 1
 
-    mkdir -p "$cli_dir" "$gateway_dir"
-    install -m 0755 "$PACKAGED_CLI" "${cli_dir}/sleev"
+    mkdir -p "$gateway_dir"
     install -m 0755 "$PACKAGED_GATEWAY" "${gateway_dir}/sleeve-gateway"
 
     for legal in "${LEGAL_FILES[@]}"; do
-        for source in \
-            "/usr/local/lib/node_modules/sleev/${legal}" \
-            "/usr/local/share/holycode/sleev/gateway/packaged/${legal}"; do
-            if [ -f "$source" ]; then
-                install -m 0644 "$source" "${gateway_dir}/${legal}"
-                install -m 0644 "$source" "${cli_dir}/${legal}"
-                break
-            fi
-        done
+        source="/usr/local/share/holycode/sleev/gateway/packaged/${legal}"
+        if [ -f "$source" ]; then
+            install -m 0644 "$source" "${gateway_dir}/${legal}"
+        fi
     done
 }
 
 activate_release() {
     local cli_dir="${CLI_ROOT}/${DESIRED_VERSION}"
     local gateway_dir="${GATEWAY_ROOT}/${DESIRED_VERSION}"
+    local cli_bin cli_link_target
     local cli_tmp gateway_tmp old_cli old_gateway
 
-    [ "$(reported_cli_version "${cli_dir}/sleev")" = "$DESIRED_VERSION" ] || return 1
+    # Packaged npm CLI must run in-place with its package files.
+    # Downloaded standalone CLIs may live in the persistent version directory.
+    if [ "$(reported_cli_version "$PACKAGED_CLI" 2>/dev/null || true)" = "$DESIRED_VERSION" ]; then
+        cli_bin="$PACKAGED_CLI"
+        cli_link_target="$PACKAGED_CLI"
+    else
+        cli_bin="${cli_dir}/sleev"
+        cli_link_target="${DESIRED_VERSION}/sleev"
+    fi
+
+    [ "$(reported_cli_version "$cli_bin")" = "$DESIRED_VERSION" ] || return 1
     [ "$(reported_gateway_version "${gateway_dir}/sleeve-gateway")" = "$DESIRED_VERSION" ] || return 1
 
-    chown -R "$PUID:$PGID" "$cli_dir" "$gateway_dir"
+    chown -R "$PUID:$PGID" "$gateway_dir"
+    [ ! -d "$cli_dir" ] || chown -R "$PUID:$PGID" "$cli_dir"
     chown "$PUID:$PGID" "$SLEEV_ROOT" "$CLI_ROOT" "$GATEWAY_ROOT"
 
     cli_tmp="${CLI_ROOT}/current.tmp"
     gateway_tmp="${GATEWAY_ROOT}/current.tmp"
+
     old_cli="$(readlink "$CLI_CURRENT" 2>/dev/null || true)"
     old_gateway="$(readlink "$GATEWAY_CURRENT" 2>/dev/null || true)"
+
     rm -f "$cli_tmp" "$gateway_tmp"
-    ln -s "${DESIRED_VERSION}/sleev" "$cli_tmp"
+
+    ln -s "$cli_link_target" "$cli_tmp"
     ln -s "${DESIRED_VERSION}/sleeve-gateway" "$gateway_tmp"
+
     mv -Tf "$cli_tmp" "$CLI_CURRENT"
+
     if ! mv -Tf "$gateway_tmp" "$GATEWAY_CURRENT"; then
         rm -f "$CLI_CURRENT"
         [ -n "$old_cli" ] && ln -s "$old_cli" "$CLI_CURRENT"
         [ -n "$old_gateway" ] && ln -s "$old_gateway" "$GATEWAY_CURRENT"
         return 1
     fi
+
     echo "[sleev-sync] activated Sleev ${DESIRED_VERSION} (${PLATFORM})"
 }
 
