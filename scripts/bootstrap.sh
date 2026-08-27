@@ -39,6 +39,8 @@ declare -A PREVIOUS_VERSIONS=()
 declare -A NEXT_HASHES=()
 declare -A NEXT_OWNERS=()
 declare -A NEXT_VERSIONS=()
+declare -A PENDING_ACTIONS=()
+RECONCILIATION_QUIT=0
 
 SOURCE_VERSION="0.0.0"
 PREVIOUS_VERSION="0.0.0"
@@ -133,12 +135,101 @@ record_next() {
     NEXT_VERSIONS["$path"]="$version"
 }
 
-confirm() {
-    local action="$1" path="$2" answer
+schedule_action() {
+    local path="$1" action="$2"
+    if [[ "$INTERACTIVE" == 1 ]]; then
+        PENDING_ACTIONS["$path"]="$action"
+    fi
+}
+
+apply_pending_actions() {
     [[ "$INTERACTIVE" == 1 ]] || return 0
+
+    local path action
+    while IFS= read -r path; do
+        action="${PENDING_ACTIONS[$path]}"
+        case "$action" in
+            copy)
+                copy_shipped "$path"
+                log "installed/updated $path"
+                ;;
+            remove)
+                remove_shipped "$path"
+                log "removed obsolete $path"
+                ;;
+            *)
+                die "unknown pending reconciliation action: $action"
+                ;;
+        esac
+    done < <(printf '%s\n' "${!PENDING_ACTIONS[@]}" | LC_ALL=C sort)
+}
+
+show_current_diff() {
+    local path="$1" target source diff_status=0 diff_output
+    target="$(target_path "$path")"
+    source="$SOURCE_DIR/$path"
+
+    # git diff --no-index returns 1 when files differ. Its --label option is
+    # not available in all Git versions, so normalize the portable headers.
+    set +e
+    diff_output="$(git diff --no-index --no-ext-diff -- "$target" "$source")"
+    diff_status=$?
+    set -e
+    if [[ "$diff_status" -le 1 ]]; then
+        printf '%s\n' "$diff_output" | sed \
+            -e '1s|^--- .*|--- LOCAL|' \
+            -e "2s|^+++ .*|+++ SHIPPED $SOURCE_VERSION|"
+    fi
+    if [[ "$diff_status" -gt 1 ]]; then
+        log "unable to show diff for $path (status $diff_status)"
+    fi
+}
+
+prompt_current_conflict() {
+    local path="$1" answer
     [[ -e /dev/tty ]] || die "interactive mode requires a terminal"
-    read -r -p "[bootstrap] $action $path? [y/N] " answer < /dev/tty
-    [[ "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
+
+    printf '\n================================================================\n'
+    printf '%s\n' "$path"
+    printf 'Local file differs from shipped %s\n' "$SOURCE_VERSION"
+    printf '================================================================\n\n'
+    show_current_diff "$path"
+    while true; do
+        read -r -p $'\n[k] keep local  [u] use shipped  [q] quit\nChoice: ' answer < /dev/tty || return 3
+        case "$answer" in
+            k|K) return 0 ;;
+            u|U) return 1 ;;
+            q|Q) return 3 ;;
+            *) printf 'Please choose k, u, or q.\n' ;;
+        esac
+    done
+}
+
+prompt_obsolete() {
+    local path="$1" local_hash="$2" previous_hash="$3" previous_owner="$4" previous_version="$5" answer
+    [[ -e /dev/tty ]] || die "interactive mode requires a terminal"
+
+    printf '\n================================================================\n'
+    printf '%s\n' "$path"
+    printf 'Obsolete: no longer shipped in %s\n' "$SOURCE_VERSION"
+    if [[ "$previous_owner" == "shipped" ]]; then
+        printf 'Previous shipped version: %s\n' "$previous_version"
+        printf 'Local SHA256: %s\nPrevious shipped SHA256: %s\n' "$local_hash" "$previous_hash"
+        printf 'Previous shipped content is not available for a diff.\n'
+    else
+        printf 'Local SHA256: %s\n' "$local_hash"
+        printf 'Previous shipped content is not available for a diff.\n'
+    fi
+    printf '================================================================\n'
+    while true; do
+        read -r -p $'\n[k] keep local  [d] delete obsolete  [q] quit\nChoice: ' answer < /dev/tty || return 3
+        case "$answer" in
+            k|K) return 0 ;;
+            d|D) return 1 ;;
+            q|Q) return 3 ;;
+            *) printf 'Please choose k, d, or q.\n' ;;
+        esac
+    done
 }
 
 copy_shipped() {
@@ -179,24 +270,27 @@ reconcile_current_file() {
         if previous_has "$path"; then
             log "preserving user-deleted $path"
             record_next "$path" "$shipped_hash" deleted "$SOURCE_VERSION"
+        elif [[ "$INTERACTIVE" == 1 ]]; then
+            schedule_action "$path" copy
+            record_next "$path" "$shipped_hash" shipped "$SOURCE_VERSION"
         elif copy_shipped "$path"; then
             [[ "$DRY_RUN" == 1 ]] || log "installed $path"
             record_next "$path" "$shipped_hash" shipped "$SOURCE_VERSION"
         else
             log "preserving unknown target for $path"
-            record_next "$path" "$shipped_hash" user "$SOURCE_VERSION"
+            record_next "$path" "-" user "$SOURCE_VERSION"
         fi
         return
     fi
 
     if [[ -L "$target" ]]; then
         log "preserving user symlink $path"
-        record_next "$path" "$shipped_hash" user "$SOURCE_VERSION"
+        record_next "$path" "-" user "$SOURCE_VERSION"
         return
     fi
     if [[ -d "$target" ]]; then
         log "preserving user directory blocking $path"
-        record_next "$path" "$shipped_hash" user "$SOURCE_VERSION"
+        record_next "$path" "-" user "$SOURCE_VERSION"
         return
     fi
 
@@ -209,19 +303,45 @@ reconcile_current_file() {
     previous_hash="${PREVIOUS_HASHES[$path]:-}"
     previous_owner="${PREVIOUS_OWNERS[$path]:-}"
     if [[ "$previous_owner" == "shipped" && "$local_hash" == "$previous_hash" ]]; then
-        if confirm "update" "$path"; then
-            if copy_shipped "$path"; then
-                if [[ "$DRY_RUN" == 0 ]]; then
-                    log "updated $path ($PREVIOUS_VERSION -> $SOURCE_VERSION)"
-                fi
-                record_next "$path" "$shipped_hash" shipped "$SOURCE_VERSION"
-                return
+        if [[ "$INTERACTIVE" == 1 ]]; then
+            schedule_action "$path" copy
+            record_next "$path" "$shipped_hash" shipped "$SOURCE_VERSION"
+            return
+        elif copy_shipped "$path"; then
+            if [[ "$DRY_RUN" == 0 ]]; then
+                log "updated $path ($PREVIOUS_VERSION -> $SOURCE_VERSION)"
             fi
+            record_next "$path" "$shipped_hash" shipped "$SOURCE_VERSION"
+            return
         fi
     else
+        if [[ "$INTERACTIVE" == 1 ]]; then
+            local choice
+            if prompt_current_conflict "$path"; then
+                choice=0
+            else
+                choice=$?
+            fi
+            case "$choice" in
+                0)
+                    log "keeping local $path"
+                    record_next "$path" "$local_hash" user "$SOURCE_VERSION"
+                    return
+                    ;;
+                1)
+                    schedule_action "$path" copy
+                    record_next "$path" "$shipped_hash" shipped "$SOURCE_VERSION"
+                    return
+                    ;;
+                3)
+                    RECONCILIATION_QUIT=1
+                    return 0
+                    ;;
+            esac
+        fi
         log "preserving edited $path"
     fi
-    record_next "$path" "$shipped_hash" user "$SOURCE_VERSION"
+    record_next "$path" "$local_hash" user "$SOURCE_VERSION"
 }
 
 reconcile_obsolete_file() {
@@ -230,6 +350,20 @@ reconcile_obsolete_file() {
     target_present "$target" || return
 
     if [[ -L "$target" ]]; then
+        if [[ "$INTERACTIVE" == 1 && "${PREVIOUS_OWNERS[$path]+present}" == present ]]; then
+            local choice
+            if prompt_obsolete "$path" "-" "${PREVIOUS_HASHES[$path]:--}" \
+                "${PREVIOUS_OWNERS[$path]:-user}" "${PREVIOUS_VERSIONS[$path]:-0.0.0}"; then
+                choice=0
+            else
+                choice=$?
+            fi
+            case "$choice" in
+                0) record_next "$path" "-" user "${PREVIOUS_VERSIONS[$path]:-0.0.0}"; return ;;
+                1) schedule_action "$path" remove; return ;;
+                3) RECONCILIATION_QUIT=1; return ;;
+            esac
+        fi
         log "preserving unknown symlink $path"
         record_next "$path" "-" user "$SOURCE_VERSION"
         return
@@ -248,12 +382,54 @@ reconcile_obsolete_file() {
     previous_owner="${PREVIOUS_OWNERS[$path]:-}"
     previous_version="${PREVIOUS_VERSIONS[$path]:-0.0.0}"
     if [[ "$previous_owner" == "shipped" && "$local_hash" == "$previous_hash" ]]; then
-        if confirm "remove obsolete ($previous_version -> $SOURCE_VERSION)" "$path"; then
-            remove_shipped "$path"
+        if [[ "$INTERACTIVE" == 1 ]]; then
+            local choice
+            if prompt_obsolete "$path" "$local_hash" "$previous_hash" "$previous_owner" "$previous_version"; then
+                choice=0
+            else
+                choice=$?
+            fi
+            case "$choice" in
+                0)
+                    record_next "$path" "$local_hash" user "$previous_version"
+                    return
+                    ;;
+                1)
+                    schedule_action "$path" remove
+                    return
+                    ;;
+                3)
+                    RECONCILIATION_QUIT=1
+                    return 0
+                    ;;
+            esac
+        elif remove_shipped "$path"; then
             [[ "$DRY_RUN" == 1 ]] || log "removed obsolete $path"
             return
         fi
     else
+        if [[ "$INTERACTIVE" == 1 ]]; then
+            local choice
+            if prompt_obsolete "$path" "$local_hash" "$previous_hash" "$previous_owner" "$previous_version"; then
+                choice=0
+            else
+                choice=$?
+            fi
+            case "$choice" in
+                0)
+                    record_next "$path" "$local_hash" user "$previous_version"
+                    return
+                    ;;
+                1)
+                    schedule_action "$path" remove
+                    return
+                    ;;
+                3)
+                    RECONCILIATION_QUIT=1
+                    return 0
+                    ;;
+            esac
+        fi
         log "preserving edited/legacy obsolete $path"
     fi
     record_next "$path" "$local_hash" "$previous_owner" "$previous_version"
@@ -263,10 +439,22 @@ reconcile_unknown_files() {
     local root target path
     for root in agents plugins skills tools commands; do
         [[ -d "$CONFIG_DIR/$root" ]] || continue
+
         while IFS= read -r -d '' target; do
             path="${target#"$CONFIG_DIR/"}"
-            [[ -n "${SOURCE_HASHES[$path]+present}" ]] || reconcile_obsolete_file "$path"
-        done < <(find "$CONFIG_DIR/$root" \( -type f -o -type l \) -print0)
+            [[ -n "${SOURCE_HASHES[$path]+present}" ]] ||
+                reconcile_obsolete_file "$path"
+        done < <(
+            find "$CONFIG_DIR/$root" \
+                \( -type d -name '__pycache__' -prune \) -o \
+                \( -type f \
+                    ! -name '*.pyc' \
+                    ! -name '*.pyo' \
+                    ! -name '.DS_Store' \
+                    -print0 \
+                \) -o \
+                \( -type l -print0 \)
+        )
     done
 }
 
@@ -322,8 +510,11 @@ load_previous_manifest
 log "reconciling shipped configuration version $SOURCE_VERSION (previous: $PREVIOUS_VERSION)"
 for path in "${!SOURCE_HASHES[@]}"; do
     reconcile_current_file "$path"
+    [[ "$RECONCILIATION_QUIT" == 0 ]] || exit 0
 done
 reconcile_unknown_files
+[[ "$RECONCILIATION_QUIT" == 0 ]] || exit 0
+apply_pending_actions
 write_state_manifest
 
 if [[ "$DRY_RUN" == 1 ]]; then
