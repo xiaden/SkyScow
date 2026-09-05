@@ -71,3 +71,14 @@ The bolded turn-by-turn spawn instructions are **required** — RnD-Refiner orch
 
 Each turn appends to the shared adversarial log. The result is evidence for
 DDAuthor's final DD, not a final DD itself.
+
+## GitHub Actions context (when relevant)
+
+If the adversarial process touches Git/GitHub evidence, include in the dispatch:
+
+- **GitHub Actions context:** the target workflow/repository and what evidence the adversarial turns need (workflow definitions, `gh` run/log/artifact outcomes).
+- **Remote-Docker constraint:** local Docker is unavailable; any Docker/attestation work targets GitHub-hosted runners (`gg-artifacts`).
+- **PAT/`gh` assumption:** the turns read evidence via the existing PAT-authenticated `gh` CLI directly through the terminal (`gg-env`); they critique/refine, they do not implement or execute the workflow.
+- **Result-iteration requirement:** when the process depends on run/artifact results, require the turns to state how collected results feed the next iteration (`gg-actions`).
+
+Keep the exact-reference and authoritative-request conventions above intact when composing the dispatch.

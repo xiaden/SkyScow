@@ -1,0 +1,72 @@
+# Canonical fact registry: <source URL>|<owner>|<cadence>
+# Owner label is the docs/ops owner of the fact; the named human owner is
+# pending until assigned (open question Q1).
+# Cadence is the staleness window used by check-facts.sh (quarterly = 90 days).
+# Consumed by scripts/check-facts.sh via -r. One line per volatile claim URL.
+https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification|docs-owner|quarterly
+https://docs.github.com/en/get-started/getting-started-with-git/managing-remote-repositories|docs-owner|quarterly
+https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/getting-started/about-pull-requests|docs-owner|quarterly
+https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/about-pull-request-reviews|docs-owner|quarterly
+https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches|docs-owner|quarterly
+https://docs.github.com/en/issues/tracking-your-work-with-issues/about-issues|docs-owner|quarterly
+https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases|docs-owner|quarterly
+https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments|docs-owner|quarterly
+https://docs.github.com/en/get-started/getting-started-with-git/caching-your-github-credentials-in-git|docs-owner|quarterly
+https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens|docs-owner|quarterly
+https://github.com/cli/cli/releases/tag/v2.98.0|docs-owner|quarterly
+https://opencode.ai/docs/skills/|docs-owner|quarterly
+# --- gg-actions (P1-S1) added URLs ---
+https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions|docs-owner|quarterly
+https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows|docs-owner|quarterly
+https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions|docs-owner|quarterly
+https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token|docs-owner|quarterly
+https://docs.github.com/en/actions/security-guides/automatic-token-authentication|docs-owner|quarterly
+https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/storing-and-using-secrets|docs-owner|quarterly
+https://docs.github.com/en/code-security/dependabot/working-with-dependabot/keeping-your-actions-up-to-date-with-dependabot|docs-owner|quarterly
+https://github.com/actions/cache|docs-owner|quarterly
+https://github.com/actions/upload-artifact|docs-owner|quarterly
+https://github.com/actions/download-artifact|docs-owner|quarterly
+https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-concurrency|docs-owner|quarterly
+https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts|docs-owner|quarterly
+https://docs.github.com/en/actions/using-github-hosted-runners/using-github-hosted-runners/about-github-hosted-runners|docs-owner|quarterly
+https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/using-self-hosted-runners-in-a-workflow|docs-owner|quarterly
+https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/using-labels-with-self-hosted-runners|docs-owner|quarterly
+https://docs.github.com/en/actions/concepts/security/openid-connect|docs-owner|quarterly
+https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect|docs-owner|quarterly
+https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-cloud-providers|docs-owner|quarterly
+# --- gg-env (P1-S2) added URLs ---
+https://cli.github.com/manual/gh_auth_login|docs-owner|quarterly
+https://cli.github.com/manual/gh_help_environment|docs-owner|quarterly
+# --- gg-actions workflow lifecycle (G phase 2, P2-S2) added URLs ---
+https://cli.github.com/manual/gh_workflow_run|docs-owner|quarterly
+https://cli.github.com/manual/gh_run_watch|docs-owner|quarterly
+https://cli.github.com/manual/gh_run_view|docs-owner|quarterly
+https://cli.github.com/manual/gh_run_download|docs-owner|quarterly
+https://cli.github.com/manual/gh_run_cancel|docs-owner|quarterly
+https://docs.github.com/en/enterprise-cloud@latest/pages/getting-started-with-github-pages/changing-the-visibility-of-your-github-pages-site|docs-owner|quarterly
+https://docs.github.com/en/get-started/learning-about-github/githubs-plans|docs-owner|quarterly
+# --- gg-env shared table (P2-S1) added URLs ---
+https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches|docs-owner|quarterly
+https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments|docs-owner|quarterly
+https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations|docs-owner|quarterly
+https://docs.docker.com/build/ci/github-actions/attestations/|docs-owner|quarterly
+https://docs.docker.com/build/metadata/attestations/slsa-provenance/|docs-owner|quarterly
+https://github.com/docker/build-push-action|docs-owner|quarterly
+https://github.com/actions/attest|docs-owner|quarterly
+https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site|docs-owner|quarterly
+# --- gg-artifacts (D phase 1, P1-S3) added URLs ---
+https://github.com/docker/setup-buildx-action|docs-owner|quarterly
+https://github.com/docker/login-action|docs-owner|quarterly
+https://github.com/docker/metadata-action|docs-owner|quarterly
+https://slsa.dev/spec/v1.1/provenance|docs-owner|quarterly
+https://cli.github.com/manual/gh_attestation_verify|docs-owner|quarterly
+https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry|docs-owner|quarterly
+# --- gg-docs (D phase 2, P2-S3) added URLs ---
+https://github.com/actions/configure-pages|docs-owner|quarterly
+https://github.com/actions/upload-pages-artifact|docs-owner|quarterly
+https://github.com/actions/deploy-pages|docs-owner|quarterly
+https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages|docs-owner|quarterly
+https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/about-custom-domains-and-github-pages|docs-owner|quarterly
+https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site|docs-owner|quarterly
+https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages|docs-owner|quarterly
+https://docs.github.com/en/pages/getting-started-with-github-pages/securing-your-github-pages-site-with-https|docs-owner|quarterly

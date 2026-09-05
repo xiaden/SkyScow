@@ -2,7 +2,7 @@
 description: Analyzes test coverage and quality for changed files. Identifies missing tests, stale tests, and coverage gaps. Routes by tier — PASS, MINOR_PASS (log only), MINOR_DISPATCH or MAJOR_DISPATCH (spawn TestGenerator), MAJOR_RAISE (escalate). Returns tiered status.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: high
 permission:
   read: allow

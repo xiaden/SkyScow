@@ -2,7 +2,7 @@
 description: Adversarial pattern critic. Reads implementation patterns from the shared design document, searches for edge cases, integration risks, and library-specific gotchas, ranks by context relevance, and appends risk assessment sections. White-hat adversary — success is measured by how much the final implementation plan improves. Spawned by RnD-Refiner across two turns.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: high
 permission:
   read: allow
@@ -70,6 +70,8 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 | Logging risk assessments, edge case findings | `artifact-logging` |
 
 **Workspace skills:** Additional skills may be defined in this workspace (`.opencode/skills/`). Check the `<available_skills>` block at the start of each session.
+
+**Git/GitHub evidence:** The Git/GitHub skill family lives in `.opencode/skills/` (generic `gg-*`, plus repo-only `ggt-conventions`). When your risk assessment depends on Git/GitHub evidence — workflow definitions, `gh` run/log/artifact outcomes, remotes/PRs, credential/PAT facts, hosted Docker, or Pages — load the applicable `gg-*` skill to read that evidence (gg-actions for the workflow lifecycle and run/artifact results, gg-env for credential/PAT hygiene, gg-artifacts for hosted Docker, gg-docs for Pages, gg-repos for remotes/PRs, gg-core for local Git, gg-router for routing, ggt-conventions for this workspace's repo-local constraints). Reading that evidence is in scope; implementing or executing the workflow is not.
 
 ## Parallel Tool Execution
 

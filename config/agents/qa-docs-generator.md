@@ -2,7 +2,7 @@
 description: Generates and updates documentation to fill gaps identified by QA-DocsAnalyzer. Writes docstrings, updates user docs, fixes API docs. Leaf agent — no children.
 maintainer: "agent-team"
 mode: all
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: low
 permission:
   read: allow

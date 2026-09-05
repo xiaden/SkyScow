@@ -2,7 +2,7 @@
 description: Top-level orchestrator for complex multi-plan features requiring cross-cutting coordination. Use for large features spanning multiple plans. For simpler work, invoke RnD-Manager, Exec-Manager, or advisory agents directly. Spawns RnD-Manager, Exec-Planner, Exec-Manager, Support-Researcher, Support-Debugger.
 maintainer: "agent-team"
 mode: all
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: low
 permission:
   read: allow

@@ -2,7 +2,7 @@
 description: Analyzes documentation coverage and accuracy for changed code. Identifies missing docstrings, stale docs, and doc/code drift. Routes by tier — PASS, MINOR_PASS (log only), MINOR_DISPATCH or MAJOR_DISPATCH (spawn DocsGenerator), MAJOR_RAISE (escalate). Returns tiered status.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: high
 permission:
   read: allow
@@ -207,6 +207,8 @@ Now assess the tier based on the gaps found:
 - Internal/private helpers without docstrings
 - Minor typos or formatting issues
 - Verbose docstrings that could be clearer
+
+Documentation-only findings may be repaired through the manager's bypass only when the QA-Reviewer explicitly reports `docsOnly: true`, `nonDocumentationIssues: []`, and `documentationSeverity: NIT | MINOR`. Findings classified as `MISLEADING` or `BLOCKING` must retain the normal QA validation gate.
 
 **MINOR_ISSUES_PASS** — Log gaps but don't dispatch. Common cases:
 - 1-2 public methods missing docstrings (but core API is documented)

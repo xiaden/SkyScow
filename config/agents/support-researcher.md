@@ -2,7 +2,7 @@
 description: Deep research agent for codebase exploration and external documentation. Returns structured findings with code locations, API references, and design-relevant facts. Read-only for codebase — no edits or execution. Automatically appends findings to project skills for future sessions. Invokable directly or via any manager/design agent.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: high
 permission:
   read: allow

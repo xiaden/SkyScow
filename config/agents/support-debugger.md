@@ -2,7 +2,7 @@
 description: Root cause analysis agent for failures and unexpected behavior. Traces execution, forms hypotheses, gathers evidence, and returns diagnosis with suggested fix. Read-heavy, edit-free. Spawned by Director or Exec-Manager when something breaks.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/gpt-5.6-luna
+model: omniroute/luna-combo
 variant: high
 permission:
   read: allow

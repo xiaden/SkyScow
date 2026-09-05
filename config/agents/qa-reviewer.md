@@ -2,7 +2,7 @@
 description: Quality gate. Runs full review in one pass. Depth scales by change tier. Never stops early — all checks run, all issues reported in one round.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: high
 permission:
   read: allow
@@ -162,6 +162,16 @@ This skill provides OWASP Top 10 methodology and vulnerability pattern detection
 
 Use `plan_read(plan_name)` to understand intent. Read any referenced contracts file once. No log reads, ADR searches, or artifact spelunking.
 
+When an originating user request and requirement ledger are supplied, read them
+alongside the plan and contracts. Compare the full chain:
+
+```text
+user request → DD → plan/contracts → implementation → tests
+```
+
+A passing test suite or internally consistent plan does not establish
+correctness if a mandatory user requirement is absent or contradicted.
+
 ### 2. Lint once per layer touched
 
 - If backend files changed: run available linter on `{root}`
@@ -208,13 +218,19 @@ summary: "Review {round}: {count} issues found"
 issues:
   - file: "path/to/file.py"
     line: 45
-    category: LINT | CODE_QUALITY | INCOMPLETE | TEST_GAP | DOC_GAP | LAYER_VIOLATION | PLAN_ERROR
+    category: LINT | CODE_QUALITY | INCOMPLETE | TEST_GAP | DOC_GAP | LAYER_VIOLATION | PLAN_ERROR | REQUIREMENT_DRIFT
     severity: MINOR | PLANNING_GAP | CRITICAL
     detail: "Specific, actionable finding"
     suggestedFix: "What to change"
 
-scopeClassification: MINOR | PLANNING_GAP | CRITICAL
-recommendedAction: FIX_INLINE | AMEND_PLAN | DISCUSS
+scopeClassification: MINOR | DOCS_ONLY | PLANNING_GAP | CRITICAL
+recommendedAction: FIX_INLINE | DOCS_REPAIR_NO_REVIEW | AMEND_PLAN | DISCUSS
+
+# Required only when status is ISSUES_FOUND and all findings are documentation-only:
+docsOnly: true | false
+nonDocumentationIssues: []
+documentationSeverity: NIT | MINOR | MISLEADING | BLOCKING
+docsRepairRoute: EXEC_FIXER | QA_DOCS_GENERATOR
 
 # Only if dispatched:
 testAnalyzerReport:
@@ -233,6 +249,7 @@ ALL findings in one report. No holding back for round 2.
 | `PLANNING_GAP` | Missing methods, wrong scope, plan was incomplete | → Planner |
 | `CRITICAL` | Architectural violation, impossible requirement | → Director |
 | `PLAN_ERROR` | Plan/contract is the defective party | → amend plan |
+| `REQUIREMENT_DRIFT` | Plan, contract, implementation, or tests omit, weaken, defer, invert, or contradict an explicit user requirement | → at least `PLANNING_GAP`; `CRITICAL` when a required capability is removed |
 
 ## Artifact Logging Behavior
 
@@ -274,6 +291,9 @@ Log your agent name as `qa-reviewer`.
 - Spec-first test failures are NOT bugs — don't flag as PLANNING_GAP
 - Sub-analyzer reports must be included in verdict
 - Never fix issues — classify and route only
+- A test or contract asserting that a required capability can never run, or that
+  its required enable/configuration path does not exist, is `REQUIREMENT_DRIFT`
+  unless the authoritative user request explicitly permits it.
 
 ## Principles
 

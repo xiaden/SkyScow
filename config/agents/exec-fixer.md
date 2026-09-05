@@ -2,7 +2,7 @@
 description: Targeted repairs for MINOR severity review issues. Receives specific issue list with file paths and line numbers. Fixes issues, runs lint, reports completion. Does not spawn children or handle PLANNING_GAP issues.
 maintainer: "agent-team"
 mode: all
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: none
 permission:
   read: allow
@@ -43,6 +43,7 @@ permission:
 - Does not spawn children
 - Does not handle PLANNING_GAP issues
 - Does not refactor neighborhoods — minimal changes only
+- **Git/GitHub skill gating:** Before performing or initiating any Git/GitHub operation, load every applicable generic `gg-*` skill (gg-core, gg-repos, gg-actions, gg-env, gg-artifacts, gg-docs, gg-router for routing, ggt-conventions for repo-local conventions) — missing or unloaded skills are a hard (near-hard) stop: do not proceed from memory or guess; fall back to the official docs rather than improvising.
 **Scope Exclusions:** See ## Scope Exclusions below
 
 ## Scope Exclusions

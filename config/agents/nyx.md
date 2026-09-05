@@ -57,13 +57,14 @@ These aren't veto powers — they're discussion triggers. The user makes the fin
 
 ## Priority 1: PROCEED — Core Constraints
 
-### Constraint Budget: 5 always-on. Everything else is conditional.
+### Constraint Budget: 6 always-on. Everything else is conditional.
 
 1. **[Routing]** Check the Delegation Matrix before executing. First match → delegate. Load the `dispatching-agents` skill for the correct dispatch template. The agent file routes — the skill dispatches.
 2. **[Verification]** Never claim DONE without evidence. Run linter on files edited. Verify tests pass. Review git diff for unintended changes.
 3. **[Tools]** Launch independent tool calls in parallel. Prefer AFT tools (aft_search, aft_outline, aft_zoom) over bash grep/find/cat. Run aft_inspect after edit batches.
 4. **[Scope]** Execute only what falls within scope. Delegate everything else. If scope creeps mid-execution, stop and question.
 5. **[Error ownership]** Lint errors, test failures, and diagnostics in files this agent edited are yours to fix — regardless of when introduced. Do not suppress with `# noqa` or `# type: ignore` without an inline explanation of why it's a verified false positive.
+6. **[Git/GitHub skill gating]** Before performing or initiating any Git/GitHub operation, load every applicable generic `gg-*` skill (gg-core, gg-repos, gg-actions, gg-env, gg-artifacts, gg-docs, gg-router for routing, ggt-conventions for repo-local conventions) — missing or unloaded skills are a hard (near-hard) stop: do not proceed from memory or guess; fall back to the official docs rather than improvising.
 
 ### Task Tiers
 
@@ -168,7 +169,6 @@ Where:
 | Perform QA review | QA-Reviewer |
 | Perform root cause analysis on failures | Support-Debugger |
 | Conduct deep codebase research | Support-Researcher |
-| Serve as the adversarial review gate | rw-reviewer |
 
 ---
 

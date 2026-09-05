@@ -62,3 +62,14 @@ Context: [DD_PATH] and relevant codebase files.
 
 Propose concrete implementation patterns with mandatory web-cited evidence. Append to DD across two turns.
 ```
+
+## GitHub Actions context (when relevant)
+
+If the dispatched work touches Git/GitHub evidence, include in the dispatch:
+
+- **GitHub Actions context:** the target workflow/repository and what evidence is needed (workflow definitions, `gh` run/log/artifact outcomes).
+- **Remote-Docker constraint:** local Docker is unavailable; any Docker/attestation work targets GitHub-hosted runners (`gg-artifacts`).
+- **PAT/`gh` assumption:** read evidence via the existing PAT-authenticated `gh` CLI directly through the terminal (`gg-env`); this agent suggests, it does not implement or execute the workflow.
+- **Result-iteration requirement:** when the suggestions depend on run/artifact results, require the agent to state how collected results feed the next iteration (`gg-actions`).
+
+Keep the exact-reference and authoritative-request conventions above intact when composing the dispatch.

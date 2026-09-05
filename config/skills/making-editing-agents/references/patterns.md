@@ -204,7 +204,7 @@ Every exclusion includes a positive routing instruction — "X → use Y."
 | This agent does NOT... | Route instead to... | How |
 |------------------------|---------------------|-----|
 | Design features or create design documents | RnD-Manager | `task(subagent_type="rnd-manager")` |
-| Orchestrate multi-plan feature execution | Director | `task(subagent_type="rw-director")` |
+| Orchestrate multi-plan feature execution | Director | `task(subagent_type="director")` |
 | Execute formal implementation plans | Exec-Manager | `task(subagent_type="exec-manager")` |
 | Perform QA review | QA-Reviewer | `task(subagent_type="qa-reviewer")` |
 | Create or amend plan files | Exec-Planner | `task(subagent_type="exec-planner")` |

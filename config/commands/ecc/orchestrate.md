@@ -54,16 +54,6 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 | qa-docs-analyzer | Documentation analysis | Identifies missing docstrings, stale docs, doc/code drift |
 | qa-docs-generator | Documentation author | Generates/updates docs to fill gaps identified by analyzer |
 
-### RW Department (Rapid Work)
-
-| Agent | Specialty | Use For |
-|-------|-----------|---------|
-| rw-director | Round-based spawner | Delegates fresh manager per round, then reviewer; async steerable |
-| rw-manager | One-shot planner | Reads goal, studies codebase, decomposes into dependency DAG, fans out workers |
-| rw-worker | Isolated sub-task implementer | Receives ONE focused sub-task, implements within scoped boundaries |
-| rw-reviewer | Progress validator | Validates git diff for meaningful progress toward goal; returns CONTINUE or STOP |
-| rw-fixer | Post-worker cleanup | Runs lint and tests on round diff, fixes mechanical errors |
-
 ### Support Department
 
 | Agent | Specialty | Use For |

@@ -43,3 +43,14 @@ This agent is part of the `rnd-refiner` adversarial pipeline. It is typically sp
 ## How It Works
 
 RnD-CounterIdeator reads approach proposals from the shared DD, web-searches for documented failures and postmortems that match each approach, ranks criticisms by how relevant they are to the specific context, and appends critique sections. It's a white-hat adversary — its success metric is how much the final design improves, not how many problems it finds.
+
+## GitHub Actions context (when relevant)
+
+If the dispatched work touches Git/GitHub evidence, include in the dispatch:
+
+- **GitHub Actions context:** the target workflow/repository and what evidence is needed (workflow definitions, `gh` run/log/artifact outcomes).
+- **Remote-Docker constraint:** local Docker is unavailable; any Docker/attestation work targets GitHub-hosted runners (`gg-artifacts`).
+- **PAT/`gh` assumption:** read evidence via the existing PAT-authenticated `gh` CLI directly through the terminal (`gg-env`); this agent critiques, it does not implement or execute the workflow.
+- **Result-iteration requirement:** when the critique depends on run/artifact results, require the agent to state how collected results feed the next iteration (`gg-actions`).
+
+Keep the exact-reference and authoritative-request conventions above intact when composing the dispatch.

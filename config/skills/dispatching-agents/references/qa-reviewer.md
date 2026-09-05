@@ -24,6 +24,7 @@ Context files to read:
 - [PLAN_PATH]  — the plan
 - [DESIGN_DOC_PATH]  — design document
 - [CONTRACTS_PATH]  — contracts ledger (if multi-part feature)
+- [AUTHORITATIVE_REQUEST] — verbatim original user request and requirement ledger
 
 task:
   plan: "[plan identifier]"
@@ -74,8 +75,9 @@ qaReview:
     contracts: PASS | FAIL
     codeQuality: PASS | FAIL
     completeness: PASS | FAIL
-    testCoverage: PASS | FAIL
-    documentation: PASS | FAIL
+  testCoverage: PASS | FAIL
+  documentation: PASS | FAIL
+  requirementConformance: PASS | FAIL
   issues: [list of issues with file, line, severity, description]
   testAnalyzerReport: { ... }
   docsAnalyzerReport: { ... }

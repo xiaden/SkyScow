@@ -2,7 +2,7 @@
 description: Generates tests to fill coverage gaps identified by QA-TestAnalyzer. Writes test files following project conventions. Runs tests to verify they pass. Leaf agent — no children.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: low
 permission:
   read: allow

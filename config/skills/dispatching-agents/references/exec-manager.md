@@ -29,12 +29,17 @@ Context files to read:
 - [PLAN_PATH]  — the plan
 - [CONTRACTS_PATH]  — contracts ledger (omit if not a multi-part feature)
 - [DESIGN_DOC_PATH]  — design document
+- [AUTHORITATIVE_REQUEST] — verbatim original user request and requirement ledger
 
 task:
   plan: "TASK-{feature}-{letter}-{title}"
   startPhase: 1
   reviewRequired: true
 ```
+
+Use precedence authoritative user request > DD > plan/contracts >
+implementation > tests. Final acceptance must compare the implementation with
+every mandatory requirement, not only with the plan or QA report.
 
 ## Required Fields
 

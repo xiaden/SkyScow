@@ -2,7 +2,7 @@
 description: Validates highly complex implementation plan groups against their Design Document and against one another before Exec-Manager dispatches any workers.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: high
 permission:
   read: allow

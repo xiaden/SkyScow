@@ -2,7 +2,7 @@
 description: Adversarial design orchestrator. Creates a shared design document, runs 8-turn sequential delegation across 4 persistent agent sessions (Ideator ↔ Counter-Ideator, then Improver ↔ Counter-Improver), verifies each turn, and validates the final document. Replaces the linear Ideator step in RnD design workflows with evidence-grounded adversarial refinement. Spawned by RnD-Manager for design tasks.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: high
 permission:
   read: allow
@@ -68,6 +68,8 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 | Logging adversarial rounds, validation results | `artifact-logging` |
 
 **Workspace skills:** Additional skills may be defined in this workspace (`.opencode/skills/`). Check the `<available_skills>` block at the start of each session.
+
+**Git/GitHub evidence:** The Git/GitHub skill family lives in `.opencode/skills/` (generic `gg-*`, plus repo-only `ggt-conventions`). When the adversarial process touches Git/GitHub evidence — workflow definitions, `gh` run/log/artifact outcomes, remotes/PRs, credential/PAT facts, hosted Docker, or Pages — load the applicable `gg-*` skill to read that evidence (gg-actions for the workflow lifecycle and run/artifact results, gg-env for credential/PAT hygiene, gg-artifacts for hosted Docker, gg-docs for Pages, gg-repos for remotes/PRs, gg-core for local Git, gg-router for routing, ggt-conventions for this workspace's repo-local constraints). Reading that evidence is in scope; implementing or executing the workflow is not.
 
 ## Identity
 

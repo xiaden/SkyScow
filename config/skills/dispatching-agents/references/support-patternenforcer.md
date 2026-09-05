@@ -24,8 +24,12 @@ Check coverage for [DD or plan at PATH].
 
 Pattern to enforce: [describe what should be touched — e.g., "all persistence modules that own X entity"]
 Scope: [list modules or directories to scan]
+Authoritative user request: [verbatim original request, when validating a DD or plan]
+Requirement ledger: [immutable ledger, when validating a DD or plan]
 
-Return gaps where the pattern should apply but is not mentioned.
+Return module/concern gaps and any ledger requirements omitted, weakened,
+deferred, inverted, or contradicted. Internal consistency is not requirement
+compliance. Do not resolve requirement conflicts or choose product policy.
 ```
 
 | Field | Description | Example |

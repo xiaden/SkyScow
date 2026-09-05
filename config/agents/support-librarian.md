@@ -2,7 +2,7 @@
 description: Artifact corpus navigator. Searches logs, ADRs, ASRs, and design docs to return curated, contextual summaries of what's relevant to the caller's current task. Saves callers from guessing search terms or interpreting raw artifact dumps. Can archive obsolete log entries with log_archive.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: low
 permission:
   read: allow

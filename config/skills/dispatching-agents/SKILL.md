@@ -70,6 +70,14 @@ Do NOT: [negative constraints — what the agent must not do]
 | **Be specific about output.** | "Tell me what you find" is a briefing, not a dispatch. "Return an ADR in artifacts/decisions/" is a dispatch. |
 | **One task per dispatch.** | "Execute the plan AND fix the tests AND update the docs" is three dispatches. Scope-creeping dispatches produce scope-creeping output. |
 
+For design, planning, implementation, and QA handoffs, include the original
+user request verbatim and an immutable requirement ledger. The request may have
+arrived only as a user message; do not assume a `task.md` file exists. The
+ledger must identify mandatory capabilities, behaviors, CLI semantics, defaults,
+safety rules, and definition-of-done items. Downstream agents must compare their
+output against it. Summaries and derived artifacts never replace the original
+request.
+
 ### Dispatch Decision Tree
 
 ```
@@ -91,7 +99,6 @@ Task at hand
 │  ├─ Effort sizing → RnD-Estimator
 │  ├─ Complexity/over-engineering audit → RnD-ComplexityAdvisor
 │  └─ Code improvement suggestions → RnD-Improver
-├─ Requires parallel isolated workers (no phase dependencies)? → Dispatch RW-Director
 ├─ Requires checking pattern consistency? → Dispatch Support-PatternEnforcer
 ├─ Requires reasserting QA gate? → Re-dispatch Exec-Manager (qa-reassertion reference)
 └─ Requires targeted post-review fixes (issue list with file:line)? → Dispatch Exec-Fixer
@@ -123,12 +130,11 @@ Task at hand
 | Task | Reference |
 |------|-----------|
 | Execute an implementation plan | [`exec-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-manager.md) |
-| Validate a coordinated group of more than five plans during planning | [`exec-plan-gate`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-plan-gate.md) — spawned by Exec-Planner |
-| Create, amend, reorder, and gate large plan groups | [`exec-planner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) |
+| Create, amend, or reorder plans | [`exec-planner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) |
 | Targeted repairs for MINOR review issues | [`exec-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-fixer.md) |
 | Implement a scoped plan phase | [`exec-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-worker.md) |
 
-Exec-Planner spawns Exec-PlanGate for groups of six or more and must receive `PASS` before handing the group to Exec-Manager. Exec-Manager verifies that result, then spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direct dispatch of Exec-Worker or Exec-Fixer is rare — prefer routing through Exec-Manager.
+Exec-Manager spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direct dispatch of Exec-Worker or Exec-Fixer is rare — prefer routing through Exec-Manager.
 
 ### R&D Department
 
@@ -175,20 +181,6 @@ QA-Reviewer is the primary QA entry point — spawned by Exec-Manager after all 
 | Deep codebase or external documentation research | [`support-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) |
 
 All support agents are dispatched directly — they have no internal orchestrator. Support-Librarian should run before any design or planning work in brownfield codebases.
-
-### RW (Rapid Worker) Department
-
-| Task | Reference |
-|------|-----------|
-| Parallel worker loop (implement → review → continue/stop) | [`rw-director`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-director.md) |
-| Decompose goal and fan-out to parallel workers | [`rw-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-manager.md) |
-| Isolated sub-task implementation | [`rw-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-worker.md) |
-| Validate diff for meaningful progress | [`rw-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-reviewer.md) |
-| Post-worker mechanical cleanup (per-round) | [`rw-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-fixer.md) |
-| Post-loop health restoration (manager: build causal allowlist, dispatch goal-aware fixers, verify, loop) | [`rw-health-restorer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-health-restorer.md) |
-| Post-loop goal-aware cleanup (full RW scope, extends toward goal, escalates contradictions) | [`rw-health-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-health-fixer.md) |
-
-RW-Director is a dumb loop spawner — it delegates to RW-Manager (decomposition + fan-out), RW-Fixer (per-round cleanup), and RW-Reviewer (validation), routing on CONTINUE/STOP. After the loop exits, the director spawns RW-Health-Restorer for post-loop health restoration — the health restorer builds a causal repair allowlist, dispatches goal-aware RW-Health-Fixer agents sequentially per error category, verifies after each, and loops until clean. Use for straightforward parallel work with no multi-phase dependencies.
 
 ## Cross-Cutting Concerns
 
@@ -310,8 +302,7 @@ Research or investigation where output should persist across sessions?
 - **This skill's references:** — self-contained dispatch guides, one per agent type, organized by department:
 
   **Exec:** [`exec-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-manager.md) — Plan execution lifecycle, QA gate enforcement, fix cycles.
-  [`exec-planner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) — Plan creation, amendment, reordering, and large-group preflight ownership.
-  [`exec-plan-gate.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-plan-gate.md) — Read-only validation of six-or-more-plan groups, spawned by Exec-Planner.
+  [`exec-planner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) — Plan creation, amendment, reordering.
   [`exec-fixer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-fixer.md) — Targeted MINOR issue repairs.
   [`exec-worker.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-worker.md) — Scoped plan phase implementation.
 
@@ -337,11 +328,5 @@ Research or investigation where output should persist across sessions?
   [`support-librarian.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) — Artifact context (ADRs, logs, design docs).
   [`support-patternenforcer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-patternenforcer.md) — Pattern coverage and consistency checks.
   [`support-researcher.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) — Deep codebase and external research.
-
-  **RW:** [`rw-director.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-director.md) — Parallel worker loop (implement → review → continue/stop).
-  [`rw-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-manager.md) — Decompose goal and fan-out.
-  [`rw-worker.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-worker.md) — Isolated sub-task implementation.
-  [`rw-reviewer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-reviewer.md) — Validate diff for meaningful progress.
-  [`rw-fixer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rw-fixer.md) — Post-worker mechanical cleanup.
 
 - **Related skills:** `capture-subsystem` (codebase research skills)

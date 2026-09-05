@@ -1,6 +1,6 @@
 # Exec-Planner
 
-Dispatch Exec-Planner to create, amend, or reorder implementation plans. For a complete group of more than five plans, Exec-Planner must also run the Exec-PlanGate preflight before returning the group as execution-ready. Choose the operation:
+Dispatch Exec-Planner to create, amend, or reorder implementation plans. Choose the operation:
 
 | Scenario | Operation |
 |----------|-----------|
@@ -10,25 +10,11 @@ Dispatch Exec-Planner to create, amend, or reorder implementation plans. For a c
 
 **Do NOT dispatch for:** executing plans (→ Exec-Manager), designing features (→ RnD-Manager), reviewing plans (→ QA-Reviewer), or single-step edits that don't need a plan.
 
-## Large Plan-Group Gate
-
-When CREATE or an amendment/reorder produces a coordinated group of six or more plans:
-
-1. Confirm the complete plan set is present and schema-valid.
-2. Load the `dispatching-agents` skill and use the Exec-PlanGate reference.
-3. Spawn exactly one Exec-PlanGate with the current Design Document, contracts ledger, feature README, and every plan path.
-4. Do not return the group as execution-ready until the gate returns `status: PASS`.
-5. Route `AMEND_REQUIRED` back into the appropriate plan amendment/reorder, then rerun the gate.
-6. Route `DD_CONTRADICTION`, `MISSING_ARTIFACT`, `NEEDS_DECISION`, and `BLOCKED` to the caller without guessing a resolution.
-
-The gate is mandatory for six or more plans and must be rerun after every plan amendment, reorder, or Design Document change. Exec-Planner owns plan repairs; Exec-PlanGate remains read-only and only validates.
-
 ## Expected Output
 
 - **CREATE**: One or more plan files in `artifacts/plans/pending/`
 - **AMEND**: Updated plan file with new/amended phases
 - **REORDER**: Confirmation of new plan order
-- **Large groups**: Current Exec-PlanGate report with `status: PASS` before execution handoff
 
 All outputs include `status: DONE` when complete.
 
@@ -53,9 +39,14 @@ Create an implementation plan from design document: [DD_PATH]
 Context files to read:
 - [DD_PATH]  — design document
 - [CONTRACTS_PATH]  — contracts ledger (if multi-part feature)
+- [AUTHORITATIVE_REQUEST] — verbatim original user request and requirement ledger
 
 Librarian briefing: [paste briefing or "see attached context"]
 Key constraints: [key constraints from Librarian/PatternEnforcer]
+
+Precedence: authoritative user request > DD > plan > code/tests. Compare the
+plan against every mandatory ledger item; report REQUIREMENT_DRIFT rather than
+planning behavior that omits, weakens, defers, inverts, or contradicts one.
 ```
 
 ### Required Fields
@@ -138,3 +129,14 @@ task:
 ### After REORDER
 
 **Do not execute any plan until Exec-Planner reports DONE.**
+
+## GitHub Actions context (when relevant)
+
+If the plan covers GitHub Actions workflow behavior, include in the dispatch:
+
+- **GitHub Actions context:** the target workflow/repository and what behavior must be planned (inspect/create/modify/remove workflow files, branch/push, `gh workflow run`/dispatch, watch, view logs, download artifacts, cancel, cleanup, iterate from results).
+- **Remote-Docker constraint:** local Docker is unavailable; Docker/attestation work targets GitHub-hosted runners (`gg-artifacts`).
+- **PAT/`gh` assumption:** the plan assumes the existing PAT-authenticated `gh` CLI used directly through the terminal (`gg-env`); Exec-Planner plans this behavior but does not implement or execute it.
+- **Skill-loading requirement:** direct the plan to require exec-workers to load the applicable `gg-*` skill (gg-actions for the workflow lifecycle, gg-core/gg-repos for branch/push, gg-env for credentials, gg-artifacts for hosted Docker, gg-docs for Pages, gg-router for routing, ggt-conventions for repo-local constraints) before the Git/GitHub operation.
+
+Keep the exact-reference and authoritative-request conventions above intact when composing the dispatch.

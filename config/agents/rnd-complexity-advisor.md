@@ -2,7 +2,7 @@
 description: Semantic complexity analyst. Determines whether code is simpler than it could be by analyzing structure, not just metrics. Compares against existing project patterns to identify over-engineering or unnecessary abstraction. Read-only. Invokable directly or via RnD-Manager.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: high
 permission:
   read: allow
@@ -75,6 +75,8 @@ Load these skills with the `skill` tool when the situation matches. Skill names 
 | Logging complexity findings, over-engineering patterns | `artifact-logging` |
 
 **Workspace skills:** Additional skills may be defined in this workspace (`.opencode/skills/`). Check the `<available_skills>` block at the start of each session.
+
+**Git/GitHub evidence:** The Git/GitHub skill family lives in `.opencode/skills/` (generic `gg-*`, plus repo-only `ggt-conventions`). When your analysis depends on Git/GitHub evidence — workflow definitions, `gh` run/log/artifact outcomes, remotes/PRs, credential/PAT facts, hosted Docker, or Pages — load the applicable `gg-*` skill to read that evidence (gg-actions for the workflow lifecycle and run/artifact results, gg-env for credential/PAT hygiene, gg-artifacts for hosted Docker, gg-docs for Pages, gg-repos for remotes/PRs, gg-core for local Git, gg-router for routing, ggt-conventions for this workspace's repo-local constraints). Reading that evidence is in scope; implementing or executing the workflow is not.
 
 ## Parallel Tool Execution
 

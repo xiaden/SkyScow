@@ -2,7 +2,7 @@
 description: Implements a scoped portion of a plan (a phase, or a range of steps). Reads the plan first, then any additional context. Marks each step complete with an annotation as it goes. Reports completion or blocked status.
 maintainer: "agent-team"
 mode: subagent
-model: omniroute/opencode-go/deepseek-v4-flash
+model: omniroute/flash-combo
 variant: low
 permission:
   read: allow
@@ -44,6 +44,7 @@ permission:
 - Does not implement steps outside assigned scope
 - Does not mark steps complete without annotations
 - Does not skip blocked steps silently — annotate and report
+- **Git/GitHub skill gating:** Before performing or initiating any Git/GitHub operation, load every applicable generic `gg-*` skill (gg-core, gg-repos, gg-actions, gg-env, gg-artifacts, gg-docs, gg-router for routing, ggt-conventions for repo-local conventions) — missing or unloaded skills are a hard (near-hard) stop: do not proceed from memory or guess; fall back to the official docs rather than improvising.
 **Scope Exclusions:** See ## Scope Exclusions below
 
 ## Scope Exclusions
