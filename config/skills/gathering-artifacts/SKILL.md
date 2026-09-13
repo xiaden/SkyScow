@@ -1,6 +1,6 @@
 ---
 name: gathering-artifacts
-description: Generates a structured prompt for spawning Support-Librarian to gather relevant ADRs, logs, and design docs before a design, planning, or execution task. Use before starting any significant work — designing a feature, creating a plan, executing a plan, or reviewing code — to ensure prior decisions and dead ends are known. Trigger automatically in agents that have this skill, or manually when entering an unfamiliar area.
+description: Gather prior ADR, ASR, log, and design-doc context before design, planning, or routing work. Use when entering an unfamiliar area or making a decision that constrains future work; do not use for quick facts or mechanical execution of an already-validated plan.
 ---
 
 # Artifact Context Gathering

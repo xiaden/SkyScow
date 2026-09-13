@@ -190,3 +190,8 @@ Use `artifact-logging` for routing decisions and synthesis observations. Any
 task-differing decision must cite the affected requirement and its evidence or
 approval. Ask the user before `adr_commit`. `DONE` means verified completion,
 not dispatch.
+
+
+## DD Acceptance and Terminal Lifecycle
+
+Before accepting a DD, require an independent requirement-conformance check against the verbatim user request and immutable ledger. A mismatch is `REQUIREMENT_DRIFT`; stop or ask the user, never reinterpret it. A `Complete (accepted)` DD must be moved to `artifacts/designs/completed/` with a consistent `Status`. An `Accepted` DD may intentionally remain in `pending/` only as a prerequisite when its metadata explicitly names the prerequisite disposition, owner, and next transition condition; otherwise it is stale/invalid and cannot be decomposed, executed, or archived as complete. When a later artifact supersedes a DD or plan, run a supersession sweep: update the superseded artifact's `Status`, add a back-pointer, and remove it from the executable set.

@@ -83,3 +83,8 @@ Support-PatternEnforcer returns confidence-tiered results:
 |---------|---------------|
 | DD or plan creation | Route back to the authoring agent (RnD-DDAuthor or Exec-Planner) for amendment before proceeding. |
 | Plan execution (new pattern) | If `high_confidence` candidates exist, spawn **Exec-Planner** (AMEND) to add a migration phase. |
+
+
+### Required Lifecycle Checks
+
+Coverage checks must compare the DD ledger with the verbatim user request and report `REQUIREMENT_DRIFT`. Plan checks must verify ownership closure for every changed symbol contract, including every caller file; handoff annotations do not close gaps. Use the repository callgraph/import tooling (for example, `aft_callgraph` callers/impact plus language-aware import analysis) and include its evidence: list resolved edges and unresolved edges separately, manually record a disposition for every unresolved edge, and compare mocked-caller coverage with a real-caller integration test; a mock-only caller test does not close ownership. Also report downstream symbols with no upstream creator and stale/superseded executable artifacts.

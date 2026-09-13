@@ -1,6 +1,6 @@
 ---
 name: making-editing-skills
-description: Create, edit, and maintain OpenCode agent skills (SKILL.md files) that agents actually discover and use. Covers progressive disclosure (the three-level loading system: metadata → body → references), frontmatter rules, description writing (the discovery trigger), skill-vs-command decisions, and validation. Use when creating a new skill, editing an existing SKILL.md, restructuring a monolithic skill with references/, or asked about skill conventions. Also use when working in `.opencode/skills/` or `~/.config/opencode/skills/`.
+description: Create or revise OpenCode SKILL.md files or skill conventions. Use for skill metadata, triggers, progressive disclosure, references, or validation; not for agent definitions or commands.
 ---
 
 # Making & Editing Skills

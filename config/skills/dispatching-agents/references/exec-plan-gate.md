@@ -10,7 +10,7 @@ Dispatch Exec-PlanGate from Exec-Planner as the mandatory read-only preflight fo
 
 **Do NOT dispatch when:**
 
-- The complete group contains five or fewer plans
+- The complete group contains five or fewer plans (not required; a smaller-group invocation is allowed but must record `NOT_REQUIRED` — see below)
 - A single plan needs execution — use Exec-Manager
 - Plans need to be created, amended, or reordered — use Exec-Planner
 - Completed implementation needs review — use QA-Reviewer
@@ -64,8 +64,13 @@ task:
 | `MISSING_ARTIFACT` | Halt until required input is restored |
 | `NEEDS_DECISION` | Halt and ask for an explicit decision |
 | `BLOCKED` | Halt and report the input/tooling failure |
-| `NOT_REQUIRED` | Return only when the group has five or fewer plans |
+| `NOT_REQUIRED` | Record and return when the group has five or fewer plans; invocation is optional for a smaller group but must log this verdict, never leave an absent or ambiguous result |
 
 ## Expected Output
 
 Return the Exec-PlanGate agent's complete YAML output, including coverage, dependency graph, contract compatibility, ownership/overlap, findings, routes, and whether rerunning is required. `PASS` means all blocking checks passed; it does not mean the implementation is complete.
+
+
+### Additional Blocking Checks
+
+The gate is mandatory for six or more plans and logs a verdict on every invocation. A coordinated group of five or fewer plans is `NOT_REQUIRED`: the gate is not mandatory, but if invoked it must still log `NOT_REQUIRED` (or an equivalent explicitly-labeled result) so no invocation is silent and no `NOT_REQUIRED` is mistaken for a stale or missing `PASS`. A previously recorded `NOT_REQUIRED` is invalidated when the group grows to six or more plans and must be replaced by a fresh `PASS`. Add blocking checks for ownership closure (all caller files named in `Ownership`, never handoff-only) and downstream gaps (needed symbols without an upstream creator). For ownership closure, require the recorded evidence: the callgraph/import command or tool used (for example, `aft_callgraph` callers/impact plus language-aware import analysis), a listing of resolved and unresolved edges, a manual disposition for every unresolved edge, and a mock-versus-real caller integration test for signature or return-type changes. Exec-Manager only verifies the recorded result and never spawns this gate.

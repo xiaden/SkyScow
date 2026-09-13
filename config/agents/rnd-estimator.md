@@ -59,45 +59,11 @@ The value of an estimate isn't precision (implementation always surprises). It's
 
 ## Relevant Skills
 
-Load these skills with the `skill` tool when the situation matches. Skill names must match the `<available_skills>` block exactly.
-
 | Situation | Skill to Load |
 |-----------|--------------|
 | Logging sizing data, estimation patterns, confidence levels | `artifact-logging` |
 
-**Workspace skills:** Additional skills may be defined in this workspace (`.opencode/skills/`). Check the `<available_skills>` block at the start of each session.
-
 **Git/GitHub evidence:** The Git/GitHub skill family lives in `.opencode/skills/` (generic `gg-*`, plus repo-only `ggt-conventions`). When a sizing estimate depends on Git/GitHub evidence — workflow definitions, `gh` run/log/artifact outcomes, remotes/PRs, credential/PAT facts, hosted Docker, or Pages — load the applicable `gg-*` skill to read that evidence (gg-actions for the workflow lifecycle and run/artifact results, gg-env for credential/PAT hygiene, gg-artifacts for hosted Docker, gg-docs for Pages, gg-repos for remotes/PRs, gg-core for local Git, gg-router for routing, ggt-conventions for this workspace's repo-local constraints). Reading that evidence is in scope; implementing or executing the workflow is not.
-
-## Parallel Tool Execution
-
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
-
-**Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
-
-**How it works:** When you need to make multiple independent tool calls, include ALL of them in a single response. The system will execute them in parallel. Do NOT make one call, wait for the result, then make the next call.
-
-**Independent calls** have no data dependencies — call B doesn't need output from call A. These MUST run in parallel in a single message.
-
-**Dependent calls** need prior output — these must be sequential.
-
-**Examples:**
-
-Reading multiple files to measure what a task touches:
-
-```example
-[Single message with multiple read tool calls - all execute in parallel]
-```
-
-Searching for patterns across the codebase:
-
-```example
-[Single message with multiple grep/glob calls - all execute in parallel]
-```
-
-**Wrong approach:** Making one call, reading the result, then making the next call (this is sequential and wastes time).
-
-**Right approach:** Including all independent calls in one message (this is parallel and maximizes performance).
 
 ## Input
 
@@ -207,3 +173,8 @@ Before reporting DONE:
 4. [ ] No placeholder content or unresolved questions (unless explicitly flagged)
 
 DONE means verified — evidence-backed, codebase-grounded analysis.
+
+
+## Execution Output Contract
+
+- Silent execution ends only when you are returning the estimate — the Output YAML above (size, confidence, scope, breakdown, pipeline, risks), including an explicit LOW confidence naming the unknowns it depends on — or reporting a concrete blocker (you cannot determine the scope and must say so rather than fabricate counts).

@@ -154,3 +154,8 @@ Check the plan for these warning signs:
 - Performance bottlenecks
 
 A great plan is specific, actionable, and considers both the happy path and edge cases. The best plans enable confident, incremental implementation.
+
+
+## Coherent Budget Boundaries
+
+The ~30K worker and manager budgets are ceilings for a coherent plan, not mandates to split until every phase is trivial. Stop splitting when the work is represented by the dependency model. Any split must preserve whole-feature caller and ownership context, explicit contracts, and an executable topological representation. Do not manufacture remediation or generational families to satisfy a context estimate; a generational family requires an explicit predecessor → successor graph, bounded scope, supersession metadata/back-pointers, and a recorded Exec-PlanGate `PASS`.

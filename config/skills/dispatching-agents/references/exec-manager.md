@@ -109,3 +109,8 @@ This project follows **spec-first testing** (TDD-style): tests are authored agai
 | Test references a function that was removed | Stale test — spec changed | Escalate for plan amendment |
 | Test fails with wrong output for existing function | Implementation bug | Fix implementation |
 | Test setup fails (import error, missing mock) | Test is buggy | Escalate — test needs fixing |
+
+
+### Lifecycle Preflight
+
+Before dispatching workers, sweep for plans with no open steps still pending, duplicate basenames across lifecycle directories, stray backups, and superseded executable artifacts. For six or more coordinated plans, require a current recorded `Exec-PlanGate: PASS`; missing or non-PASS blocks dispatch. For five or fewer plans, the gate is not required; if invoked, it must record `NOT_REQUIRED`, and a missing or stale result is never treated as that verdict. Exec-Manager verifies the result and never spawns the gate. Include archival and `COMPLETION.md` requirements in the completion handoff.

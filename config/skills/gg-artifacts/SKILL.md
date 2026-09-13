@@ -1,6 +1,6 @@
 ---
 name: gg-artifacts
-description: Use ONLY when building, publishing, attesting, or verifying versioned Docker images with provenance, SBOM, and GitHub attestations: versioned immutable image naming, GitHub-hosted runner builds, GHCR digest publication, SLSA provenance version selection, SBOM generation, and exact signer/digest/provenance verification. Load before building or verifying any versioned attested container artifact.
+description: Use only for versioned Docker images with provenance, SBOMs, or GitHub attestations, including build, publish, and verification.
 ---
 
 # gg-artifacts

@@ -73,50 +73,13 @@ The value you provide isn't picking a winner. It's giving decision-makers clear 
 
 ## Relevant Skills
 
-Load these skills with the `skill` tool when the situation matches. Skill names must match the `<available_skills>` block exactly.
-
 | Situation | Skill to Load |
 |-----------|--------------|
 | Understanding design document structure and language idioms | `making-design-documents` |
 | Gathering artifact context before analysis | `gathering-artifacts` |
 | Logging implementation analysis, tradeoff decisions | `artifact-logging` |
 
-**Workspace skills:** Additional skills may be defined in this workspace (`.opencode/skills/`). Check the `<available_skills>` block at the start of each session.
-
 **Git/GitHub evidence:** The Git/GitHub skill family lives in `.opencode/skills/` (generic `gg-*`, plus repo-only `ggt-conventions`). When your analysis depends on Git/GitHub evidence — workflow definitions, `gh` run/log/artifact outcomes, remotes/PRs, credential/PAT facts, hosted Docker, or Pages — load the applicable `gg-*` skill to read that evidence (gg-actions for the workflow lifecycle and run/artifact results, gg-env for credential/PAT hygiene, gg-artifacts for hosted Docker, gg-docs for Pages, gg-repos for remotes/PRs, gg-core for local Git, gg-router for routing, ggt-conventions for this workspace's repo-local constraints). Reading that evidence is in scope; implementing or executing the workflow is not.
-
-## Parallel Tool Execution
-
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
-
-**Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
-
-**How it works:** When you need to make multiple independent tool calls, include ALL of them in a single response. The system will execute them in parallel. Do NOT make one call, wait for the result, then make the next call.
-
-**Independent calls** have no data dependencies — call B doesn't need output from call A. These MUST run in parallel in a single message.
-
-**Dependent calls** need prior output — these must be sequential.
-
-**Examples:**
-
-Reading multiple files to understand architecture patterns:
-```
-[Single message with multiple read tool calls - all execute in parallel]
-```
-
-Searching for patterns across the codebase:
-```
-[Single message with multiple grep/glob calls - all execute in parallel]
-```
-
-Reading multiple ADRs for context:
-```
-[Single message with multiple adr_read calls - all execute in parallel]
-```
-
-**Wrong approach:** Making one call, reading the result, then making the next call (this is sequential and wastes time).
-
-**Right approach:** Including all independent calls in one message (this is parallel and maximizes performance).
 
 ## Input
 
@@ -281,8 +244,6 @@ ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project 
 
 ## Artifact Logging & ADR Behavior
 
-Use the `artifact-logging` skill for logging procedures and conventions.
-
 Your analysis directly informs architectural decisions. Log your findings so they persist beyond this conversation.
 
 ### Before Analyzing
@@ -330,3 +291,8 @@ Before reporting DONE:
 4. [ ] No placeholder content or unresolved questions (unless explicitly flagged)
 
 DONE means verified — evidence-backed, codebase-grounded analysis.
+
+
+## Execution Output Contract
+
+- Silent execution ends only when you are returning the deliverable — the completed options analysis (the Output YAML above, including the tradeoffs matrix the caller consumes) — or reporting a concrete blocker or clarification request (e.g. the codebase is too thin to ground options and confidence is LOW, or the solution space is so constrained that all options converge to the same approach and you must flag it).

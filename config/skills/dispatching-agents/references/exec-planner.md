@@ -140,3 +140,8 @@ If the plan covers GitHub Actions workflow behavior, include in the dispatch:
 - **Skill-loading requirement:** direct the plan to require exec-workers to load the applicable `gg-*` skill (gg-actions for the workflow lifecycle, gg-core/gg-repos for branch/push, gg-env for credentials, gg-artifacts for hosted Docker, gg-docs for Pages, gg-router for routing, ggt-conventions for repo-local constraints) before the Git/GitHub operation.
 
 Keep the exact-reference and authoritative-request conventions above intact when composing the dispatch.
+
+
+### Lifecycle and Ownership Validation
+
+Before dispatch, require accepted DD status (or an accepted DD explicitly marked as an intentional pending prerequisite with metadata naming the disposition, responsible owner, and next transition condition) and a recorded comparison against the verbatim user request. Reject stale/invalid pending DDs and any execution/archive of an unaccepted DD. Require each plan's `Ownership` to name every caller file for changed symbol signatures, return types, or behavior; handoffs do not count. Require ownership-closure evidence: a call-graph/import check listing resolved and unresolved edges, a manual disposition for every unresolved edge, and a mock-versus-real caller integration test for signature or return-type changes. Require a supersession sweep and permit generational families only with an explicit predecessor → successor graph, bounded scope, supersession metadata/back-pointers, and a recorded Exec-PlanGate `PASS`. On mismatch, dispatch must report `REQUIREMENT_DRIFT` and stop.

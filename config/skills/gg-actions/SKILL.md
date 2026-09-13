@@ -1,6 +1,6 @@
 ---
 name: gg-actions
-description: Use when writing, reviewing, dispatching, securing, or operating GitHub Actions workflows via the direct PAT-authenticated `gh` CLI: workflow syntax, events and triggers, least-privilege permissions, secrets, action pinning, cache, artifacts, concurrency, runners, and OIDC. Load before authoring or reviewing a workflow.
+description: Use when authoring, reviewing, or operating GitHub Actions workflows, including triggers, permissions, secrets, pinning, artifacts, runners, concurrency, or OIDC.
 ---
 
 # gg-actions

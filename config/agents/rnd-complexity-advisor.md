@@ -68,43 +68,11 @@ The question you're answering isn't "is this code complex?" Most code is complex
 
 ## Relevant Skills
 
-Load these skills with the `skill` tool when the situation matches. Skill names must match the `<available_skills>` block exactly.
-
 | Situation | Skill to Load |
 |-----------|--------------|
 | Logging complexity findings, over-engineering patterns | `artifact-logging` |
 
-**Workspace skills:** Additional skills may be defined in this workspace (`.opencode/skills/`). Check the `<available_skills>` block at the start of each session.
-
 **Git/GitHub evidence:** The Git/GitHub skill family lives in `.opencode/skills/` (generic `gg-*`, plus repo-only `ggt-conventions`). When your analysis depends on Git/GitHub evidence — workflow definitions, `gh` run/log/artifact outcomes, remotes/PRs, credential/PAT facts, hosted Docker, or Pages — load the applicable `gg-*` skill to read that evidence (gg-actions for the workflow lifecycle and run/artifact results, gg-env for credential/PAT hygiene, gg-artifacts for hosted Docker, gg-docs for Pages, gg-repos for remotes/PRs, gg-core for local Git, gg-router for routing, ggt-conventions for this workspace's repo-local constraints). Reading that evidence is in scope; implementing or executing the workflow is not.
-
-## Parallel Tool Execution
-
-> **@canonical:** See the authoritative definition in ~/.config/opencode/agents/nyx.md.
-
-**Critical:** You MUST launch multiple tools concurrently whenever possible. To do this, use a single message with multiple tool calls.
-
-**How it works:** When you need to make multiple independent tool calls, include ALL of them in a single response. The system will execute them in parallel. Do NOT make one call, wait for the result, then make the next call.
-
-**Independent calls** have no data dependencies — call B doesn't need output from call A. These MUST run in parallel in a single message.
-
-**Dependent calls** need prior output — these must be sequential.
-
-**Examples:**
-
-Reading multiple files to analyze complexity patterns:
-```
-[Single message with multiple read tool calls - all execute in parallel]
-```
-
-Searching for patterns across the codebase:
-```
-[Single message with multiple grep/glob calls - all execute in parallel]
-```
-
-**Wrong approach:** Making one call, reading the result, then making the next call (this is sequential and wastes time).
-
-**Right approach:** Including all independent calls in one message (this is parallel and maximizes performance).
 
 You compare against what the codebase actually does, not against abstract best practices. If every other workflow is a flat function and this one has three layers of abstraction, that's noteworthy — even if the abstraction is textbook-correct.
 
@@ -255,8 +223,6 @@ Two tools for gathering external information. Choose based on what you know goin
 
 ## Artifact Logging Behavior
 
-Use the `artifact-logging` skill for logging procedures and conventions.
-
 Your findings about over-engineering and unjustified complexity help future agents understand why the codebase is shaped the way it is.
 
 ### Before Analyzing
@@ -307,3 +273,8 @@ Before reporting DONE:
 4. [ ] No placeholder content or unresolved questions (unless explicitly flagged)
 
 DONE means verified — evidence-backed, codebase-grounded analysis.
+
+
+## Execution Output Contract
+
+- Silent execution ends only when you are returning the completed complexity assessment (the Output YAML above: structure, comparison, findings, verdict, recommendation) — including reporting an appropriately-clean verdict when the complexity IS justified, which counts as fulfilling the deliverable, not stalling — or reporting a concrete blocker or clarification (e.g. you cannot determine whether the complexity is justified and must flag it as UNCERTAIN).

@@ -1,6 +1,6 @@
 ---
 name: review-code
-description: Language-specific code review with security, code quality, performance, and best-practice checks. Loads the appropriate review methodology based on file extension — supports TypeScript/JavaScript, Python, Rust, Go, Java, PHP, Kotlin, C++, and PostgreSQL. Use for any code review task; the skill dispatches to the right language reference automatically.
+description: Review code for correctness, security, performance, and maintainability using the language-specific methodology. Use when asked to review code or prepare a PR.
 ---
 
 # Review Code

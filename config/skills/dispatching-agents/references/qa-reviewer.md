@@ -32,6 +32,8 @@ task:
   contractsPath: "[contracts path or N/A]"
 
 Full review in one pass. Run all checks. Report all issues in one round.
+
+QA-TestAnalyzer and QA-DocsAnalyzer MUST spawn QA-TestGenerator and QA-DocsGenerator respectively for dispatch tiers — confirm generation evidence in your verdict.
 ```
 
 ## Required Fields
@@ -61,8 +63,8 @@ QA-Reviewer returns a tiered verdict:
 - [ ] `checks.contracts` — contract compliance
 - [ ] `checks.codeQuality` — code quality and patterns
 - [ ] `checks.completeness` — all plan steps delivered
-- [ ] `checks.testCoverage` — test quality and coverage (via QA-TestAnalyzer)
-- [ ] `checks.documentation` — doc coverage and accuracy (via QA-DocsAnalyzer)
+- [ ] `checks.testCoverage` — test quality and coverage (via QA-TestAnalyzer, which spawns QA-TestGenerator for dispatch tiers)
+- [ ] `checks.documentation` — doc coverage and accuracy (via QA-DocsAnalyzer, which spawns QA-DocsGenerator for dispatch tiers)
 
 ### Output Structure
 

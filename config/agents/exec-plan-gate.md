@@ -59,8 +59,6 @@ permission:
 
 ## Relevant Skills
 
-Load these skills with the `skill` tool when the situation matches. Skill names must match the `<available_skills>` block exactly.
-
 | Situation | Skill to Load |
 |-----------|---------------|
 | Reading or validating task plan files | `making-and-using-task-plans` |
@@ -165,3 +163,13 @@ rerunRequired: true | false
 3. Rerun after any plan amendment, reorder, or Design Document change.
 4. Never change an input artifact or silently downgrade a blocking finding to a warning.
 5. Do not return `PASS` when required coverage, dependency, contract, ownership, or ordering checks are incomplete.
+
+
+## Execution Output Contract
+
+- Assistant prose is permitted only to deliver the gate verdict (any `status` value above) or to report a blocker/clarification that prevents a verdict from being produced at all.
+
+
+## Mandatory Gate and Auditability
+
+This gate is mandatory for every coordinated group of six or more plans, fail-closed, and must log a result on every invocation. For a group of five or fewer plans, the gate is not required; invocation is allowed but must record `NOT_REQUIRED`. A missing or stale result is never equivalent to `NOT_REQUIRED`, and any group that grows to six or more invalidates that result and requires a fresh current `PASS`. In addition to existing checks, verify ownership closure for every changed symbol contract (all caller files named in `Ownership`; handoffs do not count). Record the evidence procedure: state the callgraph/import command or tool used, list resolved and unresolved edges separately, manually disposition every unresolved edge, and provide both mocked-caller and real-caller integration-test evidence, with the real-caller evidence controlling closure. Also check downstream gaps where a symbol is needed but no upstream plan creates it. The required verdict is a current, recorded `PASS` before execution may begin for six or more plans.

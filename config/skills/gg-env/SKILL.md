@@ -1,6 +1,6 @@
 ---
 name: gg-env
-description: Use when handling Git/GitHub tokens, secrets, credentials, permissions, OIDC trust, visibility/plan branching, and environment hazards: safe credential storage, least privilege, loader and sync discovery behavior, and the dated fact-stamp registry. Load before doing anything credential- or environment-related.
+description: Use for Git/GitHub credentials, tokens, secrets, permissions, OIDC, visibility or plan branching, and environment hazards.
 ---
 
 # gg-env

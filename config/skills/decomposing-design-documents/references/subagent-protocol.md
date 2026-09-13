@@ -36,7 +36,7 @@ If this is the first plan, paste the initialized ledger with just architectural 
 
 ## Output
 Create the plan at: `artifacts/plans/pending/TASK-{feature}-{letter}-{descriptor}.md`
-Follow the plan format in task-plans.instructions.md.
+Follow the plan format in `making-and-using-task-plans` and its `references/syntax.md` and `references/writing-guide.md`.
 
 ## Constraints
 - Workflow functions take `db: Database`, never services — check CONTRACTS for confirmed patterns

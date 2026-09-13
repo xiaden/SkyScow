@@ -1,6 +1,6 @@
 ---
 name: security-review
-description: OWASP Top 10 security review methodology, vulnerability pattern detection, and ECC AgentShield integration for agent/hook/MCP/permission surfaces. Use when reviewing code for security issues — injection attacks, broken authentication, sensitive data exposure, XSS, insecure deserialization, and other common vulnerabilities. Also use when auditing agent prompts, MCP server configs, plugin hooks, or permission surfaces for security weaknesses. Trigger when security-sensitive code changes are detected, before merging PRs touching auth, data access, payment flows, or agent configurations.
+description: Review code or agent/tool configuration for security vulnerabilities using OWASP and AgentShield checks. Use for auth, data exposure, injection, secrets, XSS, deserialization, or security-sensitive agent, MCP, or plugin changes.
 ---
 
 # Security Review

@@ -1,6 +1,6 @@
 ---
 name: making-editing-agents
-description: Design, write, and edit agent instruction files by applying research-backed principles for coding agents. Covers prompt composition architecture (conditional loading, priority ordering, component decomposition), delegation-as-first-class routing, responsibility framing, and context management. Use when creating a new agent, editing an existing agent instruction file, debugging agent misbehavior (wrong tool choices, failure to delegate, instruction fade-out, "me-first" execution bias), or evaluating whether an agent's instructions are architecturally sound. Do NOT use for writing skills (use making-editing-skills) or commands (use command-creation-guide).
+description: Create or revise OpenCode agent definitions, or diagnose agent routing and context failures. Use for agent prompts, delegation, permissions, and instruction architecture; not for skills or commands.
 ---
 
 # Making & Editing Agents

@@ -1,6 +1,6 @@
 ---
 name: code-migration
-description: Migrate logic to canonical owners and delete the old code — no half-migrations, no deprecation, no coexistence. Covers moving logic between layers, consolidating duplicates, deprecating patterns, and enforcing import bans. Use when migrating code between modules, deprecating a pattern, consolidating duplicate implementations, or enforcing canonical ownership. Do NOT use for creating new code, writing the initial version of a module, or general refactoring that doesn't involve moving responsibility.
+description: Move responsibility to a canonical owner and remove the old path. Use for logic migrations, duplicate consolidation, or pattern deprecation; not for new code or ordinary refactoring.
 ---
 
 # Code Migration

@@ -1,6 +1,6 @@
 ---
 name: dispatching-agents
-description: Use when delegating work to any subagent. Covers dispatch templates for exec, R&D, support, QA, and RW agent types, plus task-vs-delegate selection guidance. Use whenever you need to spawn an agent via the task or delegate tools — this skill provides the correct dispatch template, required fields, expected output, and agent selection guidance. Do NOT use for single-file reads, trivial fixes, or work you can do yourself faster than dispatching.
+description: Prepare and route subagent dispatches using canonical agent templates and handoff contracts. Use when spawning a subagent with task or delegate; do not use for single-file lookups, trivial fixes, or work you can do directly.
 ---
 
 # Dispatching Agents
@@ -100,6 +100,8 @@ Task at hand
 │  ├─ Complexity/over-engineering audit → RnD-ComplexityAdvisor
 │  └─ Code improvement suggestions → RnD-Improver
 ├─ Requires checking pattern consistency? → Dispatch Support-PatternEnforcer
+├─ Requires reviewing a whole GitHub tree (not a push)? → Dispatch QA-RepoReviewManager
+├─ Requires candidate push-gate validation/publication? → Dispatch QA-PushManager
 ├─ Requires reasserting QA gate? → Re-dispatch Exec-Manager (qa-reassertion reference)
 └─ Requires targeted post-review fixes (issue list with file:line)? → Dispatch Exec-Fixer
 ```
@@ -160,16 +162,28 @@ The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.
 
 ### QA Department
 
-| Task | Reference |
-|------|-----------|
-| Full quality gate review (all checks) | [`qa-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer.md) |
-| Test coverage and quality analysis | [`qa-test-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-analyzer.md) |
-| Generate tests from coverage gaps | [`qa-test-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-generator.md) |
-| Documentation coverage analysis | [`qa-docs-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-analyzer.md) |
-| Generate documentation from gaps | [`qa-docs-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-generator.md) |
-| Reassert QA gate when skipped | [`qa-reassertion`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reassertion.md) |
+| Task | Agent | Reference |
+|------|-------|-----------|
+| Final publication gate: validate an isolated candidate snapshot, adversarially review, and push only the exact validated SHA when authorized | `qa-push-manager` | [`qa-push-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-push-manager.md) |
+| Full quality gate review (all checks) | `qa-reviewer` | [`qa-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer.md) |
+| Independent correctness and contract review | `qa-reviewer-correctness` | [`qa-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-correctness.md) |
+| Independent boundary and failure review | `qa-reviewer-boundary` | [`qa-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-boundary.md) |
+| Independent end-to-end journey review | `qa-reviewer-journey` | [`qa-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-journey.md) |
+| Independent review for one explicitly assigned technical risk lens (one invocation per lens) | `qa-reviewer-domainrisk` | [`qa-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-domainrisk.md) |
+| One-shot whole-tree GitHub review: resolve an explicit full tree URL to an exact ref, review the complete current-head tree from an immutable detached snapshot, dispatch read-only reviewers in one batch, and fail closed on collection failure | `qa-repo-review-manager` | [`qa-repo-review-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-manager.md) |
+| Whole-tree correctness and contract review (permanent lens) | `qa-repo-reviewer-correctness` | [`qa-repo-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-correctness.md) |
+| Whole-tree boundary and failure review (permanent lens) | `qa-repo-reviewer-boundary` | [`qa-repo-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-boundary.md) |
+| Whole-tree end-to-end journey review (permanent lens) | `qa-repo-reviewer-journey` | [`qa-repo-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-journey.md) |
+| Whole-tree review for one explicitly assigned technical risk lens (exactly one lens per invocation; zero lenses valid) | `qa-repo-reviewer-domainrisk` | [`qa-repo-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-domainrisk.md) |
+| Test coverage and quality analysis | `qa-test-analyzer` | [`qa-test-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-analyzer.md) |
+| Generate tests from coverage gaps | `qa-test-generator` | [`qa-test-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-generator.md) |
+| Documentation coverage analysis | `qa-docs-analyzer` | [`qa-docs-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-analyzer.md) |
+| Generate documentation from gaps | `qa-docs-generator` | [`qa-docs-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-generator.md) |
+| Reassert QA gate when skipped | `qa-reassertion` | [`qa-reassertion`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reassertion.md) |
 
-QA-Reviewer is the primary QA entry point — spawned by Exec-Manager after all implementation phases. QA-TestAnalyzer and QA-DocsAnalyzer are spawned by QA-Reviewer. QA-TestGenerator and QA-DocsGenerator are spawned by their respective analyzers. Direct dispatch of leaf QA agents is valid for standalone coverage assessment.
+QA-Reviewer is the primary post-change QA entry point, invoked by Exec-Manager after changes are made. `qa-push-manager` is the final publication gate for a candidate commit: it validates an isolated disposable snapshot of the candidate at the candidate SHA and, only after deterministic validation is green, spawns the three permanent read-only reviewers `qa-reviewer-correctness`, `qa-reviewer-boundary`, and `qa-reviewer-journey` plus `qa-reviewer-domainrisk` once per materially relevant technical lens selected from the diff (0–3 lenses, each confined to its `assigned_lens`) in one parallel batch. The adversarial reviewers are read-only, work from the same immutable candidate context, never consume each other's findings, and must not be dispatched before deterministic validation is green. Reviewer infrastructure failure fails closed (REVIEW INFRASTRUCTURE FAILURE). QA-PushManager pushes only the exact validated commit object and only when explicitly authorized; otherwise it reports the validated candidate without pushing. QA-TestAnalyzer and QA-DocsAnalyzer are spawned by QA-Reviewer. QA-TestGenerator and QA-DocsGenerator are spawned by their respective analyzers. Direct dispatch of leaf QA agents is valid for standalone assessment when the owning manager is not required.
+
+QA-RepoReviewManager is the separate whole-tree GitHub review entry point, distinct from the standalone code-review gate (`qa-reviewer`) and the push/publication `qa-push-manager`. It accepts exactly one explicit full HTTPS GitHub tree URL (`https://github.com/<owner>/<repository>/tree/<exact-ref>`), resolves the named ref to its run-start head, materializes the complete current-head tree as an immutable detached snapshot, and reviews that complete tree — never a diff and never a candidate commit; the resolved SHA is provenance only. It never pushes, never operates a push gate, and shares no mutable state with the push suite. Its read-only reviewers (`qa-repo-reviewer-correctness`, `qa-repo-reviewer-boundary`, `qa-repo-reviewer-journey`, plus `qa-repo-reviewer-domainrisk` once per selected lens with 0+ lenses valid) are dispatched in one parallel batch with one immutable review context and never consume one another's output; collection fails closed as `REVIEW_INFRASTRUCTURE_FAILURE`. Before any manager GitHub operation, load and apply the applicable guidance selected through `gg-router` (`gg-repos`, `gg-env`, `gg-core`, `ggt-conventions`); never improvise GitHub or Git behavior from memory. Direct dispatch of the whole-tree reviewers outside QA-RepoReviewManager is not valid.
 
 ### Support Department
 
@@ -186,7 +200,7 @@ All support agents are dispatched directly — they have no internal orchestrato
 
 ### QA Gate Enforcement
 
-Exec-Manager **must not** return `DONE` without `qaReview.status: PASS`. If Exec-Manager reports DONE without QA, use the `qa-reassertion` reference to push back.
+Exec-Manager **must not** report completion without `qaReview.status: PASS`. If completion is reported without QA, use the `qa-reassertion` reference to push back.
 
 ### Spec-First Testing
 
@@ -254,10 +268,10 @@ task(prompt, agent) → blocks until agent finishes, returns final message only
 A critical difference that becomes apparent in testing:
 
 ```
-delegate output:  "PHASE 1: Researching..." → "PHASE 2: Analyzing..." → "DONE: Complete"
+delegate output:  "Researching..." → "Analyzing..." → "Complete"
                   └─ All agent output preserved and retrievable
 
-task output:      "DONE: Complete"
+task output:      "Complete"
                   └─ Intermediate output suppressed; only terminal message survives
 ```
 
@@ -317,12 +331,23 @@ Research or investigation where output should persist across sessions?
   [`rnd-counter-ideator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) — Adversarial approach critique.
   [`rnd-counter-improver.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md) — Adversarial pattern critique.
 
-  **QA:** [`qa-reviewer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer.md) — Full quality gate review.
-  [`qa-test-analyzer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-analyzer.md) — Test coverage analysis.
-  [`qa-test-generator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-generator.md) — Test generation from gaps.
-  [`qa-docs-analyzer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-analyzer.md) — Documentation coverage analysis.
-  [`qa-docs-generator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-generator.md) — Documentation generation from gaps.
-  [`qa-reassertion.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reassertion.md) — Reassert QA gate when Exec-Manager skips review.
+  **QA:** [`qa-push-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-push-manager.md) — Final validation and publication gate.
+  [`qa-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-correctness.md) — Correctness, contract, and regression review.
+  [`qa-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-boundary.md) — Boundary, degraded-state, and failure review.
+  [`qa-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-journey.md) — End-to-end journey review.
+  [`qa-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-domainrisk.md) — Assigned technical risk review.
+  [`qa-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer.md) — Full quality gate review.
+  [`qa-test-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-analyzer.md) — Test coverage analysis.
+  [`qa-test-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-generator.md) — Test generation from gaps.
+  [`qa-docs-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-analyzer.md) — Documentation coverage analysis.
+  [`qa-docs-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-generator.md) — Documentation generation from gaps.
+  [`qa-reassertion`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reassertion.md) — Reassert QA gate when Exec-Manager skips review.
+  [`qa-repo-review-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-manager.md) — One-shot whole-tree GitHub review manager (explicit tree URL; never a push gate).
+  [`qa-repo-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-correctness.md) — Whole-tree correctness reviewer (permanent lens).
+  [`qa-repo-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-boundary.md) — Whole-tree boundary/failure reviewer (permanent lens).
+  [`qa-repo-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-journey.md) — Whole-tree end-to-end journey reviewer (permanent lens).
+  [`qa-repo-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-domainrisk.md) — Whole-tree single assigned-lens specialist reviewer.
+   [`qa-repo-review-authorized-pilot`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-authorized-pilot.md) — Optional disposable-repository pilot checklist; no live success is implied.
 
   **Support:** [`support-debugger.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-debugger.md) — Root cause analysis for failures.
   [`support-librarian.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) — Artifact context (ADRs, logs, design docs).
@@ -330,3 +355,10 @@ Research or investigation where output should persist across sessions?
   [`support-researcher.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) — Deep codebase and external research.
 
 - **Related skills:** `capture-subsystem` (codebase research skills)
+
+
+## Lifecycle Validation Before Dispatch
+
+Every design, planning, or execution dispatch must validate DD status and requirement conformance before handing work downstream. Accept a DD only with a recognized accepted status (`Accepted` or `Complete (accepted)`), including an accepted DD intentionally held in `pending/` only when its metadata names the prerequisite disposition, responsible owner, and next transition condition; reject `Proposed`, `Draft`, `Rejected`, stale/invalid pending DDs, and any execution or archival of an unaccepted DD.
+
+For plan families, the dispatcher must require ownership closure: each changed symbol contract has every caller file named in `Ownership`; a handoff annotation is not coverage. Ownership-closure evidence is a call-graph/import check that lists resolved and unresolved edges, a manual disposition for every unresolved edge (with a reason it is safe or a follow-up that resolves it), and a mock-versus-real caller integration test for every signature or return-type change. Reject missing or stale status, missing caller ownership, unresolved supersession, and `REQUIREMENT_DRIFT` rather than dispatching an unaudited family. Generational families are permitted only with an explicit predecessor → successor graph, bounded scope, supersession metadata/back-pointers, and a recorded Exec-PlanGate `PASS`. Support-Librarian and Support-PatternEnforcer dispatches must use the same checks when validating DDs or plans.

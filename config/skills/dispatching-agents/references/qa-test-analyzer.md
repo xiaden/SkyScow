@@ -27,7 +27,7 @@ Context files to read:
 scope: "[files/modules to analyze]"
 plan: "[plan identifier]"
 
-Identify missing tests, stale tests, and coverage gaps. Route by tier.
+Identify missing tests, stale tests, and coverage gaps. For MINOR_DISPATCH or MAJOR_DISPATCH tiers you MUST spawn qa-test-generator, then verify its output; for PASS, MINOR_PASS, and MAJOR_RAISE, report without dispatching. A dispatch-tier result is incomplete until the generator has run.
 ```
 
 ## Required Fields

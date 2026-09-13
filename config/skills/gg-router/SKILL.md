@@ -1,6 +1,6 @@
 ---
 name: gg-router
-description: Use when deciding which Git/GitHub skill applies to an unclassified task. A short front door that routes a Git/GitHub or repository-conventions question to the correct sibling skill (local history, collaboration, workflows, environment/credentials, Docker artifacts, Pages docs, or repo-local conventions) without guessing when nothing matches.
+description: Route an unclassified Git/GitHub task to the correct global skill. Use when the task does not clearly identify local Git, collaboration, Actions, credentials, Docker artifacts, Pages, or repository conventions.
 ---
 
 # gg-router

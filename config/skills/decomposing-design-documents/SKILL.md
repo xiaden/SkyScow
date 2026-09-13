@@ -1,6 +1,6 @@
 ---
 name: decomposing-design-documents
-description: Use when decomposing a design document into dependency-ordered implementation plans. Handles the full pipeline from design document to validated, cross-referenced plan files with minimal drift. Trigger when **any** of the following are true, with user requests (4) taking priority over the other conditions: (1) the feature involves 3+ implementation parts, (2) it spans multiple architectural layers, (3) it requires coordination across multiple sessions, or (4) the user explicitly asks to break down a design doc into implementation plans. Not for single plans or simple tasks — use the Exec-Planner subagent directly for those.
+description: Turn an accepted design document into dependency-ordered implementation plans, contracts, and cross-validation. Use when the user asks to decompose a design into multiple coordinated plans; do not use for a single plan or plan execution—use Exec-Planner or feature-execution.
 ---
 
 # Decomposing Design Documents
@@ -18,11 +18,15 @@ Requirements → [RnD-Manager DD workflow → DDAuthor] → Design Doc → Decom
 
 | Phase | Action | Output |
  | --- | --- | --- |
-| 0 (Optional) | Dispatch DDAuthor if no design doc exists | `artifacts/designs/pending/DD-{feature}.md` |
-| 1 | Decompose design doc into lettered parts | `artifacts/designs/parts/{feature}/README.md` |
-| 2 | Create contracts ledger | `artifacts/designs/parts/{feature}/CONTRACTS.md` |
-| 3 | Dispatch Planner per part, validate, update ledger | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` |
-| 4 | Cross-validate all plans for gaps and conflicts | Fixes applied to plan files |
+ | 0 (Optional) | Dispatch DDAuthor if no design doc exists | `artifacts/designs/pending/DD-{feature}.md` |
+ | 0.5 | DD Acceptance Gate — confirm accepted status and compare the ledger against the verbatim user request | Recorded comparison; `REQUIREMENT_DRIFT` on omission/weakening |
+ | 1 | Decompose design doc into lettered parts | `artifacts/designs/parts/{feature}/README.md` |
+ | 2 | Create contracts ledger | `artifacts/designs/parts/{feature}/CONTRACTS.md` |
+ | 3 | Dispatch Exec-Planner per part, validate, update ledger, close contract ownership | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` |
+ | 4 | Cross-validate all plans for gaps and conflicts | Fixes applied to plan files |
+ | 5 | Supersession sweep — retire superseded DDs/plans with back-pointers | Updated `Status`, back-pointers, clean `pending/` |
+
+Phase 5 is the terminal archival/supersession phase. It is distinct from execution-plan phases and must run after cross-validation and QA readiness; a superseded artifact is removed from the executable set before any dispatch.
 
 ## Agent Integration
 
@@ -31,7 +35,7 @@ This skill may dispatch agents from the `.opencode/agents/` hierarchy:
  | Agent | When Used |
  | ------- | ----------- |
   | `RnD-Manager` | Phase 0: Run the complete DD workflow when requirements exist but no design doc |
- | `Planner` | Phase 3: For each plan in dependency order |
+ | `Exec-Planner` | Phase 3: For each plan in dependency order |
 
 See [.opencode/agents/](.opencode/agents/) for agent specifications.
 
@@ -44,7 +48,7 @@ These exist because every one was violated during real usage and caused drift or
 ### Planning Integrity
 _(Ensure every plan is authored correctly, ordered correctly, and scoped to a single subagent dispatch)_
 
-1. **Never write plans directly.** Always dispatch to the Planner agent. Direct plan authoring skips codebase research and produces layer violations, wrong method signatures, and missing patterns.
+1. **Never write plans directly.** Always dispatch to the Exec-Planner agent. Direct plan authoring skips codebase research and produces layer violations, wrong method signatures, and missing patterns.
 2. **Never plan out of dependency order.** A plan referencing methods from an unplanned upstream part will guess signatures.
 3. **Never combine parts into one subagent call.** Each part gets its own dispatch with focused context.
 
@@ -199,12 +203,12 @@ Initial content:
 
 For each execution round from the README:
 
-### 3a. Dispatch Planner Agent
+### 3a. Dispatch Exec-Planner Agent
 
-For each part in the round, dispatch the Planner agent. See [references/subagent-protocol.md](file:///home/opencode/.config/opencode/skills/decomposing-design-documents/references/subagent-protocol.md) for the full dispatch protocol including prompt structure, critical rules, and common mistakes.
+For each part in the round, dispatch the Exec-Planner agent. See [references/subagent-protocol.md](file:///home/opencode/.config/opencode/skills/decomposing-design-documents/references/subagent-protocol.md) for the full dispatch protocol including prompt structure, critical rules, and common mistakes.
 
 ```yaml
-# Dispatch to Planner agent (see .opencode/agents/planner.md)
+# Dispatch to Exec-Planner agent (see .opencode/agents/exec-planner.md)
 contextFiles:
   - artifacts/designs/pending/DD-{feature}.md              # Design doc
   - artifacts/designs/parts/{feature}/README.md            # Parts breakdown
@@ -298,7 +302,7 @@ Each plan must account for this full pipeline — not just the coding steps:
  | **Verification** | Type check + lint + test + coverage + build | Verification step at end of each plan phase |
  | **Commit** | Conventional commits, no console.log | Cleanup and commit step |
 
-**Plans that skip these gates create rework.** The Planner agent should embed them as explicit steps, not rely on out-of-band processes. When reviewing plans during Phase 3b and Phase 4, treat missing quality gate steps the same as missing implementation steps — they are equally required.
+**Plans that skip these gates create rework.** The Exec-Planner agent should embed them as explicit steps, not rely on out-of-band processes. When reviewing plans during Phase 3b and Phase 4, treat missing quality gate steps the same as missing implementation steps — they are equally required.
 
 The `feature-execution` skill handles the execution side. If plans are produced without quality gate steps, the execution pipeline may need to inject them ad-hoc, which increases drift risk.
 
@@ -362,3 +366,33 @@ JSON Schema for task plan markdown files. Use during Phase 3b (validation) to ve
 ### [ADR_MARKDOWN_SCHEMA.json](file:///home/opencode/.config/opencode/skills/decomposing-design-documents/references/ADR_MARKDOWN_SCHEMA.json)
 
 JSON Schema for Architecture Decision Record markdown files. Relevant when a plan's implementation spawns an ADR. Covers required metadata (`status`, `date`, `tags`), required sections (`Context`, `Decision`, `Consequences`), and optional fields (`source_log`, `supersedes`).
+
+
+## Lifecycle and Contract Gates
+
+### Phase 0.5: DD Acceptance Gate
+
+Before decomposition, the DD must have a recognized accepted status (`Accepted` or `Complete (accepted)`). An `Accepted` DD may remain in `pending/` only when its metadata explicitly names the prerequisite disposition, owner, and next transition condition; without those fields it is stale/invalid and cannot be decomposed, executed, or archived as complete. A `Complete (accepted)` DD belongs in the accepted lifecycle location. Compare the DD requirement ledger against the verbatim original user request and record that comparison. If any ledger item is omitted, weakened, deferred, inverted, or contradicted, stop with `REQUIREMENT_DRIFT`; do not decompose.
+
+### Phase 3 Contract Ownership Closure
+
+Every plan's `Ownership` must name every file containing a call site of any symbol whose signature, return type, or behavior the plan changes. A handoff annotation is not ownership and cannot close a residual. Perform a call-graph/import check using the repository callgraph/import tooling (for example, `aft_callgraph` callers/impact plus language-aware import analysis) and record its evidence: list the resolved edges and the unresolved edges separately, then manually dispose of every unresolved edge (name the reason it is safe, or the follow-up that resolves it). Any signature or return-type change requires a non-mock integration test covering the real caller path — a test that exercises a mocked caller does not establish ownership closure.
+
+### Phase 5: Supersession Sweep
+
+When a later artifact supersedes a DD or plan, update the superseded file's `Status`, add a back-pointer, and remove it from the executable set. Do not leave superseded work in `pending/`.
+
+### Anti-Churn and Ledger Rules
+
+- Each feature has exactly one authoritative requirement ledger. Amendments append a dated amendment or fully supersede the ledger; never create duplicate section numbers or stacked contradictory clauses.
+- Remediation reopens the owning plan, or is one bounded bridge with named predecessor and successor. Lettered/generational families (R, D2R, Q3-A..K) are permitted **only** under the successor-graph rules below.
+
+### Successor-Graph Rules (generational families)
+
+A generational family is allowed when every condition below holds; otherwise remediation must reopen the owning plan:
+
+1. **Explicit successor graph.** Record each generation as an explicit predecessor → successor edge with a bounded scope (the specific symbols/files it reworks) and a rationale for why the predecessor's step cannot simply be reopened.
+2. **No flat-model violation.** The successor edge must be representable: the successor depends on, and does not silently replace, the predecessor. Do not leave a successor for which no dependency edge can be drawn.
+3. **Supersession metadata and back-pointers.** The predecessor's `Status` must be updated to `Superseded`, and both files must carry matching back-pointers (predecessor names the successor; successor names the predecessor).
+4. **Exec-PlanGate approval.** A generational family counts toward its coordinated plan group and requires a recorded current `Exec-PlanGate: PASS` covering the successor graph before execution; without that approval the family is not executable.
+- Validate plans individually at creation time; do not batch-validate.

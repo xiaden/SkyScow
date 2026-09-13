@@ -1,6 +1,6 @@
 ---
 name: refactor-clean
-description: Detect and remove dead code, unused exports, unused dependencies, and duplicate implementations using knip, depcheck, and ts-prune. Covers risk assessment, safe deletion order, and DELETION_LOG.md audit trail. Use when cleaning up a codebase, removing unused code, auditing dependencies, or consolidating duplicates.
+description: Remove dead code, unused exports or dependencies, or duplicate implementations. Use for cleanup audits and safe deletion plans; not for adding features or ordinary refactoring.
 ---
 
 # Refactor & Clean

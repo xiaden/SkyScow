@@ -107,3 +107,8 @@ Return a structured briefing: relevant decisions, prior observations, dead-ends 
 | Topic too broad ("the whole project") | Narrow to one feature or module |
 | Module names are file paths without log history | Use actual directories where agents have worked |
 | Skipping the dispatch entirely | Dispatch anyway — missing context is still a useful finding |
+
+
+### Required Lifecycle Checks
+
+The briefing must include DD status/location and ledger-vs-verbatim-request conformance, superseded artifacts/back-pointers, and ownership-closure gaps. A handoff annotation is not caller ownership. Flag improperly pending accepted DDs and executable superseded plans before downstream dispatch.

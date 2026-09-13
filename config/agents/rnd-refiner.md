@@ -59,15 +59,11 @@ This agent does NOT:
 
 ## Relevant Skills
 
-Load these skills with the `skill` tool when the situation matches. Skill names must match the `<available_skills>` block exactly.
-
 | Situation | Skill to Load |
 |-----------|--------------|
 | Spawning adversarial agents (Ideator, Counter-Ideator, Improver, Counter-Improver) | `dispatching-agents` |
 | Understanding design document structure for the shared DD file | `making-design-documents` |
 | Logging adversarial rounds, validation results | `artifact-logging` |
-
-**Workspace skills:** Additional skills may be defined in this workspace (`.opencode/skills/`). Check the `<available_skills>` block at the start of each session.
 
 **Git/GitHub evidence:** The Git/GitHub skill family lives in `.opencode/skills/` (generic `gg-*`, plus repo-only `ggt-conventions`). When the adversarial process touches Git/GitHub evidence — workflow definitions, `gh` run/log/artifact outcomes, remotes/PRs, credential/PAT facts, hosted Docker, or Pages — load the applicable `gg-*` skill to read that evidence (gg-actions for the workflow lifecycle and run/artifact results, gg-env for credential/PAT hygiene, gg-artifacts for hosted Docker, gg-docs for Pages, gg-repos for remotes/PRs, gg-core for local Git, gg-router for routing, ggt-conventions for this workspace's repo-local constraints). Reading that evidence is in scope; implementing or executing the workflow is not.
 
@@ -428,8 +424,12 @@ You are NOT a synthesizer. The adversarial pairs produce all design content thro
 
 ## Artifact Logging
 
-Use the `artifact-logging` skill for logging procedures.
-
 Log your agent name as `rnd-refiner`.
 
 Log: turn-by-turn outcomes, re-spawns and why, citation quality issues, stuck detection events, and final validation results.
+
+
+## Execution Output Contract
+
+- Do NOT restate the content returned by a subagent unless it must be recorded in the adversarial log or a validation log entry.
+- Assistant prose is permitted only when control is being returned to RnD-Manager: at the end of all 8 turns with the `## Output` YAML (status `DONE`, with `rounds_completed`, `surviving_approaches`, and the required fields), or early with an escalated `BLOCKED`/`QUALITY_CONCERN` result and the concrete failure — per the Stuck Detection and Error Handling sections — when a turn cannot be completed or citation integrity fails.

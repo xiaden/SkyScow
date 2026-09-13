@@ -1,6 +1,6 @@
 ---
 name: feature-execution
-description: Use when executing implementation plans produced by the decomposing-design-documents skill. Orchestrates execution subagents (one plan at a time, parallel when independent), dispatches review subagents for thorough quality enforcement after each plan (lint, type check, coverage ≥80%, build, security review), and manages fix cycles when review finds issues. Trigger when: (1) the user explicitly says "execute the plans", "implement the feature", or "work through the plans"; OR (2) the user asks to start implementation and every plan for the single feature being executed (all lettered plans A–Z for that specific feature slug, covering its full scope) exists and is schema-valid in artifacts/plans/pending/TASK-*-{A..Z}-*.md. Not for single-plan execution — use plan_complete_step directly for those.
+description: Execute a complete set of dependency-ordered implementation plans for one feature. Use when the user asks to implement or work through plans and all lettered plans are present and valid; do not use for creating plans, decomposing designs, or executing a single plan.
 ---
 
 # Feature Execution
@@ -247,3 +247,24 @@ Before declaring feature execution complete:
 - [references/execution-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/execution-protocol.md) — Subagent dispatch patterns, prompt templates, and context injection rules (used internally by Exec-Manager)
 - [references/review-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/review-protocol.md) — Review dispatch protocol, checklist, scope classification, and fix cycle limits (used internally by Exec-Manager)
 - [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) — Completion manifest template, artifact move protocol, and verification steps (used by Director in Phase 5)
+
+
+## Lifecycle Enforcement Gates
+
+### Coordinated Plan Preflight (Hard Gate)
+
+For six or more coordinated plans, `Exec-PlanGate` is mandatory and fail-closed. No `Exec-Manager` dispatch is permitted without a recorded current `PASS`. The gate checks dependency completeness, contract consistency, layer compliance, DD coverage, downstream gaps (symbols needed but never created upstream), overlap/parallel-write safety, and ownership closure. Ownership closure requires every caller file for each changed symbol signature, return type, or behavior; handoff annotations do not satisfy it. Exec-Manager verifies the gate result and never spawns the gate.
+
+For a coordinated group of **five or fewer** plans, the gate is **not required**. Invoking the gate is still allowed for a smaller group, but every invocation must record a `NOT_REQUIRED` verdict (or an equivalent explicitly-labeled result) so no result is ambiguous. A recorded `NOT_REQUIRED` is not a stale or missing `PASS`: dispatch proceeds on `NOT_REQUIRED`, never on an absent result, and a later plan-count increase to six or more invalidates any prior `NOT_REQUIRED` and requires a fresh gate `PASS`.
+
+### Startup Lifecycle Sweep
+
+Before starting a feature family, inspect every plan status. Fully checked plans must be archived or explicitly marked `complete, awaiting QA`; a plan with zero open steps is not in flight. Forbid duplicate basenames across `pending/` and `completed/`, and forbid stray backup files. A superseded plan or DD is removed from the executable set before dispatch.
+
+### Strengthened Rule 7: Archive the Whole Feature
+
+After all plans pass QA, archive every plan and the DD to `completed/`, generate `COMPLETION.md`, and assert that no feature files remain in `pending/` or `designs/parts/`. Do not report completion while any process artifact or handoff remains executable.
+
+### CI Evidence Location
+
+CI-gating manifests and evidence must live in tracked repository paths, never under the gitignored `artifacts/` tree, and static YAML or manifest presence is never `CI_PASS`. This section is the canonical owner of the `LOCAL_PASS` / `LOCAL_UNAVAILABLE` / `CI_DEFERRED` / `CI_PASS` labels; preserve the label recorded by the producing gate and never relabel local or deferred evidence as `CI_PASS`.

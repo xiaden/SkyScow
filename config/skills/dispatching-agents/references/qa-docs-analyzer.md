@@ -28,7 +28,7 @@ Context files to read:
 scope: "[files/modules to analyze]"
 plan: "[plan identifier]"
 
-Identify missing docstrings, stale docs, and doc/code drift. Route by tier.
+Identify missing docstrings, stale docs, and doc/code drift. For MINOR_DISPATCH or MAJOR_DISPATCH tiers you MUST spawn qa-docs-generator, then re-verify its output; for PASS, MINOR_PASS, and MAJOR_RAISE, report without dispatching. A dispatch-tier result is incomplete until the generator has run.
 ```
 
 ## Required Fields

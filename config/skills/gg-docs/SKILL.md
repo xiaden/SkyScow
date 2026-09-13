@@ -1,6 +1,6 @@
 ---
 name: gg-docs
-description: Use ONLY when building and publishing hosted documentation through GitHub Pages: two publishing sources (the repository Pages source, or a GitHub Actions workflow), the canonical build -> upload Pages artifact -> deploy sequence, the github-pages environment and minimal permissions, project versus user/org sites, custom domains (CNAME/DNS), HTTPS, and DNS cleanup to prevent takeover. Load before publishing or configuring documentation artifacts on Pages.
+description: Use only for building or publishing documentation with GitHub Pages, including source selection, Actions deployment, domains, HTTPS, or DNS safety.
 ---
 
 # gg-docs

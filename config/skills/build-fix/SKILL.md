@@ -1,6 +1,6 @@
 ---
 name: build-fix
-description: Diagnose and resolve build errors across languages with minimal, surgical changes — no refactoring, no architecture changes. Covers TypeScript/JavaScript, Rust, Go, C++, Java, and Kotlin. Use when a build fails (`npm run build`, `cargo build`, `go build`, `cmake --build`, `mvn compile`, `gradle build`), when type errors block development, or when dependency resolution fails.
+description: Diagnose and minimally fix build, type, or dependency failures in TypeScript/JavaScript, Rust, Go, C++, Java, or Kotlin. Do not refactor or redesign.
 ---
 
 # Build Error Resolution

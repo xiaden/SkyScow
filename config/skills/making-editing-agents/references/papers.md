@@ -52,7 +52,7 @@
 - Three guiding principles: separation of concerns, progressive degradation, transparency over magic
 - Dynamic system prompt construction via PromptComposer: condition evaluation → priority sort → concatenation
 - Event-driven system reminders counteract instruction fade-out in long-running sessions
-- Planner subagent with read-only tools and specialized prompt — write operations excluded from tool schema entirely
+- Exec-Planner subagent with read-only tools and specialized prompt — write operations excluded from tool schema entirely
 - "Getting the prompt right at startup is the central initialization problem"
 
 **Relevance to agent design:** Validates that prompt assembly should be dynamic and conditional. Also confirms that planning should be delegated to a specialist, not done by the main agent.

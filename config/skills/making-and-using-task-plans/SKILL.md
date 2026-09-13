@@ -1,13 +1,13 @@
 ---
 name: making-and-using-task-plans
-description: Create, edit, validate, and execute task plan markdown files for the plan tooling system. Covers format rules, syntax requirements, step writing, annotations, cross-session continuity, and tool integration (plan_read, plan_complete_step, plan_archive). Load when creating or editing files in artifacts/plans/ or when you need to use plan tools.
+description: Create, edit, or validate task-plan Markdown and use plan lifecycle tools. Use when working on artifacts/plans or plan_read, plan_complete_step, or plan_archive; do not use for decomposing a design document or executing a multi-plan feature.
 ---
 
 # Making & Using Task Plans
 
 **Purpose:** Produce valid, well-structured task plan markdown files and use the plan tooling system effectively.
 
-This skill merges what were previously two separate skills (`task-plan-syntax` and `task-plans-guide`). The body is a dispatch index; format rules and writing guidance live in reference files loaded on demand.
+This skill is the canonical plan-format and writing-guidance entry point. The body is a dispatch index; format rules and writing guidance live in reference files loaded on demand.
 
 ---
 
@@ -112,3 +112,10 @@ Before declaring a plan complete:
 - [`references/example-plan.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/example-plan.md) — Full annotated example plan with commentary
 - [`references/tool-integration.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/tool-integration.md) — Tool API reference with signatures and usage patterns
 - Related skills: `decomposing-design-documents` (multi-plan decomposition), `feature-execution` (execution pipeline)
+
+
+## Plan Lifecycle and Ownership Validation
+
+Plans have four lifecycle states: `pending`, `in-flight`, `complete-awaiting-QA`, and `archived` (in `completed/`). A plan with zero open steps is not still `in-flight`; archive it or mark it explicitly `complete-awaiting-QA`.
+
+During validation, require an `Ownership` section naming every caller file for each changed symbol signature, return type, or behavior. A handoff annotation alone never satisfies caller coverage. In the `plan_read`-adjacent startup workflow, warn when every step is checked but the plan remains in `pending/`; do not dispatch it as new work until its disposition is recorded.

@@ -111,3 +111,10 @@ Agents **cannot** read logs from:
 ## References
 
 - [**`references/logging-patterns.md`**](file:///home/opencode/.config/opencode/skills/artifact-logging/references/logging-patterns.md) — Detailed patterns: plan tag requirements, mid-stream context recovery, discovery logging, dead-end logging
+
+
+## Process-Artifact Lifecycle
+
+`artifacts/designs/process/` has one owning README/index. Every process artifact records an owner, status, and disposition. Completed artifacts move to the archive or are explicitly deprecated; stale handoffs are disposed rather than left executable. Large adversarial logs must declare a retention period or an archive/deprecate disposition.
+
+When a plan or DD is superseded, update only its `Status` field according to the ADR/supersession convention, add a back-pointer to the superseding artifact, and remove it from the executable set. Mark stale handoffs superseded when their contract is superseded.

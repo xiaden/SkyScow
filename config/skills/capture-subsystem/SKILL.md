@@ -1,6 +1,6 @@
 ---
 name: capture-subsystem
-description: Capture a subsystem's mental model, invariants, and key files as a reusable SKILL.md after deep codebase research. Use when you've explored 5+ files to understand one concept, traced IPC/process/worker/pipeline topology, or answered "how does X actually work" from scratch — save the understanding now to prevent re-researching it every session. For stable, non-churning code areas; use artifact-logging for ephemeral observations.
+description: Capture a stable subsystem's mental model, invariants, and key files as a reusable skill after deep research. Use for durable subsystem knowledge; use artifact-logging for ephemeral findings.
 ---
 
 # Capture Subsystem
