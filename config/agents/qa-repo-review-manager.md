@@ -10,7 +10,6 @@ permission:
   grep: allow
   bash: allow
   task: allow
-  delegate: allow
   lsp: allow
   question: allow
   skill: allow

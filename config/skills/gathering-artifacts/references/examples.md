@@ -2,7 +2,7 @@
 
 ## Contents
 - [RnD-Manager Using This Skill](#example-rnd-manager-using-this-skill)
-- [Director Using This Skill](#example-director-using-this-skill)
+- [Nyx Using This Skill](#example-nyx-using-this-skill)
 
 ---
 
@@ -36,7 +36,7 @@
    - Leverages existing event tracking tables (uses context)
 ```
 
-## Example: Director Using This Skill
+## Example: Nyx Using This Skill
 
 ```
 # Before routing a feature to R&D:
@@ -50,7 +50,7 @@
    - Constraint: ADR-001 mandates ONNX for all ML inference
    - Context: Prior design doc exists for embedding pipeline
 
-4. Director includes in dispatch to RnD-Manager:
+4. Nyx includes in dispatch to RnD-Manager:
    "Design playlist generation feature.
    Constraints from artifact review:
    - Must use ONNX runtime (ADR-001)

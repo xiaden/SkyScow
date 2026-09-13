@@ -66,7 +66,7 @@ failure:
 |------------|---------|--------|
 | `SIMPLE` | Root cause clear, fix scoped to a single section (function/method), weighted context < 32K chars | Spawn Exec-Fixer with `suggestedFix`, run lint, run tests, then full QA review |
 | `NEEDS_PLAN` | Fix requires coordinated changes across multiple sections or layers | Spawn Exec-Planner (AMEND) with `rootCause`, re-execute affected phases, then QA review |
-| `INCONCLUSIVE` | Debugger couldn't determine root cause | Escalate to Director with full debugger report. Do NOT attempt random fixes. |
+| `INCONCLUSIVE` | Debugger couldn't determine root cause | Escalate to Nyx with full debugger report. Do NOT attempt random fixes. |
 
 ## Dispatch Examples
 

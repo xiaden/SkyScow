@@ -13,7 +13,7 @@ Before acting on any significant task, spawn `Support-Librarian` to search the a
  | -------------------- | --------------- |
   | Design a feature (RnD-Manager) | Yes — before dispatching the DD workflow |
  | Create an implementation plan (Exec-Planner) | Yes — before creating the plan |
- | Route work to a department (Director, RnD-Manager) | Yes — before dispatching |
+ | Route work to a department (Nyx, RnD-Manager) | Yes — before dispatching |
  | Execute a plan phase (Exec-Worker) | No — the plan should already reflect artifact context |
  | Do a quick fact check | No — overhead not worth it |
 
@@ -66,7 +66,7 @@ The Librarian returns a structured briefing. Use it:
 
 For detailed walkthroughs of this skill in action, see [`references/examples.md`](file:///home/opencode/.config/opencode/skills/gathering-artifacts/references/examples.md):
 - DDAuthor gathering artifact context before writing a design doc
-- Director gathering context before routing a feature to R&D
+- Nyx gathering context before routing a feature to R&D
 
 ## Formal DD ownership
 

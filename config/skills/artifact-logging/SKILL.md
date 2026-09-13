@@ -100,7 +100,7 @@ When you make a decision that constrains future work:
 
 Agents can read logs from:
 - **Own logs**: Your own agent name
-- **Up**: Agents that manage you (e.g., exec-manager can read director logs)
+- **Up**: Agents that manage you (e.g., exec-manager can read Nyx logs)
 - **Down**: Agents you manage (e.g., exec-manager can read exec-worker logs)
 - **Audit targets**: Specific agents you're responsible for reviewing
 

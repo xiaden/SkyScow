@@ -365,8 +365,6 @@ RUN set -eux; \
 # AFT's OpenCode plugin is configured through opencode.json, so only the AFT
 # binary itself is installed globally here.
 #
-# unique-names-generator remains because HolyCode's local background-agent
-# plugin imports it directly.
 # ------------------------------------------------------------------------------
 
 # These packages have reviewed postinstall scripts; other dependency scripts stay blocked.
@@ -376,7 +374,6 @@ RUN set -eux; \
         "opencode-ai@${OPENCODE_VERSION}" \
         "sleev@${SLEEV_VERSION}" \
         pnpm@11 \
-        unique-names-generator \
         @ast-grep/cli; \
     \
     npm install -g \

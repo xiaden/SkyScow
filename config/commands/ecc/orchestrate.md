@@ -117,7 +117,7 @@ Use when: Multiple perspectives needed
 
 ## References
 
-- **`dispatching-agents` skill** — Canonical dispatch templates, agent selection decision tree, `task` vs `delegate` guidance, and per-agent reference files. Load this before dispatching any agent.
+- **`dispatching-agents` skill** — Canonical dispatch templates, agent selection decision tree, native `task` fan-out guidance, and per-agent reference files. Load this before dispatching any agent.
 - **`making-and-using-task-plans` skill** — Formal plan Markdown schema and writing guidance; see `references/syntax.md` and `references/writing-guide.md`.
 
 **NOTE**: Complex tasks benefit from multi-agent orchestration. Simple tasks should use single agents directly. When in doubt, consult the `dispatching-agents` skill's decision tree.

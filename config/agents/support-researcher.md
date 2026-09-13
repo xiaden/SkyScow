@@ -213,7 +213,7 @@ Log your agent name as `support-researcher`.
 `log_read` is scoped to:
 
 - Own logs (`support-researcher`)
-- Manager-level: `director`, `rnd-manager`, `exec-manager`
+- Manager-level: `nyx`, `rnd-manager`, `exec-manager`
 
 ## Knowledge Capture (Auto-Skill)
 

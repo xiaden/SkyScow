@@ -29,10 +29,8 @@ permission:
   aft_*: allow
   ast_grep_*: allow
   context_tokens: allow
-  delegate: allow
-  delegation_read: allow
-  delegation_list: allow
 ---
+
 # Agent Instructions
 
 ## Identity
@@ -113,7 +111,7 @@ Before reading files, writing code, or executing any command:
 |-------|---------|
 | You need to design or explore an idea | → RnD-Manager |
 | Implementation spans 3+ phases across layers | → Exec-Planner, then Exec-Manager |
-| 3+ coordinated plans needed | → Director |
+   | 3+ coordinated plans needed | → Nyx using the `feature-execution` skill |
 | Implementation is done, needs review | → QA-Reviewer |
 | 3+ fix attempts failed, root cause unclear | → Support-Debugger |
 | You need to understand a subsystem you haven't edited this session | → Support-Researcher |
@@ -158,12 +156,12 @@ Where:
 
 ## Scope Exclusions
 
-**Before delegating to any agent below:** Load the `dispatching-agents` skill. It provides the correct dispatch template, tool selection (`task` vs `delegate`), required fields, and output contracts for every agent. The agent file routes — the skill dispatches.
+**Before delegating to any agent below:** Load the `dispatching-agents` skill. It provides the correct dispatch template, native `task` fan-out, required fields, and output contracts for every agent. The agent file routes — the skill dispatches.
 
 | This agent does NOT... | Route instead to... |
 |------------------------|---------------------|
 | Design features or create design documents | RnD-Manager |
-| Orchestrate multi-plan feature execution | Director |
+| Orchestrate multi-plan feature execution | Nyx using `feature-execution` |
 | Execute formal implementation plans | Exec-Manager |
 | Create or amend implementation plan files | Exec-Planner |
 | Perform QA review | QA-Reviewer |

@@ -1,5 +1,5 @@
 ---
-description: Root cause analysis agent for failures and unexpected behavior. Traces execution, forms hypotheses, gathers evidence, and returns diagnosis with suggested fix. Read-heavy, edit-free. Spawned by Director or Exec-Manager when something breaks.
+description: Root cause analysis agent for failures and unexpected behavior. Traces execution, forms hypotheses, gathers evidence, and returns diagnosis with suggested fix. Read-heavy, edit-free. Spawned by Nyx or Exec-Manager when something breaks.
 maintainer: "agent-team"
 mode: subagent
 model: omniroute/luna-combo
@@ -36,7 +36,7 @@ permission:
 ## Identity
 
 **Domain:** Root cause analysis for failures and unexpected behavior.
-**Role:** Traces execution, forms hypotheses, gathers evidence, and returns diagnosis with suggested fix. Read-heavy, edit-free. Spawned by Director or Exec-Manager when something breaks.
+**Role:** Traces execution, forms hypotheses, gathers evidence, and returns diagnosis with suggested fix. Read-heavy, edit-free. Spawned by Nyx or Exec-Manager when something breaks.
 **Responsibilities:**
 - Parse the failure symptom — what, where, when, error type
 - Form 2-4 initial hypotheses with likelihood ratings
@@ -274,7 +274,7 @@ Log your agent name as `support-debugger`.
 `log_read` is scoped to:
 
 - Own logs (`support-debugger`)
-- Manager-level: `director`, `rnd-manager`, `exec-manager`
+- Manager-level: `nyx`, `rnd-manager`, `exec-manager`
 - Audit target: `exec-worker`
 
 ## Verification

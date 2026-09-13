@@ -29,9 +29,6 @@ permission:
   aft_inspect: allow
   aft_conflicts: allow
   ast_grep_search: allow
-  delegate: allow
-  delegation_read: allow
-  delegation_list: allow
 ---
 
 # QA-Reviewer
@@ -216,7 +213,7 @@ ALL findings in one report. No holding back for round 2.
 | --- | --- | --- |
 | `MINOR` | Typos, lint, missing type hints, simple gaps | → Fixer |
 | `PLANNING_GAP` | Missing methods, wrong scope, plan was incomplete | → Exec-Planner |
-| `CRITICAL` | Architectural violation, impossible requirement | → Director |
+| `CRITICAL` | Architectural violation, impossible requirement | → Nyx |
 | `PLAN_ERROR` | Plan/contract is the defective party | → amend plan |
 | `REQUIREMENT_DRIFT` | Plan, contract, implementation, or tests omit, weaken, defer, invert, or contradict an explicit user requirement | → at least `PLANNING_GAP`; `CRITICAL` when a required capability is removed |
 

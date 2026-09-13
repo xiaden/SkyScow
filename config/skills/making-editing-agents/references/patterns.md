@@ -204,12 +204,12 @@ Every exclusion includes a positive routing instruction — "X → use Y."
 | This agent does NOT... | Route instead to... | How |
 |------------------------|---------------------|-----|
 | Design features or create design documents | RnD-Manager | `task(subagent_type="rnd-manager")` |
-| Orchestrate multi-plan feature execution | Director | `task(subagent_type="director")` |
+| Orchestrate multi-plan feature execution | Nyx using `feature-execution` | native `task` per Exec-Manager plan |
 | Execute formal implementation plans | Exec-Manager | `task(subagent_type="exec-manager")` |
 | Perform QA review | QA-Reviewer | `task(subagent_type="qa-reviewer")` |
 | Create or amend plan files | Exec-Planner | `task(subagent_type="exec-planner")` |
 | Root cause analysis on failures | Support-Debugger | `task(subagent_type="support-debugger")` |
-| Deep codebase research | Support-Researcher | `delegate(agent="researcher")` |
+| Deep codebase research | Support-Researcher | `task(subagent_type="support-researcher")` |
 ```
 
 ---

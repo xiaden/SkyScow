@@ -25,9 +25,6 @@ permission:
   aft_inspect: allow
   aft_conflicts: allow
   ast_grep_search: allow
-  delegate: allow
-  delegation_read: allow
-  delegation_list: allow
 ---
 
 # R&D Manager

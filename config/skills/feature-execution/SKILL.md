@@ -5,12 +5,12 @@ description: Execute a complete set of dependency-ordered implementation plans f
 
 # Feature Execution
 
-Pipeline for implementing a set of feature plans produced by `decomposing-design-documents`. Uses hierarchical agent dispatch: Director → Exec-Manager → Exec-Worker/Reviewer/Fixer.
+Pipeline for implementing a set of feature plans produced by `decomposing-design-documents`. Uses hierarchical agent dispatch: Nyx → Exec-Manager → Exec-Worker/Reviewer/Fixer.
 
 ```
 Plans + Ledger → Dispatch Exec-Manager → [internal: phases/review/fix] → Update Ledger → Next Plan → Archive
                         ↓                              ↓                      ↓                         ↓
-                 One per plan              Exec-Manager handles           Director updates         COMPLETION.md
+                 One per plan              Exec-Manager handles           Nyx updates         COMPLETION.md
                                            execution lifecycle            CONTRACTS.md          → artifacts/plans/completed/
 ```
 
@@ -38,10 +38,10 @@ Plans + Ledger → Dispatch Exec-Manager → [internal: phases/review/fix] → U
 
 ## Agent Hierarchy
 
-The Director (you, executing this skill) dispatches **Exec-Manager** agents. Each Exec-Manager owns its plan's full lifecycle:
+Nyx (the top-level orchestrator executing this skill) dispatches **Exec-Manager** agents. Each Exec-Manager owns its plan's full lifecycle:
 
 ```
-Director (you)
+Nyx (top-level orchestrator)
 ├── Exec-Manager A
 │   ├── Exec-Worker (per phase)
 │   ├── Reviewer (after all phases)
@@ -51,7 +51,7 @@ Director (you)
 └── Handles: escalations, ledger updates, archival
 ```
 
-**Key principle:** Exec-Managers own execution details. Director receives `DONE | BLOCKED | ESCALATE` — not phase-by-phase progress.
+**Key principle:** Exec-Managers own execution details. Nyx receives `DONE | BLOCKED | ESCALATE` — not phase-by-phase progress.
 
 See [.opencode/agents/](.opencode/agents/) for agent specifications.
 
@@ -120,7 +120,7 @@ For each plan in dependency order, dispatch a Exec-Manager. Dispatch independent
 
 ### 2a. Quality Gate (Enforced by Exec-Manager)
 
-Each Exec-Manager enforces a full quality gate before returning DONE. The Director doesn't run these checks — the Exec-Manager's internal Reviewer does:
+Each Exec-Manager enforces a full quality gate before returning DONE. Nyx doesn't run these checks — the Exec-Manager's internal Reviewer does:
 
 | Gate | Check | Standard |
 |------|-------|----------|
@@ -246,7 +246,7 @@ Before declaring feature execution complete:
 
 - [references/execution-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/execution-protocol.md) — Subagent dispatch patterns, prompt templates, and context injection rules (used internally by Exec-Manager)
 - [references/review-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/review-protocol.md) — Review dispatch protocol, checklist, scope classification, and fix cycle limits (used internally by Exec-Manager)
-- [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) — Completion manifest template, artifact move protocol, and verification steps (used by Director in Phase 5)
+- [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) — Completion manifest template, artifact move protocol, and verification steps (used by Nyx in Phase 5)
 
 
 ## Lifecycle Enforcement Gates

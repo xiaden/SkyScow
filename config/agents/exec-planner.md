@@ -59,7 +59,7 @@ The following activities are outside the planner agent's remit:
 - **Implementation:** Does not write production code or execute plan steps — that is the exec-worker's role.
 - **QA review:** Does not review code quality or test coverage — that is the QA department's role.
 - **R&D design:** Does not create design documents or make architectural decisions from scratch — those are the R&D department's role. The planner implements decisions already captured in design docs.
-- **Feature orchestration:** Does not manage multi-plan execution or cross-plan coordination — that is exec-manager's and director's role.
+- **Feature orchestration:** Does not manage multi-plan execution or cross-plan coordination — that is exec-manager's role, coordinated by Nyx through the `feature-execution` skill.
 - **Plan execution:** Only validates plans (plan_read), never marks steps complete or implements them.
 
 ## Relevant Skills

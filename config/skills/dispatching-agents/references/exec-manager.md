@@ -60,7 +60,7 @@ The bolded worker-spawn instructions are **required** — they remind Exec-Manag
 |--------|---------|
 | `DONE` | All phases complete, QA-Reviewer passed |
 | `BLOCKED` | A blocker cannot be resolved internally |
-| `ESCALATE` | Director input is needed |
+| `ESCALATE` | Nyx input is needed |
 
 The output includes artifacts created/modified/deleted, annotations from each phase, QA review status (mandatory for DONE), and test/docs analyzer status.
 
