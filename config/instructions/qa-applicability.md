@@ -44,8 +44,10 @@ If a lens is not selected, the reason must be an observable fact plus evidence (
 
 For every **meaningful implementation change**, independent correctness review is REQUIRED. It is
 never made conditional on subjective complexity, diff size, confidence, or perceived risk, and it is
-never waived because another lens applies. Specialist lenses must not be merged into correctness;
-correctness remains its own required lens.
+never waived because another lens applies. Correctness is the independent baseline: boundary, journey,
+domain-risk, tests, and docs remain separate lenses, and none of those lenses is excused by another
+lens's `PASS`. Specialist lenses must not be merged into correctness; correctness remains its own
+required lens.
 
 A **meaningful implementation change** is a change that alters observable behavior:
 
@@ -54,14 +56,18 @@ A **meaningful implementation change** is a change that alters observable behavi
 - configuration behavior (shipped config, manifests, environment, or defaults that change behavior), or
 - policy behavior (agent, skill, command, or instruction text that changes what agents do).
 
-Exemptions — changes that are not meaningful implementation changes, so correctness is the only lens
-that can apply and specialist lenses default to `NOT_APPLICABLE` with evidence:
+Documentation-only, comment-only, and non-executable-static-metadata changes are **not** a blanket
+exemption from specialist review. Each specialist lens independently evaluates its own observable
+trigger: any such change that fires a lens's trigger — for example an explicitly requested
+documentation change, an operator-facing contract, or a changed agent/tool/skill contract — still
+makes that lens **REQUIRED**; it is never made `NOT_APPLICABLE` merely because the change is
+documentation, a comment, or non-executable static metadata.
 
-- documentation-only changes,
-- comment-only changes,
-- non-executable static metadata (descriptive labels that no runtime or tool consumes).
-
-`correctness.required` is always `true` for any change that is not one of the exemptions above.
+Correctness remains **REQUIRED** for every meaningful implementation or policy behavior, and
+`correctness.required` is `true` for every such change (see the meaningful-implementation-change list
+above). Agent, skill, command, or instruction text that changes what agents do is **policy behavior**:
+it is a meaningful implementation change, so correctness is **REQUIRED**, and it may additionally
+require Docs QA when it changes an agent/tool/skill contract.
 
 ## Boundary applicability
 
@@ -129,8 +135,10 @@ Journey review must look for at least:
 
 ## Domain-risk lens selection
 
-Domain-risk lenses are selected from observable technical surfaces, bounded to **0–3** lenses per
-change. Candidate lenses:
+Domain-risk lenses are selected from observable technical surfaces. The numeric bound is a **maximum
+of three concurrent DomainRisk reviewer invocations**, not a maximum of three valid lenses: every
+matched lens is dispatched, and no matched lens is dropped because of the cap. Candidate lenses, in
+canonical order:
 
 | Lens | Select when the observable changed surface involves |
 | --- | --- |
@@ -143,6 +151,22 @@ change. Candidate lenses:
 | Performance | only when the changed surface introduces or alters hot loops, large-data operations, query behavior, network round trips, allocation-heavy paths, or latency-sensitive behavior |
 | Process/configuration | process lifecycle, supervision, environment, shipped configuration |
 
+The canonical lens order is fixed and defined once here, at table order: Security, Persistence,
+Concurrency, Filesystem/path, Protocol/API, Frontend state, Performance, Process/configuration. This
+order is the only scheduling order used for batch composition. Scheduling order conveys no severity
+and no priority.
+
+Batching rule for matched lenses:
+
+- **Zero matched lenses** -> no DomainRisk reviewer invocations.
+- **One to three matched lenses** -> all matched lenses are dispatched together in one parallel batch.
+- **More than three matched lenses** -> every matched lens is dispatched in deterministic consecutive
+  batches of at most three, taken in canonical order, until every matched lens has completed.
+
+Security remains mandatory and cannot be omitted because of the concurrency cap: a matched security
+surface is always dispatched. Reviewers inside a batch are independent, never consume one another's
+output, and no lens is dispatched more than once.
+
 Record for each selected lens the lens name and the observable trigger. Record lenses that were **not**
 selected only where needed to explain why an otherwise plausible lens does not apply.
 
@@ -154,7 +178,6 @@ Tests review is REQUIRED when the changed surface contains any of these observab
 - a regression can be expressed as a test,
 - a public or internal contract changed,
 - a relevant repository test suite exists,
-- an implementation path should have behavior verification,
 - existing tests changed or may have become stale.
 
 Raw coverage percentages are never the trigger. Coverage is diagnostic only and this file imposes no
@@ -188,6 +211,12 @@ Docs review is REQUIRED when the changed surface contains any of these observabl
 - user workflows,
 - explicitly requested documentation.
 
+Clarifying observable cases:
+
+- a README typo with no contract change may be Docs `NOT_APPLICABLE` or lightweight;
+- installation or deployment documentation for a changed CLI flag or command requires Docs;
+- a change to an agent, tool, or skill contract requires Docs.
+
 Universal documentation analysis is forbidden for purely internal implementation detail.
 
 `UNNECESSARY` is not permitted when an observable public or operator contract changed.
@@ -210,6 +239,29 @@ Invalid examples (never sufficient):
 - "documentation probably does not need updating"
 - any reliance on model confidence.
 
+## Analyzer and generator contract
+
+An analyzer runs whenever its applicability trigger fires. Whether the generator then runs is decided
+by the analyzer's tier — an analyzer running never by itself forces the generator to run.
+
+- `PASS` and `MINOR_PASS` mean the generator is `NOT_REQUIRED`.
+- `MINOR_DISPATCH` and `MAJOR_DISPATCH` require the generator.
+- An implementation or systemic escalation does not automatically run the generator.
+
+This section owns tier → generator routing. The "Generation gating" list under "Tests applicability"
+owns generation quality gating and remains in force: generator output must still be independently
+re-evaluated, not accepted merely because it was generated. The two are complementary and do not
+conflict.
+
+The owning manager enforces this contract. It rejects a missing required analyzer, a dispatch-tier
+analyzer without generator output, and generator output that has not been independently verified. It
+does **not** reject a `PASS`/`MINOR_PASS` run because no generator ran, nor a correct analyzer
+escalation that has no generator.
+
+Exactly one generation cycle occurs per analyzer run. The existing tier vocabulary — `PASS`,
+`MINOR_PASS`, `MINOR_DISPATCH`, `MAJOR_DISPATCH`, `MAJOR_RAISE` — is preserved unchanged: no tier is
+renamed and no tier is invented.
+
 ## Canonical classification record
 
 Applicability is recorded once in this shape (the ledger example, not a mandatory serialization
@@ -224,8 +276,21 @@ tests.required: <bool>      tests.triggers: [...]
 docs.required: <bool>       docs.triggers: [...]
 ```
 
-The record is derivable from observable facts. **Downstream orchestration must not re-decide it:**
-consumers read the recorded classification and dispatch accordingly.
+The record is derivable from observable facts. This file owns the **rules** only: it defines WHEN a
+lens applies and the observable fact that triggers it. It does not compute applicability at runtime.
+
+The **owning QA manager** computes the classification **once per run for the actual subject**, records
+it in the existing run/review context, and dispatches from that record. Specialists and analyzers
+**read the record and do not re-decide it**. Ownership is per subject:
+
+- plan or change run -> the owning QA manager;
+- publication candidate -> `QA-PushManager`;
+- whole-tree review -> `QA-RepoReviewManager`.
+
+No new agent, subsystem, or persistent metadata store is created solely to carry applicability: the
+computation reuses the manager that already owns the run and the run/review context that already
+exists. **Downstream orchestration must not re-decide the record:** consumers read the recorded
+classification and dispatch accordingly.
 
 ## Whole-tree applicability
 

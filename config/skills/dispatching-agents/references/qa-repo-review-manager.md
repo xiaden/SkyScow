@@ -7,8 +7,8 @@ for one explicit GitHub tree URL.
 
 QA-RepoReviewManager resolves an exact named branch/ref to its run-start head,
 materializes the complete current-head tree as an immutable detached snapshot,
-dispatches every selected read-only reviewer in one parallel batch, collects
-responses fail-closed, and returns a concise Markdown result. It is **not** a
+dispatches every selected read-only reviewer in canonical batched parallel
+groups, collects responses fail-closed, and returns a concise Markdown result. It is **not** a
 push gate and does **not** review a diff or candidate commit; the resolved SHA is
 provenance only.
 
@@ -18,7 +18,7 @@ provenance only.
 - You have exactly one full HTTPS GitHub tree URL of the form
   `https://github.com/<owner>/<repository>/tree/<exact-branch-or-ref>` and need
   the complete current-head tree reviewed.
-- You need manager-owned lens selection, one-parallel-batch reviewer dispatch,
+- You need manager-owned lens selection, canonical batched-parallel reviewer dispatch,
   fail-closed collection, and provenance-preserving handling of disagreement.
 - You need a `report`/`dry-run` review result. (Ordinary issue and security
   publication is never implied by this dispatch; submit invokes the logical `submit_ordinary_issue` lifecycle only after manager authorization, while only the manager-owned callback capability performs the permitted ordinary operation.)
@@ -67,13 +67,16 @@ complete materialized tree at the run-start resolved head — never a diff and
 never a candidate commit.
 
 Dispatch the whole-tree reviewers selected per
-`/home/opencode/.config/opencode/instructions/qa-applicability.md` in ONE
-parallel batch — correctness always; boundary and journey when the tree contains
-the corresponding observable surfaces; plus each `qa-repo-reviewer-domainrisk`
-lens selected from the tree's observable surfaces (0–3; zero is valid) — each
-with the same one immutable review context. Reviewers never consume
-one another's output. Collect fail-closed: timeout, crash, spawn_failure,
-missing_result, non_single_json, malformed_response, schema_invalid_response, or
+`/home/opencode/.config/opencode/instructions/qa-applicability.md` in canonical
+batched parallel groups — correctness always; boundary and journey when the tree
+contains the corresponding observable surfaces; plus each
+`qa-repo-reviewer-domainrisk` lens matched from the tree's observable surfaces,
+dispatched in the canonical order and concurrency/batching rule owned there
+(zero matched lenses dispatch none; one to three dispatch in one parallel batch;
+more than three dispatch in consecutive batches of at most three until every
+matched lens completes) — each with the same one immutable review context.
+Reviewers never consume one another's output. Collect fail-closed: timeout, crash,
+spawn_failure, missing_result, non_single_json, malformed_response, schema_invalid_response, or
 dispatch_contract_failure yields REVIEW_INFRASTRUCTURE_FAILURE; no partial batch
 is sufficient.
 ```

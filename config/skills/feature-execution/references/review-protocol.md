@@ -135,12 +135,14 @@ Perform ALL of the following checks. Do not skip any category.
 - Discover and run the repository's own coverage command; do not assume `npm test`, `--coverage`, or any generic coverage command exists
 - If the repository defines no coverage policy, report coverage as unavailable/diagnostic rather than inventing a threshold
 - Flag a coverage **regression** against the repository's own policy or prior baseline; do not flag the absence of a universal percentage
+- A documentation-only, comment-only, or non-executable-static-metadata change is not a category-wide exemption: it suppresses no lens whose canonical trigger fires, and applicability is read from the canonical record rather than inferred from the change category
 
 ### 9. Security Review (Conditional)
 - Whether this lens applies and its observable trigger are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; the canonical security-sensitive surface list is owned by the `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`); neither list is restated here
 - When triggered, run the canonical `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`) for its checklist and findings; this protocol references it and must not restate or weaken its checks
 - When no such surface changed, security review is not applicable — record that explicitly rather than reporting a security pass
 - A critical or high security finding routes to DISCUSS
+- A documentation-only, comment-only, or non-executable-static-metadata change is not a category-wide exemption: if it fires the canonical security trigger, security review remains REQUIRED and applicability is read from the canonical record rather than inferred from the change category
 
 ## Output Format
 

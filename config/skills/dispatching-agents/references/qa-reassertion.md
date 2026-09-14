@@ -36,10 +36,10 @@ Exec-Manager's report must include all of these before accepting DONE (the analy
 - [ ] `checks.contracts: PASS`
 - [ ] `checks.codeQuality: PASS`
 - [ ] `checks.completeness: PASS`
-- [ ] `checks.testCoverage` resolves to `PASS`, `FAIL`, or an evidence-based `NOT_APPLICABLE` per `/home/opencode/.config/opencode/instructions/qa-applicability.md`, and `testAnalyzerReport` is present with generator-dispatch evidence for dispatch tiers whenever the canonical tests triggers hold
-- [ ] `checks.documentation` resolves to `PASS`, `FAIL`, or an evidence-based `NOT_APPLICABLE` per that reference, and `docsAnalyzerReport` is present with generator-dispatch evidence for dispatch tiers whenever the canonical documentation triggers hold
+- [ ] `checks.testCoverage` resolves to `PASS`, `FAIL`, or an evidence-based `NOT_APPLICABLE` per `/home/opencode/.config/opencode/instructions/qa-applicability.md`, and `testAnalyzerReport` is present with generator-dispatch evidence only for a dispatch-tier result (`MINOR_DISPATCH` or `MAJOR_DISPATCH`) whenever the canonical tests triggers hold; a `PASS` or `MINOR_PASS` analyzer run with no generator, and a correct escalation with no generator, are not missing checks
+- [ ] `checks.documentation` resolves to `PASS`, `FAIL`, or an evidence-based `NOT_APPLICABLE` per that reference, and `docsAnalyzerReport` is present with generator-dispatch evidence only for a dispatch-tier result whenever the canonical documentation triggers hold; a `PASS` or `MINOR_PASS` analyzer run with no generator, and a correct escalation with no generator, are not missing checks
 
-If any mandatory check is missing (not failed — **missing**), or an applicability-conditional analyzer check is absent without an evidence-based `NOT_APPLICABLE`, the review is incomplete. Re-dispatch Exec-Manager with the reassertion message. Exec-Manager must then spawn QA-Reviewer and wait for a complete review before reporting DONE again.
+If any mandatory check is missing (not failed — **missing**), or an applicability-conditional analyzer check is absent without an evidence-based `NOT_APPLICABLE`, the review is incomplete. A dispatch-tier analyzer result without generator evidence is incomplete. A `PASS`/`MINOR_PASS` analyzer run with no generator, and a correct analyzer escalation with no generator, are not missing checks. Re-dispatch Exec-Manager with the reassertion message. Exec-Manager must then spawn QA-Reviewer and wait for a complete review before reporting DONE again.
 
 ## Spec-First Tests
 

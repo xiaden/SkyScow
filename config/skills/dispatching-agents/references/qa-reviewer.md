@@ -33,7 +33,7 @@ task:
 
 Full review in one pass. Run every applicable check per `/home/opencode/.config/opencode/instructions/qa-applicability.md`. Report all issues in one round.
 
-QA-TestAnalyzer and QA-DocsAnalyzer MUST spawn QA-TestGenerator and QA-DocsGenerator respectively for dispatch tiers — confirm generation evidence in your verdict.
+QA-TestAnalyzer and QA-DocsAnalyzer each run when their canonical applicability trigger fires. A `PASS` or `MINOR_PASS` result requires no generator; a `MINOR_DISPATCH` or `MAJOR_DISPATCH` result requires the analyzer to spawn its generator and have that output independently re-verified; an implementation or systemic escalation does not automatically run the generator. Confirm generation evidence in your verdict only for a dispatch-tier result. Tier-to-generator routing is owned by the "Analyzer and generator contract" section of `/home/opencode/.config/opencode/instructions/qa-applicability.md`.
 ```
 
 ## Required Fields

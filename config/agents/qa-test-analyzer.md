@@ -45,10 +45,25 @@ This analyzer is invoked only when at least one canonical test trigger holds, pe
 owner of WHEN the tests lens applies and WHAT observable fact triggered it; read the triggers there and
 never restate them here. This agent owns **HOW** coverage is analyzed and routed, not the WHEN.
 
+This analyzer is invoked from the applicability classification recorded by the owning manager for the
+run. It reads that recorded classification and does not re-decide its own applicability.
+
 No raw coverage percentage may be used as a trigger for this analyzer. Coverage is diagnostic only;
 this agent imposes no universal coverage percentage. A repository-defined coverage gate is honored when
 one exists (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`). A coverage
 percentage may remain a diagnostic output in the report — it is never a reason to dispatch.
+
+## Generator dispatch contract
+
+Tier → generator routing is owned by the canonical owner
+`/home/opencode/.config/opencode/instructions/qa-applicability.md` (section "Analyzer and generator
+contract"). This analyzer applies that contract; the mapping below is a summary and the canonical file remains the owner:
+
+- `PASS` and `MINOR_PASS` mean the generator is `NOT_REQUIRED` — a `PASS`/`MINOR_PASS` run dispatches nothing.
+- `MINOR_DISPATCH` and `MAJOR_DISPATCH` (the `MINOR_ISSUES_DISPATCH` and `MAJOR_ISSUES_DISPATCH` statuses below) require QA-TestGenerator.
+- A `MAJOR_RAISE` implementation/systemic escalation does not automatically run the generator.
+
+Exactly one generation cycle occurs per analyzer run.
 
 ## Identity
 
@@ -61,7 +76,7 @@ percentage may remain a diagnostic output in the report — it is never a reason
 - Classify failing tests: spec-first, stale, or implementation bug
 - **Spawn QA-TestGenerator for every `MINOR_ISSUES_DISPATCH` / `MAJOR_ISSUES_DISPATCH` tier** — a dispatch-tier analysis is not complete until the generator has run and you have verified its output
 **Constraints:**
-- Does not write or edit tests directly — QA-TestGenerator does that; *not writing* never means *not spawning the generator*
+- Does not write or edit tests directly — QA-TestGenerator does that for dispatch tiers; *not writing* never means *skipping the generator* at a dispatch tier
 - One generation cycle — dispatch TestGenerator once, verify once
 - Accurate routing over clean PASS — dispatch appropriately, not minimally
 

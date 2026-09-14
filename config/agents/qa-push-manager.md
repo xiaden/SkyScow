@@ -190,16 +190,32 @@ classification and dispatch accordingly.
 
 Boundary and journey remain independent lenses and MUST NOT be merged into correctness; correctness is
 never replaced by either. A lens whose canonical trigger does not hold is `NOT_APPLICABLE` with evidence
-per the canonical owner. Dispatch all required reviewers in **one parallel batch**.
+per the canonical owner. Dispatch all required reviewers in parallel: the first parallel batch carries
+the baseline reviewers and the first DomainRisk group, and any further DomainRisk groups dispatch as
+subsequent parallel batches in canonical order, still inside Gate 4.
 
-### 4.2 Domain-risk lens selection (0–3 lenses)
+### 4.2 Domain-risk lens selection and batching
 
 Select domain-risk lenses deterministically from the canonical observable technical surfaces in the
 domain-risk table owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`. Do not
-restate that table here; read the selection criteria and lens set from the canonical owner. Select only
-lenses whose canonical observable surface actually holds, and do not manufacture a lens merely to reach
-a count. **Zero domain-risk lenses is valid** when the candidate genuinely exposes no specialist domain
-beyond the baseline reviews; the **0–3** bound is preserved.
+restate that table here; read the selection criteria, lens set, canonical order, and batching rule from
+the canonical owner. Select only lenses whose canonical observable surface actually holds, and do not
+manufacture a lens merely to reach a count. **Zero matched lenses dispatch no DomainRisk reviewer** when
+the candidate genuinely exposes no specialist domain beyond the baseline reviews.
+
+The numeric bound is a **maximum of three concurrent DomainRisk reviewer invocations**, not a maximum of
+three valid lenses: every matched lens is dispatched, and no matched lens is dropped because of the cap.
+Batches are deterministic consecutive groups of at most three taken in the canonical order owned by the
+canonical applicability owner, until every matched lens has completed:
+
+- **Zero matched lenses** -> no DomainRisk reviewer invocations.
+- **One to three matched lenses** -> all matched lenses are dispatched together in one parallel batch.
+- **More than three matched lenses** -> every matched lens is dispatched in deterministic consecutive
+  batches of at most three, taken in canonical order, until every matched lens has completed.
+
+Scheduling order is not severity and confers no priority. **Security remains mandatory** and cannot be
+omitted because of the concurrency cap: a matched security surface is always dispatched. No lens is
+dispatched more than once.
 
 The **security** lens obeys the hard Phase 2.1 triggers in
 `/home/opencode/.config/opencode/skills/security-review/SKILL.md`. A matched security surface makes the
@@ -207,9 +223,12 @@ security lens **REQUIRED**; it cannot be made `NOT_APPLICABLE` by scanning, by a
 result, or by any other deferral. Read the canonical surface list from that skill; do not restate it
 here.
 
-Dispatch `qa-reviewer-domainrisk` **once per selected lens**, up to a maximum of **3 simultaneous**
-domain-risk invocations, each in the same parallel batch as the baseline reviewers when possible. Each
-invocation receives its own `assigned_lens` and is confined to that lens.
+Dispatch `qa-reviewer-domainrisk` **once per matched lens**, with at most **3 concurrent** domain-risk
+invocations per batch, in deterministic consecutive batches taken in canonical order until every matched
+lens has completed. Each invocation receives its own `assigned_lens`, is confined to that lens, and is
+dispatched at most once. The first DomainRisk group shares the parallel batch with the baseline
+reviewers when possible; any further groups dispatch as subsequent parallel batches, still inside
+Gate 4.
 
 For each QA run, record every selected lens with its observable trigger. Record lenses that were **not**
 selected only where needed to explain why an otherwise plausible lens does not apply.
@@ -225,7 +244,7 @@ Follow the `dispatching-agents` conventions. Every reviewer starts with no inher
 - `review_root` (absolute path of the isolated snapshot);
 - for each DomainRisk invocation, its `assigned_lens`.
 
-Dispatch all reviewers in parallel (a single `task` batch). Reviewers are read-only, work independently, never consume each other's findings, and must not modify the candidate. Do not run reviews sequentially, and do not omit a reviewer because another appears sufficient. Do not silently fall back to performing any specialist review yourself when a dispatch fails — a dispatch failure is an infrastructure failure, not a cue to self-review.
+Dispatch reviewers in parallel batches: reviewers inside any batch run in parallel, while the deterministic DomainRisk batch groups run as sequential groups inside Gate 4. Reviewers are read-only, work independently, never consume each other's findings across or within batches, and must not modify the candidate; no reviewer invocation depends on another reviewer's completion. These are sequential groups of independent reviews, not sequential dependent reviews: never order reviews so that one consumes or waits on another's output, and never omit a reviewer because another appears sufficient. Do not silently fall back to performing any specialist review yourself when a dispatch fails — a dispatch failure is an infrastructure failure, not a cue to self-review.
 
 Every reviewer returns exactly one raw JSON value: `{}` for a clean review, or an object mapping stable issue IDs to shared issue records (schema below). Collect every report before proceeding.
 
@@ -243,11 +262,15 @@ On any such failure, STOP with status `REVIEW_INFRASTRUCTURE_FAILURE`:
 
 - abort publication;
 - do not continue to triage or push;
-- do not interpret partial success (for example "3 of 4 passed") as sufficient;
-- when multiple DomainRisk lenses were selected, every selected lens must complete successfully;
+- do not interpret partial success (for example "3 of 4 passed") as sufficient; every required
+  invocation in every DomainRisk batch must complete a conforming report before triage or push;
+- when multiple DomainRisk lenses were matched, every matched lens in every batch must complete
+  successfully;
 - represent the infrastructure failure separately from any code finding (populate `infrastructure_failures`); do not fabricate a product defect to explain it.
 
-Only when every dispatched reviewer returned a conforming report do you proceed to triage.
+Additional DomainRisk batches remain inside Gate 4; they are never deferred outside the gate or run
+after triage or push. Only when every required reviewer invocation in every batch returned a conforming
+report do you proceed to triage.
 
 ## Review Triage
 

@@ -40,6 +40,8 @@ The manager may assign a different explicit technical domain; the same confineme
 
 Whether this lens is dispatched — and the observable repository/task fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`, while this reviewer owns **HOW** the assigned-lens review is performed and never restates the trigger.
 
+One invocation carries exactly one `assigned_lens`. The owning manager applies the concurrency cap and the canonical lens order and decides batching; this reviewer never decides batching, never requests or selects its own lens, and never learns of other lens selections. The cap bounds concurrent manager invocations, not the number of valid lenses.
+
 ## Required Input
 
 You receive one immutable review context that always identifies:

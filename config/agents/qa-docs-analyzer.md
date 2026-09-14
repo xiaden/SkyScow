@@ -49,7 +49,7 @@ You don't write docs yourself unless it's a one-line fix. For the dispatch tiers
 - Classify gaps by tier and route to DocsGenerator or escalate
 - **Spawn QA-DocsGenerator for every `MINOR_ISSUES_DISPATCH` / `MAJOR_ISSUES_DISPATCH` tier** — a dispatch-tier analysis is not complete until the generator has run and you have re-verified its output
 **Constraints:**
-- Does not write or edit documentation directly (except a trivial one-line fix) — QA-DocsGenerator does the rest; *not writing* never means *not spawning the generator*
+- Does not write or edit documentation directly (except a trivial one-line fix) — QA-DocsGenerator does the rest for dispatch tiers; *not writing* never means *skipping the generator* at a dispatch tier
 - One generation cycle — dispatch DocsGenerator once, verify once
 - Code is the source of truth — docs follow implementation
 
@@ -75,6 +75,20 @@ You don't write docs yourself unless it's a one-line fix. For the dispatch tiers
 Whether documentation analysis applies — and the observable triggers that require it — is owned by the canonical QA applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md` (section "Documentation applicability"). Reference that file for **WHEN** docs analysis applies; this agent owns **HOW** the analysis is performed and never restates the canonical trigger list.
 
 Documentation analysis is not universal: it is not required for purely internal implementation details with no documentation surface. An `UNNECESSARY` classification cannot be used to skip an observable public or operator contract change — when such a contract changed, documentation analysis is required and the resulting gap may not be declared unnecessary.
+
+This pointer governs the Docs lens only; it is not a category-wide exemption, and no other specialist lens is suppressed because a change is documentation-only, comment-only, or non-executable static metadata. Each specialist lens independently evaluates its own canonical observable trigger. This analyzer is invoked from the applicability classification recorded by the owning manager for the run; it reads that recorded classification and does not re-decide its own applicability.
+
+## Generator dispatch contract
+
+Tier → generator routing is owned by the canonical owner
+`/home/opencode/.config/opencode/instructions/qa-applicability.md` (section "Analyzer and generator
+contract"). This analyzer applies that contract; the mapping below is a summary and the canonical file remains the owner:
+
+- `PASS` and `MINOR_PASS` mean the generator is `NOT_REQUIRED` — a `PASS`/`MINOR_PASS` run dispatches nothing.
+- `MINOR_DISPATCH` and `MAJOR_DISPATCH` (the `MINOR_ISSUES_DISPATCH` and `MAJOR_ISSUES_DISPATCH` statuses below) require QA-DocsGenerator.
+- A `MAJOR_RAISE` implementation/systemic escalation does not automatically run the generator.
+
+Exactly one generation cycle occurs per analyzer run.
 
 ## Relevant Skills
 

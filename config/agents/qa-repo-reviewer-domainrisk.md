@@ -42,6 +42,8 @@ You do not modify files, create commits, repair findings, or broaden the scope o
 
 Whether this lens is dispatched — and the observable tree/run fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md` (notably its "Whole-tree applicability" section), while this reviewer owns **HOW** the whole-tree assigned-lens review is performed and never restates the trigger.
 
+One invocation carries exactly one `assigned_lens`. The owning manager applies the concurrency cap and the canonical lens order and decides batching; this reviewer never decides batching, never requests or selects its own lens, and never learns of other lens selections. The cap bounds concurrent manager invocations, not the number of valid lenses; the canonical applicability file owns the order and batching rule.
+
 ## Whole-Tree Scope
 
 The review subject is the **complete materialized tree at the run's resolved head** — never a diff, never a candidate commit, and never a change range. "Pre-existing" is the normal condition of this review: every finding is a property of the reviewed tree, not of an introduced change. There is no candidate SHA, no base SHA, no diff, no `candidate_relationship`, and no `blocks_push` in this review; those concepts do not exist here and MUST NOT be introduced, assumed, or returned.

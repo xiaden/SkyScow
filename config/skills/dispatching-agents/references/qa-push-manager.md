@@ -54,10 +54,13 @@ deterministic gate and review against that snapshot — never against a mutable
 developer workspace. Stop at the first deterministic failure. Only after Gates
 1–3 pass, dispatch the read-only reviewers selected per
 `/home/opencode/.config/opencode/instructions/qa-applicability.md` in parallel:
-correctness always, plus boundary, journey, and 0–3 domain-risk lenses as their
-observable triggers hold. Every reviewer receives the same immutable candidate
-context and the isolated snapshot path; each DomainRisk invocation receives its
-own `assigned_lens`.
+correctness always, plus boundary, journey, and every domain-risk lens matched
+per the canonical owner's selection, concurrency-cap, canonical-order, and
+batching rule (zero matched lenses dispatch none; one to three dispatch in one
+parallel batch; more than three dispatch in consecutive batches of at most three
+in canonical order until every matched lens completes). Every reviewer receives
+the same immutable candidate context and the isolated snapshot path; each
+DomainRisk invocation receives its own `assigned_lens`.
 
 Fail closed: if any required reviewer invocation times out, crashes, fails to
 spawn, returns no result, returns malformed output, or violates its schema,
@@ -100,7 +103,7 @@ The report must preserve the manager's candidate, validation, reviews, repair-ro
 
 ## Worker Coordination
 
-QA-PushManager is responsible for creating and removing the isolated validation snapshot and for spawning all reviewers. The reviewers selected per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (correctness always; boundary, journey, and 0–3 DomainRisk lens invocations when their observable triggers hold) must run in one parallel batch only after deterministic validation is green. Reviewers are read-only and return the shared issue-report object defined in their individual references (`{}` for a clean review). The manager independently verifies every potentially blocking finding.
+QA-PushManager is responsible for creating and removing the isolated validation snapshot and for spawning all reviewers. The reviewers selected per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (correctness always; boundary, journey, and each matched DomainRisk lens, dispatched in the canonical order and batching rule owned there — zero matched lenses dispatch none, one to three dispatch in one parallel batch, more than three in consecutive batches of at most three until every matched lens completes) must run in parallel batches only after deterministic validation is green. Reviewers are read-only and return the shared issue-report object defined in their individual references (`{}` for a clean review). The manager independently verifies every potentially blocking finding.
 
 ## Validation Checklist
 
@@ -109,7 +112,7 @@ QA-PushManager is responsible for creating and removing the isolated validation 
 - [ ] Repository-specific commands are discovered rather than assumed
 - [ ] Deterministic gates stop on first failure
 - [ ] Reviewers selected per the canonical applicability reference dispatched in parallel after Gates 1–3 pass
-- [ ] DomainRisk dispatched once per selected lens (0–3 lenses), each confined to its `assigned_lens`
+- [ ] DomainRisk dispatched once per matched lens, in canonical order with at most three concurrent invocations per batch, each confined to its `assigned_lens`
 - [ ] Reviewer infrastructure failure fails closed with REVIEW INFRASTRUCTURE FAILURE
 - [ ] Blocking findings are independently verified; rejection gates on verified `blocks_push: true` only
 - [ ] Final integrity check confirms the reviewed SHA is unchanged in the isolated snapshot

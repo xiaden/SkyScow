@@ -2,14 +2,14 @@
 
 Dispatch the read-only domain-risk reviewer as part of QA-PushManager's adversarial review batch. Dispatch it **once per selected lens**; do not bundle lenses into a single invocation.
 
-WHEN a domain-risk lens applies and the observable repository/task fact that triggers it are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`, which also owns the candidate lens set and the 0–3 bound. This reference owns only HOW the assigned lens is reviewed.
+WHEN a domain-risk lens applies and the observable repository/task fact that triggers it are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`, which also owns the candidate lens set, the canonical lens order, and the concurrency/batching rule. This reference owns only HOW the assigned lens is reviewed.
 
 ## When to Dispatch
 
 **Dispatch when:**
 - QA-PushManager has completed deterministic validation for a candidate
-- The candidate's observable changed surface triggers one or more domain-risk lenses per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (0–3 lenses per change)
-- Each selected lens justifies its own domain-risk invocation; up to 3 simultaneous invocations
+- The candidate's observable changed surface triggers one or more domain-risk lenses per `/home/opencode/.config/opencode/instructions/qa-applicability.md`; every matched lens is dispatched and none is dropped because of the cap
+- Each matched lens gets its own domain-risk invocation; the owning manager applies the canonical lens order and batching rule (at most three concurrent invocations per batch, with any further batches taken in canonical order until every matched lens completes)
 
 **Do NOT dispatch when:**
 - Deterministic validation has failed

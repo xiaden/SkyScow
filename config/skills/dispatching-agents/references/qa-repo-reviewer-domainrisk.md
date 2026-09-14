@@ -1,8 +1,8 @@
 # QA-Repo-Reviewer-DomainRisk
 
-Dispatch qa-repo-reviewer-domainrisk once per selected technical risk lens, as
-one of the read-only whole-tree reviewers in QA-RepoReviewManager's single
-parallel review batch.
+Dispatch qa-repo-reviewer-domainrisk once per matched technical risk lens, as
+one of the read-only whole-tree reviewers in QA-RepoReviewManager's canonical
+batched parallel groups.
 
 WHEN a whole-tree domain-risk lens applies and the observable tree fact that
 triggers it are owned by
@@ -15,8 +15,9 @@ lens is reviewed.
 **Dispatch when:**
 - QA-RepoReviewManager has verified an immutable detached snapshot of the
   complete current-head tree and has selected the domain-risk lens(es) whose
-  observable triggers hold per the canonical applicability reference (0–3; zero
-  domain-risk lenses is valid).
+  observable triggers hold per the canonical applicability reference (every
+  matched lens is dispatched; the canonical owner owns the concurrency cap,
+  canonical lens order, and batching rule, and zero matched lenses dispatch none).
 - You need independent specialist review of the complete tree through exactly
   one explicitly assigned technical lens.
 
@@ -25,7 +26,10 @@ lens is reviewed.
 - The lens is not selected for the reviewed tree per the canonical applicability reference.
 - You need general correctness/boundary/journey review — correctness is the permanent lens; dispatch `qa-repo-reviewer-boundary`/`qa-repo-reviewer-journey` only when the canonical applicability reference records their triggers.
 - You would give one invocation multiple lenses, dispatch a lens more than once,
-  dispatch sequentially, or feed it another reviewer's output.
+  create a dependency between lens invocations, order one lens to consume or wait
+  on another's result, or feed it another reviewer's output. The manager's
+  required sequential batch groups are expected and permitted; what is forbidden
+  is dependency, ordering, and cross-feeding between individual reviewers.
 
 ## Dispatch Template
 
