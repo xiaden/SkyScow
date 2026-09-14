@@ -87,6 +87,29 @@ For anti-pattern code examples, see [`references/anti-patterns.md`](file:///home
 
 ---
 
+## External-Boundary Exception
+
+The no-shim rule has exactly one exception: an **externally owned boundary** — a surface this repository does not control and cannot migrate in the same change. This section is the canonical owner of that exception; `config/instructions/compatability.md` applies it at the compatibility instruction layer.
+
+An externally owned boundary is one of these observable boundary classes:
+
+| Boundary class | Observable fact that identifies it |
+| --- | --- |
+| Persisted data format | Data written by a released version remains on disk or in a datastore after the change |
+| Public API or contract | A published interface (HTTP/RPC endpoint, exported public symbol, config file format) is consumed by callers outside this repository |
+| Externally consumed artifact | A published build output, package, or file format is fetched or installed by external consumers |
+
+A compatibility path may exist only at such a boundary, and only when **all** of the following hold:
+
+1. The boundary is explicitly identified and named in the change.
+2. The compatibility path is marked, in code and in the change description, as temporary migration infrastructure.
+3. A removal condition is defined — the observable event (for example, a deprecation window closing or all external consumers migrated) after which the path is deleted.
+4. The exception applies only at the named boundary; every internal surface still migrates all active callers and deletes the superseded implementation in the same change.
+
+Remove the path when its removal condition is met. Do not renew or extend it without a new, observable boundary justification.
+
+---
+
 ## Decision Framework
 
 When you find duplicate responsibilities:

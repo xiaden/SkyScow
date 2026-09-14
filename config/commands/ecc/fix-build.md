@@ -15,7 +15,7 @@ skill(name="build-fix")
 
 ## Your Task
 
-1. **Run type check**: `npx tsc --noEmit`
+1. **Discover the build command**: read the repository's declared scripts/config and run its build/type-check command; the build-fix skill's dispatch table maps language to command, and repository-defined scripts outrank generic fallbacks (`npm`/`npx`)
 2. **Collect all errors**
 3. **Fix errors one by one** with minimal changes
 4. **Verify each fix** doesn't introduce new errors
@@ -29,7 +29,7 @@ skill(name="build-fix")
 - PASS: Fix syntax errors
 - PASS: Make minimal changes
 - PASS: Preserve existing behavior
-- PASS: Run `tsc --noEmit` after each change
+- PASS: Re-run the repository's build/type-check command after each change
 
 ### DON'T:
 - FAIL: Refactor code
@@ -51,10 +51,10 @@ skill(name="build-fix")
 
 ## Verification Steps
 
-After fixes:
-1. `npx tsc --noEmit` - should show 0 errors
-2. `npm run build` - should succeed
-3. `npm test` - tests should still pass
+After fixes, run the repository-defined checks for the changed surface (do not assume `npm`/`npx` commands):
+1. The repository's build/type-check command - should show 0 errors
+2. The repository's build or release command - should succeed
+3. The repository's test command, when one exists - tests should still pass; if none exists, report that fact instead of assuming `npm test`
 
 ---
 

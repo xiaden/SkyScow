@@ -19,6 +19,12 @@ Run the quality pipeline on demand for a file or project scope.
 
 Run each step and collect results. If a step fails, continue to the next step but mark the gate as failed.
 
+Commands are discovered from the repository, not assumed. Before running a step, read the
+repository's own tooling configuration (`package.json` scripts, `Makefile`, `pyproject.toml`,
+`Cargo.toml`, CI workflows, and any declared lint/test/build entries) and prefer those
+repository-defined commands. The tables below are per-language fallbacks to use only when the
+repository defines no such command; do not assume a generic runner such as `npx` or `npm` applies.
+
 ### Step 1: Detect Tooling
 
 Identify the language and available tooling for the target:
@@ -91,12 +97,14 @@ Remediation:
 
 ## Verification Checklist
 
-When running the full gate, also check:
+When running the full gate, also check the changed surface. Skip these when the change is
+documentation/policy-only or otherwise has no executable source:
 
-- [ ] No `console.log` statements (unless intentional logging)
-- [ ] No hardcoded secrets or API keys
-- [ ] Bundle/build output size is reasonable
-- [ ] No leftover debug code or `TODO` comments without tickets
+- [ ] No debug output (`console.log` unless intentional logging) in changed source files
+- [ ] No hardcoded secrets or API keys in changed files (checklist owned by
+      `config/skills/security-review/SKILL.md`)
+- [ ] Bundle/build output size is reasonable when the change affects build output
+- [ ] No leftover debug code or `TODO` comments without tickets in changed files
 
 ## Arguments
 

@@ -27,7 +27,7 @@ Reorder so routing/delegation comes first. Frame the agent as a router.
 ## Responsibilities
 1. Execute implementation tasks following project conventions
 2. Delegate specialized work to subagents (R&D, QA, execution management)
-3. Own all lint errors regardless of when they were introduced
+3. Own lint errors in files you edited, classified by baseline/causality
 ```
 
 ### After (router-first)
@@ -40,8 +40,8 @@ This agent's first decision is always delegation: does a specialist exist for th
    If a specialist matches → delegate. If no match → proceed to execution.
 2. **Execute only what falls within scope.** Direct implementation only when no specialist exists
    or when the task is trivial (single-file, single-concern).
-3. **Own errors within scope.** Fix lint errors, test failures, and diagnostics in files this agent
-   touched — regardless of when they were introduced.
+3. **Own errors within scope.** Classify and resolve lint errors, test failures, and diagnostics in
+   files this agent touched per the baseline/causality rules in `validation-mandate.md`.
 ```
 
 ---
@@ -232,15 +232,17 @@ with the available subagent type list.
 ### Anti-Pattern: Unqualified Mandates
 ```markdown
 # ❌ No condition — applies even when it shouldn't
-Treat all lint errors as yours to fix, regardless of when they were introduced.
+Treat all lint errors in the repository as yours to fix.
 ```
 When an exec-planner creates a plan file and lint reports pre-existing errors in untouched
 code, this instruction forces the planner to fix them — violating its read-only scope.
 
-**Fix:** Add a scope condition.
+**Fix:** Scope the mandate and classify failures by baseline/causality.
 ```markdown
-# ✅ Scoped to the agent's own domain
-Treat lint errors as yours to fix when they appear in files you edited.
+# ✅ Scoped to the agent's own domain, classified by baseline/causality
+Treat lint errors, test failures, and diagnostics in files you edited as yours to classify and
+resolve per the baseline/causality rules in `validation-mandate.md`
+(`INTRODUCED` / `BLOCKING_BASELINE` / `UNRELATED_BASELINE` / `UNKNOWN_CAUSALITY`).
 For errors in untouched files, log an observation and route to the appropriate agent.
 ```
 

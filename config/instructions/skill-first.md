@@ -1,12 +1,17 @@
 # Skill-First Operating Procedure
 
-Before starting any non-trivial task:
+Before starting any non-trivial task, load a skill when at least one of these observable conditions holds:
 
-1. **Skills first** — Check the `<available_skills>` block. Load skills relevant to the task with the `skill` tool. Do not assume you already know the procedures.
-2. **References second** — After loading a skill, inspect its root instructions for task-relevant references. Open those references explicitly before acting; the skill summary and the `<skill_files>` listing are not the reference contents.
-3. **Task third** — Only begin the work once the applicable skill instructions and task-relevant reference material have been loaded.
+1. **The skill owns a required rule** — the task must satisfy a rule whose canonical owner is that skill.
+2. **The task enters the skill's domain** — the work touches the surfaces, tools, or file classes the skill's description covers.
+3. **The repository or workflow requires it** — a repository policy, layer instruction, or plan step mandates the skill.
+4. **You need its information to act correctly** — proceeding without it would rely on guessed or remembered procedure, not the task's actual requirements.
 
-This applies to every agent. Skipping a skill load is not neutral — it means operating without the procedural knowledge that was built to prevent exactly the mistake you're about to make.
+This is progressive disclosure, not preloading. Do not load a skill or reference merely because its keywords overlap with the task. Once a skill is loaded, open only the references the current work needs, explicitly and at the point of need; the skill summary and the `<skill_files>` listing are not the reference contents. Begin the work once the applicable skill instructions and the task-relevant reference material for the current step are loaded.
+
+If a skill or reference is required by one of the conditions above but is unavailable, report it as a required-but-unavailable input rather than improvising around it.
+
+This applies to every agent. A skill load is how you obtain the procedural knowledge the task requires; skip it only when none of the observable conditions above holds.
 
 ## Git/GitHub hard precondition
 

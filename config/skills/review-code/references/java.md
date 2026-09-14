@@ -5,24 +5,13 @@
 
 ## Verification Commands
 
-First, determine the build tool by checking for `pom.xml` (Maven) or `build.gradle`/`build.gradle.kts` (Gradle).
+Run the repository's own commands for the changed surface; do not default to a toolchain the repository does not have. Select the evidence from the surface-to-evidence table in `config/instructions/validation-mandate.md`:
+- Run the repository's own type-check / compile command, when defined
+- Run the repository's own lint command, when defined
+- Run the repository's own formatter check, when defined
+- Run the repository's own test command for the changed surface, when defined
 
-### Maven
-```bash
-./mvnw compile -q 2>&1 || mvn compile -q 2>&1
-./mvnw verify -q 2>&1 || mvn verify -q 2>&1
-./mvnw checkstyle:check 2>&1 || echo "checkstyle not configured"
-./mvnw spotbugs:check 2>&1 || echo "spotbugs not configured"
-./mvnw dependency-check:check 2>&1 || echo "dependency-check not configured"
-./mvnw test 2>&1
-```
-
-### Gradle
-```bash
-./gradlew compileJava 2>&1
-./gradlew check 2>&1
-./gradlew test 2>&1
-```
+Omit any check the repository does not define and report it as unavailable rather than inventing a command. Report gate evidence using the labels in `config/skills/ci-lint-test-gates/SKILL.md`.
 
 ### Quick-Scan (Both)
 ```bash
@@ -33,6 +22,8 @@ grep -rn "\.get()" src/main/java --include="*.java"   # Optional.get() without i
 ```
 
 ## [CRITICAL] Security
+
+Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `config/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
 
 - **SQL injection**: String concatenation in `@Query` or `JdbcTemplate` — use bind parameters (`:param` or `?`)
 - **Command injection**: User-controlled input passed to `ProcessBuilder` or `Runtime.exec()` — validate and sanitise before invocation
@@ -133,13 +124,16 @@ Verdict: BLOCK — HIGH issues must be fixed before merge.
 - **Warning**: MEDIUM issues only
 - **Block**: CRITICAL or HIGH issues found
 
-## ECC Tools
+## Repository Commands
 
-Prefer ECC tooling for automated checks before manual review:
-- `lint-check` — detects linter (checkstyle, spotbugs) and returns command
-- `security-audit` — scans for secrets and dependency vulnerabilities
-- `run-tests` — detects build tool and runs test suite
-- `dependency-analyzer` — lists outdated/vulnerable dependencies
+Discover and run the repository's own commands before manual review — do not assume ECC or any specific toolchain is present:
+- Lint — run the repository's own lint command for the changed files, when defined
+- Format — run the repository's own formatter command for the changed files, when defined
+- Tests — run the repository's own test command for the changed surface, when defined
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+
+Omit and report any command the repository does not define.
 
 For detailed patterns and examples:
 - **Spring Boot**: See `skill: springboot-patterns`

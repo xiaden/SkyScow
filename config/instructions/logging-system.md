@@ -1,6 +1,6 @@
 # Logging System: How It Works
 
-**The logging system is your memory across sessions.** Every discovery, dead-end, decision, and observation you write persists. Every log you skip is context a future agent (including you) will lack. Silence is the most expensive form of technical debt — it forces repeated exploration, repeated mistakes, and repeated research.
+**The logging system is your memory across sessions for durable knowledge that is not recoverable from the artifacts themselves.** Log architectural/design decisions, blockers, important uncertainty, deviations from an accepted plan/DD, non-obvious discoveries, proven dead ends, important external evidence, and unresolved risks. Do not log routine progress, obvious observations, successful ordinary commands, trivially rediscoverable facts, or ceremonial entries.
 
 ---
 
@@ -27,17 +27,22 @@ Before starting any non-trivial work, check what's already known:
 
 ---
 
-## When You Must Write Logs
+## When You Must Write Logs (Durable Entries Only)
 
-Every time you encounter something worth remembering:
+Write a log entry only when it records durable knowledge that a future agent cannot cheaply recover from the current code, the plan/DD, or current external evidence. Each trigger below is an observable fact — an artifact exists, a decision was made, a plan/DD deviation occurred — never a judgment call about whether something "feels" worth remembering.
 
-| You encounter... | Log it as... | Example |
-|-----------------|-------------|---------|
-| A fragile pattern, inconsistency, or gotcha | `discovery` | "Config loading in X bypasses ConfigService" |
-| An approach that failed | `dead-end` | "Tried rename on re-export — doesn't follow re-exports" |
-| A choice between approaches | `decision` | "Used component-level caching over service-level" |
-| Something you're unsure about | `observation` (tag: `uncertainty`) | "Unclear if migration needs down path — proceeding without" |
-| Context uncovered during research | `research` | "Library scan depends on filesystem watcher, not polling" |
+| Observable fact | Category | Example |
+|-----------------|----------|---------|
+| An architectural or design decision was made | `decision` | "Used component-level caching over service-level" |
+| Work is blocked | `blocker` | "Upstream contract missing — cannot proceed" |
+| Important uncertainty remains unresolved | `observation` (tag: `uncertainty`) | "Unclear if migration needs down path — proceeding without" |
+| Work deviated from an accepted plan or DD | `observation` (tag: `plan-deviation`) | "Skipped step 4; contract already satisfied" |
+| A non-obvious codebase fact was discovered | `discovery` | "Config loading in X bypasses ConfigService" |
+| An approach was proven to fail | `dead-end` | "Tried rename on re-export — doesn't follow re-exports" |
+| Important external evidence was found | `research` | "Library scan depends on filesystem watcher, not polling" |
+| A risk is left unresolved | `observation` (tag: `risk`) | "No regression test exists for the retry path" |
+
+**Do not log** routine progress, obvious observations, successful ordinary commands, facts trivially rediscoverable from the current code/plan/artifacts, or ceremonial status entries. Noise dilutes the durable record and costs future agents more than it saves.
 
 **The syntax is minimal:**
 
@@ -45,23 +50,27 @@ Every time you encounter something worth remembering:
 log_write(agent="agent", category="discovery", message="What you found", tags=["module-name"])
 ```
 
-**Tags are not optional.** Every log needs at least one tag (module name, plan title, or topic) so future agents can find it. Untagged logs are unfindable logs — they might as well not exist.
+**Tags are not optional for durable entries.** Every log needs at least one tag (module name, plan title, or topic) so future agents can find it. Untagged logs are unfindable logs — they might as well not exist.
 
 ---
 
-## What Happens When You Don't Log
+## Durable Logs Are Not Authority
+
+Logs are durable memory, not a source of truth over what you can observe now. A stale log must never override current evidence. **Current code, explicit requirements, accepted ADR/DD, tests, and current external evidence all outrank a stale log entry.** Verify against the current artifact before treating a logged claim as correct; if a log contradicts current evidence, trust the evidence and record the drift.
+
+---
+
+## What Happens When Durable Knowledge Is Not Logged
 
 - The next agent re-discovers the same gotcha from scratch
 - The same dead-end approach gets tried again
 - The same architectural tradeoff gets debated without knowing the prior decision
-- Each session starts from zero, burning tokens and time on solved problems
+- A plan/DD deviation or unresolved risk is silently lost
 
-**Not logging is not neutral. It's actively harming every session that follows.**
+**Failing to log a durable entry is not neutral: it forces every following session to recover knowledge that was already known.** This applies to durable entries, not to routine progress.
 
 ---
 
 ## For Full Procedures
 
-This file covers the behavioral rule — when and why to log. For detailed procedures (ADR workflow, cross-agent log access rules, plan-tag requirements, log archiving), load the `artifact-logging` skill.
-
-But do not wait to load the skill before logging. The rule is: **encounter → log.** If you know the category and you have a message, write it now. Load the skill later if you need the advanced features.
+This file covers the behavioral rule — when and why to log. For detailed procedures (ADR workflow, cross-agent log access rules, plan-tag requirements, log archiving), load the `artifact-logging` skill at the point where you need those procedures.

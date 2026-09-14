@@ -5,17 +5,13 @@
 
 ## Verification Commands
 
-```bash
-# Static analysis
-clang-tidy --checks='*,-llvmlibc-*' src/*.cpp -- -std=c++17
-cppcheck --enable=all --suppress=missingIncludeSystem src/
+Run the repository's own commands for the changed surface; do not default to a toolchain the repository does not have. Select the evidence from the surface-to-evidence table in `config/instructions/validation-mandate.md`:
+- Run the repository's own type-check / static-analysis command, when defined
+- Run the repository's own lint command, when defined
+- Run the repository's own formatter check, when defined
+- Run the repository's own test command for the changed surface, when defined
 
-# Build
-cmake --build build 2>&1 | head -50
-
-# Sanitizers (if available)
-cmake -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined" build && cmake --build build
-```
+Omit any check the repository does not define and report it as unavailable rather than inventing a command. Report gate evidence using the labels in `config/skills/ci-lint-test-gates/SKILL.md`.
 
 ### Quick-Scan
 ```bash
@@ -36,6 +32,8 @@ grep -rn "reinterpret_cast" src/ --include="*.cpp" --include="*.hpp"  # Unsafe c
 - **Null dereference**: Pointer access without null check
 
 ## [CRITICAL] Security
+
+Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `config/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
 
 - **Command injection**: Unvalidated input in `system()` or `popen()`
 - **Format string attacks**: User input in `printf` format string
@@ -119,11 +117,15 @@ Verdict: BLOCK — HIGH issues must be fixed before merge.
 - **Warning**: MEDIUM issues only
 - **Block**: CRITICAL or HIGH issues found
 
-## ECC Tools
+## Repository Commands
 
-Prefer ECC tooling for automated checks before manual review:
-- `lint-check` — detects linter (clang-tidy) and returns command
-- `security-audit` — scans for secrets and code security anti-patterns
-- `format-code` — detects formatter (clang-format) and returns command
+Discover and run the repository's own commands before manual review — do not assume ECC or any specific toolchain is present:
+- Lint — run the repository's own lint command for the changed files, when defined
+- Format — run the repository's own formatter command for the changed files, when defined
+- Tests — run the repository's own test command for the changed surface, when defined
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+
+Omit and report any command the repository does not define.
 
 For detailed C++ coding standards and anti-patterns, see `skill: cpp-coding-standards`.

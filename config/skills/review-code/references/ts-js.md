@@ -4,12 +4,27 @@
 **Scope:** All `.ts`, `.tsx`, `.js`, `.jsx` files including library modules, application code, and tests.
 
 ## Verification Commands
-- `tsc --noEmit` — type safety check
-- `eslint .` — linting
-- `prettier --check .` — formatting check
-- `npm test` / `bun test` — all tests pass
+
+Run the repository's own commands for the changed surface; do not default to a toolchain the repository does not have. Select the evidence from the surface-to-evidence table in `config/instructions/validation-mandate.md`:
+- Run the repository's own type-check command, when defined
+- Run the repository's own lint command, when defined
+- Run the repository's own formatter check, when defined
+- Run the repository's own test command for the changed surface, when defined
+
+Omit any check the repository does not define and report it as unavailable rather than inventing a command.
 
 ## [CRITICAL] Security
+
+Apply these checks when the changed surface is observably security-sensitive — authentication or
+authorization, payments, secrets or credentials, user/external input handling, persisted or
+transmitted sensitive data, external systems, deployment or security configuration, or
+agent/MCP/plugin/permission surfaces. Those surfaces are owned by
+`config/skills/security-review/SKILL.md`, which carries the full OWASP/AgentShield methodology.
+
+For non-security changes, preserve existing security invariants under ordinary correctness review
+without running the full generic checklist. This does not weaken the severity or verdict rules: any
+CRITICAL or HIGH issue found, by any path, still blocks merge.
+
 - **Hardcoded credentials**: API keys, passwords, tokens in source code
 - **SQL injection risks**: String concatenation in queries
 - **XSS vulnerabilities**: Unescaped user input rendered in DOM
@@ -45,7 +60,7 @@
 - **Accessibility issues**: Missing ARIA labels, poor contrast
 - **Poor variable naming**: `x`, `tmp`, `data` — use descriptive names
 - **Magic numbers without explanation**: Use named constants
-- **Inconsistent formatting**: Run prettier
+- **Inconsistent formatting**: Run the repository's own formatter when one is defined; omit and report a repository that defines none
 
 ## Anti-Patterns
 
@@ -83,10 +98,12 @@ Add project-specific checks here. Examples:
 - Validate cache fallback behavior
 
 ## Post-Review Actions
-- Run `prettier --write` on modified files after reviewing
-- Run `tsc --noEmit` to verify type safety
+- Run the repository's own formatter command on modified files after reviewing, when defined
+- Run the repository's own type-check command to verify type safety, when defined
 - Check for console.log statements and remove them
-- Run tests to verify changes don't break functionality
+- Run the repository's own test command for the changed surface, when defined
+
+Omit and report any command the repository does not define.
 
 ## Approval Criteria
 - **Approve**: No CRITICAL or HIGH issues
@@ -118,11 +135,14 @@ End every review with:
 Verdict: BLOCK — HIGH issues must be fixed before merge.
 ```
 
-## ECC Tools
+## Repository Commands
 
-Prefer ECC tooling for automated checks before manual review:
-- `lint-check` — detects Biome/ESLint and returns command
-- `format-code` — detects Biome/Prettier and returns command
-- `security-audit` — scans for secrets, XSS vectors, and dependency vulnerabilities
-- `run-tests` — detects Jest/Vitest and runs test suite
-- `check-coverage` — verifies coverage meets the 80% threshold
+Discover and run the repository's own commands before manual review — do not assume ECC or any
+specific toolchain is present:
+- Lint — run the repository's own lint command for the changed files, when defined
+- Format — run the repository's own formatter command for the changed files, when defined
+- Tests — run the repository's own test command for the changed surface, when defined
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+
+Omit and report any command the repository does not define.

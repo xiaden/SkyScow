@@ -35,6 +35,19 @@ This skill uses the **decision tree** pattern: SKILL.md is a dispatch index load
 - Refactoring code structure (use refactoring patterns, not review checklists)
 - Reviewing configuration files, documentation, or non-code assets (this skill is for source code only)
 
+## Security Review Applicability
+
+Apply the CRITICAL security checks when the changed surface is observably security-sensitive —
+authentication or authorization, payments, secrets or credentials, user/external input handling,
+persisted or transmitted sensitive data, external systems, deployment or security configuration, or
+agent/MCP/plugin/permission surfaces. Those surfaces are owned by
+`config/skills/security-review/SKILL.md`, which carries the full OWASP/AgentShield methodology.
+
+For non-security changes (documentation, formatting, pure logic with no trust boundary), preserve the
+existing security invariants under ordinary correctness review without running the full generic
+OWASP/AgentShield checklist. This does not weaken the severity or verdict rules below: any CRITICAL
+or HIGH issue found, by any path, still blocks merge.
+
 ## Language Dispatch Table
 
 | File Extensions | Reference File | Review Dimensions |
@@ -56,10 +69,10 @@ Each reference file is self-contained: verification commands, severity-tagged ch
 
 1. **Identify file extensions** in the diff or review target
 2. **Load only the matching reference(s)** from the dispatch table above — one reference per language family in the diff
-3. **Run diagnostic tooling** — use the reference's verification commands first. For linting, type-checking, and formatting, use `aft_inspect` and language-specific tools directly (e.g., `npx tsc --noEmit`, `cargo check`, `mypy`). The `changed-files` tool identifies files in scope.
-4. **Work through checklists by severity** — CRITICAL security items first, then HIGH code quality, then MEDIUM performance/best practices, then LOW style issues
+3. **Run diagnostic tooling** — discover and run the repository's own lint, type-check, format, and test commands for the changed surface (selected per `config/instructions/validation-mandate.md`), using `aft_inspect` for diagnostics. Omit and report any command the repository does not define. The `changed-files` tool identifies files in scope.
+4. **Work through checklists by severity** — apply the CRITICAL security checks when the changed surface is observably security-sensitive (see Security Review Applicability), then HIGH code quality, then MEDIUM performance/best practices, then LOW style issues
 5. **Report issues** using the output format below, tagged with the severity from the reference
-6. **Verify post-review** — after issues are addressed, run the verification pipeline: type check → lint → tests → build → coverage (mirrors the ECC `/verify` command). Also check for leftover `console.log` statements and unformatted code.
+6. **Verify post-review** — after issues are addressed, run the repository-defined verification pipeline for the changed surface (selected per `config/instructions/validation-mandate.md`), not a fixed type→lint→tests→build→coverage chain. Also check for leftover `console.log` statements and unformatted code.
 
 ## Review Output Format
 
@@ -100,10 +113,10 @@ Prefer direct commands and AFT tools over ad-hoc approaches:
 |----------|-------------|-------------|
 | `aft_inspect` | Codebase health snapshot — diagnostics, TODOs, dead code, unused exports | Before review — catch diagnostics automatically |
 | `changed-files` | Lists session-changed files as a navigable tree with change indicators (+/~/-) | Before review — identify review scope |
-| Language linters | `npx tsc --noEmit` (TS), `cargo check` (Rust), `mypy` (Python), `golangci-lint` (Go) | Before review — catch lint/type errors |
-| Language formatters | `npx biome check` (TS), `cargo fmt` (Rust), `black` (Python), `go fmt` (Go) | After review — verify formatting |
-| Test runners | `npx jest`, `cargo test`, `pytest`, `go test` | HIGH phase — verify changes don't break functionality |
-| Coverage tools | Language-specific coverage reporters | Post-review — verify coverage requirements (≥80%) |
+| Repository lint/type-check | Run the repository's own lint and type-check commands for the changed surface (discover them; do not assume a toolchain) | Before review — catch lint/type errors |
+| Repository formatter | Run the repository's own formatter command for the changed surface, when defined | After review — verify formatting |
+| Repository test command | Run the repository's own test command for the changed surface, when defined | HIGH phase — verify changes don't break functionality |
+| Coverage tools | Language-specific coverage reporters | Post-review — when the repository configures a coverage gate, verify against its threshold; impose no universal percentage (see `config/instructions/validation-mandate.md`) |
 
 ## Cross-Language Quality Rules
 
@@ -115,7 +128,7 @@ These quality rules apply across all languages during review:
 - **No `console.log` / `print()` / `dump()` in production** — use proper logging frameworks
 - **TODO/FIXME require tracking tickets** — every TODO needs a linked issue reference
 - **Input validation on all external data** — use schema validation (Zod, Pydantic, etc.)
-- **80% minimum test coverage** — 100% for auth, payments, and security-critical code
+- **Repository-defined test coverage** — honor the repository's coverage gate when one exists; impose no universal percentage (see `config/instructions/validation-mandate.md`)
 - **Descriptive naming** — no `x`, `tmp`, `data`; no magic numbers without named constants
 - **Proper error handling** — no bare `catch`/`except`, no swallowed errors, context on re-throws
 
@@ -128,20 +141,20 @@ These checks supplement the language-specific checklists — apply them to every
 | Review without loading the reference | Language-specific checks (N+1 in Eloquent, borrow-checker patterns in Rust) require the reference |
 | Load all references at once | Context waste — each reference is a full checklist; load only the ones matching your diff |
 | Apply one language's checks to another | Each language has distinct patterns and pitfalls |
-| Skip diagnostic commands | Run the language-specific tooling (linters, type checkers, security scanners) before reporting |
-| Skip security checks | Every reference prioritizes CRITICAL security checks first |
+| Skip diagnostic commands | Run the repository's own lint, type-check, and test commands for the changed surface before reporting; for observably security-sensitive surfaces also run the security review (canonical owner: `config/skills/security-review/SKILL.md`) |
+| Skip security checks on a security-sensitive surface | Apply the CRITICAL security checks first there (see Security Review Applicability); non-security changes preserve existing security invariants under ordinary correctness review |
 
 ## Validation Checklist
 
 Before completing a review, verify:
 
 - [ ] Loaded the correct reference file(s) for every file extension in the diff
-- [ ] Ran `aft_inspect` and language-specific linters before visual inspection
-- [ ] Checked CRITICAL security items first, then HIGH, then MEDIUM, then LOW
+- [ ] Ran `aft_inspect` before visual inspection, and the repository's own lint command when it defines one (omit and report when it does not)
+- [ ] On an observably security-sensitive surface, checked CRITICAL security items first, then HIGH, then MEDIUM, then LOW (see Security Review Applicability)
 - [ ] Applied cross-language quality rules (immutability, file size, emoji ban, console.log)
 - [ ] All reported issues use the `[SEVERITY]` output format with file:line
 - [ ] Approval verdict matches the criteria (Block if any CRITICAL/HIGH)
-- [ ] Post-review verification pipeline completed (type check → lint → tests → build → coverage)
+- [ ] Post-review verification completed using the repository-defined pipeline for the changed surface (see `config/instructions/validation-mandate.md`)
 
 ## Reference Files
 

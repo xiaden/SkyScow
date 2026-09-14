@@ -2,38 +2,39 @@
 
 ## When This Applies
 
-- Before writing any new feature, function, or bug fix
-- When tests fail — follow the troubleshooting protocol before changing test assertions
-- When adding regression tests for a reported bug
-- When refactoring — tests must pass before and after; coverage must not decrease
+RED → GREEN → REFACTOR is available guidance for surfaces with an executable behavioral oracle — it is not a universal edit-order ceremony. Apply it when at least one of these observable facts holds:
+
+- The change adds or fixes behavior and an executable oracle exists (a unit, contract, or regression test can express the expected behavior).
+- A reported defect can be reproduced by a regression test.
+- The repository already uses test-first style for the changed surface.
+- A spec-first test reduces ambiguity in the requirement.
+
+Do not force artificial RED for static configuration, packaging, Dockerfiles, deployment manifests, docs, mechanical migrations, build metadata, or infrastructure — for those surfaces the requirement is behavioral evidence from the build, smoke, or runtime check selected per `config/instructions/validation-mandate.md`.
+
+When a test does fail, follow the troubleshooting protocol below before changing test assertions. Coverage is a diagnostic; honor a repository-defined coverage threshold when one exists and impose no universal percentage.
 
 ## TDD Cycle (RED → GREEN → REFACTOR)
 
 | Phase | Action | Success Criterion |
 |-------|--------|-------------------|
-| **RED** | Write a failing test that describes the desired behavior | Test runs and FAILS (not skipped, not errored — fails) |
+| **RED** | Write a failing test that describes the desired behavior — when an executable behavioral oracle exists; otherwise identify the build/smoke/runtime check that will prove the change | Test runs and FAILS (not skipped, not errored — fails) |
 | **GREEN** | Write the minimal implementation to make the test pass | Test PASSES; no extra behavior implemented |
 | **REFACTOR** | Improve code structure while keeping tests green | Tests still pass; code is cleaner; no behavior change |
 
 **Violation examples:**
 - Writing implementation first, then adding tests to match → tests verify what was written, not what was intended
 - Making a test pass by changing the assertion instead of fixing the code
-- Skipping the RED phase — if the test doesn't fail first, it's not testing anything new
+- Skipping the RED phase on a surface that has an executable behavioral oracle — if the test doesn't fail first on such a surface, it is not testing anything new (static config, packaging, docs, build metadata, and infrastructure are proven by a build/smoke/runtime check instead)
 
-## Coverage Targets (Tiered)
+## Coverage
 
-All three test types (unit, integration, E2E) are required. Coverage targets scale by code criticality — higher risk demands higher coverage:
-
-| Code Type | Minimum Coverage | Examples |
-|-----------|-----------------|----------|
-| **Critical** | **100%** | Authentication logic, authorization checks, financial calculations, security-critical code, payment processing |
-| **Standard** | **80%** | Business logic, API handlers, data transformations, service layer, utilities |
-| **UI / Presentation** | **70%** | UI components, layout code, style-only rendering |
+Coverage is a useful diagnostic when the repository supports it. Honor a repository-defined coverage
+threshold when one exists; impose no universal percentage. Coverage is selected from the observable
+changed surface per the surface-selection table in `config/instructions/validation-mandate.md`.
 
 **Violation examples:**
-- Auth logic at 78% coverage — critical code is not "close enough"; it must be 100%
-- Only unit tests, no integration or E2E → misses wiring bugs between layers
-- Coverage at 60% with "the rest is hard to test" → untested code is untrusted code
+- Selecting test types by doctrine instead of by the observable changed surface — unit, integration, and E2E are surface-selected per `config/instructions/validation-mandate.md`, not universally stacked
+- Arguing "the rest is hard to test" to justify untested code → untested code is untrusted code
 - Tests that pass but don't assert anything meaningful (no assertions, or assertions that always pass)
 
 ### Test Types by Scope
@@ -61,8 +62,8 @@ When a test fails, follow this order before changing anything:
 
 ## Enforcement
 
-- **CI gate:** Fail the build if coverage drops below tiered targets (100% critical, 80% standard, 70% UI)
-- **PR review:** Verify new code has corresponding tests; reject PRs with test-only skips; flag critical code below 100%
-- **Pre-commit:** Run the fast test suite (unit tests) before every commit
-- **Pre-commit verification:** Coverage check is step 5 of the [verification loop](file:///home/opencode/.config/opencode/skills/ecc-coding-standards/references/verification.md)
-- **Coverage reports:** Generate and review coverage reports weekly; track trends per code tier
+- **CI gate:** Fail the build only when the repository defines a coverage gate and coverage drops below the repository's own threshold; impose no universal percentage.
+- **PR review:** Verify new code has corresponding tests; reject PRs with test-only skips. Honor a repository-defined coverage threshold when one exists; do not apply a universal percentage.
+- **Pre-commit:** Run the repository-defined test command for the changed surface before every commit; omit and report a repository that defines none (see `config/instructions/validation-mandate.md`)
+- **Pre-commit verification:** Run the repository-defined verification for the changed surface; coverage is included only when the repository configures a coverage gate (see `config/instructions/validation-mandate.md`)
+- **Coverage reports:** Generate and review coverage reports when the repository supports coverage, honoring its own gate; impose no universal percentage

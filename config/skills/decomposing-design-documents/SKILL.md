@@ -64,11 +64,11 @@ _(Govern continuity across context boundaries)_
 6. **If context budget is exhausted, stop at the round boundary.** The ledger preserves all progress. A new session resumes cleanly.
 
 ### Quality Gate Integration
-_(Ensure plans account for the full implementation workflow: TDD → review → verify → commit)_
+_(Ensure plans account for the implementation workflow selected by the changed surface and the repository's actual capabilities)_
 
-7. **Every plan must include the full verification loop.** Lint alone is insufficient — plans must include explicit steps for type checking, test execution (with coverage targets), and build verification. A plan without these steps is incomplete.
-8. **Every plan must account for quality gates.** Plans must include steps for code review and security review. Review before commit — the planner must not assume implementation is done after writing code.
-9. **Plans touching auth, data, or I/O must include security review steps.** The security checklist (OWASP top 10, input validation, secret management) applies — plans that skip this create downstream rework.
+7. **Every plan must state the verification steps selected by its changed surface and the repository's capabilities.** Do not assume a project test suite exists and do not default to generic commands (`npm test`, `npx tsc`); repository-defined commands take precedence. Select the verification burden from the observable surface and the repository's real capabilities, per `config/instructions/validation-mandate.md`. Coverage, when the repository supports it, is diagnostic or governed by the repository's own threshold — this doctrine prescribes no universal coverage percentage. A plan that omits the verification its surface requires is incomplete.
+8. **Every plan must account for the quality gates its surface requires: code review always; security review only where an observable security-sensitive surface changed.** The planner must not assume implementation is done after writing code — review precedes commit.
+9. **Plans that change an observable security-sensitive surface must include a security review step.** Select the checklist from `config/skills/security-review/SKILL.md`, which is the canonical owner; reference it, never restate or weaken it. Security-sensitive surfaces are observable facts: authentication/authorization, payments/financial logic, secrets/credentials, external or user input, persisted/sensitive data, deployment/security-header configuration, and agent/MCP/plugin/permission configuration. Plans without such a surface do not carry a mandatory security review step.
 
 ---
 
@@ -127,7 +127,7 @@ Read the design doc. Identify natural part boundaries:
  | Dependency depth | No part depends on more than 2 others |
  | Session scope | Each part ≤ 12 plan steps (≤ 2 phases) |
  | Diamond avoidance | If parts A→C and B→C share most context → merge A+B |
- | Risk surface | Parts touching security, auth, or data integrity → flag for mandatory security review in plan. High-risk parts should be planned first to surface issues early. |
+ | Risk surface | Parts whose changed surface includes an observable security-sensitive surface (auth/authorization, payments/financial, secrets/credentials, external or user input, persisted/sensitive data, deployment/security-header config, or agent/MCP/plugin/permission surfaces) → flag for security review in the plan, per `config/skills/security-review/SKILL.md`. High-risk parts should be planned first to surface issues early. |
  | Complexity | Estimate per part: TRIVIAL/SMALL/MEDIUM/LARGE/EPIC. Use for model routing and session budget planning. |
 
 Assign letters (A, B, C...) in topological order. Group into execution rounds.
@@ -233,12 +233,12 @@ After receiving subagent output:
 2. Run `plan_read` — must parse without errors. Schema reference: [references/PLAN_MARKDOWN_SCHEMA.json](file:///home/opencode/.config/opencode/skills/decomposing-design-documents/references/PLAN_MARKDOWN_SCHEMA.json)
 3. Quick-scan for:
    - **Layer violations** — workflow receiving a service, component importing interface
-   - **Missing verification steps** — type checking, lint, test execution, coverage, build
-   - **Missing quality gate steps** — code review and security review. Plans touching auth/data/I/O must include security review
+   - **Missing verification steps** — the plan omits the verification its changed surface requires, or assumes generic commands (`npm test`, `npx tsc`) instead of repository-defined ones (see `config/instructions/validation-mandate.md`)
+   - **Missing quality gate steps** — code review always; security review only where the changed surface includes an observable security-sensitive surface (auth/authorization, payments/financial, secrets/credentials, external or user input, persisted/sensitive data, deployment/security-header config, or agent/MCP/plugin/permission surfaces). Select the checklist from `config/skills/security-review/SKILL.md`
    - **Coding standards violations** — mutation patterns, hardcoded values, missing error handling
    - **References to methods not in the contracts ledger or existing codebase**
    - **Step count** (>12 steps → consider splitting)
-   - **TDD compliance** — plans for new features should specify test-before-implementation (RED → GREEN → REFACTOR) with coverage targets
+   - **TDD compliance** — plans for behavioral changes should specify surface-dependent behavioral evidence; where the repository supports it, test-before-implementation (RED → GREEN → REFACTOR). Coverage thresholds are repository-defined, never a universal target
 
 Fix issues before proceeding. Re-run `plan_read` after fixes.
 
@@ -272,11 +272,11 @@ After all plans exist and are individually valid:
  | **Dependency completeness** | Every method/API called by a plan is defined in a prior plan's steps |
  | **Contract consistency** | JSON shapes referenced by multiple plans (e.g., API response consumed by plugin AND generated by backend) match exactly |
  | **Layer compliance** | No workflow receives a service. No component imports interfaces. Check against project architecture rules |
-  | **Quality gates** | Every plan includes code review, security review, and verification loop steps. No plan assumes implementation is complete without these gates |
+  | **Quality gates** | Every plan includes a code review step and the verification steps its changed surface requires using repository-defined commands (`config/instructions/validation-mandate.md`); a security review step only where an observable security-sensitive surface changed (`config/skills/security-review/SKILL.md`). No plan assumes implementation is complete without these gates |
  | **Coverage** | Every design doc section maps to at least one plan |
  | **Gaps** | Methods needed downstream but never created upstream |
  | **Overlap** | Two plans creating the same artifact |
- | **Verification consistency** | All plans use the same verification pattern (type check → lint → test → coverage → build). Inconsistent verification across plans indicates drift |
+  | **Verification consistency** | Each plan states the verification its changed surface requires using repository-defined commands (`config/instructions/validation-mandate.md`). Drift is a plan that assumes a universal pattern or coverage target instead of the surface-selected evidence |
 
 Fix issues by editing plan files directly. Update CONTRACTS.md if fixes change any contracts.
 
@@ -289,17 +289,17 @@ Present the cross-validation results to the user with specific issues and fixes 
 **The planning pipeline produces validated plans. The implementation workflow takes over from here.**
 
 ```
-Plans → Implementation (TDD) → Code Review → Security Review → Verification → Commit
+Plans → Implementation (behavioral evidence where the change is behavioral) → Code Review → Security Review (only when a security-sensitive surface changed) → Verification → Commit
 ```
 
 Each plan must account for this full pipeline — not just the coding steps:
 
  | Phase | Requirement | Plan Must Include |
  | --- | --- | --- |
- | **TDD** | 80% coverage, RED → GREEN → REFACTOR | Test-before-implementation steps with coverage targets |
+ | **Behavioral Evidence** | Surface-dependent; RED → GREEN → REFACTOR where the repository supports it | Test-before-implementation steps with the behavioral evidence the changed surface requires; coverage thresholds are repository-defined |
  | **Code Review** | Mandatory after writing code | Explicit code review step; use code-reviewer agent |
- | **Security Review** | OWASP top 10, no hardcoded secrets | Security review step for auth/data/I/O parts |
- | **Verification** | Type check + lint + test + coverage + build | Verification step at end of each plan phase |
+ | **Security Review** | Conditional on an observable security-sensitive surface | Security review step only for plans whose changed surface is security-sensitive; checklist owned by `config/skills/security-review/SKILL.md` |
+ | **Verification** | The verification steps the changed surface requires, using repository-defined commands; no universal coverage target (`config/instructions/validation-mandate.md`) | Verification step at end of each plan phase |
  | **Commit** | Conventional commits, no console.log | Cleanup and commit step |
 
 **Plans that skip these gates create rework.** The Exec-Planner agent should embed them as explicit steps, not rely on out-of-band processes. When reviewing plans during Phase 3b and Phase 4, treat missing quality gate steps the same as missing implementation steps — they are equally required.
@@ -339,11 +339,11 @@ Before declaring feature planning complete:
 - [ ] Cross-validation found no unresolved issues **→ Coherence**
 - [ ] No plan references a method not defined in a prior plan **→ Dependency order correct**
 - [ ] User has reviewed README and CONTRACTS.md **→ Alignment**
-- [ ] Every plan includes full verification loop steps (type check, lint, test, coverage, build) **→ Verification loop**
-- [ ] Every plan includes code review and security review steps **→ Quality gates**
-- [ ] Plans touching auth, data, or I/O have mandatory security review steps **→ Security mandate**
+- [ ] Every plan includes the verification steps its changed surface requires, using repository-defined commands rather than assumed generic commands (`config/instructions/validation-mandate.md`) **→ Verification loop**
+- [ ] Every plan includes a code review step, and a security review step only where an observable security-sensitive surface changed **→ Quality gates**
+- [ ] Plans whose changed surface is security-sensitive have a security review step selected from `config/skills/security-review/SKILL.md` **→ Security mandate**
 - [ ] No plans contain hardcoded values, mutation patterns, or console.log references **→ Coding standards**
-- [ ] TDD steps (RED → GREEN → REFACTOR) present for new feature implementation **→ Coverage requirement**
+- [ ] Plans for behavioral changes specify the surface-dependent behavioral evidence the repository supports (RED → GREEN → REFACTOR where applicable); no universal coverage target **→ Behavioral evidence**
 
 ---
 

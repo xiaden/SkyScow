@@ -129,8 +129,8 @@ Each Exec-Manager enforces a full quality gate before returning DONE. Nyx doesn'
 | **Layer Compliance** | No upward imports, correct DI patterns | Mandatory — blocks DONE |
 | **Contract Adherence** | Actual signatures match CONTRACTS.md | Mandatory — blocks DONE |
 | **Code Quality** | No mutation, file <800 lines, functions <50 lines, nesting <4, no console.log/print(), no bare except, no TODO/FIXME | Mandatory — blocks DONE |
-| **Test Coverage** | ≥80% for changed code, 100% for security/auth/financial code | Mandatory — blocks DONE |
-| **Security Review** | No hardcoded secrets, input validation present, no injection risks, auth verified | Mandatory — blocks DONE |
+| **Test Coverage** | Repository-defined: honor the repository's own coverage threshold or verification policy when one exists; otherwise coverage is diagnostic only — no universal percentage (see `config/instructions/validation-mandate.md`) | Conditional — blocks DONE only when the repository defines a coverage policy |
+| **Security Review** | Required only when the changed surface includes an observable security-sensitive surface per the canonical list in `config/skills/security-review/SKILL.md` | Conditional — blocks DONE only when such a surface changed |
 | **Build** | Project builds successfully | Mandatory — blocks DONE |
 | **Completeness** | All plan steps implemented, no stubs, no "will implement later" | Mandatory — blocks DONE |
 | **Drift Detection** | Implementation matches design intent, no scope creep, no missing methods | Mandatory — blocks DONE |
@@ -232,8 +232,8 @@ Before declaring feature execution complete:
 - [ ] All Exec-Managers returned DONE **→ Full implementation + all quality gates passed**
 - [ ] CONTRACTS.md reflects actual implementations **→ No plan-vs-code drift**
 - [ ] Available linter passes on full workspace **→ Zero errors**
-- [ ] Test coverage ≥80% on changed code, 100% on security/auth/financial code **→ No coverage regression**
-- [ ] Security review passed — no hardcoded secrets, validated inputs, no injection risks **→ OWASP baseline met**
+- [ ] Repository-defined coverage policy honored where one exists, otherwise coverage reported as diagnostic (no universal percentage) **→ No coverage regression**
+- [ ] Security review run where an observable security-sensitive surface changed, per `config/skills/security-review/SKILL.md` **→ Security-sensitive surfaces covered**
 - [ ] No orphaned fix plans with incomplete steps **→ Clean state**
 - [ ] User informed of any design deviations **→ Alignment**
 - [ ] COMPLETION.md generated in `{feature}/` **→ Audit trail**
@@ -267,4 +267,4 @@ After all plans pass QA, archive every plan and the DD to `completed/`, generate
 
 ### CI Evidence Location
 
-CI-gating manifests and evidence must live in tracked repository paths, never under the gitignored `artifacts/` tree, and static YAML or manifest presence is never `CI_PASS`. This section is the canonical owner of the `LOCAL_PASS` / `LOCAL_UNAVAILABLE` / `CI_DEFERRED` / `CI_PASS` labels; preserve the label recorded by the producing gate and never relabel local or deferred evidence as `CI_PASS`.
+CI-gating manifests and evidence must live in tracked repository paths, never under the gitignored `artifacts/` tree, and static YAML or manifest presence is never `CI_PASS`. The `LOCAL_PASS` / `LOCAL_UNAVAILABLE` / `CI_DEFERRED` / `CI_PASS` labels are owned by `config/skills/ci-lint-test-gates/SKILL.md`; this section references that canonical owner. Preserve the label recorded by the producing gate and never relabel local or deferred evidence as `CI_PASS`.

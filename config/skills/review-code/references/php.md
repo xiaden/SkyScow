@@ -5,13 +5,13 @@
 
 ## Verification Commands
 
-```bash
-./vendor/bin/phpstan analyse --level max   # Type safety and errors
-./vendor/bin/psalm --show-info=true        # Static analysis
-./vendor/bin/pint --test                   # PSR-12 formatting
-./vendor/bin/phpunit --coverage-text       # Test coverage
-composer audit                             # Dependency vulnerabilities
-```
+Run the repository's own commands for the changed surface; do not default to a toolchain the repository does not have. Select the evidence from the surface-to-evidence table in `config/instructions/validation-mandate.md`:
+- Run the repository's own type-check / static-analysis command, when defined
+- Run the repository's own lint command, when defined
+- Run the repository's own formatter check, when defined
+- Run the repository's own test command for the changed surface, when defined
+
+Omit any check the repository does not define and report it as unavailable rather than inventing a command. Report gate evidence using the labels in `config/skills/ci-lint-test-gates/SKILL.md`.
 
 ### Quick-Scan
 ```bash
@@ -23,6 +23,8 @@ grep -rn 'catch (\\Exception' app/ --include="*.php"  # Swallowed exceptions
 ```
 
 ## [CRITICAL] Security
+
+Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `config/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
 
 - **SQL Injection**: raw string interpolation in queries — use Eloquent or parameterized queries
 - **Mass Assignment**: `$guarded = []` or calling `create($request->all())` — whitelist `$fillable`
@@ -126,16 +128,19 @@ Verdict: BLOCK — HIGH issues must be fixed before merge.
 
 ## Approval Criteria
 
-- **Approve**: All automated checks pass (PHPStan, Psalm, PHPUnit, Pint) AND no CRITICAL or HIGH issues
-- **Warning**: All automated checks pass and MEDIUM issues only (can merge with caution)
-- **Block**: Any automated check fails OR CRITICAL/HIGH issues found
+- **Approve**: The repository-defined automated checks pass (when such checks are defined) AND no CRITICAL or HIGH issues
+- **Warning**: The repository-defined automated checks pass and MEDIUM issues only (can merge with caution)
+- **Block**: Any repository-defined automated check fails OR CRITICAL/HIGH issues found
 
-## ECC Tools
+## Repository Commands
 
-Prefer ECC tooling for automated checks before manual review:
-- `lint-check` — detects linter (PHPStan, Psalm) and returns command
-- `format-code` — detects formatter (Pint) and returns command
-- `security-audit` — scans for secrets and dependency vulnerabilities
-- `run-tests` — detects framework and runs PHPUnit
+Discover and run the repository's own commands before manual review — do not assume ECC or any specific toolchain is present:
+- Lint — run the repository's own lint command for the changed files, when defined
+- Format — run the repository's own formatter command for the changed files, when defined
+- Tests — run the repository's own test command for the changed surface, when defined
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+
+Omit and report any command the repository does not define.
 
 For detailed PHP patterns, security examples, and code samples, see skills: `laravel-patterns`, `laravel-security`, `laravel-tdd`.

@@ -45,7 +45,7 @@ Choose the reference file matching the file extension of the failing source:
 2. **Load the matching reference** — use the dispatch table above to find the correct reference file
 3. **Collect and categorize errors** — run diagnostic commands from the reference, capture all errors, and categorize by type (type errors, import/export, configuration, dependency). Prioritize: fix blocking build errors first, then type errors, then warnings.
 4. **Apply minimal fixes** — fix one error at a time, verify after each change. For each error: understand the root cause → find the minimal fix → verify it doesn't break other code → iterate.
-5. **Verify the build passes** — re-run the build command after all fixes, then run the test suite
+5. **Verify the build passes** — re-run the repository's build command after all fixes, then run the repository's test command for the changed surface when one exists; do not assume a test suite such as `npm test` exists (see `config/instructions/validation-mandate.md`)
 
 ## Core Principles
 
@@ -85,7 +85,7 @@ Before reporting completion, verify:
 - [ ] No suppression comments added (`@ts-ignore`, `@ts-expect-error`, `#[allow(...)]`, `@SuppressWarnings`, `# noqa`, `//nolint`) without explicit approval
 - [ ] Each fix is minimal — only lines directly related to the error were changed
 - [ ] No refactoring or restructuring of unrelated code
-- [ ] Tests still pass (run the test suite after all fixes)
+- [ ] Targeted verification passes for the changed surface (run the repository's test command when one exists; if none exists, report that instead of assuming a suite)
 - [ ] Output format is followed for each fix reported
 
 ## References

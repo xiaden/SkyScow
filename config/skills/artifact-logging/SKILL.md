@@ -22,20 +22,18 @@ description: Procedures for logging observations, decisions, and discoveries dur
 
 ## When to Log
 
-Log proactively. Silence is expensive — future agents (including yourself in later sessions) need context about what happened and why.
+Log durable knowledge only — entries a future agent (including yourself in later sessions) cannot cheaply recover from the current code, plan/DD, or current external evidence. Logging is for memory, not ceremony: do not log routine progress, obvious observations, successful ordinary commands, trivially rediscoverable facts, or ceremonial status entries.
 
-| Situation | Category | Example |
-|-----------|----------|---------|
-| You notice something fragile or inconsistent | `observation` | "Config loading in X bypasses ConfigService — potential layer violation" |
-| You're unsure about an approach and pick one anyway | `observation` + tag `uncertainty` | "Unclear if this migration needs a down path — proceeding without" |
-| You discover a codebase pattern or gotcha | `discovery` | "AQL UPSERT requires all three clauses even when update is empty" |
-| An approach fails and you switch strategies | `dead-end` | "Tried using rename on re-exported symbol — doesn't follow re-exports" |
-| You make a choice between approaches | `decision` | "Used component-level caching over service-level — keeps DI simpler" |
-| You uncover useful context during research | `research` | "Library scan workflow depends on filesystem watcher, not polling" |
-| A plan deviates from design doc | `observation` | Record the drift |
-| You resolve a blocker | `decision` | Record how and why |
-| A fix cycle reveals a recurring issue | `discovery` | Save others from repeating it |
-| Escalation is triggered | `blocker` | Record what went wrong |
+| Observable fact | Category | Example |
+|-----------------|----------|---------|
+| An architectural or design decision was made | `decision` | "Used component-level caching over service-level — keeps DI simpler" |
+| Work is blocked | `blocker` | "Upstream contract missing — cannot proceed" |
+| Important uncertainty remains unresolved | `observation` + tag `uncertainty` | "Unclear if this migration needs a down path — proceeding without" |
+| Work deviated from an accepted plan or DD | `observation` + tag `plan-deviation` | Record the drift and its reason |
+| A non-obvious codebase fact was discovered | `discovery` | "AQL UPSERT requires all three clauses even when update is empty" |
+| An approach was proven to fail | `dead-end` | "Tried using rename on re-exported symbol — doesn't follow re-exports" |
+| Important external evidence was found | `research` | "Library scan workflow depends on filesystem watcher, not polling" |
+| A risk is left unresolved | `observation` + tag `risk` | Record the unresolved risk and its trigger |
 
 ## Log Entry Format
 
@@ -44,7 +42,7 @@ log_write(
     agent="your-agent-name",  # e.g., "exec-manager", "qa-reviewer"
     category="observation",   # or "discovery", "decision", "dead-end", "research", "blocker"
     message="Clear description of what happened",
-    tags=["plan-title", "module-name"]  # Optional but recommended
+    tags=["plan-title", "module-name"]  # Required for durable entries: at least one tag
 )
 ```
 
@@ -52,9 +50,10 @@ log_write(
 - `agent`: Your agent name (e.g., "exec-manager", "rnd-dd-author")
 - `category`: One of the categories above
 - `message`: Clear, specific description
+- `tags`: At least one tag for durable entries — a plan title (e.g., "TASK-myfeature-A-build-query-layer"), module name, or topic. The `log_write` schema may accept an empty list, but policy requires at least one tag on every durable entry so future agents can find it.
 
 **Often include:**
-- `tags`: Plan title (e.g., "TASK-myfeature-A-build-query-layer"), module name, or other context
+- Additional `tags` beyond the first — more context improves discoverability (at least one is required; more is often useful)
 
 ## Reading Logs
 

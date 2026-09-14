@@ -136,8 +136,8 @@ When planning refactors specifically:
 1. Identify code smells and technical debt
 2. List specific improvements needed
 3. Preserve existing functionality
-4. Create backwards-compatible changes when possible
-5. Plan for gradual migration if needed
+4. Create backwards-compatible changes only at an explicitly identified external or persisted boundary, classified per `config/instructions/compatability.md` and `config/skills/code-migration/SKILL.md`; internal replacements get no compatibility shim
+5. Plan a bounded migration path only for such a boundary, with a defined removal condition
 
 ---
 

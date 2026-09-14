@@ -129,23 +129,17 @@ Perform ALL of the following checks. Do not skip any category.
 - Are there any methods or files created that weren't in the plan? (scope creep)
 - Are there methods from the plan that weren't created? (incomplete)
 
-### 8. Coverage Threshold
-- Run test coverage on changed code (`npm test -- --coverage` or equivalent)
-- **Standard code:** ≥80% line coverage
-- **Financial calculations, auth logic, security-critical code:** ≥100% coverage
-- **Utilities:** ≥90% coverage
-- If coverage is below threshold, flag as a major issue with the specific files and percentages
-- Do NOT approve if coverage dropped below the prior baseline without justification
+### 8. Coverage (Repository-Defined)
+- Coverage is a diagnostic unless the repository defines its own coverage threshold or verification policy; honor the repository policy when present and never apply a universal percentage (see `config/instructions/validation-mandate.md`)
+- Discover and run the repository's own coverage command; do not assume `npm test`, `--coverage`, or any generic coverage command exists
+- If the repository defines no coverage policy, report coverage as unavailable/diagnostic rather than inventing a threshold
+- Flag a coverage **regression** against the repository's own policy or prior baseline; do not flag the absence of a universal percentage
 
-### 9. Security Review
-- **Secrets:** Scan for hardcoded API keys, passwords, tokens, private keys — `grep -rE "(api[_-]?key|secret|password|token|private[_-]?key)"` on changed files
-- **Injection:** Verify parameterized queries (no string concatenation in SQL/NoSQL), sanitized inputs, no dynamic command construction
-- **XSS:** Output encoding present, Content Security Policy configured, input sanitized
-- **Authentication:** Password storage uses bcrypt/argon2, session management is secure, multi-factor where applicable
-- **Access Control:** Authorization checks on every endpoint, role-based access control, resource ownership validated
-- **Input Validation:** All user inputs validated (type, range, format), no trust in client-side validation alone
-- **Error Handling:** Error messages do not leak sensitive data (stack traces, DB errors, internal paths)
-- **Dependencies:** No known vulnerable dependencies — run `npm audit` or equivalent
+### 9. Security Review (Conditional)
+- Required only when the changed surface includes an observable security-sensitive surface: authentication/authorization, payments/financial logic, secrets/credentials, external or user input, persisted or sensitive data, deployment/environment/security-header configuration, or agent/MCP/plugin/permission surfaces
+- When triggered, run the canonical `security-review` skill (`config/skills/security-review/SKILL.md`) for its checklist and findings; this protocol references it and must not restate or weaken its checks
+- When no such surface changed, security review is not applicable — record that explicitly rather than reporting a security pass
+- A critical or high security finding routes to DISCUSS
 
 ## Output Format
 
@@ -164,7 +158,8 @@ Return your review in this exact structure:
 - **NO_PLAN_NEEDED** — All issues are in already-identified files, no architectural decisions needed, a single subagent with file pointers can resolve them in one pass.
 - **PLAN_NEEDED** — Issues span multiple sections/layers, require coordinated changes across
   locations whose weighted context exceeds ~32K chars, involve architectural decisions
-  (schema, contract drift, layer violations), or coverage is below threshold across the scope.
+  (schema, contract drift, layer violations), or coverage regresses against the
+  repository-defined coverage threshold or its own policy/baseline.
 - **DISCUSS** — Fundamental problem: design is wrong, damage scope is unknown, requirements unclear, 3rd fix round, or security critical/high finding that requires user decision.
 
 ### Summary
@@ -270,5 +265,5 @@ More than 2 fix rounds means the original plan or the architecture understanding
 
 - **Do not fix code.** The review agent reports. The fix cycle handles corrections.
 - **Do not suggest alternative architectures.** Review against the existing rules, not hypothetical improvements.
-- **Do not skip checks because they seem redundant.** Lint, layer tracing, contract verification, coverage, and security are mandatory every time.
+- **Do not skip checks because they seem redundant.** Lint, layer tracing, and contract verification are mandatory every time; coverage follows the repository's defined policy and security review applies only to observable security-sensitive surfaces (see sections 8-9).
 - **Do not approve with caveats.** Either PASS or ISSUES_FOUND. "PASS but you should probably fix X" is ISSUES_FOUND.

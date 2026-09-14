@@ -4,15 +4,19 @@
 **Scope:** All `.py` files including modules, scripts, and tests.
 
 ## Verification Commands
-```bash
-mypy .                                     # Type checking
-ruff check .                               # Fast linting
-black --check .                            # Format check
-bandit -r .                                # Security scan
-pytest --cov --cov-report=term-missing     # Test coverage (or --cov=<PACKAGE>)
-```
+
+Run the repository's own commands for the changed surface; do not default to a toolchain the repository does not have. Select the evidence from the surface-to-evidence table in `config/instructions/validation-mandate.md`:
+- Run the repository's own type-check / static-analysis command, when defined
+- Run the repository's own lint command, when defined
+- Run the repository's own formatter check, when defined
+- Run the repository's own test command for the changed surface, when defined
+
+Omit any check the repository does not define and report it as unavailable rather than inventing a command. Report gate evidence using the labels in `config/skills/ci-lint-test-gates/SKILL.md`.
 
 ## [CRITICAL] Security
+
+Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `config/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
+
 - **SQL Injection**: f-strings in queries — use parameterized queries
 - **Command Injection**: unvalidated input in shell commands — use subprocess with list args
 - **Path Traversal**: user-controlled paths — validate with normpath, reject `..`
@@ -127,10 +131,13 @@ End every review with:
 Verdict: BLOCK — HIGH issues must be fixed before merge.
 ```
 
-## ECC Tools
+## Repository Commands
 
-Prefer ECC tooling for automated checks before manual review:
-- `lint-check` — detects `ruff`/`pylint` and returns command
-- `format-code` — detects `black` and returns command
-- `security-audit` — scans for secrets, eval abuse, and unsafe deserialization
-- `run-tests` — detects `pytest` and runs test suite
+Discover and run the repository's own commands before manual review — do not assume ECC or any specific toolchain is present:
+- Lint — run the repository's own lint command for the changed files, when defined
+- Format — run the repository's own formatter command for the changed files, when defined
+- Tests — run the repository's own test command for the changed surface, when defined
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+
+Omit and report any command the repository does not define.

@@ -2,12 +2,24 @@
 
 ## When This Applies
 
-- Before **every** commit — all C01-C08 checks must pass
-- When adding or modifying any endpoint, authentication flow, or data-handling code
-- When reviewing a PR — reviewer must verify checklist compliance
-- When introducing a new dependency — verify it doesn't introduce hardcoded secrets or unsafe defaults
+This checklist applies when the change touches a security-sensitive surface. Every trigger is an
+observable repository/task fact; the canonical surface list is owned by
+`config/skills/security-review/SKILL.md` — load it and run the full review for those surfaces.
 
-## Mandatory Pre-Commit Checks (C01-C08)
+- The changed files or diff touch a security-sensitive surface from that canonical list (for example
+authentication/authorization, credentials/tokens/secrets, external or untrusted input,
+filesystem/path trust boundaries, privilege changes, Docker capabilities/seccomp/root,
+command/shell execution, network exposure, persisted sensitive data, workflow/action permissions,
+dependency/artifact integrity, agent/plugin/tool permissions, remote mutation, or
+supply-chain/publication)
+- Adding or modifying an endpoint, authentication flow, or data-handling code
+- Reviewing a PR whose diff touches one of those surfaces — the reviewer verifies checklist compliance
+- Introducing a dependency — verify it doesn't introduce hardcoded secrets or unsafe defaults
+
+For non-security changes, preserve existing security invariants under ordinary correctness review;
+the full C01-C08 checklist is not required.
+
+## C01-C08 Checks
 
 | ID | Check | Violation Example | Correct Approach |
 |----|-------|-------------------|------------------|
@@ -50,7 +62,10 @@ If a security issue is discovered during development or review:
 
 ## Enforcement
 
-- **Pre-commit hook:** Run a secrets scanner (e.g., `gitleaks`, `trufflehog`) on every commit
-- **CI gate:** Fail the build if any C01-C08 check is violated
-- **PR review:** Reviewer must explicitly confirm C01-C08 compliance before approving
-- **Periodic audit:** Run full security scan weekly; treat findings as blocking issues
+These enforcement rules apply to changes that touch a security-sensitive surface (canonical owner:
+`config/skills/security-review/SKILL.md`):
+
+- **Pre-commit:** For a security-sensitive change, run a secrets scanner (e.g., `gitleaks`, `trufflehog`) before commit
+- **CI gate:** Fail the build when a C01-C08 check is violated on a security-sensitive surface
+- **PR review:** For a security-sensitive change, the reviewer explicitly confirms C01-C08 compliance before approving
+- **Periodic audit:** Run a full security scan on the repository-defined schedule; treat findings as blocking issues

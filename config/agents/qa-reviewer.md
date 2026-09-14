@@ -116,7 +116,12 @@ skill(name="review-code")
 
 The skill provides language-specific review checklists via file:// references with a dispatch table that maps detected file extensions to the appropriate reference file.
 
-When the change set contains security-sensitive patterns (auth, payment, PII, database access), also load:
+When the change set touches an observable security-sensitive surface (authentication/authorization,
+credentials/tokens/secrets, external or untrusted input, filesystem/path trust boundaries, privilege
+changes, Docker capabilities/seccomp/root, command/shell execution, network exposure, persisted
+sensitive data, workflow/action permissions, dependency/artifact integrity, agent/plugin/tool
+permissions, remote mutation, or supply-chain/publication — canonical owner:
+`config/skills/security-review/SKILL.md`), also load:
 
 ```
 skill(name="security-review")

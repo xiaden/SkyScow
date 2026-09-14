@@ -5,14 +5,27 @@
 
 ## Verification Commands
 
-Run these before visual inspection:
+Discover the commands the repository actually defines before visual inspection; do not default to a
+generic toolchain the repository does not have. Select the evidence from the surface-to-evidence
+table in `config/instructions/validation-mandate.md`:
 - `git diff` — see recent changes
-- `lint-check` (ECC tool) — auto-detect and run the appropriate linter
-- `format-code` (ECC tool) — auto-detect and run the appropriate formatter
-- `security-audit` (ECC tool) — scan for secrets and vulnerabilities
-- Run the project's test suite to verify changes don't break functionality
+- Run the repository's own lint command for the changed files, when one is defined
+- Run the repository's own formatter command for the changed files, when one is defined
+- Run the repository's own type-check, test, and build commands for the changed surface, when defined
+
+Omit any check the repository does not define and report it as unavailable rather than inventing a command.
 
 ## [CRITICAL] Security
+
+Apply these checks when the changed surface is observably security-sensitive — authentication or
+authorization, payments, secrets or credentials, user/external input handling, persisted or
+transmitted sensitive data, external systems, deployment or security configuration, or
+agent/MCP/plugin/permission surfaces. Those surfaces are owned by
+`config/skills/security-review/SKILL.md`, which carries the full OWASP/AgentShield methodology.
+
+For non-security changes, preserve existing security invariants under ordinary correctness review
+without running the full generic checklist. This does not weaken the severity or verdict rules: any
+CRITICAL or HIGH issue found, by any path, still blocks merge.
 
 - Hardcoded credentials (API keys, passwords, tokens)
 - SQL injection risks (string concatenation in queries)
@@ -95,11 +108,14 @@ Verdict: BLOCK — HIGH issues must be fixed before merge.
 - **Warning**: MEDIUM issues only (can merge with caution)
 - **Block**: Any CRITICAL or HIGH issues — must fix before merge
 
-## ECC Tools
+## Repository Commands
 
-Prefer ECC tooling for automated checks before manual review:
-- `lint-check` — auto-detects and runs the appropriate linter
-- `security-audit` — scans for secrets, dependencies, and code security anti-patterns
-- `format-code` — auto-detects and runs the appropriate formatter
-- `run-tests` — detects package manager and runs test suite
-- `check-coverage` — verifies coverage meets the 80% threshold
+Discover and run the repository's own commands before manual review — do not assume ECC or any
+specific toolchain is present:
+- Lint — run the repository's own lint command for the changed files, when defined
+- Format — run the repository's own formatter command for the changed files, when defined
+- Tests — run the repository's own test command for the changed surface, when defined
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+
+Omit and report any command the repository does not define.

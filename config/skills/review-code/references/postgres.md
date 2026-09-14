@@ -4,6 +4,9 @@
 **Scope:** SQL files, database migrations, stored procedures, and application database access patterns.
 
 ## Verification Commands
+
+Use the repository's own commands and available database tooling; do not assume a toolchain the repository does not have. Select review evidence per `config/instructions/validation-mandate.md`. The following diagnostic queries are optional aids when a PostgreSQL database is available — they are not a mandatory universal gate:
+
 ```bash
 # Connect to database
 psql $DATABASE_URL
@@ -19,6 +22,9 @@ psql -c "SELECT indexrelname, idx_scan, idx_tup_read FROM pg_stat_user_indexes O
 ```
 
 ## [CRITICAL] Security & RLS
+
+Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `config/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
+
 - **Enable RLS for multi-tenant data**: `ALTER TABLE orders ENABLE ROW LEVEL SECURITY;`
 - **RLS policies use optimized pattern**: `(SELECT auth.uid())` not bare `auth.uid()` (100x faster)
 - **Force RLS**: `ALTER TABLE orders FORCE ROW LEVEL SECURITY;` — prevents app-level bypass
@@ -263,8 +269,13 @@ End every review with:
 Verdict: BLOCK — HIGH issues must be fixed before merge.
 ```
 
-## ECC Tools
+## Repository Commands
 
-Prefer ECC tooling for automated checks before manual review:
-- `security-audit` — scans for SQL injection patterns and hardcoded connection strings
-- `lint-check` — detects SQL linters and returns command
+Discover and run the repository's own commands before manual review — do not assume ECC or any specific toolchain is present:
+- Lint — run the repository's own lint command for the changed files, when defined
+- Format — run the repository's own formatter command for the changed files, when defined
+- Tests — run the repository's own test command for the changed surface, when defined
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+
+Omit and report any command the repository does not define.

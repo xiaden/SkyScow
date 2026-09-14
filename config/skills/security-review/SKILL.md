@@ -9,22 +9,43 @@ Conduct thorough OWASP Top 10 security analysis on code, configurations, and dep
 
 ## When to Use
 
-**Trigger conditions:**
+This skill is the canonical owner of security-review applicability. Its triggers are observable
+repository/task facts — the changed surfaces listed below — never subjective discretion.
 
-- Reviewing a PR that touches authentication, authorization, payments, or data access
-- Writing code that handles user input, credentials, or sensitive data
-- Auditing an existing module for vulnerabilities
-- Configuring deployment, environment settings, or security headers
-- Before merging any code that processes external input
-- Reviewing agent prompts, MCP server configurations, plugin hooks, or permission rules
-- After running `npx ecc-agentshield scan` — reviewing and prioritizing findings
+**Security-sensitive surfaces (focused security review required):**
 
-**Do NOT use this skill when:**
+Load this skill and run the full review when the change touches any surface in this list:
 
-- Making cosmetic or documentation-only changes (no code behavior changes)
+- Authentication or authorization (sessions, access-control checks, login, permissions)
+- Credentials, tokens, secrets, or API keys and the configuration that handles them
+- External or untrusted input (user input, request bodies, files, IPC, deserialized data)
+- Filesystem or path trust boundaries (path resolution, traversal, archive extraction, temp files)
+- Privilege changes (privilege escalation, setuid/setgid, user/role changes, sudoers)
+- Docker capabilities, seccomp profiles, sandboxing, root/UID-GID handling, or container security
+- Command or shell execution (`exec`, `spawn`, `eval`, `system`, shell interpolation)
+- Network exposure (listeners, ports, TLS, CORS, bind addresses, proxies)
+- Persisted sensitive data (databases, logs, caches, backup or export formats)
+- Workflow or action permissions (CI workflow `permissions`, tokens, trigger events, OIDC)
+- Dependency or artifact integrity (pinned versions, checksums, signatures, SBOM, download verification)
+- Agent/plugin/tool permissions (agent prompts, MCP servers, plugin hooks, permission rules)
+- Remote mutation (push, deploy, publish, release, remote API writes)
+- Supply-chain or publication (release artifacts, packages, registries, image publication)
+
+Also load this skill when auditing an existing module for vulnerabilities or reviewing and
+prioritizing findings from `npx ecc-agentshield scan`.
+
+Security-sensitive surfaces require focused review. Non-security changes preserve existing security
+invariants under ordinary correctness review and do not require the full generic checklist.
+
+**Do NOT run the full generic checklist when:**
+
+- The change touches none of the surfaces above (for example cosmetic or documentation-only changes
+  with no behavior or trust-boundary impact)
 - Working on pure UI/styling changes with no data flow implications
 - Reviewing internal tooling that never processes user input or sensitive data
 - The code is already covered by automated security scanning with recent clean results
+
+Even when the full checklist is not run, any CRITICAL or HIGH issue found by any path still blocks merge.
 
 ## Security Review Workflow
 
