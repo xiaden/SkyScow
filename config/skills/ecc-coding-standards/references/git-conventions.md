@@ -52,11 +52,11 @@ Follow this sequence for every feature:
 
 1. **Plan** — Write an implementation plan before coding. Identify dependencies, risks, and phases.  
    *Use the `/plan` command or `planner` agent for complex features.*
-2. **Behavioral evidence** — Where an executable behavioral oracle exists (a regression test can reproduce the defect, the repository already uses test-first style, or a spec-first test reduces ambiguity), write tests first (RED), implement to pass (GREEN), refactor (IMPROVE). For static config, packaging, Dockerfiles, deployment manifests, docs, mechanical migrations, build metadata, or infrastructure, the proof is the surface-appropriate build, smoke, or runtime check. Verify coverage per `config/instructions/validation-mandate.md`; no universal percentage. *Use the `/tdd` command or `tdd-guide` agent when RED → GREEN → REFACTOR applies.*
+2. **Behavioral evidence** — Where an executable behavioral oracle exists (a regression test can reproduce the defect, the repository already uses test-first style, or a spec-first test reduces ambiguity), write tests first (RED), implement to pass (GREEN), refactor (IMPROVE). For static config, packaging, Dockerfiles, deployment manifests, docs, mechanical migrations, build metadata, or infrastructure, the proof is the surface-appropriate build, smoke, or runtime check. Verify coverage per `/home/opencode/.config/opencode/instructions/validation-mandate.md`; no universal percentage. *Use the `/tdd` command or `tdd-guide` agent when RED → GREEN → REFACTOR applies.*
 3. **Self-review** — Review your own code before requesting review. Address CRITICAL and HIGH issues; fix MEDIUM when possible.  
    *Use the `/code-review` command or `code-reviewer` agent. See [Review Severity Levels](#review-severity-levels) below.*
 4. **Commit & push** — Write detailed conventional commit messages. One logical change per commit.  
-   *Before committing, run the repository-defined verification for the changed surface. For observably security-sensitive changes, run the `/security` command or the `security-review` skill (see `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review.*
+   *Before committing, run the repository-defined verification for the changed surface. For observably security-sensitive changes, run the `/security` command or the `security-review` skill (see `/home/opencode/.config/opencode/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review.*
 
 **Violation examples:**
 - Starting to code without a plan — leads to rework and scope creep
@@ -97,5 +97,5 @@ Fix: [How to fix]
 - **CI gate:** Reject PRs with non-conventional commit messages; reject PRs without descriptions
 - **Branch protection:** Require at least one approval; require CI to pass before merge
 - **PR template:** Enforce a PR template that requires: description, testing performed, test plan
-- **Pre-commit verification:** Run the repository-defined, surface-selected verification for the changed surface (see `config/instructions/validation-mandate.md`) before every commit
-- **Security scan:** For observably security-sensitive changes, run `/security` or the `security-reviewer` agent before merging (canonical owner: `config/skills/security-review/SKILL.md`); block on CRITICAL findings. Non-security changes preserve existing security invariants under ordinary correctness review.
+- **Pre-commit verification:** Run the repository-defined, surface-selected verification for the changed surface (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`) before every commit
+- **Security scan:** For observably security-sensitive changes, run `/security` or the `security-reviewer` agent before merging (canonical owner: `/home/opencode/.config/opencode/skills/security-review/SKILL.md`); block on CRITICAL findings. Non-security changes preserve existing security invariants under ordinary correctness review.

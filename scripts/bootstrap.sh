@@ -437,7 +437,7 @@ reconcile_obsolete_file() {
 
 reconcile_unknown_files() {
     local root target path
-    for root in agents plugins skills tools commands; do
+    for root in agents plugins skills tools commands instructions; do
         [[ -d "$CONFIG_DIR/$root" ]] || continue
 
         while IFS= read -r -d '' target; do

@@ -5,13 +5,13 @@
 
 ## Verification Commands
 
-Run the repository's own commands for the changed surface; do not default to a toolchain the repository does not have. Select the evidence from the surface-to-evidence table in `config/instructions/validation-mandate.md`:
+Run the repository's own commands for the changed surface; do not default to a toolchain the repository does not have. Select the evidence from the surface-to-evidence table in `/home/opencode/.config/opencode/instructions/validation-mandate.md`:
 - Run the repository's own type-check / compile command, when defined
 - Run the repository's own lint command, when defined
 - Run the repository's own formatter check, when defined
 - Run the repository's own test command for the changed surface, when defined
 
-Omit any check the repository does not define and report it as unavailable rather than inventing a command. Report gate evidence using the labels in `config/skills/ci-lint-test-gates/SKILL.md`.
+Omit any check the repository does not define and report it as unavailable rather than inventing a command. Report gate evidence using the labels in `/home/opencode/.config/opencode/skills/ci-lint-test-gates/SKILL.md`.
 
 ### Quick-Scan (Both)
 ```bash
@@ -23,7 +23,7 @@ grep -rn "\.get()" src/main/java --include="*.java"   # Optional.get() without i
 
 ## [CRITICAL] Security
 
-Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `config/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
+Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `/home/opencode/.config/opencode/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
 
 - **SQL injection**: String concatenation in `@Query` or `JdbcTemplate` — use bind parameters (`:param` or `?`)
 - **Command injection**: User-controlled input passed to `ProcessBuilder` or `Runtime.exec()` — validate and sanitise before invocation
@@ -130,8 +130,8 @@ Discover and run the repository's own commands before manual review — do not a
 - Lint — run the repository's own lint command for the changed files, when defined
 - Format — run the repository's own formatter command for the changed files, when defined
 - Tests — run the repository's own test command for the changed surface, when defined
-- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
-- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `/home/opencode/.config/opencode/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
 
 Omit and report any command the repository does not define.
 

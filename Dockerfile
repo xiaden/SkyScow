@@ -414,6 +414,7 @@ RUN set -eux; \
                 /usr/local/share/holycode/skills \
                 /usr/local/share/holycode/tools \
                 /usr/local/share/holycode/commands \
+                /usr/local/share/holycode/instructions \
                 -type f -print; \
         } | LC_ALL=C sort | while IFS= read -r source; do \
             path="${source#/usr/local/share/holycode/}"; \

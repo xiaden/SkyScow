@@ -4,7 +4,7 @@
 
 This checklist applies when the change touches a security-sensitive surface. Every trigger is an
 observable repository/task fact; the canonical surface list is owned by
-`config/skills/security-review/SKILL.md` — load it and run the full review for those surfaces.
+`/home/opencode/.config/opencode/skills/security-review/SKILL.md` — load it and run the full review for those surfaces.
 
 - The changed files or diff touch a security-sensitive surface from that canonical list (for example
 authentication/authorization, credentials/tokens/secrets, external or untrusted input,
@@ -63,7 +63,7 @@ If a security issue is discovered during development or review:
 ## Enforcement
 
 These enforcement rules apply to changes that touch a security-sensitive surface (canonical owner:
-`config/skills/security-review/SKILL.md`):
+`/home/opencode/.config/opencode/skills/security-review/SKILL.md`):
 
 - **Pre-commit:** For a security-sensitive change, run a secrets scanner (e.g., `gitleaks`, `trufflehog`) before commit
 - **CI gate:** Fail the build when a C01-C08 check is violated on a security-sensitive surface

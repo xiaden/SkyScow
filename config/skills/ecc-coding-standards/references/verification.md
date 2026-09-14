@@ -26,7 +26,7 @@
 ## Pre-Commit Verification Loop
 
 Select the verification for the changed surface from the surface-to-evidence table in
-`config/instructions/validation-mandate.md`. Repository-native commands and conventions outrank any
+`/home/opencode/.config/opencode/instructions/validation-mandate.md`. Repository-native commands and conventions outrank any
 generic list, and no fixed universal sequence is imposed.
 
 The loop below is a template, not a universal gate. Apply a row only when the repository actually
@@ -39,7 +39,7 @@ absence — never invent or run a command the repository does not define.
 | 2. Lint | Code style and static analysis violations, when the repository defines a linter | The repository's own lint command | Zero errors and warnings |
 | 3. Format | Code formatting consistency, when the repository defines a formatter | The repository's own format command | No unstaged formatting changes |
 | 4. Tests | Behavioral correctness for the changed surface, when the repository defines tests | The repository's own test command | All configured tests pass |
-| 5. Repository verification | Surface-selected evidence from `config/instructions/validation-mandate.md` | The repository's own configured command(s) | Passes; coverage is a diagnostic, never a universal percentage |
+| 5. Repository verification | Surface-selected evidence from `/home/opencode/.config/opencode/instructions/validation-mandate.md` | The repository's own configured command(s) | Passes; coverage is a diagnostic, never a universal percentage |
 | 6. Build | Production build succeeds, when the changed surface produces a build | The repository's own build command | Build completes without errors or warnings |
 
 **Violation examples:**
@@ -51,7 +51,7 @@ absence — never invent or run a command the repository does not define.
 **Correct pattern:**
 ```
 # Run the repository-defined commands for the changed surface, in the order the repository defines.
-# Select them from config/instructions/validation-mandate.md.
+# Select them from /home/opencode/.config/opencode/instructions/validation-mandate.md.
 # Omit any check whose command the repository does not define, and report it as unavailable.
 # → Only after every applicable check passes: git commit
 ```
@@ -74,7 +74,7 @@ OpenCode does not support Claude Code's hook system. The following checks must b
 
 ### Before Committing
 
-- **Preserve existing security invariants.** When the changed surface is observably security-sensitive (canonical owner: `config/skills/security-review/SKILL.md`), run the security review and verify the C01-C08 gates manually — no automated pre-commit hook will stop you. For non-security changes, confirm the existing security invariants under ordinary correctness review.
+- **Preserve existing security invariants.** When the changed surface is observably security-sensitive (canonical owner: `/home/opencode/.config/opencode/skills/security-review/SKILL.md`), run the security review and verify the C01-C08 gates manually — no automated pre-commit hook will stop you. For non-security changes, confirm the existing security invariants under ordinary correctness review.
 - **Verify no secrets in code.** Scan the diff for hardcoded keys, tokens, or passwords:
   ```
   git diff --cached | grep -E '(api[_-]?key|secret|password|token)\s*[:=]\s*['"'"'"]'
@@ -128,7 +128,7 @@ When a build or type check fails, follow this protocol before changing any code:
 
 ## Enforcement
 
-- **No commit without verification.** Run the repository-selected verification for the changed surface (see `config/instructions/validation-mandate.md`); every applicable check is a blocking gate. A check whose command the repository does not define is omitted and reported, never invented.
+- **No commit without verification.** Run the repository-selected verification for the changed surface (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`); every applicable check is a blocking gate. A check whose command the repository does not define is omitted and reported, never invented.
 - **No `console.log` in committed code.** Grep for it before committing; production source must use a proper logger.
 - **No type suppression without justification.** `@ts-ignore` and `any` require inline comments explaining why a proper fix isn't possible.
 - **Build failures block all other work.** A broken build is the top priority — fix it before writing new code.

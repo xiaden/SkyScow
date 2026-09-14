@@ -37,13 +37,20 @@ prioritizing findings from `npx ecc-agentshield scan`.
 Security-sensitive surfaces require focused review. Non-security changes preserve existing security
 invariants under ordinary correctness review and do not require the full generic checklist.
 
-**Do NOT run the full generic checklist when:**
+**Precedence — a matched surface cannot be bypassed:**
 
-- The change touches none of the surfaces above (for example cosmetic or documentation-only changes
-  with no behavior or trust-boundary impact)
-- Working on pure UI/styling changes with no data flow implications
-- Reviewing internal tooling that never processes user input or sensitive data
-- The code is already covered by automated security scanning with recent clean results
+1. If the change touches any surface listed above, focused security review is **REQUIRED**. It is not
+   made `NOT_APPLICABLE` by automated scanning, by a recent clean scan result, or because the change
+   does not process user input. This applies in particular to shell/command execution, Docker
+   privilege/seccomp/root behavior, plugin/agent/tool permissions, artifact integrity, workflow
+   permissions, remote mutation, publication/supply chain, and path trust boundaries.
+2. Automated security scanning (Step 6, `npx ecc-agentshield scan`) may contribute supporting
+   evidence. It never replaces a review triggered by a matched surface.
+3. The full generic checklist is not required **only when none of the surfaces above matched**.
+
+Examples where no surface matched, so the full checklist is not required: cosmetic or
+documentation-only changes with no behavior or trust-boundary impact; pure UI/styling changes with
+no data flow implications.
 
 Even when the full checklist is not run, any CRITICAL or HIGH issue found by any path still blocks merge.
 

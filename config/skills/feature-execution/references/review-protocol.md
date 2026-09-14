@@ -130,14 +130,14 @@ Perform ALL of the following checks. Do not skip any category.
 - Are there methods from the plan that weren't created? (incomplete)
 
 ### 8. Coverage (Repository-Defined)
-- Coverage is a diagnostic unless the repository defines its own coverage threshold or verification policy; honor the repository policy when present and never apply a universal percentage (see `config/instructions/validation-mandate.md`)
+- Coverage is a diagnostic unless the repository defines its own coverage threshold or verification policy; honor the repository policy when present and never apply a universal percentage (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
 - Discover and run the repository's own coverage command; do not assume `npm test`, `--coverage`, or any generic coverage command exists
 - If the repository defines no coverage policy, report coverage as unavailable/diagnostic rather than inventing a threshold
 - Flag a coverage **regression** against the repository's own policy or prior baseline; do not flag the absence of a universal percentage
 
 ### 9. Security Review (Conditional)
 - Required only when the changed surface includes an observable security-sensitive surface: authentication/authorization, payments/financial logic, secrets/credentials, external or user input, persisted or sensitive data, deployment/environment/security-header configuration, or agent/MCP/plugin/permission surfaces
-- When triggered, run the canonical `security-review` skill (`config/skills/security-review/SKILL.md`) for its checklist and findings; this protocol references it and must not restate or weaken its checks
+- When triggered, run the canonical `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`) for its checklist and findings; this protocol references it and must not restate or weaken its checks
 - When no such surface changed, security review is not applicable — record that explicitly rather than reporting a security pass
 - A critical or high security finding routes to DISCUSS
 

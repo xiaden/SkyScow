@@ -102,7 +102,7 @@ documentation/policy-only or otherwise has no executable source:
 
 - [ ] No debug output (`console.log` unless intentional logging) in changed source files
 - [ ] No hardcoded secrets or API keys in changed files (checklist owned by
-      `config/skills/security-review/SKILL.md`)
+      `/home/opencode/.config/opencode/skills/security-review/SKILL.md`)
 - [ ] Bundle/build output size is reasonable when the change affects build output
 - [ ] No leftover debug code or `TODO` comments without tickets in changed files
 

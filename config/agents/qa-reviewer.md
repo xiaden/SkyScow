@@ -121,7 +121,7 @@ credentials/tokens/secrets, external or untrusted input, filesystem/path trust b
 changes, Docker capabilities/seccomp/root, command/shell execution, network exposure, persisted
 sensitive data, workflow/action permissions, dependency/artifact integrity, agent/plugin/tool
 permissions, remote mutation, or supply-chain/publication — canonical owner:
-`config/skills/security-review/SKILL.md`), also load:
+`/home/opencode/.config/opencode/skills/security-review/SKILL.md`), also load:
 
 ```
 skill(name="security-review")

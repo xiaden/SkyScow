@@ -58,10 +58,10 @@ These aren't veto powers — they're discussion triggers. The user makes the fin
 ### Constraint Budget: 6 always-on. Everything else is conditional.
 
 1. **[Routing]** Check the Delegation Matrix before executing. First match → delegate. Load the `dispatching-agents` skill for the correct dispatch template. The agent file routes — the skill dispatches.
-2. **[Verification]** Never claim DONE without evidence. Select verification from the observed changed surface and the repository-defined commands per `config/instructions/validation-mandate.md`; do not assume a linter or test command the repository does not define. Review the git diff for unintended changes.
+2. **[Verification]** Never claim DONE without evidence. Select verification from the observed changed surface and the repository-defined commands per `/home/opencode/.config/opencode/instructions/validation-mandate.md`; do not assume a linter or test command the repository does not define. Review the git diff for unintended changes.
 3. **[Tools]** Launch independent tool calls in parallel. Prefer AFT tools (aft_search, aft_outline, aft_zoom) over bash grep/find/cat. Run aft_inspect after edit batches.
 4. **[Scope]** Execute only what falls within scope. Delegate everything else. If scope creeps mid-execution, stop and question.
-5. **[Error ownership]** Lint errors, test failures, and diagnostics in files this agent edited are yours to classify and resolve per the baseline/causality rules in `config/instructions/validation-mandate.md` (`INTRODUCED` / `BLOCKING_BASELINE` / `UNRELATED_BASELINE` / `UNKNOWN_CAUSALITY`) — not to fix indiscriminately. Do not suppress with `# noqa` or `# type: ignore` without an inline explanation of why it's a verified false positive.
+5. **[Error ownership]** Lint errors, test failures, and diagnostics in files this agent edited are yours to classify and resolve per the baseline/causality rules in `/home/opencode/.config/opencode/instructions/validation-mandate.md` (`INTRODUCED` / `BLOCKING_BASELINE` / `UNRELATED_BASELINE` / `UNKNOWN_CAUSALITY`) — not to fix indiscriminately. Do not suppress with `# noqa` or `# type: ignore` without an inline explanation of why it's a verified false positive.
 6. **[Git/GitHub skill gating]** Before performing or initiating any Git/GitHub operation, load every applicable generic `gg-*` skill (gg-core, gg-repos, gg-actions, gg-env, gg-artifacts, gg-docs, gg-router for routing, ggt-conventions for repo-local conventions) — missing or unloaded skills are a hard (near-hard) stop: do not proceed from memory or guess; fall back to the official docs rather than improvising.
 
 ### Task Tiers
@@ -71,13 +71,13 @@ Calibrate your effort to the task. Determine the tier from the user's request �
 **MECHANICAL** (typo fixes, formatting, lint autofixes, dependency bumps):
 - Skip ADR/log research
 - Skip skill loading (except build-fix if build fails)
-- Completion gate: the repository-defined checks for the changed surface only (see `config/instructions/validation-mandate.md`)
+- Completion gate: the repository-defined checks for the changed surface only (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
 - Stop conditions 1, 2, 4 apply
 
 **STANDARD** (bug fixes, single-module features, mechanical refactors):
 - Tier 1 research only: log_read + skill check for the topic
 - Load skills only when trigger is met
-- Completion gate: the repository-defined, surface-selected verification for the changed surface + git diff review (see `config/instructions/validation-mandate.md`)
+- Completion gate: the repository-defined, surface-selected verification for the changed surface + git diff review (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
 - Stop conditions 1, 2, 4 apply
 
 **ARCHITECTURAL** (new patterns, cross-module features, migrations, design):
@@ -183,14 +183,14 @@ When the task crosses module boundaries or touches patterns governed by prior de
 Do NOT jump to Tier 3 without running Tier 1 and Tier 2 first.
 
 ### In-Task Verification
-- Run the repository-defined checks for the changed surface after edit batches — zero new errors on the checks the repository actually defines is the standard (see `config/instructions/validation-mandate.md`)
+- Run the repository-defined checks for the changed surface after edit batches — zero new errors on the checks the repository actually defines is the standard (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
 - Run aft_inspect after edit batches to catch diagnostics early
 - Verify changes with the evidence the changed surface requires before claiming they work — no "should pass" assertions
 
 ### Completion Gate
 Before reporting DONE, verify:
 - All acceptance criteria verified with evidence
-- The verification selected for the changed surface from `config/instructions/validation-mandate.md` was actually produced and reported
+- The verification selected for the changed surface from `/home/opencode/.config/opencode/instructions/validation-mandate.md` was actually produced and reported
 - No files changed outside task scope
 - Git diff reviewed — no unintended changes
 - ADR created or existing ADR noted if architectural decisions were made

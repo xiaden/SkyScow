@@ -9,7 +9,7 @@ RED → GREEN → REFACTOR is available guidance for surfaces with an executable
 - The repository already uses test-first style for the changed surface.
 - A spec-first test reduces ambiguity in the requirement.
 
-Do not force artificial RED for static configuration, packaging, Dockerfiles, deployment manifests, docs, mechanical migrations, build metadata, or infrastructure — for those surfaces the requirement is behavioral evidence from the build, smoke, or runtime check selected per `config/instructions/validation-mandate.md`.
+Do not force artificial RED for static configuration, packaging, Dockerfiles, deployment manifests, docs, mechanical migrations, build metadata, or infrastructure — for those surfaces the requirement is behavioral evidence from the build, smoke, or runtime check selected per `/home/opencode/.config/opencode/instructions/validation-mandate.md`.
 
 When a test does fail, follow the troubleshooting protocol below before changing test assertions. Coverage is a diagnostic; honor a repository-defined coverage threshold when one exists and impose no universal percentage.
 
@@ -30,10 +30,10 @@ When a test does fail, follow the troubleshooting protocol below before changing
 
 Coverage is a useful diagnostic when the repository supports it. Honor a repository-defined coverage
 threshold when one exists; impose no universal percentage. Coverage is selected from the observable
-changed surface per the surface-selection table in `config/instructions/validation-mandate.md`.
+changed surface per the surface-selection table in `/home/opencode/.config/opencode/instructions/validation-mandate.md`.
 
 **Violation examples:**
-- Selecting test types by doctrine instead of by the observable changed surface — unit, integration, and E2E are surface-selected per `config/instructions/validation-mandate.md`, not universally stacked
+- Selecting test types by doctrine instead of by the observable changed surface — unit, integration, and E2E are surface-selected per `/home/opencode/.config/opencode/instructions/validation-mandate.md`, not universally stacked
 - Arguing "the rest is hard to test" to justify untested code → untested code is untrusted code
 - Tests that pass but don't assert anything meaningful (no assertions, or assertions that always pass)
 
@@ -64,6 +64,6 @@ When a test fails, follow this order before changing anything:
 
 - **CI gate:** Fail the build only when the repository defines a coverage gate and coverage drops below the repository's own threshold; impose no universal percentage.
 - **PR review:** Verify new code has corresponding tests; reject PRs with test-only skips. Honor a repository-defined coverage threshold when one exists; do not apply a universal percentage.
-- **Pre-commit:** Run the repository-defined test command for the changed surface before every commit; omit and report a repository that defines none (see `config/instructions/validation-mandate.md`)
-- **Pre-commit verification:** Run the repository-defined verification for the changed surface; coverage is included only when the repository configures a coverage gate (see `config/instructions/validation-mandate.md`)
+- **Pre-commit:** Run the repository-defined test command for the changed surface before every commit; omit and report a repository that defines none (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
+- **Pre-commit verification:** Run the repository-defined verification for the changed surface; coverage is included only when the repository configures a coverage gate (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
 - **Coverage reports:** Generate and review coverage reports when the repository supports coverage, honoring its own gate; impose no universal percentage

@@ -5,7 +5,7 @@
 
 ## Verification Commands
 
-Use the repository's own commands and available database tooling; do not assume a toolchain the repository does not have. Select review evidence per `config/instructions/validation-mandate.md`. The following diagnostic queries are optional aids when a PostgreSQL database is available — they are not a mandatory universal gate:
+Use the repository's own commands and available database tooling; do not assume a toolchain the repository does not have. Select review evidence per `/home/opencode/.config/opencode/instructions/validation-mandate.md`. The following diagnostic queries are optional aids when a PostgreSQL database is available — they are not a mandatory universal gate:
 
 ```bash
 # Connect to database
@@ -23,7 +23,7 @@ psql -c "SELECT indexrelname, idx_scan, idx_tup_read FROM pg_stat_user_indexes O
 
 ## [CRITICAL] Security & RLS
 
-Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `config/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
+Apply these checks when the changed surface is observably security-sensitive; the applicability owner is `/home/opencode/.config/opencode/skills/security-review/SKILL.md`. Non-security changes preserve existing security invariants under ordinary correctness review; any CRITICAL or HIGH issue found, by any path, still blocks merge.
 
 - **Enable RLS for multi-tenant data**: `ALTER TABLE orders ENABLE ROW LEVEL SECURITY;`
 - **RLS policies use optimized pattern**: `(SELECT auth.uid())` not bare `auth.uid()` (100x faster)
@@ -275,7 +275,7 @@ Discover and run the repository's own commands before manual review — do not a
 - Lint — run the repository's own lint command for the changed files, when defined
 - Format — run the repository's own formatter command for the changed files, when defined
 - Tests — run the repository's own test command for the changed surface, when defined
-- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
-- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `/home/opencode/.config/opencode/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
 
 Omit and report any command the repository does not define.

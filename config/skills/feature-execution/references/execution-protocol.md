@@ -54,7 +54,7 @@ If Phase 1, write: "This is the first phase. No prior work."}
 - **Immutability:** never mutate — return new objects/arrays. No `obj.prop = x`, no `list.append()`.
 - **No console.log/print()** — use the project's logging facility. Remove any debugging output before completing.
 - Lint after completing each step that modifies files.
-- Verify the changed surface with repository-defined checks; do not assume a test suite exists and do not target a universal coverage percentage (see `config/instructions/validation-mandate.md`).
+- Verify the changed surface with repository-defined checks; do not assume a test suite exists and do not target a universal coverage percentage (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`).
 - If a step cannot be completed as written, annotate it with what blocked you and move on.
   Do NOT silently skip or half-implement steps.
 - Use existing patterns from the codebase. Before creating a new module, check if a similar

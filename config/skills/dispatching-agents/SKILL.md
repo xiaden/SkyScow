@@ -203,7 +203,7 @@ Exec-Manager **must not** report completion without `qaReview.status: PASS`. If 
 
 ### Spec-First Testing
 
-Spec-first / RED-first testing is surface-dependent, selected from observable repository/task facts per `config/instructions/validation-mandate.md`. Apply it only when the changed surface has a meaningful executable oracle — a regression test can reproduce the defect, the repository already follows a test-first style, or a spec-first test resolves genuine spec ambiguity. Do not force RED for non-test-first surfaces (for example documentation-only or configuration-only changes with no executable oracle). Where it applies, tests written against design documents are expected to fail during implementation — do NOT dispatch Support-Debugger for those expected spec-first failures. QA review must classify failures: expected (not yet implemented) vs. actual regressions.
+Spec-first / RED-first testing is surface-dependent, selected from observable repository/task facts per `/home/opencode/.config/opencode/instructions/validation-mandate.md`. Apply it only when the changed surface has a meaningful executable oracle — a regression test can reproduce the defect, the repository already follows a test-first style, or a spec-first test resolves genuine spec ambiguity. Do not force RED for non-test-first surfaces (for example documentation-only or configuration-only changes with no executable oracle). Where it applies, tests written against design documents are expected to fail during implementation — do NOT dispatch Support-Debugger for those expected spec-first failures. QA review must classify failures: expected (not yet implemented) vs. actual regressions.
 
 ### Pattern Adoption
 

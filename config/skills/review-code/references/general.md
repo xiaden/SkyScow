@@ -7,7 +7,7 @@
 
 Discover the commands the repository actually defines before visual inspection; do not default to a
 generic toolchain the repository does not have. Select the evidence from the surface-to-evidence
-table in `config/instructions/validation-mandate.md`:
+table in `/home/opencode/.config/opencode/instructions/validation-mandate.md`:
 - `git diff` — see recent changes
 - Run the repository's own lint command for the changed files, when one is defined
 - Run the repository's own formatter command for the changed files, when one is defined
@@ -21,7 +21,7 @@ Apply these checks when the changed surface is observably security-sensitive —
 authorization, payments, secrets or credentials, user/external input handling, persisted or
 transmitted sensitive data, external systems, deployment or security configuration, or
 agent/MCP/plugin/permission surfaces. Those surfaces are owned by
-`config/skills/security-review/SKILL.md`, which carries the full OWASP/AgentShield methodology.
+`/home/opencode/.config/opencode/skills/security-review/SKILL.md`, which carries the full OWASP/AgentShield methodology.
 
 For non-security changes, preserve existing security invariants under ordinary correctness review
 without running the full generic checklist. This does not weaken the severity or verdict rules: any
@@ -115,7 +115,7 @@ specific toolchain is present:
 - Lint — run the repository's own lint command for the changed files, when defined
 - Format — run the repository's own formatter command for the changed files, when defined
 - Tests — run the repository's own test command for the changed surface, when defined
-- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `config/instructions/validation-mandate.md`)
-- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `config/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
+- Coverage — verify against the repository-defined coverage gate when one exists; impose no universal threshold (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
+- Security — for observably security-sensitive surfaces, run the security review (canonical owner: `/home/opencode/.config/opencode/skills/security-review/SKILL.md`); non-security changes preserve existing security invariants under ordinary correctness review
 
 Omit and report any command the repository does not define.

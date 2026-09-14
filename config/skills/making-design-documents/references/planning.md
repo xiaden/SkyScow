@@ -136,7 +136,7 @@ When planning refactors specifically:
 1. Identify code smells and technical debt
 2. List specific improvements needed
 3. Preserve existing functionality
-4. Create backwards-compatible changes only at an explicitly identified external or persisted boundary, classified per `config/instructions/compatability.md` and `config/skills/code-migration/SKILL.md`; internal replacements get no compatibility shim
+4. Create backwards-compatible changes only at an explicitly identified external or persisted boundary, classified per `/home/opencode/.config/opencode/instructions/compatability.md` and `/home/opencode/.config/opencode/skills/code-migration/SKILL.md`; internal replacements get no compatibility shim
 5. Plan a bounded migration path only for such a boundary, with a defined removal condition
 
 ---

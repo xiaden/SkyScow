@@ -2,7 +2,7 @@
 
 This file is the canonical owner of the always-applicable validation core and of how verification
 burden is selected from observable surfaces. It does not restate the evidence vocabulary; that
-vocabulary is owned by `config/skills/ci-lint-test-gates/SKILL.md`.
+vocabulary is owned by `/home/opencode/.config/opencode/skills/ci-lint-test-gates/SKILL.md`.
 
 ## Always-applicable core (exactly eight items)
 
@@ -86,7 +86,7 @@ coverage percentage.
 ## Evidence vocabulary (owned elsewhere)
 
 Report gate evidence using the canonical vocabulary defined by
-`config/skills/ci-lint-test-gates/SKILL.md`: `LOCAL_PASS`, `LOCAL_UNAVAILABLE`, `CI_DEFERRED`,
+`/home/opencode/.config/opencode/skills/ci-lint-test-gates/SKILL.md`: `LOCAL_PASS`, `LOCAL_UNAVAILABLE`, `CI_DEFERRED`,
 `CI_PASS`. Do not introduce a competing taxonomy, and do not relabel unavailable or deferred
 evidence as passing. That file remains the sole owner of the definitions.
 
@@ -109,7 +109,7 @@ rather than improvised around. Deferred validation and residual risk must be exp
 
 Failures, unavailable checks, and deferred evidence are surfaced explicitly in the completion
 report, using the `ci-lint-test-gates` labels defined by
-`config/skills/ci-lint-test-gates/SKILL.md`. They are never replaced by silence or an unqualified
+`/home/opencode/.config/opencode/skills/ci-lint-test-gates/SKILL.md`. They are never replaced by silence or an unqualified
 success claim.
 
 ## Audit and verify the diff

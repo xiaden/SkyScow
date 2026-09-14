@@ -89,7 +89,7 @@ For anti-pattern code examples, see [`references/anti-patterns.md`](file:///home
 
 ## External-Boundary Exception
 
-The no-shim rule has exactly one exception: an **externally owned boundary** — a surface this repository does not control and cannot migrate in the same change. This section is the canonical owner of that exception; `config/instructions/compatability.md` applies it at the compatibility instruction layer.
+The no-shim rule has exactly one exception: an **externally owned boundary** — a surface this repository does not control and cannot migrate in the same change. This section is the canonical owner of that exception; `/home/opencode/.config/opencode/instructions/compatability.md` applies it at the compatibility instruction layer.
 
 An externally owned boundary is one of these observable boundary classes:
 

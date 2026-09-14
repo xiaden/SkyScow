@@ -40,7 +40,7 @@ Follow the plan format in `making-and-using-task-plans` and its `references/synt
 
 ## Constraints
 - Workflow functions take `db: Database`, never services — check CONTRACTS for confirmed patterns
-- Every plan must include the verification its changed surface requires, selected from `config/instructions/validation-mandate.md` (repository-defined, surface-selected commands; no universal type-check + lint + test + coverage + build sequence). A "lint verification" step alone is insufficient
+- Every plan must include the verification its changed surface requires, selected from `/home/opencode/.config/opencode/instructions/validation-mandate.md` (repository-defined, surface-selected commands; no universal type-check + lint + test + coverage + build sequence). A "lint verification" step alone is insufficient
 - Reference concrete method signatures from CONTRACTS when calling upstream APIs
 - Do NOT create methods that duplicate what CONTRACTS already defines
 - If you need a method that doesn't exist in CONTRACTS or the codebase, create it in your plan and note it clearly for the ledger
@@ -95,8 +95,8 @@ Never combine "Plan parts B and D since they're in the same round." Each subagen
 3. **Quick-scan for violations:**
    - Does any step pass a service to a workflow?
    - Does any step reference a method not in CONTRACTS or the existing codebase?
-   - Are the repository-defined, surface-selected verification steps required by `config/instructions/validation-mandate.md` present?
-   - Are required quality gates present (code review; security review only for observably security-sensitive surfaces per `config/skills/security-review/SKILL.md`)?
+   - Are the repository-defined, surface-selected verification steps required by `/home/opencode/.config/opencode/instructions/validation-mandate.md` present?
+   - Are required quality gates present (code review; security review only for observably security-sensitive surfaces per `/home/opencode/.config/opencode/skills/security-review/SKILL.md`)?
    - Are all steps flat (no nested checkboxes)?
 4. **Update CONTRACTS.md** — Extract new methods, APIs, DTOs, and decisions.
 
@@ -107,6 +107,6 @@ Never combine "Plan parts B and D since they're in the same round." Each subagen
  | Mistake | Cause | Fix |
  | --- | --- | --- |
  | Plan references method not yet created | Planned out of dependency order | Either: add method creation to this plan, or re-order execution |
- | Missing verification steps | Subagent omitted boilerplate | Add the repository-defined, surface-selected verification required by `config/instructions/validation-mandate.md` as final steps per phase |
+ | Missing verification steps | Subagent omitted boilerplate | Add the repository-defined, surface-selected verification required by `/home/opencode/.config/opencode/instructions/validation-mandate.md` as final steps per phase |
  | Step count > 12 | Part scope too broad | Split into two plans: `{letter}` and `{letter}2` |
  | TypedDict defined in wrong layer | Subagent put DTO in workflow file | Move to `src/helpers/dto/` per architecture rules |
