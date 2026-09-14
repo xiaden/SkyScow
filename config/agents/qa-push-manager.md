@@ -169,21 +169,50 @@ Do not attempt to repair it.
 
 Only begin agent review after Gates 1–3 are green **and** the snapshot invariants are re-verified (HEAD still equals `candidate_sha`; tracked tree still clean).
 
-### 4.1 Permanent review lenses
+### 4.1 Review lens applicability
 
-Dispatch these three permanent, independent, read-only reviewers in **one parallel batch**:
+Which specialist lenses are invoked, and the observable repository/task fact that triggered each, is
+owned by the canonical QA applicability owner at
+`/home/opencode/.config/opencode/instructions/qa-applicability.md`. This manager owns **HOW** the
+publication gate runs; it does not re-decide, restate, or override applicability. Read the canonical
+classification and dispatch accordingly.
 
-1. `qa-reviewer-correctness` — logical correctness, contract preservation, cross-component behavior, and regression risk.
-2. `qa-reviewer-boundary` — boundary conditions, degraded states, cleanup, partial success, and failure behavior.
-3. `qa-reviewer-journey` — complete end-to-end journeys through the changed behavior.
+1. `qa-reviewer-correctness` — the **mandatory baseline lens**, unconditional for every meaningful
+   implementation change (logical correctness, contract preservation, cross-component behavior, and
+   regression risk). It is never made conditional on subjective complexity, diff size, confidence, or
+   perceived risk, and never waived because another lens applies.
+2. `qa-reviewer-boundary` — required **only** when the canonical boundary trigger holds for the changed
+   surface (boundary conditions, degraded states, cleanup, partial success, and failure behavior).
+   Dispatch only on that observable trigger.
+3. `qa-reviewer-journey` — required **only** when the canonical journey trigger holds for the changed
+   surface (complete end-to-end journeys through the changed behavior). Dispatch only on that
+   observable trigger.
+
+Boundary and journey remain independent lenses and MUST NOT be merged into correctness; correctness is
+never replaced by either. A lens whose canonical trigger does not hold is `NOT_APPLICABLE` with evidence
+per the canonical owner. Dispatch all required reviewers in **one parallel batch**.
 
 ### 4.2 Domain-risk lens selection (0–3 lenses)
 
-Inspect the actual diff and select only the technical risk lenses that are **materially relevant** to it. Do not manufacture a lens merely to reach a count. Zero domain-risk lenses is valid when the candidate genuinely exposes no specialist domain beyond the permanent reviews.
+Select domain-risk lenses deterministically from the canonical observable technical surfaces in the
+domain-risk table owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`. Do not
+restate that table here; read the selection criteria and lens set from the canonical owner. Select only
+lenses whose canonical observable surface actually holds, and do not manufacture a lens merely to reach
+a count. **Zero domain-risk lenses is valid** when the candidate genuinely exposes no specialist domain
+beyond the baseline reviews; the **0–3** bound is preserved.
 
-Available lens names: `concurrency`, `filesystem/path`, `security/auth`, `persistence/data integrity`, `migrations/schema`, `networking/protocol`, `api-compatibility`, `frontend-state`, `resource/performance`, `process-execution/configuration` (or another explicit domain grounded in the diff).
+The **security** lens obeys the hard Phase 2.1 triggers in
+`/home/opencode/.config/opencode/skills/security-review/SKILL.md`. A matched security surface makes the
+security lens **REQUIRED**; it cannot be made `NOT_APPLICABLE` by scanning, by a recent clean scan
+result, or by any other deferral. Read the canonical surface list from that skill; do not restate it
+here.
 
-Dispatch `qa-reviewer-domainrisk` **once per selected lens**, up to a maximum of **3 simultaneous** domain-risk invocations, each in the same parallel batch as the permanent reviewers when possible. Each invocation receives its own `assigned_lens` and is confined to that lens.
+Dispatch `qa-reviewer-domainrisk` **once per selected lens**, up to a maximum of **3 simultaneous**
+domain-risk invocations, each in the same parallel batch as the baseline reviewers when possible. Each
+invocation receives its own `assigned_lens` and is confined to that lens.
+
+For each QA run, record every selected lens with its observable trigger. Record lenses that were **not**
+selected only where needed to explain why an otherwise plausible lens does not apply.
 
 ### 4.3 Dispatch contract
 
@@ -448,7 +477,7 @@ The Markdown is a presentation of the structured result, not an alternative data
 
 **Validation:** `<checks/builds/tests passed>`
 
-**Reviews:** `<permanent reviewers and domain-risk lenses> passed.`
+**Reviews:** `<required reviewers and domain-risk lenses> passed.`
 
 **Push:** `<remote and result>`
 
@@ -460,7 +489,7 @@ The Markdown is a presentation of the structured result, not an alternative data
 
 **Validation:** `<checks/builds/tests passed>`
 
-**Reviews:** `<permanent reviewers and domain-risk lenses> passed.`
+**Reviews:** `<required reviewers and domain-risk lenses> passed.`
 
 **Push:** `not run — push not authorized`
 

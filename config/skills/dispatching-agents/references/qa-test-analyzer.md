@@ -2,6 +2,10 @@
 
 Dispatch QA-TestAnalyzer to assess test coverage and quality for changed code.
 
+WHEN test analysis applies and the observable trigger are owned by
+`/home/opencode/.config/opencode/instructions/qa-applicability.md`; this reference
+owns only HOW test analysis is performed.
+
 ## When to Dispatch
 
 **Dispatch when:**
@@ -13,7 +17,6 @@ Dispatch QA-TestAnalyzer to assess test coverage and quality for changed code.
 - You need a full review — use `qa-reviewer` instead (it spawns this agent)
 - You need tests generated — use `qa-test-generator` instead (spawned by this agent)
 - You need documentation analysis — use `qa-docs-analyzer` instead
-- The changed code is trivial (one-line fix, config change)
 
 ## Dispatch Template
 

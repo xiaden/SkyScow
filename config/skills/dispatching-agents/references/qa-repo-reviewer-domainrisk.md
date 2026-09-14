@@ -4,19 +4,26 @@ Dispatch qa-repo-reviewer-domainrisk once per selected technical risk lens, as
 one of the read-only whole-tree reviewers in QA-RepoReviewManager's single
 parallel review batch.
 
+WHEN a whole-tree domain-risk lens applies and the observable tree fact that
+triggers it are owned by
+`/home/opencode/.config/opencode/instructions/qa-applicability.md` (see its
+Whole-tree applicability section). This reference owns only HOW the assigned
+lens is reviewed.
+
 ## When to Dispatch
 
 **Dispatch when:**
 - QA-RepoReviewManager has verified an immutable detached snapshot of the
-  complete current-head tree and has selected the materially relevant domain-risk
-  lens(es) (0+; zero domain-risk lenses is valid).
+  complete current-head tree and has selected the domain-risk lens(es) whose
+  observable triggers hold per the canonical applicability reference (0–3; zero
+  domain-risk lenses is valid).
 - You need independent specialist review of the complete tree through exactly
   one explicitly assigned technical lens.
 
 **Do NOT dispatch when:**
 - The snapshot is missing, unverified, or mutated.
-- The lens is not materially relevant to the reviewed tree.
-- You need general correctness/boundary/journey review — use the permanent lens.
+- The lens is not selected for the reviewed tree per the canonical applicability reference.
+- You need general correctness/boundary/journey review — correctness is the permanent lens; dispatch `qa-repo-reviewer-boundary`/`qa-repo-reviewer-journey` only when the canonical applicability reference records their triggers.
 - You would give one invocation multiple lenses, dispatch a lens more than once,
   dispatch sequentially, or feed it another reviewer's output.
 

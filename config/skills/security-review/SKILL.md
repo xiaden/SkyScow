@@ -58,22 +58,48 @@ Even when the full checklist is not run, any CRITICAL or HIGH issue found by any
 
 ### Step 1: Scope the Review
 
-Identify the attack surface:
+Select the matched surface(s) first, from the canonical security-sensitive surface list above. The
+matched surface(s) — not a generic questionnaire — determine what this review scopes.
 
-- What user inputs does the code accept?
-- What external systems does it interact with?
-- What data does it persist or transmit?
-- What authentication and authorization boundaries exist?
+1. **Match** — state which of the 14 canonical surfaces the change touches, and the observable
+   changed artifact (file, symbol, config, workflow, or runtime definition) that matched it.
+2. **Scope** — for each matched surface only, identify the relevant attack surface: the input, trust
+   boundary, authority, or asset that the change affects.
 
-### Step 2: Run the OWASP Top 10 Checklist
+If no surface matched, the full generic checklist is not required (see Precedence above); any
+CRITICAL or HIGH issue found by any path still blocks merge.
 
-Work through each of the 10 categories systematically. For detailed per-category check tables, common vulnerabilities, and remediation examples, consult:
+### Step 2: Select the OWASP Top 10 Checks for the Matched Surfaces
+
+Do not work through all 10 categories unconditionally. Select the checks for the matched surface(s)
+using the table below, then consult the per-category check tables for those selected checks:
 
 [`references/owasp-categories.md`](file:///home/opencode/.config/opencode/skills/security-review/references/owasp-categories.md)
 
-### Step 3: Detect Vulnerability Patterns
+**Surface -> check-selection table.** Select checks only for the surface(s) matched in Step 1. The
+referenced files are the HOW-source for each selected check.
 
-Scan for these high-priority patterns. For detailed code examples of each pattern with before/after fixes, see:
+| Matched surface | Selected checks |
+| --- | --- |
+| Authentication or authorization | authentication flow, authorization checks, privilege boundaries, session/token behavior |
+| Credentials, tokens, secrets, or API keys | secret detection, storage and transmission, rotation, config handling, log leakage |
+| External or untrusted input | input validation, injection sinks, deserialization safety, IPC trust boundaries, output encoding |
+| Filesystem or path trust boundaries | path traversal, path resolution, archive extraction, temp-file safety, TOCTOU |
+| Privilege changes | privilege escalation, setuid/setgid, user/role boundaries, sudoers, least privilege |
+| Docker capabilities, seccomp, sandboxing, root/UID-GID | capabilities, seccomp, sandbox, UID/GID transitions, mount/path exposure |
+| Command or shell execution | shell injection, argument quoting, command construction, environment propagation, privilege/process boundaries |
+| Network exposure | listener/bind scope, TLS configuration, CORS, proxy trust, auth on exposed endpoints |
+| Persisted sensitive data | data-at-rest protection, retention, backup/export exposure, log/cache leakage |
+| Workflow or action permissions | workflow permissions, token scope, trigger events, OIDC trust, third-party action pinning |
+| Dependency or artifact integrity | dependency audit, checksum/signature verification, pinned versions, provenance/supply-chain |
+| Agent/plugin/tool permissions | allowed tool surface, prompt/tool trust boundaries, filesystem/network/shell authority, plugin hook behavior |
+| Remote mutation | authorization for push/deploy/publish, target/branch protection, credential scope, irreversible-operation safeguards |
+| Supply-chain or publication | provenance, signing, registry/image publication, artifact verification, release integrity |
+
+### Step 3: Detect the Vulnerability Patterns Selected by the Matched Surfaces
+
+Scan for the high-priority patterns selected by the matched surface(s) in the table above. For
+detailed code examples of each selected pattern with before/after fixes, see:
 
 [`references/vulnerability-patterns.md`](file:///home/opencode/.config/opencode/skills/security-review/references/vulnerability-patterns.md)
 
@@ -98,14 +124,27 @@ Use the report format template:
 
 After fixes are applied, re-run the checklist. Critical and High issues must be resolved before merging. Medium issues should have a tracking ticket. Low issues may be noted for future cleanup.
 
-### Step 6: Run Automated Scanners
+### Step 6: Run Automated Scanners (only where applicable)
 
-In addition to manual review, run automated scanning tools:
+Automated scanners contribute supporting evidence only when they apply to the matched surface and
+the repository actually uses the ecosystem or tooling the scanner targets. Do not run a scanner
+whose surface or ecosystem is absent, and never treat a scanner as satisfying a matched-surface
+review.
 
-- **AgentShield (agent/hook/MCP surfaces):** `npx ecc-agentshield scan --path .` — detects hardcoded secrets, broad permissions, executable hooks, MCP servers with shell/filesystem/remote transport access, and agent prompts handling untrusted content without defenses. Returns a security grade and prioritized remediation plan.
-- **ECC security-audit tool:** Three audit types — `dependencies` (npm audit), `secrets` (regex-based detection of API keys, passwords, JWT tokens, GitHub tokens, AWS secrets), `code` (eval, innerHTML, dangerouslySetInnerHTML, document.write, SQL injection patterns).
+- **AgentShield (agent/hook/MCP/permission surfaces):** `npx ecc-agentshield scan --path .` — run
+  only when a matched surface includes agent prompts, MCP servers, plugin hooks, or permission
+  rules. Detects hardcoded secrets, broad permissions, executable hooks, MCP servers with
+  shell/filesystem/remote transport access, and agent prompts handling untrusted content without
+  defenses. Returns a security grade and prioritized remediation plan.
+- **ECC security-audit tool:** run the audit type that matches the matched surface — `secrets`
+  (regex-based detection of API keys, passwords, JWT tokens, GitHub tokens, AWS secrets) for
+  credential/secret surfaces, `code` (eval, innerHTML, dangerouslySetInnerHTML, document.write, SQL
+  injection patterns) for external-input/command-execution surfaces, and `dependencies` only when a
+  dependency/artifact-integrity surface matched and the repository uses a supported dependency
+  ecosystem (for example npm audit).
 
-These scanners complement manual review — they catch patterns at scale, but cannot replace contextual judgment.
+These scanners complement manual review — they catch patterns at scale, but cannot replace
+contextual judgment.
 
 ## Security Response Protocol
 
@@ -130,7 +169,7 @@ When a security vulnerability is found:
 - **Don't skip the checklist** — even "obvious" code can hide subtle vulnerabilities. Systematic review catches what intuition misses.
 - **Don't trust framework defaults** — frameworks provide tools, not guarantees. Verify that escaping, CSRF protection, and auth middleware are actually applied to every route.
 - **Don't review in isolation** — a function may be safe alone but vulnerable when composed with others. Trace data flow from input to sink.
-- **Don't assume dependencies are clean** — `npm audit` / `pip audit` on every review. A vulnerable transitive dependency is still your vulnerability.
+- **Don't assume dependencies are clean** — when a dependency/artifact-integrity surface matched, review dependencies with the repository's actual ecosystem tooling (for example `npm audit`, `pip audit`, or the repository's pinned-version/checksum verification). A vulnerable transitive dependency is still your vulnerability.
 
 ## Agent & Infrastructure Surfaces
 
@@ -145,22 +184,25 @@ These surfaces are distinct from OWASP Top 10 and require their own review metho
 
 ## Additional Scanning Tools
 
-Complement manual review with these tools:
+Complement manual review with the tools that apply to the matched surface and that the repository
+actually uses. A tool whose surface or ecosystem is not present is not applicable and must not be
+required.
 
-| Tool | Purpose | Command |
-|------|---------|---------|
-| `ecc-agentshield` | Agent/hook/MCP/permission surface scanning | `npx ecc-agentshield scan --path .` |
-| `eslint-plugin-security` | Static analysis for JS/TS security patterns | Configure in ESLint config |
-| `git-secrets` | Prevent committing secrets to git | `git secrets --scan` |
-| `trufflehog` | Find secrets in git history and files | `trufflehog filesystem .` |
-| `semgrep` | Pattern-based security scanning with rule packs | `semgrep --config=auto .` |
+| Tool | Applies when | Command |
+|------|--------------|---------|
+| `ecc-agentshield` | an agent/hook/MCP/permission surface matched | `npx ecc-agentshield scan --path .` |
+| `eslint-plugin-security` | the repository uses ESLint for JS/TS | Configure in ESLint config |
+| `git-secrets` | a git repository is present | `git secrets --scan` |
+| `trufflehog` | a git repository is present | `trufflehog filesystem .` |
+| `semgrep` | a source surface to scan exists | `semgrep --config=auto .` |
 
 ## CI Integration
 
-For enforced security gates in CI:
+These example gates apply **only when the matched surface calls for them and the repository
+actually uses that ecosystem**. They are not universal CI requirements.
 
 ```yaml
-# GitHub Actions — AgentShield security gate
+# GitHub Actions — AgentShield gate (only when an agent/hook/MCP/permission surface matched)
 - uses: affaan-m/agentshield@v1
   with:
     path: "."
@@ -168,7 +210,9 @@ For enforced security gates in CI:
     fail-on-findings: true
 ```
 
-Block merges on CRITICAL and HIGH findings. Run `npm audit --audit-level=high` as a separate CI step for dependency vulnerabilities.
+Block merges on CRITICAL and HIGH findings. Add a dependency audit step (for example
+`npm audit --audit-level=high`) only when a dependency/artifact-integrity surface matched and the
+repository uses that ecosystem; otherwise use the repository's own dependency-integrity tooling.
 
 ## References
 

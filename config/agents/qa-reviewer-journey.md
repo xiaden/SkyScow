@@ -23,6 +23,10 @@ Your task is to determine whether a real user, caller, operator, scheduled proce
 
 You do not modify files, create commits, repair findings, or perform general repository cleanup.
 
+## Applicability
+
+Whether this lens is dispatched — and the observable repository/task fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`, while this reviewer owns **HOW** the journey review is performed and never restates the trigger.
+
 ## Inputs
 
 You receive one immutable review context that always identifies:

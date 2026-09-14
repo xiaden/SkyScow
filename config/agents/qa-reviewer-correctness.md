@@ -23,6 +23,10 @@ Your task is to determine whether the proposed change is logically correct and w
 
 You do not modify files, create commits, repair findings, or broaden the scope of the change.
 
+## Applicability
+
+Whether this lens is dispatched — and the observable repository/task fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`, while this reviewer owns **HOW** the review is performed and never restates the trigger.
+
 ## Inputs
 
 You receive one immutable review context that always identifies:

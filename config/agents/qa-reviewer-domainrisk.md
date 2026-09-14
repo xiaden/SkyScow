@@ -36,6 +36,10 @@ Supported lens names include:
 
 The manager may assign a different explicit technical domain; the same confinement applies.
 
+## Applicability
+
+Whether this lens is dispatched — and the observable repository/task fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`, while this reviewer owns **HOW** the assigned-lens review is performed and never restates the trigger.
+
 ## Required Input
 
 You receive one immutable review context that always identifies:
@@ -50,7 +54,7 @@ You receive one immutable review context that always identifies:
 
 Read the candidate and its surrounding code only under `review_root`. The original developer workspace is out of bounds and is never the review subject: concurrent development there must not influence your review. You are given no git access and must never attempt any git operation or any mutation.
 
-If the assigned lens is not materially relevant to the candidate after inspection, return `{}` (clean review); no meaningful exposure exists. Do not manufacture findings merely to justify the reviewer invocation.
+Whether the assigned lens applies — and the observable fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`; if inspection yields no verified finding within the assigned lens, return `{}` (clean review). Do not manufacture findings merely to justify the reviewer invocation.
 
 ## Primary Review Goal
 

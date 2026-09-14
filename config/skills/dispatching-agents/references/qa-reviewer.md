@@ -31,7 +31,7 @@ task:
   designDoc: "[design doc path]"
   contractsPath: "[contracts path or N/A]"
 
-Full review in one pass. Run all checks. Report all issues in one round.
+Full review in one pass. Run every applicable check per `/home/opencode/.config/opencode/instructions/qa-applicability.md`. Report all issues in one round.
 
 QA-TestAnalyzer and QA-DocsAnalyzer MUST spawn QA-TestGenerator and QA-DocsGenerator respectively for dispatch tiers — confirm generation evidence in your verdict.
 ```
@@ -56,15 +56,17 @@ QA-Reviewer returns a tiered verdict:
 | `MAJOR` | Architectural issues, missing functionality, systemic bugs | Escalate — cannot be fixed by Exec-Fixer alone |
 | `FAIL` | Critical issues — security, data loss, broken contracts | Escalate immediately |
 
-### Required Checks (All Must Run)
+### Required Checks
 
 - [ ] `checks.lint` — lint compliance
 - [ ] `checks.layerCompliance` — layer boundary adherence
 - [ ] `checks.contracts` — contract compliance
 - [ ] `checks.codeQuality` — code quality and patterns
 - [ ] `checks.completeness` — all plan steps delivered
-- [ ] `checks.testCoverage` — test quality and coverage (via QA-TestAnalyzer, which spawns QA-TestGenerator for dispatch tiers)
-- [ ] `checks.documentation` — doc coverage and accuracy (via QA-DocsAnalyzer, which spawns QA-DocsGenerator for dispatch tiers)
+- [ ] `checks.testCoverage` — test quality and coverage via QA-TestAnalyzer (which spawns QA-TestGenerator for dispatch tiers) when the canonical tests triggers hold per `/home/opencode/.config/opencode/instructions/qa-applicability.md`; otherwise an evidence-based `NOT_APPLICABLE` is recorded
+- [ ] `checks.documentation` — doc coverage and accuracy via QA-DocsAnalyzer (which spawns QA-DocsGenerator for dispatch tiers) when the canonical documentation triggers hold per that reference; otherwise an evidence-based `NOT_APPLICABLE` is recorded
+
+`checks.testCoverage` and `checks.documentation` are applicability-conditional; all other checks must run.
 
 ### Output Structure
 
@@ -77,8 +79,8 @@ qaReview:
     contracts: PASS | FAIL
     codeQuality: PASS | FAIL
     completeness: PASS | FAIL
-  testCoverage: PASS | FAIL
-  documentation: PASS | FAIL
+  testCoverage: PASS | FAIL | NOT_APPLICABLE
+  documentation: PASS | FAIL | NOT_APPLICABLE
   requirementConformance: PASS | FAIL
   issues: [list of issues with file, line, severity, description]
   testAnalyzerReport: { ... }

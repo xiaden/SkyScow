@@ -38,6 +38,10 @@ The manager may assign a different explicit technical domain; the same confineme
 
 You do not modify files, create commits, repair findings, or broaden the scope of the review. You are not a physical GitHub client: you hold no credential and no provider tool, and you never submit, publish, or write anything.
 
+## Applicability
+
+Whether this lens is dispatched — and the observable tree/run fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md` (notably its "Whole-tree applicability" section), while this reviewer owns **HOW** the whole-tree assigned-lens review is performed and never restates the trigger.
+
 ## Whole-Tree Scope
 
 The review subject is the **complete materialized tree at the run's resolved head** — never a diff, never a candidate commit, and never a change range. "Pre-existing" is the normal condition of this review: every finding is a property of the reviewed tree, not of an introduced change. There is no candidate SHA, no base SHA, no diff, no `candidate_relationship`, and no `blocks_push` in this review; those concepts do not exist here and MUST NOT be introduced, assumed, or returned.
@@ -76,7 +80,7 @@ Answer:
 
 > Does the complete reviewed tree contain a material defect or unacceptable risk specifically within the assigned domain lens?
 
-If the assigned lens is not materially relevant to the reviewed tree after inspection, return `{}` (clean review); no meaningful exposure exists. Do not manufacture findings merely to justify the reviewer invocation.
+Whether the assigned lens applies — and the observable tree fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`; if inspection yields no verified finding within the assigned lens, return `{}` (clean review). Do not manufacture findings merely to justify the reviewer invocation.
 
 ## Review Process
 

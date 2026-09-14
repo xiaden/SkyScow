@@ -2,22 +2,14 @@
 
 ## When This Applies
 
-This checklist applies when the change touches a security-sensitive surface. Every trigger is an
-observable repository/task fact; the canonical surface list is owned by
-`/home/opencode/.config/opencode/skills/security-review/SKILL.md` — load it and run the full review for those surfaces.
+Applicability is determined by the canonical classification in
+`/home/opencode/.config/opencode/instructions/qa-applicability.md`, using the security surfaces and
+triggers owned by `/home/opencode/.config/opencode/skills/security-review/SKILL.md`. This checklist
+does not define or repeat those triggers. When the security lens is matched, load the security-review
+skill and use this document for review HOW, including the C01-C08 checks and the guidance below.
 
-- The changed files or diff touch a security-sensitive surface from that canonical list (for example
-authentication/authorization, credentials/tokens/secrets, external or untrusted input,
-filesystem/path trust boundaries, privilege changes, Docker capabilities/seccomp/root,
-command/shell execution, network exposure, persisted sensitive data, workflow/action permissions,
-dependency/artifact integrity, agent/plugin/tool permissions, remote mutation, or
-supply-chain/publication)
-- Adding or modifying an endpoint, authentication flow, or data-handling code
-- Reviewing a PR whose diff touches one of those surfaces — the reviewer verifies checklist compliance
-- Introducing a dependency — verify it doesn't introduce hardcoded secrets or unsafe defaults
-
-For non-security changes, preserve existing security invariants under ordinary correctness review;
-the full C01-C08 checklist is not required.
+For changes not classified for the security lens, preserve existing security invariants under ordinary
+correctness review; the full C01-C08 checklist is not required.
 
 ## C01-C08 Checks
 

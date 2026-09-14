@@ -5,7 +5,7 @@ Push back when Exec-Manager reports completion without running QA review.
 ## When to Use
 
 - Exec-Manager reports `status: DONE` but the report is missing `qaReview` section
-- Exec-Manager reports DONE but `testAnalyzerReport` or `docsAnalyzerReport` is missing
+- Exec-Manager reports DONE but a required analyzer report is missing — the test/documentation analyzer report is required only when the canonical tests/docs triggers hold per `/home/opencode/.config/opencode/instructions/qa-applicability.md`; otherwise an explicitly recorded evidence-based `NOT_APPLICABLE` is required
 - Exec-Manager attempts to skip QA review entirely
 
 ## Do NOT Use
@@ -23,25 +23,23 @@ QA review is mandatory. Re-run with QA-Reviewer before reporting DONE.
 
 Your report MUST include:
 - QA-Reviewer verdict and all checks (lint, layers, contracts, quality, completeness)
-- QA-TestAnalyzer status and report
-- QA-DocsAnalyzer status and report
+- QA-TestAnalyzer status and report when the canonical tests triggers hold per `/home/opencode/.config/opencode/instructions/qa-applicability.md`; otherwise an explicitly recorded evidence-based `NOT_APPLICABLE`
+- QA-DocsAnalyzer status and report when the canonical documentation triggers hold per that reference; otherwise an explicitly recorded evidence-based `NOT_APPLICABLE`
 ```
 
 ## Required Checks
 
-Exec-Manager's report must include ALL of these before accepting DONE:
+Exec-Manager's report must include all of these before accepting DONE (the analyzer items are applicability-conditional; the QA-Reviewer verdict and the core checks are mandatory):
 
 - [ ] `checks.lint: PASS`
 - [ ] `checks.layerCompliance: PASS`
 - [ ] `checks.contracts: PASS`
 - [ ] `checks.codeQuality: PASS`
 - [ ] `checks.completeness: PASS`
-- [ ] `checks.testCoverage: PASS` — confirms QA-TestAnalyzer ran
-- [ ] `checks.documentation: PASS` — confirms QA-DocsAnalyzer ran
-- [ ] `testAnalyzerReport` present in output
-- [ ] `docsAnalyzerReport` present in output
+- [ ] `checks.testCoverage` resolves to `PASS`, `FAIL`, or an evidence-based `NOT_APPLICABLE` per `/home/opencode/.config/opencode/instructions/qa-applicability.md`, and `testAnalyzerReport` is present with generator-dispatch evidence for dispatch tiers whenever the canonical tests triggers hold
+- [ ] `checks.documentation` resolves to `PASS`, `FAIL`, or an evidence-based `NOT_APPLICABLE` per that reference, and `docsAnalyzerReport` is present with generator-dispatch evidence for dispatch tiers whenever the canonical documentation triggers hold
 
-If ANY check is missing (not failed — **missing**), the review is incomplete. Re-dispatch Exec-Manager with the reassertion message. Exec-Manager must then spawn QA-Reviewer and wait for a complete review before reporting DONE again.
+If any mandatory check is missing (not failed — **missing**), or an applicability-conditional analyzer check is absent without an evidence-based `NOT_APPLICABLE`, the review is incomplete. Re-dispatch Exec-Manager with the reassertion message. Exec-Manager must then spawn QA-Reviewer and wait for a complete review before reporting DONE again.
 
 ## Spec-First Tests
 
@@ -66,6 +64,6 @@ QA-Reviewer must classify test failures:
 
 Your report MUST include:
 - QA-Reviewer verdict with failure classification
-- QA-TestAnalyzer status and report
-- QA-DocsAnalyzer status and report
+- QA-TestAnalyzer status and report when the canonical tests triggers hold per `/home/opencode/.config/opencode/instructions/qa-applicability.md`; otherwise an explicitly recorded evidence-based `NOT_APPLICABLE`
+- QA-DocsAnalyzer status and report when the canonical documentation triggers hold per that reference; otherwise an explicitly recorded evidence-based `NOT_APPLICABLE`
 ```

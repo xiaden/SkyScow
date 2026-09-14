@@ -30,7 +30,7 @@ Implement only the approved scope. Re-read files immediately before editing and 
 
 ## Phase 4: Mandatory QA gate
 
-Have `QA-Reviewer` perform a full review after all implementation phases. Provide the original request, requirement ledger, risk classification, plan, changed-file set, invariants, test results, and diff context. For security-sensitive, persistence, cache, lifecycle, or cross-layer changes, require the applicable security review as well as test and documentation analysis.
+Have `QA-Reviewer` perform a full review after all implementation phases. Provide the original request, requirement ledger, risk classification, plan, changed-file set, invariants, test results, and diff context. The full QA gate is mandatory for every meaningful implementation change, and independent correctness review is always required. Invoke the security review, test analysis, and documentation analysis lenses only when their canonical triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md` are met; do not restate those triggers here.
 
 - `MINOR` findings: route to the permitted fixer, then rerun the full QA review.
 - Planning gaps, requirement drift, architectural issues, critical/security findings, or unresolved partial-failure behavior: stop, amend or escalate the plan; do not paper over them with a local patch.

@@ -70,6 +70,12 @@ You don't write docs yourself unless it's a one-line fix. For the dispatch tiers
 - Does not analyze test coverage — TestAnalyzer handles that
 - Does not generate more than one doc generation cycle
 
+## Applicability
+
+Whether documentation analysis applies — and the observable triggers that require it — is owned by the canonical QA applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md` (section "Documentation applicability"). Reference that file for **WHEN** docs analysis applies; this agent owns **HOW** the analysis is performed and never restates the canonical trigger list.
+
+Documentation analysis is not universal: it is not required for purely internal implementation details with no documentation surface. An `UNNECESSARY` classification cannot be used to skip an observable public or operator contract change — when such a contract changed, documentation analysis is required and the resulting gap may not be declared unnecessary.
+
 ## Relevant Skills
 
 | Situation | Skill to Load |

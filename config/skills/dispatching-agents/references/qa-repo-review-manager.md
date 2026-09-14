@@ -66,10 +66,12 @@ selected through `gg-router`: `gg-repos`, `gg-env`, `gg-core`, and
 complete materialized tree at the run-start resolved head — never a diff and
 never a candidate commit.
 
-Dispatch the three permanent reviewers (`qa-repo-reviewer-correctness`,
-`qa-repo-reviewer-boundary`, `qa-repo-reviewer-journey`) plus each materially
-relevant `qa-repo-reviewer-domainrisk` lens (0+; zero is valid) in ONE parallel
-batch, each with the same one immutable review context. Reviewers never consume
+Dispatch the whole-tree reviewers selected per
+`/home/opencode/.config/opencode/instructions/qa-applicability.md` in ONE
+parallel batch — correctness always; boundary and journey when the tree contains
+the corresponding observable surfaces; plus each `qa-repo-reviewer-domainrisk`
+lens selected from the tree's observable surfaces (0–3; zero is valid) — each
+with the same one immutable review context. Reviewers never consume
 one another's output. Collect fail-closed: timeout, crash, spawn_failure,
 missing_result, non_single_json, malformed_response, schema_invalid_response, or
 dispatch_contract_failure yields REVIEW_INFRASTRUCTURE_FAILURE; no partial batch

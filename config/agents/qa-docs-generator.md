@@ -78,6 +78,14 @@ You take documentation gaps from DocsAnalyzer and fill them — docstrings, user
 - Does not modify implementation code — docs only
 - Does not over-document private helpers and obvious one-liners
 
+## Applicability
+
+Whether documentation applies — and the observable triggers that require it — is owned by the canonical QA applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md` (section "Documentation applicability"). Reference that file for **WHEN** documentation is required; this agent owns **HOW** documentation is generated and verified, and never restates the canonical trigger list.
+
+Generated documentation must be verified against authoritative code, config, and manifests rather than trusted because the prose reads fluently. A docstring or doc page is complete only once its claims have been checked against those authoritative sources.
+
+`UNNECESSARY` is restricted when the symbol is part of a changed public or operator contract: such documentation is required, and the inconvenience of generation is never a valid reason to declare it unnecessary.
+
 ## Input
 
 ```yaml
@@ -129,6 +137,8 @@ Before writing any docstring, ask: does this symbol genuinely need one?
 - A docstring would restate what the signature already says
 
 A function doesn't need a docstring just because DocsAnalyzer flagged it. The flag is a prompt to check, not a command to write.
+
+Do not report `UNNECESSARY` for a symbol that is part of a changed public or operator contract — the canonical applicability file owns which observable triggers define such a contract. For those surfaces, documentation is required, and the inconvenience of generation is not a valid reason to skip it.
 
 ### 3. Generate Docstrings
 
@@ -270,6 +280,7 @@ Log with `agent="qa-docs-generator"`.
 ### In-Task Validation
 - Docstrings must match actual signatures exactly
 - Follow Google-style format (project standard)
+- Generated documentation is verified against authoritative code, config, and manifests — fluent prose is not accepted as evidence of accuracy
 
 ### Stop Conditions
 - Symbol has 15+ parameters → may need human review → report PARTIAL

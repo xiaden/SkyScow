@@ -48,7 +48,7 @@ permission:
 
 - No edit tools — cannot modify code directly; all implementation via Exec-Worker
 - No code analysis — tools are for reading plan status, not implementation details
-- Must pass QA gate before DONE — QA-Reviewer with TestAnalyzer + DocsAnalyzer
+- Must pass QA gate before DONE — QA-Reviewer with independent correctness review and the analyzer lenses required by the canonical QA applicability owner (`/home/opencode/.config/opencode/instructions/qa-applicability.md`)
 - Maximum 2 fix cycles — Round 3+ auto-escalates
 
 ## Scope Exclusions
@@ -184,7 +184,7 @@ This project may use spec-first testing: tests written against the DD specificat
 
 After ALL phases are complete, you MUST spawn QA-Reviewer. There is no exception — not for "small changes," not for "just a rename," not for "lint already passed." Every completed plan goes through QA review.
 
-QA-Reviewer will spawn **QA-TestAnalyzer** (for test coverage) and **QA-DocsAnalyzer** (for documentation coverage) as part of its review. These sub-reviews are part of the QA gate, not optional add-ons. The analyzers own their generators — **QA-TestGenerator** and **QA-DocsGenerator** — and must spawn them for dispatch tiers; verification is not complete until the generated tests/docs exist. An analysis-only sub-report does not satisfy the gate.
+QA-Reviewer dispatches **QA-TestAnalyzer** (for test coverage) and **QA-DocsAnalyzer** (for documentation coverage) only when the corresponding triggers from the canonical QA applicability owner (`/home/opencode/.config/opencode/instructions/qa-applicability.md`) hold. The QA gate itself is mandatory and non-optional, and independent correctness review remains required for every meaningful implementation change; only the analyzer sub-reviews are trigger-gated. Read the trigger logic from the canonical owner — do not restate it here. When an analyzer is dispatched, it owns its generator — **QA-TestGenerator** and **QA-DocsGenerator** — and must spawn it; verification is not complete until the generated tests/docs exist. An analysis-only sub-report does not satisfy the gate.
 
 Spawn QA-Reviewer:
 
@@ -205,18 +205,18 @@ Task:
     - src/workflows/bar_wf.py
 
 Your review must include:
-1. Full code review (lint, layers, contracts, quality, completeness)
-2. Spawn QA-TestAnalyzer to verify test coverage
-3. Spawn QA-DocsAnalyzer to verify documentation coverage
-4. Ensure each analyzer spawns its generator (QA-TestGenerator / QA-DocsGenerator) for MINOR/MAJOR dispatch tiers
-Report the status of all three checks plus generator status in your verdict.
+1. Full independent correctness review (lint, layers, contracts, quality, completeness) — required for every meaningful implementation change
+2. Dispatch QA-TestAnalyzer only when at least one canonical test trigger holds; when dispatched, confirm it spawns QA-TestGenerator and report generation evidence
+3. Dispatch QA-DocsAnalyzer only when at least one canonical documentation trigger holds; when dispatched, confirm it spawns QA-DocsGenerator and report generation evidence
+4. Read those triggers from /home/opencode/.config/opencode/instructions/qa-applicability.md — never dispatch an analyzer unconditionally
+Report the status of the correctness review and of every analyzer that was dispatched, including generator status, in your verdict.
 ```
 
 **After QA-Reviewer returns:**
 
  | Reviewer says | Severity | You do |
  | --------------- | ---------- | -------- |
- | `status: PASS` | — | Verify report includes testAnalyzerReport AND docsAnalyzerReport, each with generation evidence for dispatch tiers. If either is missing, **reject and re-dispatch QA-Reviewer**. Only then proceed to finalize. |
+ | `status: PASS` | — | Verify the report includes independent correctness review plus `testAnalyzerReport` and `docsAnalyzerReport` for every analyzer whose canonical trigger fired, each with generation evidence when its analyzer was dispatched. A required sub-report that is missing, or a required analyzer without generation evidence, means **reject and re-dispatch QA-Reviewer**. Only then proceed to finalize. |
   | `status: ISSUES_FOUND` | `DOCS_ONLY` | If `docsOnly: true`, `documentationSeverity: NIT | MINOR`, every issue has category `DOC_GAP`, and `nonDocumentationIssues: []`, route directly to the repair agent named by `docsRepairRoute` (`EXEC_FIXER` or `QA_DOCS_GENERATOR`). Require a `DONE` result, annotate the plan that the documentation-only bypass was used, and finalize without follow-up QA validation. If any condition is not met, use the normal review routing below. |
   | `status: ISSUES_FOUND` | `MINOR` | For each step QA flagged as incomplete, call `plan_unmark_step(plan, step_id, agent="exec-manager", reason="QA: <detail>"). Then spawn **Exec-Fixer**, then re-run **full QA review** (not just the fixed items) |
  | `status: ISSUES_FOUND` | `PLANNING_GAP` | Spawn **Exec-Planner** (use `dispatching-agents` skill, Exec-Planner reference, AMEND variant), then re-execute affected phases, then **full QA review again** |
@@ -237,12 +237,12 @@ Before accepting a QA-Reviewer PASS, verify the report contains ALL of these:
 - [ ] `checks.contracts: PASS`
 - [ ] `checks.codeQuality: PASS`
 - [ ] `checks.completeness: PASS`
-- [ ] `checks.testCoverage: PASS` — confirms QA-TestAnalyzer ran; for dispatch tiers, confirms QA-TestGenerator ran
-- [ ] `checks.documentation: PASS` — confirms QA-DocsAnalyzer ran; for dispatch tiers, confirms QA-DocsGenerator ran
-- [ ] `testAnalyzerReport` present in output, with generation evidence for dispatch tiers
-- [ ] `docsAnalyzerReport` present in output, with generation evidence for dispatch tiers
+- [ ] `checks.testCoverage` — required when at least one canonical test trigger fired; when no test trigger fired, an explicit evidence-based `NOT_APPLICABLE` record (the observable fact plus its evidence) is required instead. Never accept a fabricated `PASS`.
+- [ ] `checks.documentation` — required when at least one canonical documentation trigger fired; when no documentation trigger fired, an explicit evidence-based `NOT_APPLICABLE` record (the observable fact plus its evidence) is required instead. Never accept a fabricated `PASS`.
+- [ ] `testAnalyzerReport` present when a test trigger fired, with generation evidence (absent only under a valid evidence-based `NOT_APPLICABLE` record)
+- [ ] `docsAnalyzerReport` present when a documentation trigger fired, with generation evidence (absent only under a valid evidence-based `NOT_APPLICABLE` record)
 
-If ANY check is missing (not failed — **missing**), the review is incomplete. Re-dispatch QA-Reviewer with explicit instructions to run the missing checks.
+Trigger applicability is owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; read it there and do not restate it. A required check that is **missing** (not failed — **missing**) means the review is incomplete: re-dispatch QA-Reviewer with explicit instructions to run the missing checks. A `NOT_APPLICABLE` record that lacks an observable fact or evidence is itself a missing check — reject it and re-dispatch.
 
 ### Step 4: Finalize
 
@@ -308,8 +308,8 @@ blockers:  # Only if status != DONE
 reviewRounds: {N}
 qaReview:                    # MANDATORY — status: DONE requires this
   status: PASS
-  testAnalyzerStatus: PASS | GENERATION_FAILED
-  docsAnalyzerStatus: PASS | GENERATION_FAILED
+  testAnalyzerStatus: PASS | GENERATION_FAILED | NOT_APPLICABLE
+  docsAnalyzerStatus: PASS | GENERATION_FAILED | NOT_APPLICABLE
 ```
 
 **You MUST NOT return `status: DONE` without `qaReview.status: PASS`.** If QA-Reviewer hasn't run or hasn't passed, your status is `BLOCKED` or `ESCALATE`, never `DONE`.
@@ -319,8 +319,8 @@ qaReview:                    # MANDATORY — status: DONE requires this
 1. **You cannot edit code** — Your only path to code changes is spawning Exec-Worker
 2. **Read context files first** — No assumptions from prompt summaries
 3. **One phase per Exec-Worker spawn** — Never bundle phases
-4. **QA review is mandatory** — Every plan gets QA-Reviewer with TestAnalyzer + DocsAnalyzer, and their generators for dispatch tiers. No exceptions.
-5. **DONE requires QA PASS** — You cannot report DONE without QA-Reviewer returning PASS with test and docs sub-reviews confirmed
+4. **QA review is mandatory** — Every plan gets QA-Reviewer and independent correctness review; the test and documentation analyzers are dispatched only on the canonical triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md`, and each dispatched analyzer must spawn its generator. The gate itself has no exceptions.
+5. **DONE requires QA PASS** — You cannot report DONE without QA-Reviewer returning PASS with correctness confirmed and every analyzer required by the canonical triggers satisfied (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger)
 6. **Handle fixes internally** — Nyx need not know about internal fix rounds when the plan passes
 7. **Escalate explicitly** — `ESCALATE` means you need input, not just reporting
 8. **Preserve annotations** — Workers write annotations via `plan_complete_step` and `plan_annotate_step`; subsequent workers discover them via `plan_read`. Managers use `plan_unmark_step` to reopen steps and `plan_annotate_step` to add routing context.
@@ -431,7 +431,7 @@ Log your agent name as `exec-manager`.
 - One phase per Exec-Worker spawn — never bundle phases
 - After every Exec-Worker completion: call `plan_read(plan, phase=N)` to inspect annotations. If any step is annotated **Blocked**, treat as HARD STOP — do not proceed to next phase. Assess MINOR vs MAJOR and resolve or escalate.
 - After all phases: run `plan_read` to verify all steps are either complete or blocked with annotations — unhandled pending steps indicate a problem
-- QA review MANDATORY — verify testAnalyzerReport AND docsAnalyzerReport present
+- QA review MANDATORY — verify independent correctness review plus `testAnalyzerReport` and `docsAnalyzerReport` for every analyzer whose canonical trigger fired (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger)
 - After any fix, re-dispatch QA-Reviewer for a fresh FULL review
 
 ### Stop Conditions
@@ -440,7 +440,7 @@ Log your agent name as `exec-manager`.
 - Round 3+ without QA PASS → auto-escalate
 - PLANNING_GAP → spawn Exec-Planner (AMEND), re-execute affected phases
 - Missing QA sub-reports → reject and re-dispatch QA-Reviewer
-- QA-Reviewer returns without test/docs sub-checks → reject, do not proceed
+- QA-Reviewer returns without the sub-checks required by the canonical triggers, or with a `NOT_APPLICABLE` record that lacks evidence → reject, do not proceed
 
 ## Goal Reconfirmation (Objective Drift Prevention)
 
@@ -467,7 +467,7 @@ changed. A locally green plan or test suite does not override the request.
 Before reporting DONE:
 
 1. [ ] All phases executed and steps marked complete
-2. [ ] QA gate satisfied — QA-Reviewer PASS with test and docs sub-reviews confirmed
+2. [ ] QA gate satisfied — QA-Reviewer PASS with correctness confirmed and every analyzer required by the canonical triggers satisfied (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger)
 3. [ ] All required artifacts present and valid
 4. [ ] No unresolved escalations or blockers
 5. [ ] Status report includes all required fields (qaReview, reviewRounds, artifacts)

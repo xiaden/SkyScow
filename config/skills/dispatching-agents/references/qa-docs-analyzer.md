@@ -2,6 +2,10 @@
 
 Dispatch QA-DocsAnalyzer to assess documentation coverage and accuracy for changed code.
 
+WHEN documentation analysis applies and the observable trigger are owned by
+`/home/opencode/.config/opencode/instructions/qa-applicability.md`; this reference
+owns only HOW documentation analysis is performed.
+
 ## When to Dispatch
 
 **Dispatch when:**
@@ -13,7 +17,6 @@ Dispatch QA-DocsAnalyzer to assess documentation coverage and accuracy for chang
 - You need a full review — use `qa-reviewer` instead (it spawns this agent)
 - You need docs generated — use `qa-docs-generator` instead (spawned by this agent)
 - You need test analysis — use `qa-test-analyzer` instead
-- The changed code is trivial (internal refactor, no public API change)
 
 ## Dispatch Template
 

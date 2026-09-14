@@ -178,7 +178,7 @@ Run through this checklist when designing a new feature or system. Not every ite
 - [ ] Data flow documented — how data moves between components and across boundaries
 - [ ] Integration points identified — external services, third-party APIs, internal dependencies
 - [ ] Error handling strategy defined — what fails, how it fails, what the user sees
-- [ ] Testing strategy planned — unit, integration, E2E coverage targets per component
+- [ ] Verification/testing strategy planned — selected from each changed boundary's observable surface and the repository's actual capabilities, using repository-native tooling; unit, integration, or E2E only where that level provides meaningful evidence, with no universal requirement that every component receive all three
 
 ### Operations
 

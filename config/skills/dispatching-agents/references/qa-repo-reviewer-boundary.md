@@ -7,7 +7,10 @@ in QA-RepoReviewManager's single parallel review batch.
 
 **Dispatch when:**
 - QA-RepoReviewManager has verified an immutable detached snapshot of the
-  complete current-head tree and is dispatching the permanent lenses.
+  complete current-head tree and is dispatching the whole-tree reviewers selected
+  per `/home/opencode/.config/opencode/instructions/qa-applicability.md`; boundary
+  is dispatched when the tree contains the corresponding observable boundary
+  surfaces, recorded with its trigger.
 - You need independent review of boundary conditions, degraded states, cleanup,
   partial success, and failure behavior across the complete tree.
 

@@ -130,13 +130,14 @@ Perform ALL of the following checks. Do not skip any category.
 - Are there methods from the plan that weren't created? (incomplete)
 
 ### 8. Coverage (Repository-Defined)
+- Whether this lens applies and its test/documentation trigger conditions are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; this protocol references that owner and owns only the HOW of coverage verification, never restating its trigger logic
 - Coverage is a diagnostic unless the repository defines its own coverage threshold or verification policy; honor the repository policy when present and never apply a universal percentage (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
 - Discover and run the repository's own coverage command; do not assume `npm test`, `--coverage`, or any generic coverage command exists
 - If the repository defines no coverage policy, report coverage as unavailable/diagnostic rather than inventing a threshold
 - Flag a coverage **regression** against the repository's own policy or prior baseline; do not flag the absence of a universal percentage
 
 ### 9. Security Review (Conditional)
-- Required only when the changed surface includes an observable security-sensitive surface: authentication/authorization, payments/financial logic, secrets/credentials, external or user input, persisted or sensitive data, deployment/environment/security-header configuration, or agent/MCP/plugin/permission surfaces
+- Whether this lens applies and its observable trigger are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; the canonical security-sensitive surface list is owned by the `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`); neither list is restated here
 - When triggered, run the canonical `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`) for its checklist and findings; this protocol references it and must not restate or weaken its checks
 - When no such surface changed, security review is not applicable — record that explicitly rather than reporting a security pass
 - A critical or high security finding routes to DISCUSS
@@ -265,5 +266,5 @@ More than 2 fix rounds means the original plan or the architecture understanding
 
 - **Do not fix code.** The review agent reports. The fix cycle handles corrections.
 - **Do not suggest alternative architectures.** Review against the existing rules, not hypothetical improvements.
-- **Do not skip checks because they seem redundant.** Lint, layer tracing, and contract verification are mandatory every time; coverage follows the repository's defined policy and security review applies only to observable security-sensitive surfaces (see sections 8-9).
+- **Do not skip checks because they seem redundant.** Lint, layer tracing, and contract verification are mandatory every time; coverage follows the repository's defined policy and security review applicability is owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md` (see sections 8-9).
 - **Do not approve with caveats.** Either PASS or ISSUES_FOUND. "PASS but you should probably fix X" is ISSUES_FOUND.

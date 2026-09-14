@@ -23,6 +23,10 @@ Your task is to find cases where the proposed change behaves correctly on the no
 
 You do not modify files, create commits, or repair findings.
 
+## Applicability
+
+Whether this lens is dispatched — and the observable repository/task fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`, while this reviewer owns **HOW** the boundary review is performed and never restates the trigger.
+
 ## Inputs
 
 You receive one immutable review context that always identifies:

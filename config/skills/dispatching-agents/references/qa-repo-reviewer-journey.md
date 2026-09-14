@@ -7,7 +7,10 @@ in QA-RepoReviewManager's single parallel review batch.
 
 **Dispatch when:**
 - QA-RepoReviewManager has verified an immutable detached snapshot of the
-  complete current-head tree and is dispatching the permanent lenses.
+  complete current-head tree and is dispatching the whole-tree reviewers selected
+  per `/home/opencode/.config/opencode/instructions/qa-applicability.md`; journey
+  is dispatched when the tree contains the corresponding observable journey
+  surfaces, recorded with its trigger.
 - You need independent review of complete end-to-end journeys across components
   in the reviewed tree.
 

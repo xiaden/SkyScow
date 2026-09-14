@@ -2,16 +2,18 @@
 
 Dispatch the read-only domain-risk reviewer as part of QA-PushManager's adversarial review batch. Dispatch it **once per selected lens**; do not bundle lenses into a single invocation.
 
+WHEN a domain-risk lens applies and the observable repository/task fact that triggers it are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`, which also owns the candidate lens set and the 0–3 bound. This reference owns only HOW the assigned lens is reviewed.
+
 ## When to Dispatch
 
 **Dispatch when:**
 - QA-PushManager has completed deterministic validation for a candidate
-- The actual diff exposes one or more concrete technical risk lenses such as security/auth, concurrency, filesystem/path, persistence/data integrity, migrations/schema, networking/protocol, api-compatibility, frontend-state, resource/performance, or process-execution/configuration
-- Up to 3 materially relevant lenses justify up to 3 simultaneous domain-risk invocations
+- The candidate's observable changed surface triggers one or more domain-risk lenses per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (0–3 lenses per change)
+- Each selected lens justifies its own domain-risk invocation; up to 3 simultaneous invocations
 
 **Do NOT dispatch when:**
 - Deterministic validation has failed
-- No meaningful technical lens can be grounded in the candidate diff — zero domain-risk invocations is valid
+- No domain-risk lens is selected from the candidate's observable surfaces per the canonical applicability reference — zero domain-risk invocations is valid
 - You need the reviewer to repair code or tests
 - You need a general code review rather than one assigned risk lens
 - You intend to review more than one lens in a single invocation — dispatch one invocation per lens
@@ -54,7 +56,7 @@ Input:
 
 Review only the assigned lens. Establish exposure, infer invariants, attack
 plausible scenarios, and verify existing safeguards before reporting a finding.
-If the lens is not materially relevant, return `{}`. Remain read-only. Return
+Whether the lens applies — and the observable fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`; if no verified finding holds within the assigned lens, return `{}`. Remain read-only. Return
 exactly one raw JSON value: `{}` for a clean review for the assigned lens,
 otherwise a single object mapping stable issue IDs to shared issue records.
 Every issue record must include the shared required fields (`severity`,

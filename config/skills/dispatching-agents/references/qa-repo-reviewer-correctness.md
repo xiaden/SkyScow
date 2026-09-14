@@ -7,7 +7,9 @@ reviewers in QA-RepoReviewManager's single parallel review batch.
 
 **Dispatch when:**
 - QA-RepoReviewManager has verified an immutable detached snapshot of the
-  complete current-head tree and is dispatching the permanent lenses.
+  complete current-head tree and is dispatching the whole-tree reviewers selected
+  per `/home/opencode/.config/opencode/instructions/qa-applicability.md`;
+  correctness is the permanent lens.
 - You need independent review of logical correctness, contract preservation,
   cross-component behavior, and regression risk across the complete tree.
 

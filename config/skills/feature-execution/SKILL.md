@@ -129,8 +129,8 @@ Each Exec-Manager enforces a full quality gate before returning DONE. Nyx doesn'
 | **Layer Compliance** | No upward imports, correct DI patterns | Mandatory — blocks DONE |
 | **Contract Adherence** | Actual signatures match CONTRACTS.md | Mandatory — blocks DONE |
 | **Code Quality** | No mutation, file <800 lines, functions <50 lines, nesting <4, no console.log/print(), no bare except, no TODO/FIXME | Mandatory — blocks DONE |
-| **Test Coverage** | Repository-defined: honor the repository's own coverage threshold or verification policy when one exists; otherwise coverage is diagnostic only — no universal percentage (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`) | Conditional — blocks DONE only when the repository defines a coverage policy |
-| **Security Review** | Required only when the changed surface includes an observable security-sensitive surface per the canonical list in `/home/opencode/.config/opencode/skills/security-review/SKILL.md` | Conditional — blocks DONE only when such a surface changed |
+| **Test Coverage** | Applies when the changed surface matches the tests triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); coverage policy is repository-defined: honor the repository's own coverage threshold or verification policy when one exists, otherwise coverage is diagnostic only — no universal percentage (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`) | Conditional — blocks DONE only when the repository defines a coverage policy |
+| **Security Review** | Applies when the changed surface matches a security trigger per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); the security-sensitive surface list is owned by `/home/opencode/.config/opencode/skills/security-review/SKILL.md` | Conditional — blocks DONE only when such a surface changed |
 | **Build** | Project builds successfully | Mandatory — blocks DONE |
 | **Completeness** | All plan steps implemented, no stubs, no "will implement later" | Mandatory — blocks DONE |
 | **Drift Detection** | Implementation matches design intent, no scope creep, no missing methods | Mandatory — blocks DONE |
@@ -232,8 +232,8 @@ Before declaring feature execution complete:
 - [ ] All Exec-Managers returned DONE **→ Full implementation + all quality gates passed**
 - [ ] CONTRACTS.md reflects actual implementations **→ No plan-vs-code drift**
 - [ ] Available linter passes on full workspace **→ Zero errors**
-- [ ] Repository-defined coverage policy honored where one exists, otherwise coverage reported as diagnostic (no universal percentage) **→ No coverage regression**
-- [ ] Security review run where an observable security-sensitive surface changed, per `/home/opencode/.config/opencode/skills/security-review/SKILL.md` **→ Security-sensitive surfaces covered**
+- [ ] Test coverage gate applies per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); repository-defined coverage policy honored where one exists, otherwise coverage reported as diagnostic (no universal percentage, see `/home/opencode/.config/opencode/instructions/validation-mandate.md`) **→ No coverage regression**
+- [ ] Security review applies per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); surface list per `/home/opencode/.config/opencode/skills/security-review/SKILL.md` **→ Security-sensitive surfaces covered**
 - [ ] No orphaned fix plans with incomplete steps **→ Clean state**
 - [ ] User informed of any design deviations **→ Alignment**
 - [ ] COMPLETION.md generated in `{feature}/` **→ Audit trail**

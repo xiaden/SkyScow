@@ -127,7 +127,7 @@ Read the design doc. Identify natural part boundaries:
  | Dependency depth | No part depends on more than 2 others |
  | Session scope | Each part ≤ 12 plan steps (≤ 2 phases) |
  | Diamond avoidance | If parts A→C and B→C share most context → merge A+B |
- | Risk surface | Parts whose changed surface includes an observable security-sensitive surface (auth/authorization, payments/financial, secrets/credentials, external or user input, persisted/sensitive data, deployment/security-header config, or agent/MCP/plugin/permission surfaces) → flag for security review in the plan, per `/home/opencode/.config/opencode/skills/security-review/SKILL.md`. High-risk parts should be planned first to surface issues early. |
+ | Risk surface | Consult the canonical applicability classification in `/home/opencode/.config/opencode/instructions/qa-applicability.md`; for security applicability, use the canonical surfaces and triggers owned by `/home/opencode/.config/opencode/skills/security-review/SKILL.md`. When the security lens is matched, flag security review in the plan. High-risk parts should be planned first to surface issues early. |
  | Complexity | Estimate per part: TRIVIAL/SMALL/MEDIUM/LARGE/EPIC. Use for model routing and session budget planning. |
 
 Assign letters (A, B, C...) in topological order. Group into execution rounds.
@@ -234,7 +234,7 @@ After receiving subagent output:
 3. Quick-scan for:
    - **Layer violations** — workflow receiving a service, component importing interface
    - **Missing verification steps** — the plan omits the verification its changed surface requires, or assumes generic commands (`npm test`, `npx tsc`) instead of repository-defined ones (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
-   - **Missing quality gate steps** — code review always; security review only where the changed surface includes an observable security-sensitive surface (auth/authorization, payments/financial, secrets/credentials, external or user input, persisted/sensitive data, deployment/security-header config, or agent/MCP/plugin/permission surfaces). Select the checklist from `/home/opencode/.config/opencode/skills/security-review/SKILL.md`
+    - **Missing quality gate steps** — code review always; when the canonical applicability classification in `/home/opencode/.config/opencode/instructions/qa-applicability.md` marks the security lens as matched using the canonical surfaces and triggers owned by `/home/opencode/.config/opencode/skills/security-review/SKILL.md`, include security review and select its checklist
    - **Coding standards violations** — mutation patterns, hardcoded values, missing error handling
    - **References to methods not in the contracts ledger or existing codebase**
    - **Step count** (>12 steps → consider splitting)

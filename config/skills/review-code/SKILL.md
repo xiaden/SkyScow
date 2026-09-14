@@ -37,11 +37,10 @@ This skill uses the **decision tree** pattern: SKILL.md is a dispatch index load
 
 ## Security Review Applicability
 
-Apply the CRITICAL security checks when the changed surface is observably security-sensitive —
-authentication or authorization, payments, secrets or credentials, user/external input handling,
-persisted or transmitted sensitive data, external systems, deployment or security configuration, or
-agent/MCP/plugin/permission surfaces. Those surfaces are owned by
-`/home/opencode/.config/opencode/skills/security-review/SKILL.md`, which carries the full OWASP/AgentShield methodology.
+Apply the CRITICAL security checks when the changed surface is observably security-sensitive. The
+canonical security-surface list — and the full OWASP/AgentShield methodology — is owned by
+`/home/opencode/.config/opencode/skills/security-review/SKILL.md`; defer to that skill to determine
+which surfaces require focused security review. Do not restate that surface list here.
 
 For non-security changes (documentation, formatting, pure logic with no trust boundary), preserve the
 existing security invariants under ordinary correctness review without running the full generic
