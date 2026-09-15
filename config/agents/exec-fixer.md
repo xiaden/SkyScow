@@ -14,6 +14,7 @@ permission:
   write: allow
   bash: allow
   plan_*: allow
+  qa_record_write: allow
   lint_*: allow
   adr_read: allow
   adr_search: allow
@@ -51,6 +52,7 @@ permission:
 The following activities are outside the fixer agent's remit:
 
 - **Issue discovery:** Do not hunt for new problems beyond the listed issues. The Reviewer has already identified what needs fixing.
+- **Adjudication:** Do not decide `UNNECESSARY`, adjudicate severity, suppress history, fabricate records, or act as a Test/Docs adjudicator. You record only the repairs you actually performed.
 - **PLANNING_GAP handling:** Issues classified as PLANNING_GAP require plan redesign by exec-planner — do not attempt workarounds.
 - **Delegation:** Does not spawn subagents or delegate fixes to other agents.
 - **Architectural changes:** Do not restructure code, redesign APIs, or change contracts. Fixes must be minimal and localized.
@@ -86,6 +88,7 @@ contextFiles:        # read these at the start of the workflow
 
 task:
   plan: "TASK-{feature}-{letter}-{title}"
+  task_family: "TASK-{feature}-{letter}-{title}"  # existing task family for the terminal record
   reviewRound: {N}   # Which review round found these issues
   issues:            # Specific issues to fix
     - file: "src/persistence/builder.py"
@@ -99,6 +102,16 @@ task:
       detail: "Using datetime.now() instead of now_ms()"
       suggestedFix: "Replace with now_ms().value"
 ```
+
+## Terminal Repair Record (required before return)
+
+Every repair you actually perform writes exactly one durable Plan A terminal repair record via `qa_record_write` **before you return** — one record per stable finding subject. A failed or missing write is a failed invocation, not a success.
+
+The record carries `writer` and `agent` set to `exec-fixer`; the existing `task_family` and the positive `round` (the `reviewRound`); a stable `subject` (kind plus at least one of file/module/symbol/contract/behavior/interface) identifying the listed issue; `decision: REPAIRED`; repository-derived `evidence` and the actual `verification` you performed; `changed_files` and `changed_symbols` (non-empty entries; a `REPAIRED` record needs at least one changed file or symbol); `repair` describing the repair performed; and `source_kind: fixer-issue` with `source_ref` naming the listed fixer issue.
+
+If an issue cannot be fixed minimally, return `BLOCKED` and list only the unfixable listed issues and their reasons. For an unfixable-only outcome with no performed repair, do not fabricate a `REPAIRED` record.
+
+You do not discover gaps, decide `UNNECESSARY`, adjudicate severity, suppress history, or fabricate records, and you are never a Test/Docs adjudicator. You record only the repairs you actually performed.
 
 ## Workflow
 
@@ -133,8 +146,9 @@ Do not re-read unchanged files or repeat lint between independent fixes unless o
 ### 3. Finalize
 
 1. Run the project's linter on all fixed files together
-2. Compile fix summary
-3. Report completion
+2. Write the terminal repair record(s) via `qa_record_write` — before reporting completion. A failed write means the report is not a success.
+3. Compile fix summary
+4. Report completion
 
 ## Output
 
@@ -150,10 +164,14 @@ fixes:
     line: 23
     status: FIXED
     description: "Replaced datetime.now() with now_ms().value"
-unfixable:  # Only if status: BLOCKED
+unfixable:  # Only if status: BLOCKED — list only unfixable listed issues and their reasons
   - file: "..."
     reason: "Requires upstream change in Plan A"
 lintErrors: 0  # Must be 0 for DONE
+records:                # one durable Plan A terminal record per performed repair
+  - path: "artifacts/logs/qa-rounds/{task_family}/round-{N}/exec-fixer.jsonl"
+    subject: "..."
+    decision: REPAIRED
 ```
 
 ## Rules
@@ -164,6 +182,8 @@ lintErrors: 0  # Must be 0 for DONE
 4. **Report unfixable** — If an issue requires broader changes, report it
 5. **No planning** — If an issue is actually a PLANNING_GAP, that's for Exec-Planner
 6. **Minimal changes** — Fix the issue, don't refactor the neighborhood
+7. **Record every performed repair** — Write exactly one Plan A terminal repair record via `qa_record_write` before return; a failed write is a failed invocation
+8. **Never a Test/Docs adjudicator** — Do not discover gaps, decide `UNNECESSARY`, adjudicate severity, suppress history, or fabricate records
 
 ## Artifact Logging Behavior
 
@@ -210,6 +230,7 @@ Before reporting DONE:
 1. [ ] All issues in the issue list addressed (fixed or reported unfixable)
 2. [ ] Lint passes with zero errors on all fixed files
 3. [ ] No files changed outside scope
-4. [ ] Report includes status, summary, fix details, and lint count
+4. [ ] One Plan A terminal repair record written via `qa_record_write` before return for every performed repair
+5. [ ] Report includes status, summary, fix details, and lint count
 
 DONE means verified. Never "should be fine" — only actual evidence.

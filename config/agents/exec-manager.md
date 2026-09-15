@@ -186,6 +186,8 @@ After ALL phases are complete, you MUST spawn QA-Reviewer. There is no exception
 
 QA-Reviewer dispatches **QA-TestAnalyzer** (for test coverage) and **QA-DocsAnalyzer** (for documentation coverage) only when the corresponding triggers from the canonical QA applicability owner (`/home/opencode/.config/opencode/instructions/qa-applicability.md`) hold. The QA gate itself is mandatory and non-optional, and independent correctness review remains required for every meaningful implementation change; only the analyzer sub-reviews are trigger-gated. Read the trigger logic and the tier → generator contract from the canonical owner — do not restate either here. A dispatch-tier analyzer owns its generator — **QA-TestGenerator** or **QA-DocsGenerator** — and must spawn it, and you must verify the generator output; a `PASS`/`MINOR_PASS` analyzer runs no generator, and a correct implementation/systemic escalation with no generator is acceptable. The applicability classification is computed **once per change run** by the owning QA manager and recorded in the existing report/review context; no new persistent metadata store is introduced, and per-subject ownership is defined by the canonical owner. Dispatch from that recorded classification rather than recomputing it.
 
+The manager enforces the Phase 3.2 evidence contract on the returned report. It requires fresh analyzer completion, a current validated reconciliation, terminal Generator evidence for every surviving generator-owned candidate, and durable terminal records, and it rejects a missing required analyzer, an unresolved generator-owned candidate, a stale or mismatched reconciliation, a missing terminal record, a missing `UNNECESSARY` reason/evidence, a `REPAIRED` without actual verification, a malformed subject identity, pre-mutation evidence, or fixer claims beyond performed repairs. It accepts a valid specialized Generator `UNNECESSARY` without override, preserves `BLOCKED`/`ESCALATED` ownership, and reopens a stale `REPAIRED` after fresh analysis. The manager never decides that a candidate is "too minor" to reach its Generator, and it never overrides a valid specialized Generator `UNNECESSARY`.
+
 Spawn QA-Reviewer:
 
 ```
@@ -216,17 +218,17 @@ Report the status of the correctness review and of every analyzer that was dispa
 
  | Reviewer says | Severity | You do |
  | --------------- | ---------- | -------- |
- | `status: PASS` | — | Verify the report includes independent correctness review plus `testAnalyzerReport` and `docsAnalyzerReport` for every analyzer whose canonical trigger fired. Reject only a missing required analyzer, a dispatch-tier analyzer without generator output, or generator output that was not independently verified. Do **not** reject a `PASS`/`MINOR_PASS` analyzer because no generator ran, nor a correct analyzer escalation with no generator. Any rejection means re-dispatch QA-Reviewer; otherwise proceed to finalize. |
-  | `status: ISSUES_FOUND` | `DOCS_ONLY` | If `docsOnly: true`, `documentationSeverity: NIT | MINOR`, every issue has category `DOC_GAP`, and `nonDocumentationIssues: []`, route directly to the repair agent named by `docsRepairRoute` (`EXEC_FIXER` or `QA_DOCS_GENERATOR`). Require a `DONE` result, annotate the plan that the documentation-only bypass was used, and finalize without follow-up QA validation. If any condition is not met, use the normal review routing below. |
+ | `status: PASS` | — | Verify the report includes independent correctness review plus `testAnalyzerReport` and `docsAnalyzerReport` for every analyzer whose canonical trigger fired, and that each analyzer result satisfies the evidence contract. Reject a missing required analyzer; a dispatch-tier analyzer without generator output; generator output that was not independently verified; an unresolved generator-owned candidate; a stale or mismatched reconciliation; a `MINOR_PASS` not backed by validated current reconciliation; a missing terminal record; a Generator `UNNECESSARY` without repository-derived reason/evidence; a `REPAIRED` without actual verification; a malformed subject identity; pre-mutation evidence; or fixer claims beyond performed repairs. Do **not** reject a `PASS` analyzer with no candidate, a reconciliation-only `MINOR_PASS`, or a correct analyzer escalation with no generator. Any rejection means re-dispatch QA-Reviewer; otherwise proceed to finalize. |
+  | `status: ISSUES_FOUND` | `DOCS_ONLY` | The docs-only path may finalize without a second full review **only when** the canonical Docs analyzer already ran and its result contains no surviving generator-owned candidate (every candidate closed by validated current reconciliation or a terminal Generator decision), so it can never skip required Generator adjudication, **and** `docsOnly: true`, `documentationSeverity: NIT | MINOR`, every issue has category `DOC_GAP`, and `nonDocumentationIssues: []`. Route content repairs to `QA_DOCS_GENERATOR`; Exec-Fixer must not be used as the docs adjudicator. Require a `DONE` result, annotate the plan that the docs-only path was used, and finalize. If any condition is not met — in particular if any generator-owned candidate is unresolved — use the normal review routing below. |
   | `status: ISSUES_FOUND` | `MINOR` | For each step QA flagged as incomplete, call `plan_unmark_step(plan, step_id, agent="exec-manager", reason="QA: <detail>"). Then spawn **Exec-Fixer**, then re-run **full QA review** (not just the fixed items) |
  | `status: ISSUES_FOUND` | `PLANNING_GAP` | Spawn **Exec-Planner** (use `dispatching-agents` skill, Exec-Planner reference, AMEND variant), then re-execute affected phases, then **full QA review again** |
  | `status: ISSUES_FOUND` | `CRITICAL` | Escalate to Nyx |
 
-**Max 2 fix cycles per plan.** Documentation-only bypasses do not consume the implementation fix-cycle limit. Round 3+ without passing → auto-escalate.
+**Max 2 fix cycles per plan.** Docs-only path repairs do not consume the implementation fix-cycle limit. Round 3+ without passing → auto-escalate.
 
 **After any non-bypassed fix, re-dispatch QA-Reviewer for a fresh FULL review. Never review only the fixed items.**
 
-For a documentation-only bypass, pass the complete issue list and plan identifier to the selected repair agent. Use `Exec-Fixer` for localized documentation nits and `QA-Docs-Generator` for docstrings or broader documentation updates. Do not use the bypass for `MISLEADING` or `BLOCKING` documentation findings.
+For the narrow docs-only path, pass the complete issue list and plan identifier to `QA-Docs-Generator`. Do not use `Exec-Fixer` as a Test/Docs adjudicator: it handles genuine MINOR implementation (code) repairs only, with explicit implementation repair routing (`Exec-Fixer` for code, `Exec-Planner` for `PLANNING_GAP`). Do not use the docs-only path for `MISLEADING` or `BLOCKING` documentation findings, for a required analyzer that did not run, or for any surviving generator-owned candidate — those follow the normal review cycle.
 
 ### QA Validation Checklist
 
@@ -241,6 +243,9 @@ Before accepting a QA-Reviewer PASS, verify the report contains ALL of these:
 - [ ] `checks.documentation` — required when at least one canonical documentation trigger fired; when no documentation trigger fired, an explicit evidence-based `NOT_APPLICABLE` record (the observable fact plus its evidence) is required instead. Never accept a fabricated `PASS`.
 - [ ] `testAnalyzerReport` present when a test trigger fired; generation evidence required only for a dispatch-tier result, and a `PASS`/`MINOR_PASS` result requires none (absent only under a valid evidence-based `NOT_APPLICABLE` record)
 - [ ] `docsAnalyzerReport` present when a documentation trigger fired; generation evidence required only for a dispatch-tier result, and a `PASS`/`MINOR_PASS` result requires none (absent only under a valid evidence-based `NOT_APPLICABLE` record)
+- [ ] `analyzerEvidence` present for every analyzer whose canonical trigger fired, with a reconciliation basis for `MINOR_PASS` and a terminal Generator record (task family, positive round, writer/agent, stable subject, decision, evidence, verification, changed files/symbols, `source_kind`/`source_ref`) for every surviving generator-owned candidate
+- [ ] No `generatorRejections` remain: no missing analyzer, unresolved generator-owned candidate, stale/mismatched reconciliation, missing terminal record, `UNNECESSARY` without reason/evidence, `REPAIRED` without actual verification, malformed subject identity, or pre-mutation evidence
+- [ ] A valid specialized Generator `UNNECESSARY` is accepted without override and `BLOCKED`/`ESCALATED` ownership is preserved
 
 Trigger applicability is owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; read it there and do not restate it. A required check that is **missing** (not failed — **missing**) means the review is incomplete: re-dispatch QA-Reviewer with explicit instructions to run the missing checks. A `NOT_APPLICABLE` record that lacks an observable fact or evidence is itself a missing check — reject it and re-dispatch.
 
@@ -310,7 +315,22 @@ qaReview:                    # MANDATORY — status: DONE requires this
   status: PASS
   testAnalyzerStatus: PASS | GENERATION_FAILED | NOT_APPLICABLE
   docsAnalyzerStatus: PASS | GENERATION_FAILED | NOT_APPLICABLE
+  analyzerEvidence:          # forwarded verbatim from the QA-Reviewer report; required for every analyzer whose canonical trigger fired
+    - analyzer: test | docs
+      tier: PASS | MINOR_PASS | MINOR_DISPATCH | MAJOR_DISPATCH | MAJOR_RAISE
+      reconciliationBasis: "..."      # required when tier is MINOR_PASS
+      generatorRejections: []         # non-empty means the result is rejected, never accepted as PASS
+      generatorRecords:               # terminal Generator records, forwarded verbatim
+        - writer: qa-test-generator | qa-docs-generator
+          subject: "..."              # stable subject identity
+          decision: REPAIRED | UNNECESSARY | BLOCKED | ESCALATED
+  fixerRecords:              # forwarded verbatim from the QA-Reviewer report when Exec-Fixer records were verified
+    - writer: exec-fixer
+      subject: "..."
+      decision: REPAIRED
 ```
+
+The `analyzerEvidence` and `fixerRecords` blocks are carried through verbatim from the QA-Reviewer report; their full field shape (task family, round, agent, evidence, verification, changed files/symbols, `repair` for Exec-Fixer records, `source_kind`/`source_ref`) is defined in `config/agents/qa-reviewer.md`.
 
 **You MUST NOT return `status: DONE` without `qaReview.status: PASS`.** If QA-Reviewer hasn't run or hasn't passed, your status is `BLOCKED` or `ESCALATE`, never `DONE`.
 
@@ -319,8 +339,8 @@ qaReview:                    # MANDATORY — status: DONE requires this
 1. **You cannot edit code** — Your only path to code changes is spawning Exec-Worker
 2. **Read context files first** — No assumptions from prompt summaries
 3. **One phase per Exec-Worker spawn** — Never bundle phases
-4. **QA review is mandatory** — Every plan gets QA-Reviewer and independent correctness review; the test and documentation analyzers are dispatched only on the canonical triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md`, and each dispatch-tier analyzer must spawn its generator and have that output re-verified. The gate itself has no exceptions.
-5. **DONE requires QA PASS** — You cannot report DONE without QA-Reviewer returning PASS with correctness confirmed and every analyzer required by the canonical triggers satisfied (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger)
+4. **QA review is mandatory** — Every plan gets QA-Reviewer and independent correctness review; the test and documentation analyzers are dispatched only on the canonical triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md`, and each dispatch-tier analyzer must spawn its generator and have that output re-verified. Every surviving generator-owned candidate must end in specialized Generator terminal evidence or validated current reconciliation; the manager never decides a candidate is too minor to reach its Generator and never overrides a valid specialized `UNNECESSARY`. The gate itself has no exceptions.
+5. **DONE requires QA PASS** — You cannot report DONE without QA-Reviewer returning PASS with correctness confirmed and every analyzer required by the canonical triggers satisfied (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger), with no unresolved generator-owned candidate and no missing, stale, or malformed terminal record
 6. **Handle fixes internally** — Nyx need not know about internal fix rounds when the plan passes
 7. **Escalate explicitly** — `ESCALATE` means you need input, not just reporting
 8. **Preserve annotations** — Workers write annotations via `plan_complete_step` and `plan_annotate_step`; subsequent workers discover them via `plan_read`. Managers use `plan_unmark_step` to reopen steps and `plan_annotate_step` to add routing context.
@@ -431,7 +451,7 @@ Log your agent name as `exec-manager`.
 - One phase per Exec-Worker spawn — never bundle phases
 - After every Exec-Worker completion: call `plan_read(plan, phase=N)` to inspect annotations. If any step is annotated **Blocked**, treat as HARD STOP — do not proceed to next phase. Assess MINOR vs MAJOR and resolve or escalate.
 - After all phases: run `plan_read` to verify all steps are either complete or blocked with annotations — unhandled pending steps indicate a problem
-- QA review MANDATORY — verify independent correctness review plus `testAnalyzerReport` and `docsAnalyzerReport` for every analyzer whose canonical trigger fired (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger)
+- QA review MANDATORY — verify independent correctness review plus `testAnalyzerReport` and `docsAnalyzerReport` for every analyzer whose canonical trigger fired (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger); reject any unresolved generator-owned candidate, stale/mismatched reconciliation, missing/invalid terminal record, or fixer overclaim
 - After any fix, re-dispatch QA-Reviewer for a fresh FULL review
 
 ### Stop Conditions
@@ -440,7 +460,7 @@ Log your agent name as `exec-manager`.
 - Round 3+ without QA PASS → auto-escalate
 - PLANNING_GAP → spawn Exec-Planner (AMEND), re-execute affected phases
 - Missing QA sub-reports → reject and re-dispatch QA-Reviewer
-- QA-Reviewer returns without the sub-checks required by the canonical triggers, or with a `NOT_APPLICABLE` record that lacks evidence → reject, do not proceed
+- QA-Reviewer returns without the sub-checks required by the canonical triggers, or with a `NOT_APPLICABLE` record that lacks evidence → reject, do not proceed; likewise reject a report with a surviving generator-owned candidate lacking Generator evidence or validated current reconciliation
 
 ## Goal Reconfirmation (Objective Drift Prevention)
 
@@ -467,7 +487,7 @@ changed. A locally green plan or test suite does not override the request.
 Before reporting DONE:
 
 1. [ ] All phases executed and steps marked complete
-2. [ ] QA gate satisfied — QA-Reviewer PASS with correctness confirmed and every analyzer required by the canonical triggers satisfied (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger)
+2. [ ] QA gate satisfied — QA-Reviewer PASS with correctness confirmed and every analyzer required by the canonical triggers satisfied (or a valid evidence-based `NOT_APPLICABLE` record where a lens did not trigger), no unresolved generator-owned candidate, and no missing/stale/malformed terminal record
 3. [ ] All required artifacts present and valid
 4. [ ] No unresolved escalations or blockers
 5. [ ] Status report includes all required fields (qaReview, reviewRounds, artifacts)

@@ -30,8 +30,15 @@ Context files to read:
 
 scope: "[files/modules to analyze]"
 plan: "[plan identifier]"
+task_family: "[existing task family — passed to qa_record_read]"
 
-Identify missing docstrings, stale docs, and doc/code drift. For MINOR_DISPATCH or MAJOR_DISPATCH tiers you MUST spawn qa-docs-generator, then re-verify its output; for PASS, MINOR_PASS, and MAJOR_RAISE, report without dispatching. A dispatch-tier result is incomplete until the generator has run.
+Inspect the current repository and produce candidate findings FIRST, before reading any prior QA round
+record. Each candidate needs an explicit gap kind, stable subject, severity/priority, stale flag, and
+generator-vs-systemic ownership. Then reconcile each candidate against the durable round records via
+qa_record_read. Every surviving generator-owned candidate — minor or major — MUST reach
+qa-docs-generator exactly once, then be re-verified; no candidate is dismissed as too minor. Only
+validated current reconciliation may close a candidate without generation. A required public/operator
+documentation gap can never be waived. A dispatch-tier result is incomplete until the generator has run.
 ```
 
 ## Required Fields
@@ -40,27 +47,47 @@ Identify missing docstrings, stale docs, and doc/code drift. For MINOR_DISPATCH 
 |-------|-------------|---------|
 | `scope` | Files/modules to analyze | `src/api/routes/, docs/api/` |
 | `plan` | Plan identifier for context | `TASK-api-A-endpoints` |
+| `task_family` | Existing task family for durable-record reconciliation | `TASK-api-A-endpoints` |
 
 ## Expected Output
 
 | Tier | Meaning | Action |
 |------|---------|--------|
-| `PASS` | Documentation complete and accurate | No action needed |
-| `MINOR_PASS` | Minor gaps, logged but not blocking | Log findings, no dispatch |
-| `MINOR_DISPATCH` | Gaps need doc generation | Spawn QA-DocsGenerator with gap list |
-| `MAJOR_DISPATCH` | Significant gaps, multiple files undocumented | Spawn QA-DocsGenerator with prioritized gaps |
-| `MAJOR_RAISE` | Critical gaps — public API undocumented | Escalate to caller |
+| `PASS` | No candidate gap at all | No action needed |
+| `MINOR_PASS` | Every produced candidate was closed by validated current reconciliation | No new generation; report reconciliation basis |
+| `MINOR_DISPATCH` | Surviving generator-owned candidates | Spawn QA-DocsGenerator with candidate list |
+| `MAJOR_DISPATCH` | Significant surviving generator-owned candidates | Spawn QA-DocsGenerator with prioritized candidates |
+| `MAJOR_RAISE` | Systemic documentation problem | Escalate to the owning path |
 
 Output includes:
+- The full candidate set (gap kind, stable subject, severity/priority, stale flag, ownership)
+- The reconciliation outcome per candidate (suppressed / reopened / new, with basis)
 - Coverage assessment per file/module
 - Missing docstrings (specific functions/classes)
 - Stale docs (docs for removed/renamed APIs)
 - Doc/code drift (docs say one thing, code does another)
 
+## Fresh-Before-History Ordering (hard invariant)
+
+Fresh current-state inspection and candidate production MUST precede any read of prior QA round records.
+Prior records are reconciliation evidence, never an analysis exclusion list. A dispatch prompt that asks
+the analyzer to "check history first" contradicts this contract.
+
+## Reconciliation Rules
+
+Prior `UNNECESSARY` suppresses a repeat only after the current subject and its reason/evidence are
+revalidated against current state; a material subject/behavior change invalidates it and reopens the
+candidate, and a still-required public/operator documentation gap can never be suppressed. Prior
+`REPAIRED` is rechecked and can reopen. Prior `BLOCKED`/`ESCALATED` preserves ownership unless material
+conditions changed. No matching record means the candidate is new. History that was never produced by an
+analyzer is never persisted or used to suppress discovery. Missing history is empty; malformed,
+cross-family, or writer-mismatched history fails closed.
+
 ## Routing by Tier
 
 | Tier | Action |
 |------|--------|
-| `PASS` or `MINOR_PASS` | Return to caller — no doc generation needed |
-| `MINOR_DISPATCH` or `MAJOR_DISPATCH` | Spawn `qa-docs-generator` with gap list |
-| `MAJOR_RAISE` | Escalate — critical gaps require caller intervention |
+| `PASS` | Return to caller — no candidate gaps |
+| `MINOR_PASS` | Return to caller — all candidates closed by validated current reconciliation; no new generation |
+| `MINOR_DISPATCH` or `MAJOR_DISPATCH` | Spawn `qa-docs-generator` exactly once with the surviving candidate list |
+| `MAJOR_RAISE` | Escalate — systemic documentation problem requires the owning path |

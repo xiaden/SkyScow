@@ -62,7 +62,7 @@ The bolded worker-spawn instructions are **required** — they remind Exec-Manag
 | `BLOCKED` | A blocker cannot be resolved internally |
 | `ESCALATE` | Nyx input is needed |
 
-The output includes artifacts created/modified/deleted, annotations from each phase, QA review status (mandatory for DONE), and test/docs analyzer status.
+The output includes artifacts created/modified/deleted, annotations from each phase, QA review status (mandatory for DONE), test/docs analyzer status, and — for every surviving generator-owned candidate — the terminal Generator evidence or the validated current reconciliation.
 
 ## QA Gate Enforcement
 
@@ -74,14 +74,17 @@ The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer aft
 2. **Only `PASS` unlocks `DONE`.** Any other status (`MINOR`, `MAJOR`, `FAIL`) must trigger a fix cycle or escalation.
 3. **Exec-Fixer handles MINOR issues.** After fixes, re-run QA-Reviewer.
 4. **MAJOR issues require escalation.** Architectural problems, missing functionality, or systemic bugs cannot be handled by Exec-Fixer alone.
+5. **Evidence contract.** Reject the report unless every analyzer whose canonical trigger fired inspected current state, produced candidates before reading history, and resolved each surviving generator-owned candidate with specialized Generator terminal evidence or a validated current reconciliation. Reject a missing required analyzer, an unresolved generator-owned candidate, a stale or mismatched reconciliation, a missing terminal record, a Generator `UNNECESSARY` without repository-derived reason/evidence, a `REPAIRED` without actual verification, a malformed subject identity, pre-mutation evidence, or fixer claims beyond performed repairs. Accept a valid specialized Generator `UNNECESSARY` without override, preserve `BLOCKED`/`ESCALATED` ownership, and reopen a stale `REPAIRED` after fresh analysis. The manager never decides a candidate is "too minor" to reach its Generator, and never overrides a valid specialized `UNNECESSARY`.
 
-**Fix cycle flow:** QA-Reviewer reports MINOR → Spawn Exec-Fixer with issue list → Re-run QA-Reviewer → Repeat until PASS or escalation. Each fix cycle requires a full QA-Reviewer re-run.
+**Fix cycle flow:** QA-Reviewer reports MINOR → Spawn Exec-Fixer with issue list → Re-run QA-Reviewer → Repeat until PASS or escalation. Each fix cycle requires a full QA-Reviewer re-run; a fix writes its terminal repair record before returning. A targeted re-check is never a substitute for the full re-run.
 
 **Edge cases:**
 
 - **QA-Reviewer fails to spawn:** Retry once. If second attempt fails, escalate with spawn error.
 - **QA-Reviewer returns ambiguous results:** Re-spawn with clarification request — do not interpret output yourself.
 - **Fix cycle exceeds 3 iterations:** Escalate. Issues are likely systemic.
+- **Manager tempted to call a candidate "too minor":** Not permitted. Every surviving generator-owned candidate reaches its Generator exactly once or is closed by a validated current reconciliation.
+- **Docs-only path requested:** Valid only when the canonical Docs analyzer already ran and closed every candidate (validated current reconciliation or a terminal Generator decision) and all findings are localized documentation nits. Route content repairs to `QA-Docs-Generator`; Exec-Fixer is never used as a Test/Docs adjudicator.
 - **No changes to review:** QA-Reviewer still runs and will return `PASS` for an empty diff. Do not skip the gate.
 
 ## Spec-First Testing Strategy

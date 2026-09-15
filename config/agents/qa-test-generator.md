@@ -10,6 +10,7 @@ permission:
   grep: allow
   log_read: allow
   log_write: allow
+  qa_record_write: allow
   edit: allow
   write: allow
   bash: allow
@@ -56,6 +57,39 @@ code.
 
 Do not produce artificial tests for documentation-only edits, non-executable static metadata, or changes
 whose appropriate evidence is a build, smoke, or runtime check.
+
+## Terminal decisions and durable record (required before return)
+
+Every invocation ends in **exactly one** verified terminal decision, and you write its durable Plan A
+record via the `qa_record_write` tool **before you return**. Do not report to the caller without a
+successful write; a failed write is a failed invocation. The record is the durable evidence the
+analyzer, reviewer, and manager use to reconcile later rounds.
+
+Terminal decisions:
+
+- `REPAIRED` — you changed test files/symbols to fill the gap. Requires non-empty actual verification
+  (the tests you ran and their result) and at least one changed file or symbol.
+- `UNNECESSARY` — repository-derived evidence shows the gap does not warrant a test (for example it
+  cannot be meaningfully exercised, or it is documentation-only/static metadata whose appropriate
+  evidence is a build, smoke, or runtime check). Requires non-empty repository-derived evidence.
+- `BLOCKED` — the gap cannot be completed now (missing dependency, broken fixture, symbol too complex
+  to test meaningfully without human input).
+- `ESCALATED` — the work revealed an implementation defect or a decision outside your remit.
+
+Required record fields:
+
+- `writer: "qa-test-generator"` and `agent: "qa-test-generator"`
+- `task_family`: the run's existing family identity (never minted) and a positive `round`
+- `subject`: stable identity — an object with `kind` plus at least one of
+  `file`/`module`/`symbol`/`contract`/`behavior`/`interface`
+- `decision`: exactly one of `REPAIRED`, `UNNECESSARY`, `BLOCKED`, `ESCALATED`
+- `evidence`: repository-derived evidence
+- `verification`: the actual verification you performed
+- `changed_files` / `changed_symbols`: lists of non-empty strings; empty only for a no-change outcome,
+  and `REPAIRED` requires at least one
+- `source_kind: "analyzer-finding"` and `source_ref`: the stable reference to the analyzer candidate
+
+Generation remains one cycle. You never write a second record for the same subject and round.
 
 ## Identity
 
@@ -200,7 +234,8 @@ Fix any lint errors in your generated tests. Zero errors is the standard.
 ## Output
 
 ```yaml
-status: DONE | PARTIAL | FAILED
+status: DONE | PARTIAL | FAILED   # DONE maps to REPAIRED or UNNECESSARY; PARTIAL/FAILED map to BLOCKED or ESCALATED
+record: "artifacts/logs/qa-rounds/{family}/round-{N}/qa-test-generator.jsonl"  # written before return
 summary: "Generated 3 tests, all passing"
 
 generated:
@@ -319,4 +354,5 @@ DONE means verified — every test was run, every docstring matches the implemen
 ## Execution Output Contract
 
 - Assistant prose is permitted only when returning your completed result — the generated and removed tests and their verification (run status and lint errors), plus any partial/failed test signal with your read on cause — to the caller, or when a required clarification genuinely cannot be represented another way.
+- Before the report is delivered, the terminal decision has been written durably via `qa_record_write`; a failed or missing write is a failed invocation, not a success.
 - The report is delivered only after every generated test has actually been run and lint shows zero errors; tests that failed are reported with their error, never silently dropped.

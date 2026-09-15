@@ -422,6 +422,38 @@ const tools = {
     },
   }),
 
+  qa_record_write: tool({
+    description:
+      "Write a validated terminal QA round record under artifacts/logs/qa-rounds. Records are writer-isolated for qa-test-generator, qa-docs-generator, or exec-fixer; generator decisions are REPAIRED, UNNECESSARY, BLOCKED, or ESCALATED, while exec-fixer may write only REPAIRED. A repeated stable record identity (task_family, round, writer, subject) is rejected fail-closed.",
+    args: {
+      record: tool.schema
+        .object({})
+        .describe(
+          "Terminal record with task_family, positive round, writer, agent, stable subject (string, or object with kind plus at least one identifying key), decision, repository-derived evidence, actual verification, changed_files, changed_symbols, and explicit provenance (source_kind: analyzer-finding for generators / fixer-issue for exec-fixer; source_ref), plus repair text for exec-fixer records. Progress, chain-of-thought, and speculation are rejected.",
+        ),
+    },
+    async execute(args: ToolArgs, context: ToolContext) {
+      return runPythonTool("common.tools.qa_record_write", args, context)
+    },
+  }),
+
+  qa_record_read: tool({
+    description:
+      "Read validated terminal QA round records for a required task family, optionally filtered by round, writer, subject substring, decision, or provenance (source_kind exact, source_ref substring). Missing history is empty; malformed or cross-family history fails closed.",
+    args: {
+      task_family: requiredString("Existing task-family identity"),
+      round: optionalNumber("Positive QA round number"),
+      writer: optionalString("Writer: qa-test-generator, qa-docs-generator, or exec-fixer"),
+      subject: optionalString("Subject substring filter"),
+      decision: optionalString("Terminal decision: REPAIRED, UNNECESSARY, BLOCKED, or ESCALATED"),
+      source_kind: optionalString("Provenance kind filter (exact): analyzer-finding or fixer-issue"),
+      source_ref: optionalString("Provenance reference filter (substring)"),
+    },
+    async execute(args: ToolArgs, context: ToolContext) {
+      return runPythonTool("common.tools.qa_record_read", args, context)
+    },
+  }),
+
   echo_test: tool({
     description: "Echo test",
     args: {

@@ -33,7 +33,7 @@ task:
 
 Full review in one pass. Run every applicable check per `/home/opencode/.config/opencode/instructions/qa-applicability.md`. Report all issues in one round.
 
-QA-TestAnalyzer and QA-DocsAnalyzer each run when their canonical applicability trigger fires. A `PASS` or `MINOR_PASS` result requires no generator; a `MINOR_DISPATCH` or `MAJOR_DISPATCH` result requires the analyzer to spawn its generator and have that output independently re-verified; an implementation or systemic escalation does not automatically run the generator. Confirm generation evidence in your verdict only for a dispatch-tier result. Tier-to-generator routing is owned by the "Analyzer and generator contract" section of `/home/opencode/.config/opencode/instructions/qa-applicability.md`.
+QA-TestAnalyzer and QA-DocsAnalyzer each run when their canonical applicability trigger fires. A `PASS` result (no candidate) requires no generator, and a `MINOR_PASS` result is acceptable only when every produced candidate was closed by validated current reconciliation after fresh analysis — never as a discretionary no-generator bypass for a surviving candidate. A `MINOR_DISPATCH` or `MAJOR_DISPATCH` result requires the analyzer to spawn its generator and have that output independently re-verified; an implementation or systemic escalation does not automatically run the generator. Reject any unresolved generator-owned candidate, stale or mismatched reconciliation, missing terminal record, malformed subject identity, pre-mutation evidence, missing `UNNECESSARY` reason/evidence, a `REPAIRED` without actual verification, or a fixer claim beyond the repairs actually performed. Tier-to-generator routing is owned by the "Analyzer and generator contract" section of `/home/opencode/.config/opencode/instructions/qa-applicability.md`.
 ```
 
 ## Required Fields
@@ -65,6 +65,8 @@ QA-Reviewer returns a tiered verdict:
 - [ ] `checks.completeness` — all plan steps delivered
 - [ ] `checks.testCoverage` — test quality and coverage via QA-TestAnalyzer (which spawns QA-TestGenerator for dispatch tiers) when the canonical tests triggers hold per `/home/opencode/.config/opencode/instructions/qa-applicability.md`; otherwise an evidence-based `NOT_APPLICABLE` is recorded
 - [ ] `checks.documentation` — doc coverage and accuracy via QA-DocsAnalyzer (which spawns QA-DocsGenerator for dispatch tiers) when the canonical documentation triggers hold per that reference; otherwise an evidence-based `NOT_APPLICABLE` is recorded
+- [ ] Every surviving generator-owned candidate has specialized Generator terminal evidence or a validated current reconciliation; a `MINOR_PASS` records its reconciliation basis and is never used to accept a surviving candidate
+- [ ] Terminal Generator and Exec-Fixer records carry task family, positive round, writer/agent, stable subject identity, decision, reason/evidence, changed files/symbols, actual verification, `repair` for Exec-Fixer records, and provenance; a valid specialized `UNNECESSARY` is accepted without override and `BLOCKED`/`ESCALATED` ownership is preserved
 
 `checks.testCoverage` and `checks.documentation` are applicability-conditional; all other checks must run.
 

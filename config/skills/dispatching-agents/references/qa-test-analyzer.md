@@ -29,8 +29,15 @@ Context files to read:
 
 scope: "[files/modules to analyze]"
 plan: "[plan identifier]"
+task_family: "[existing task family — passed to qa_record_read]"
 
-Identify missing tests, stale tests, and coverage gaps. For MINOR_DISPATCH or MAJOR_DISPATCH tiers you MUST spawn qa-test-generator, then verify its output; for PASS, MINOR_PASS, and MAJOR_RAISE, report without dispatching. A dispatch-tier result is incomplete until the generator has run.
+Inspect the current repository and produce candidate findings FIRST, before reading any prior QA round
+record. Each candidate needs an explicit gap kind, stable subject, severity/priority, stale flag, and
+generator-vs-implementation/systemic ownership. Then reconcile each candidate against the durable round
+records via qa_record_read. Every surviving generator-owned candidate — minor or major — MUST reach
+qa-test-generator exactly once, then be re-verified; no candidate is dismissed as too minor. Only
+validated current reconciliation may close a candidate without generation. A dispatch-tier result is
+incomplete until the generator has run.
 ```
 
 ## Required Fields
@@ -39,27 +46,45 @@ Identify missing tests, stale tests, and coverage gaps. For MINOR_DISPATCH or MA
 |-------|-------------|---------|
 | `scope` | Files/modules to analyze | `src/auth/, src/auth/__tests__/` |
 | `plan` | Plan identifier for context | `TASK-auth-A-login` |
+| `task_family` | Existing task family for durable-record reconciliation | `TASK-auth-A-login` |
 
 ## Expected Output
 
 | Tier | Meaning | Action |
 |------|---------|--------|
-| `PASS` | Test coverage adequate, all tests meaningful | No action needed |
-| `MINOR_PASS` | Minor gaps, logged but not blocking | Log findings, no dispatch |
-| `MINOR_DISPATCH` | Gaps need test generation | Spawn QA-TestGenerator with gap list |
-| `MAJOR_DISPATCH` | Significant gaps, multiple files missing tests | Spawn QA-TestGenerator with prioritized gaps |
-| `MAJOR_RAISE` | Critical gaps — core paths untested | Escalate to caller |
+| `PASS` | No candidate gap at all | No action needed |
+| `MINOR_PASS` | Every produced candidate was closed by validated current reconciliation | No new generation; report reconciliation basis |
+| `MINOR_DISPATCH` | Surviving generator-owned candidates | Spawn QA-TestGenerator with candidate list |
+| `MAJOR_DISPATCH` | Significant surviving generator-owned candidates | Spawn QA-TestGenerator with prioritized candidates |
+| `MAJOR_RAISE` | Implementation/systemic defect | Escalate to the owning path |
 
 Output includes:
+- The full candidate set (gap kind, stable subject, severity/priority, stale flag, ownership)
+- The reconciliation outcome per candidate (suppressed / reopened / new, with basis)
 - Coverage assessment per file
 - Identified gaps (missing tests for specific functions/paths)
 - Stale tests (tests for removed functionality)
-- Quality assessment (are existing tests meaningful?)
+
+## Fresh-Before-History Ordering (hard invariant)
+
+Fresh current-state inspection and candidate production MUST precede any read of prior QA round records.
+Prior records are reconciliation evidence, never an analysis exclusion list. A dispatch prompt that asks
+the analyzer to "check history first" contradicts this contract.
+
+## Reconciliation Rules
+
+Prior `UNNECESSARY` suppresses a repeat only after the current subject and its reason/evidence are
+revalidated against current state; a material subject/behavior change invalidates it and reopens the
+candidate. Prior `REPAIRED` is rechecked and can reopen. Prior `BLOCKED`/`ESCALATED` preserves ownership
+unless material conditions changed. No matching record means the candidate is new. History that was
+never produced by an analyzer is never persisted or used to suppress discovery. Missing history is
+empty; malformed, cross-family, or writer-mismatched history fails closed.
 
 ## Routing by Tier
 
 | Tier | Action |
 |------|--------|
-| `PASS` or `MINOR_PASS` | Return to caller — no test generation needed |
-| `MINOR_DISPATCH` or `MAJOR_DISPATCH` | Spawn `qa-test-generator` with gap list |
-| `MAJOR_RAISE` | Escalate — critical gaps require caller intervention |
+| `PASS` | Return to caller — no candidate gaps |
+| `MINOR_PASS` | Return to caller — all candidates closed by validated current reconciliation; no new generation |
+| `MINOR_DISPATCH` or `MAJOR_DISPATCH` | Spawn `qa-test-generator` exactly once with the surviving candidate list |
+| `MAJOR_RAISE` | Escalate — implementation/systemic defect requires the owning path |
