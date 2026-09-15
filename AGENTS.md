@@ -1,8 +1,8 @@
-# AGENTS.md — HolyCode
+# AGENTS.md — SkyScow
 
 ## Repository shape
 
-HolyCode is a Docker image definition for OpenCode, not an application repository. There is no project `src/`, `package.json` script suite, typecheck, or test suite. The image provides general runtimes/tools; the project mounted at `/workspace` supplies its own dependencies and tests.
+SkyScow is an agentic software-engineering harness built around OpenCode. This repository defines the shipped harness — the container image, the agent/command/skill configuration, and runtime tooling — rather than an application; there is no project `src/`, `package.json` script suite, typecheck, or test suite. The image provides general runtimes/tools; the project mounted at `/workspace` supplies its own dependencies and tests.
 
 ## Runtime architecture
 
@@ -35,24 +35,24 @@ docker compose up → entrypoint.sh → UID/GID + directories → bootstrap.sh
 python3 scripts/validate_chromium_seccomp.py
 
 # Match PR validation locally
-docker build -t holycode-pr-test .
-docker run --rm holycode-pr-test opencode --version
+docker build -t skyscow-pr-test .
+docker run --rm skyscow-pr-test opencode --version
 
 # Run locally
 cp .env.example .env       # set at least one provider key
 docker compose up -d       # web UI: http://localhost:4096
-docker exec -it holycode bash
+docker exec -it skyscow bash
 ```
 
 There is no repo-wide lint/test command; validate Dockerfile changes with the image build and smoke test, and review `git diff --check`. Do not run `npm test` or invent project-level checks for this repository.
 
 ## Persistent config reconciliation
 
-The image ships `/usr/local/share/holycode/bootstrap-manifest.tsv`; `bootstrap.sh` reconciles it with `/home/opencode/.config/opencode/` on every start. Unchanged shipped files may update or be removed, but edited files, user deletions, and symlinks are preserved. Existing files without provenance are recorded as legacy `0.0.0` and preserved. Preview or review changes with:
+The image ships `/usr/local/share/skyscow/bootstrap-manifest.tsv`; `bootstrap.sh` reconciles it with `/home/opencode/.config/opencode/` on every start. Unchanged shipped files may update or be removed, but edited files, user deletions, and symlinks are preserved. Existing files without provenance are recorded as legacy `0.0.0` and preserved. Preview or review changes with:
 
 ```bash
-docker exec holycode /usr/local/bin/bootstrap.sh --check
-docker exec -it holycode /usr/local/bin/bootstrap.sh --interactive
+docker exec skyscow /usr/local/bin/bootstrap.sh --check
+docker exec -it skyscow /usr/local/bin/bootstrap.sh --interactive
 ```
 
 Config changes are manifest-shipped to existing users; do not use the old sentinel-file workflow.
@@ -61,6 +61,6 @@ Config changes are manifest-shipped to existing users; do not use the old sentin
 
 - Compose must attach `config/chromium-seccomp.json` via `security_opt`; Chromium’s setuid sandbox is required. Do not “fix” browser failures with `--no-sandbox` or `seccomp=unconfined`. Keep `shm_size: 2g`.
 - If `/home/opencode` data is on CIFS/SMB, mount with `nobrl,mfsymlinks` for SQLite WAL and plugin symlinks. Keep `/home/opencode/.cache/opencode` on local disk, even when the data/workspace mounts are on a NAS.
-- `PUID`/`PGID` control ownership of bind-mounted files. `GIT_USER_NAME` and `GIT_USER_EMAIL` are applied by bootstrap on each reconciliation unless `HOLYCODE_SKIP_GIT_CONFIG=1`.
+- `PUID`/`PGID` control ownership of bind-mounted files. `GIT_USER_NAME` and `GIT_USER_EMAIL` are applied by bootstrap on each reconciliation unless `SKYSCOW_SKIP_GIT_CONFIG=1`.
 - Keep exact versions in `Dockerfile`; Renovate manages Dockerfile dependency pins, including its regex-managed npm/Python entries and GitHub Actions. Do not manually “float” versions.
 - Dockerfile builds target `amd64` and `arm64`. Binary download blocks must preserve both architecture branches and their integrity checks.

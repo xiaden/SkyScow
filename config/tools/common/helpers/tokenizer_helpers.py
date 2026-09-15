@@ -26,8 +26,8 @@ from typing import Any
 
 DEEPSEEK_TOKENIZER_PATH = Path(
     os.environ.get(
-        "HOLYCODE_DEEPSEEK_TOKENIZER_PATH",
-        "/usr/local/share/holycode/tokenizers/deepseek-v4-flash-0731/tokenizer.json",
+        "SKYSCOW_DEEPSEEK_TOKENIZER_PATH",
+        "/usr/local/share/skyscow/tokenizers/deepseek-v4-flash-0731/tokenizer.json",
     )
 )
 DEEPSEEK_TOKENIZER_REVISION = "7872f01b1d1fe23eabc4c98b48bffcef5a386062"
@@ -40,10 +40,10 @@ DEEPSEEK_TOKENIZER_URL = (
 )
 DEEPSEEK_TOKENIZER_CACHE_PATH = Path(
     os.environ.get(
-        "HOLYCODE_DEEPSEEK_TOKENIZER_CACHE",
+        "SKYSCOW_DEEPSEEK_TOKENIZER_CACHE",
         str(
             Path.home()
-            / ".cache/holycode/tokenizers/deepseek-v4-flash-0731/tokenizer.json"
+            / ".cache/skyscow/tokenizers/deepseek-v4-flash-0731/tokenizer.json"
         ),
     )
 )
@@ -145,7 +145,7 @@ def download_tokenizer() -> Path:
             temporary_path = Path(temporary.name)
             request = urllib.request.Request(
                 DEEPSEEK_TOKENIZER_URL,
-                headers={"User-Agent": "HolyCode/context_tokens"},
+                headers={"User-Agent": "SkyScow/context_tokens"},
             )
             with urllib.request.urlopen(request, timeout=30) as response:
                 while chunk := response.read(1024 * 1024):

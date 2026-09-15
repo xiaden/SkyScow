@@ -2,30 +2,32 @@
 
 <a name="top"></a>
 
-# <img src="assets/logo.png" alt="HolyCode" width="39" valign="bottom"> HolyCode
+# SkyScow
 
 <div align="center">
-  <img src="assets/hero.png" alt="HolyCode Banner" width="100%" />
+
+**An agentic software-engineering harness built around [OpenCode](https://opencode.ai).**
+
 </div>
 
 <p align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub Stars](https://img.shields.io/github/stars/xiaden/HolyCode?style=social)](https://github.com/xiaden/HolyCode)
-[![GitHub Release](https://img.shields.io/github/v/release/xiaden/HolyCode)](https://github.com/xiaden/HolyCode/releases)
-[![Issues](https://img.shields.io/github/issues/xiaden/HolyCode)](https://github.com/xiaden/HolyCode/issues)
+[![GitHub Stars](https://img.shields.io/github/stars/xiaden/SkyScow?style=social)](https://github.com/xiaden/SkyScow)
+[![GitHub Release](https://img.shields.io/github/v/release/xiaden/SkyScow)](https://github.com/xiaden/SkyScow/releases)
+[![Issues](https://img.shields.io/github/issues/xiaden/SkyScow)](https://github.com/xiaden/SkyScow/issues)
 
 </p>
 
 ### One container. Every tool. Any provider.
 
-OpenCode running in a container with 50+ dev tools, 10+ AI providers, headless browser, and persistent state pre-configured.
+An agentic software-engineering harness built around OpenCode — containerized with 50+ dev tools, 10+ AI providers, headless browser, and persistent state pre-configured.
 
 ---
 
 ## What is this?
 
-HolyCode is a pre-configured Docker environment for [OpenCode](https://opencode.ai), an AI coding agent with a built-in web UI. It includes 50+ dev tools, a headless browser stack, process supervision, and provider-agnostic model support.
+SkyScow is an agentic software-engineering harness built around [OpenCode](https://opencode.ai), an AI coding agent with a built-in web UI. It packages the agent runtime, the shipped agent/command/skill configuration, and supporting tooling into a single container alongside 50+ dev tools, a headless browser stack, process supervision, and provider-agnostic model support.
 
 Your settings, sessions, MCP configs, plugins, and tool history live in a bind mount outside the container. Rebuild, update, or move machines — your state persists.
 
@@ -39,7 +41,7 @@ OpenCode is provider-agnostic: point it at Anthropic, OpenAI, Google Gemini, Gro
 |---|---------|
 | 1 | [Quick Start](#quick-start) |
 | 2 | [Platform Support](#platform-support) |
-| 3 | [Why HolyCode](#why-holycode) |
+| 3 | [Why SkyScow](#why-skyscow) |
 | 4 | [Provider Support](#provider-support) |
 | 5 | [Docker Compose - Quick](#docker-compose---quick) |
 | 6 | [Docker Compose - Full](#docker-compose---full) |
@@ -64,16 +66,16 @@ OpenCode is provider-agnostic: point it at Anthropic, OpenAI, Google Gemini, Gro
 **Step 1.** Pull the image.
 
 ```bash
-docker pull ghcr.io/xiaden/holycode:latest
+docker pull ghcr.io/xiaden/skyscow:latest
 ```
 
 **Step 2.** Create a `docker-compose.yaml`.
 
 ```yaml
 services:
-  holycode:
-    image: ghcr.io/xiaden/holycode:latest
-    container_name: holycode
+  skyscow:
+    image: ghcr.io/xiaden/skyscow:latest
+    container_name: skyscow
     restart: unless-stopped
     shm_size: 2g
     ports:
@@ -100,7 +102,7 @@ Open http://localhost:4096. You're in.
 
 > The shipped `docker-compose.yaml` uses `${ANTHROPIC_API_KEY}` syntax which reads from your shell environment or a `.env` file. Copy `.env.example` to `.env` and fill in your API key.
 
-> `./data/opencode` is only an example host path. If your compose file lives at `/opt/holycode`, that same bind mount becomes `/opt/holycode/data/opencode` on the host.
+> `./data/opencode` is only an example host path. If your compose file lives at `/opt/skyscow`, that same bind mount becomes `/opt/skyscow/data/opencode` on the host.
 
 > Keep `./local-cache/opencode` on local disk. If this project folder lives on NAS/CIFS/SMB storage, change that cache mount to an absolute local host path instead.
 
@@ -119,11 +121,11 @@ Open http://localhost:4096. You're in.
 
 ---
 
-## Why HolyCode
+## Why SkyScow
 
-HolyCode packages a complete AI coding environment into a single container so you skip the setup and get straight to building.
+SkyScow packages a complete agentic software-engineering environment into a single container so you skip the setup and get straight to building.
 
-| | HolyCode | DIY |
+| | SkyScow | DIY |
 |---|----------|-----|
 | Time to first working session | Under 2 minutes | 30-60 minutes |
 | Chromium + Xvfb headless browser | Pre-configured | Research, install, debug yourself |
@@ -165,21 +167,21 @@ Vertex AI, GitHub Models, and Ollama are configured through OpenCode's provider 
 
 The minimal setup. Copy, fill in your key, run.
 
-HolyCode runs Chromium with its setuid sandbox enabled, which needs a
+SkyScow runs Chromium with its setuid sandbox enabled, which needs a
 constrained seccomp profile at runtime. If you are not running from a clone
 of this repository, download the profile first:
 
 ```bash
 mkdir -p config
 curl -fsSLo config/chromium-seccomp.json \
-  https://raw.githubusercontent.com/xiaden/HolyCode/main/config/chromium-seccomp.json
+  https://raw.githubusercontent.com/xiaden/SkyScow/main/config/chromium-seccomp.json
 ```
 
 ```yaml
 services:
-  holycode:
-    image: ghcr.io/xiaden/holycode:latest
-    container_name: holycode
+  skyscow:
+    image: ghcr.io/xiaden/skyscow:latest
+    container_name: skyscow
     restart: unless-stopped
     shm_size: 2g              # Required for Chromium stability
     security_opt:
@@ -205,14 +207,14 @@ services:
 Every option documented. Copy to `docker-compose.yaml` and uncomment what you need.
 
 ```yaml
-# HolyCode - Full Configuration Reference
+# SkyScow - Full Configuration Reference
 # Copy this file to docker-compose.yaml and customize.
 # All options documented. Uncomment what you need.
 
 services:
-  holycode:
-    image: ghcr.io/xiaden/holycode:latest
-    container_name: holycode
+  skyscow:
+    image: ghcr.io/xiaden/skyscow:latest
+    container_name: skyscow
     restart: unless-stopped
     shm_size: 2g
 
@@ -220,7 +222,7 @@ services:
       - "4096:4096"   # OpenCode web UI
 
     volumes:
-      # --- Main HolyCode data ---
+      # --- Main SkyScow data ---
       # Pick any host path you want here. This path maps to /home/opencode in the container.
       # It can live on local disk or network storage.
       - ./data/opencode:/home/opencode
@@ -279,7 +281,7 @@ For the shipped `docker-compose.full.yaml` reference file, see the one included 
 
 ## Podman
 
-Prefer Podman? HolyCode uses the same container image there too. The Podman guide covers the minimal `podman run` setup, env-file usage, SELinux labels, rootless permissions, and update/recreate behavior.
+Prefer Podman? SkyScow uses the same container image there too. The Podman guide covers the minimal `podman run` setup, env-file usage, SELinux labels, rootless permissions, and update/recreate behavior.
 
 **[Read the Podman guide](docs/podman.md)**
 
@@ -293,8 +295,8 @@ Prefer Podman? HolyCode uses the same container image there too. The Podman guid
 |----------|---------|---------|
 | `PUID` | `1000` | Container user UID, match your host for correct file ownership |
 | `PGID` | `1000` | Container user GID, match your host for correct file ownership |
-| `GIT_USER_NAME` | `HolyCode User` | Git identity configured on first boot |
-| `GIT_USER_EMAIL` | `noreply@holycode.local` | Git identity configured on first boot |
+| `GIT_USER_NAME` | `SkyScow User` | Git identity configured on first boot |
+| `GIT_USER_EMAIL` | `noreply@skyscow.local` | Git identity configured on first boot |
 | `ANTHROPIC_API_KEY` | (none) | Anthropic Claude |
 | `OPENAI_API_KEY` | (none) | OpenAI GPT models |
 | `GEMINI_API_KEY` | (none) | Google Gemini |
@@ -316,7 +318,7 @@ Prefer Podman? HolyCode uses the same container image there too. The Podman guid
 
 > `OPENCODE_DISABLE_AUTOUPDATE` and `OPENCODE_DISABLE_TERMINAL_TITLE` are set to `true` by default in the Docker image. You can override them if needed.
 
-> `GIT_USER_NAME` and `GIT_USER_EMAIL` are only applied on first boot. To re-apply, delete the sentinel file and restart: `docker exec holycode rm /home/opencode/.config/opencode/.holycode-bootstrapped` then `docker compose restart`.
+> `GIT_USER_NAME` and `GIT_USER_EMAIL` are only applied on first boot. To re-apply, delete the sentinel file and restart: `docker exec skyscow rm /home/opencode/.config/opencode/.skyscow-bootstrapped` then `docker compose restart`.
 
 
 
@@ -501,7 +503,7 @@ The web UI at port 4096 is the primary interface. But you can also use OpenCode 
 ### Interactive TUI
 
 ```bash
-docker exec -it holycode bash
+docker exec -it skyscow bash
 opencode
 ```
 
@@ -512,7 +514,7 @@ This opens OpenCode's full terminal UI with all the same features as the web ver
 Run a single prompt without entering the TUI:
 
 ```bash
-docker exec -it holycode bash -c "opencode run 'explain this codebase'"
+docker exec -it skyscow bash -c "opencode run 'explain this codebase'"
 ```
 
 ### Attach to the running server
@@ -520,7 +522,7 @@ docker exec -it holycode bash -c "opencode run 'explain this codebase'"
 Connect a local TUI session to the already-running OpenCode web server:
 
 ```bash
-docker exec -it holycode bash -c "opencode attach http://localhost:4096"
+docker exec -it skyscow bash -c "opencode attach http://localhost:4096"
 ```
 
 This shares the same session as the web UI. Changes in one appear in the other.
@@ -530,8 +532,8 @@ This shares the same session as the web UI. Changes in one appear in the other.
 List and configure AI providers from inside the container:
 
 ```bash
-docker exec -it holycode bash -c "opencode providers list"
-docker exec -it holycode bash -c "opencode providers login"
+docker exec -it skyscow bash -c "opencode providers list"
+docker exec -it skyscow bash -c "opencode providers login"
 ```
 
 ### Useful commands
@@ -587,7 +589,7 @@ Rebuild the container anytime. Run `docker compose pull && docker compose up -d`
 - `nobrl` — SQLite WAL mode requires this (byte-range locking workaround)
 - `mfsymlinks` — plugin installation requires this (symlink support for node_modules)
 
-Keep `./local-cache/opencode` on local disk. If your whole HolyCode folder lives on network storage, change that cache mount to an absolute local host path such as `/var/lib/holycode-cache/opencode:/home/opencode/.cache/opencode`.
+Keep `./local-cache/opencode` on local disk. If your whole SkyScow folder lives on network storage, change that cache mount to an absolute local host path such as `/var/lib/skyscow-cache/opencode:/home/opencode/.cache/opencode`.
 
 See the Troubleshooting section below.
 
@@ -597,7 +599,7 @@ See the Troubleshooting section below.
 
 ## Permissions
 
-HolyCode uses `PUID` and `PGID` to remap the internal container user to match your host user. This means files written to `./workspace` are owned by you, not by root.
+SkyScow uses `PUID` and `PGID` to remap the internal container user to match your host user. This means files written to `./workspace` are owned by you, not by root.
 
 Find your IDs on Linux and macOS:
 
@@ -646,7 +648,7 @@ Make sure your compose file has `shm_size: 2g`:
 
 ```yaml
 services:
-  holycode:
+  skyscow:
     shm_size: 2g
 ```
 
@@ -703,7 +705,7 @@ netstat -ano | findstr :4096
 Check the container logs:
 
 ```bash
-docker compose logs -f holycode
+docker compose logs -f skyscow
 ```
 
 OpenCode takes a few seconds to initialize. Give it 10-15 seconds after `docker compose up -d` before opening the browser. If it's still not up, the logs will tell you why.
@@ -711,7 +713,7 @@ OpenCode takes a few seconds to initialize. Give it 10-15 seconds after `docker 
 </details>
 
 <details>
-<summary><strong>Why doesn't HolyCode need SYS_ADMIN or seccomp=unconfined?</strong></summary>
+<summary><strong>Why doesn't SkyScow need SYS_ADMIN or seccomp=unconfined?</strong></summary>
 
 Chromium runs with `--no-sandbox` inside the container, which is standard for containerized browser setups. This eliminates the need for `SYS_ADMIN` capabilities or `seccomp=unconfined` that some other Docker browser setups require. The container itself provides the isolation boundary.
 
@@ -737,7 +739,7 @@ Failed to run the query 'PRAGMA journal_mode = WAL'
 
 OpenCode uses SQLite with Write-Ahead Logging (WAL) for its sessions database. WAL requires byte-range locking, which CIFS/SMB doesn't support by default.
 
-HolyCode detects this at startup and prints a warning with the fix instructions.
+SkyScow detects this at startup and prints a warning with the fix instructions.
 
 **Fix:** Add `nobrl,mfsymlinks` to your CIFS mount options in `/etc/fstab`:
 
@@ -756,9 +758,9 @@ sudo umount /mnt/share
 sudo mount /mnt/share
 ```
 
-Restart HolyCode: `docker compose up -d --force-recreate`
+Restart SkyScow: `docker compose up -d --force-recreate`
 
-If you are using the default HolyCode Compose files, the cache mount is `./local-cache/opencode:/home/opencode/.cache/opencode`. Keep that path on local disk. If your entire HolyCode folder lives on network storage, replace it with an absolute local host path.
+If you are using the default SkyScow Compose files, the cache mount is `./local-cache/opencode:/home/opencode/.cache/opencode`. Keep that path on local disk. If your entire SkyScow folder lives on network storage, replace it with an absolute local host path.
 
 </details>
 
@@ -771,15 +773,15 @@ If you are using the default HolyCode Compose files, the cache mount is `./local
 Clone the repo, build the image, swap it into your compose file.
 
 ```bash
-git clone https://github.com/xiaden/HolyCode.git
-cd HolyCode
-docker build -t holycode:local .
+git clone https://github.com/xiaden/SkyScow.git
+cd SkyScow
+docker build -t skyscow:local .
 ```
 
 Then in your `docker-compose.yaml` swap the image:
 
 ```yaml
-image: holycode:local
+image: skyscow:local
 ```
 
 
@@ -800,7 +802,7 @@ image: holycode:local
 
 ## Support
 
-If HolyCode saved you from another hour of environment setup, here's how to pay it forward.
+If SkyScow saved you from another hour of environment setup, here's how to pay it forward.
 
 - Star the repo on GitHub
 - Share it with someone who'd find it useful
@@ -819,6 +821,8 @@ MIT License - see [LICENSE](LICENSE).
 
 <div align="center">
 
-Forked from [CoderLuii/HolyCode](https://github.com/CoderLuii/HolyCode) · MIT Licensed
+SkyScow was originally derived from [HolyCode](https://github.com/CoderLuii/HolyCode) by CoderLuii and subsequently developed as an independent project.
+
+Not affiliated with or endorsed by HolyCode or CoderLuii. · MIT Licensed
 
 </div>

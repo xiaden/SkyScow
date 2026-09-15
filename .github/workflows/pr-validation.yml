@@ -1,4 +1,4 @@
-name: HolyCode - PR Validation
+name: SkyScow - PR Validation
 
 on:
   pull_request:
@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v6.0.2
 
       - name: Build image
-        run: docker build -t holycode-pr-test .
+        run: docker build -t skyscow-pr-test .
 
       - name: Smoke test OpenCode binary
-        run: docker run --rm holycode-pr-test opencode --version
+        run: docker run --rm skyscow-pr-test opencode --version

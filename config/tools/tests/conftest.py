@@ -25,9 +25,9 @@ if str(PACKAGE_ROOT) not in sys.path:
 def isolated_home(tmp_path, monkeypatch):
     """Isolate HOME so tests never pick up a real user policy file."""
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    monkeypatch.delenv("HOLYCODE_CONTEXT_BUDGET_POLICY", raising=False)
-    monkeypatch.delenv("HOLYCODE_DEEPSEEK_TOKENIZER_PATH", raising=False)
-    monkeypatch.delenv("HOLYCODE_DEEPSEEK_TOKENIZER_CACHE", raising=False)
+    monkeypatch.delenv("SKYSCOW_CONTEXT_BUDGET_POLICY", raising=False)
+    monkeypatch.delenv("SKYSCOW_DEEPSEEK_TOKENIZER_PATH", raising=False)
+    monkeypatch.delenv("SKYSCOW_DEEPSEEK_TOKENIZER_CACHE", raising=False)
     (tmp_path / "home").mkdir(exist_ok=True)
 
 

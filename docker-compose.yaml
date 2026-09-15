@@ -1,11 +1,11 @@
-# HolyCode - Quick Start
+# SkyScow - Quick Start
 # Usage: docker compose up -d
 # Web UI: http://localhost:4096
 
 services:
-  holycode:
-    image: ghcr.io/xiaden/holycode:latest
-    container_name: holycode
+  skyscow:
+    image: ghcr.io/xiaden/skyscow:latest
+    container_name: skyscow
     restart: unless-stopped
     logging:
       driver: json-file

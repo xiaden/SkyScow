@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Want a tool or package added to HolyCode? Let us know!
+        Want a tool or package added to SkyScow? Let us know!
 
   - type: input
     id: package-name

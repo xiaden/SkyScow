@@ -1,4 +1,4 @@
-# Contributing to HolyCode
+# Contributing to SkyScow
 
 Contributions welcome. Here's how.
 

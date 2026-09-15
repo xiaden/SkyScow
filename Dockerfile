@@ -1,6 +1,6 @@
 # ==============================================================================
-# HolyCode - Pre-configured Docker Environment for OpenCode
-# https://github.com/xiaden/HolyCode
+# SkyScow - Pre-configured Docker Environment for OpenCode
+# https://github.com/xiaden/SkyScow
 # ==============================================================================
 
 FROM node:trixie-slim
@@ -16,8 +16,8 @@ ARG EZA_VERSION=0.23.4
 ARG OPENCODE_VERSION=1.18.18
 ARG SLEEV_VERSION=1.7.7
 ENV SLEEV_VERSION=${SLEEV_VERSION}
-ARG HOLYCODE_VERSION=0.0.0
-ENV HOLYCODE_VERSION=${HOLYCODE_VERSION}
+ARG SKYSCOW_VERSION=0.0.0
+ENV SKYSCOW_VERSION=${SKYSCOW_VERSION}
 ARG DEEPSEEK_TOKENIZER_REVISION=7872f01b1d1fe23eabc4c98b48bffcef5a386062
 ARG DEEPSEEK_TOKENIZER_SHA256=8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf
 ARG RGA_VERSION=0.10.10
@@ -26,10 +26,10 @@ ARG TARGETARCH
 
 # OCI metadata is surfaced by GitHub Container Registry on the package page.
 LABEL \
-    org.opencontainers.image.source="https://github.com/xiaden/HolyCode" \
+    org.opencontainers.image.source="https://github.com/xiaden/SkyScow" \
     org.opencontainers.image.description="Pre-configured OpenCode development environment with 50+ dev tools and headless Chromium" \
     org.opencontainers.image.licenses="MIT" \
-    org.opencontainers.image.version="${HOLYCODE_VERSION}"
+    org.opencontainers.image.version="${SKYSCOW_VERSION}"
 
 # ------------------------------------------------------------------------------
 # Runtime environment
@@ -242,32 +242,32 @@ RUN set -eux; \
     \
     # Extract the architecture-specific binary and legal files into the
     # image-shipped versioned directory.
-    mkdir -p "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}"; \
+    mkdir -p "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}"; \
     tar -xzf /tmp/sleeve-gateway.tar.gz \
-        -C "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}" \
+        -C "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}" \
         "sleeve-gateway-linux-${GATEWAY_ARCH}" \
         LICENSE.md EULA.md THIRD_PARTY_NOTICES.md; \
     \
     # Rename the binary to a consistent name for the synchronizer.
     install -m 0755 \
-        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway-linux-${GATEWAY_ARCH}" \
-        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway"; \
+        "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway-linux-${GATEWAY_ARCH}" \
+        "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway"; \
     rm -f \
-        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway-linux-${GATEWAY_ARCH}"; \
+        "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway-linux-${GATEWAY_ARCH}"; \
     \
     # Legal files, non-secret, restrictive metadata.
     chmod 0644 \
-        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/LICENSE.md" \
-        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/EULA.md" \
-        "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/THIRD_PARTY_NOTICES.md"; \
+        "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/LICENSE.md" \
+        "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/EULA.md" \
+        "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/THIRD_PARTY_NOTICES.md"; \
     \
     # Extraction integrity checks.
-    test -x "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway"; \
-    test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/LICENSE.md"; \
-    test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/EULA.md"; \
-    test -s "/usr/local/share/holycode/sleev/gateway/${SLEEV_VERSION}/THIRD_PARTY_NOTICES.md"; \
+    test -x "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/sleeve-gateway"; \
+    test -s "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/LICENSE.md"; \
+    test -s "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/EULA.md"; \
+    test -s "/usr/local/share/skyscow/sleev/gateway/${SLEEV_VERSION}/THIRD_PARTY_NOTICES.md"; \
     ln -s "${SLEEV_VERSION}" \
-        "/usr/local/share/holycode/sleev/gateway/packaged"; \
+        "/usr/local/share/skyscow/sleev/gateway/packaged"; \
     # Do not leave the downloaded archive in the build layer.
     rm -f /tmp/sleeve-gateway.tar.gz
 
@@ -326,7 +326,7 @@ RUN set -eux; \
         /tmp/difftastic.tar.gz
 
 # ------------------------------------------------------------------------------
-# HolyCode Python runtime dependencies
+# SkyScow Python runtime dependencies
 #
 # Do NOT turn system Python into a generic project environment.
 # Repositories being worked on should install their own dependencies.
@@ -342,7 +342,7 @@ RUN python3 -m pip install \
 # The tokenizer is shipped locally so context measurements are deterministic
 # and do not require runtime access to Hugging Face.
 RUN set -eux; \
-    tokenizer_dir=/usr/local/share/holycode/tokenizers/deepseek-v4-flash-0731; \
+    tokenizer_dir=/usr/local/share/skyscow/tokenizers/deepseek-v4-flash-0731; \
     mkdir -p "$tokenizer_dir"; \
     curl -fsSL --retry 3 \
         -o "$tokenizer_dir/tokenizer.json" \
@@ -351,7 +351,7 @@ RUN set -eux; \
         "$DEEPSEEK_TOKENIZER_SHA256" \
         "$tokenizer_dir/tokenizer.json" | sha256sum -c -; \
     chmod 0644 "$tokenizer_dir/tokenizer.json"; \
-    python3 -c 'from tokenizers import Tokenizer; t = Tokenizer.from_file("/usr/local/share/holycode/tokenizers/deepseek-v4-flash-0731/tokenizer.json"); assert t.encode("HolyCode").ids';
+    python3 -c 'from tokenizers import Tokenizer; t = Tokenizer.from_file("/usr/local/share/skyscow/tokenizers/deepseek-v4-flash-0731/tokenizer.json"); assert t.encode("SkyScow").ids';
 
 # ------------------------------------------------------------------------------
 # Core Node runtime
@@ -380,44 +380,44 @@ RUN set -eux; \
         --legacy-peer-deps \
         @cortexkit/aft; \
     \
-    # Preserve the real Sleev executable behind HolyCode's wrapper.
+    # Preserve the real Sleev executable behind SkyScow's wrapper.
     mv /usr/local/bin/sleev /usr/local/bin/sleev.real; \
     \
     npm cache clean --force
 
 # ------------------------------------------------------------------------------
-# HolyCode configuration
+# SkyScow configuration
 #
 # Copy configuration as a unit instead of creating a layer for every directory.
 # ------------------------------------------------------------------------------
 
-COPY config/ /usr/local/share/holycode/
+COPY config/ /usr/local/share/skyscow/
 
 COPY scripts/entrypoint.sh \
      scripts/bootstrap.sh \
      scripts/sleev-wrapper.sh \
      scripts/sleev-gateway-sync.sh \
-     /tmp/holycode-scripts/
+     /tmp/skyscow-scripts/
 
 COPY s6-overlay/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
 
 RUN set -eux; \
-    manifest=/usr/local/share/holycode/bootstrap-manifest.tsv; \
+    manifest=/usr/local/share/skyscow/bootstrap-manifest.tsv; \
     { \
         printf 'schema\t1\n'; \
-        printf 'version\t%s\n' "$HOLYCODE_VERSION"; \
+        printf 'version\t%s\n' "$SKYSCOW_VERSION"; \
         { \
-            printf '%s\n' /usr/local/share/holycode/opencode.json; \
+            printf '%s\n' /usr/local/share/skyscow/opencode.json; \
             find \
-                /usr/local/share/holycode/plugins \
-                /usr/local/share/holycode/agents \
-                /usr/local/share/holycode/skills \
-                /usr/local/share/holycode/tools \
-                /usr/local/share/holycode/commands \
-                /usr/local/share/holycode/instructions \
+                /usr/local/share/skyscow/plugins \
+                /usr/local/share/skyscow/agents \
+                /usr/local/share/skyscow/skills \
+                /usr/local/share/skyscow/tools \
+                /usr/local/share/skyscow/commands \
+                /usr/local/share/skyscow/instructions \
                 -type f -print; \
         } | LC_ALL=C sort | while IFS= read -r source; do \
-            path="${source#/usr/local/share/holycode/}"; \
+            path="${source#/usr/local/share/skyscow/}"; \
             hash="$(sha256sum "$source" | cut -d' ' -f1)"; \
             printf 'file\t%s\t%s\n' "$path" "$hash"; \
         done; \
@@ -425,18 +425,18 @@ RUN set -eux; \
     \
     # Executables.
     install -m 0755 \
-        /tmp/holycode-scripts/entrypoint.sh \
+        /tmp/skyscow-scripts/entrypoint.sh \
         /usr/local/bin/entrypoint.sh; \
     install -m 0755 \
-        /tmp/holycode-scripts/bootstrap.sh \
+        /tmp/skyscow-scripts/bootstrap.sh \
         /usr/local/bin/bootstrap.sh; \
     install -m 0755 \
-        /tmp/holycode-scripts/sleev-wrapper.sh \
+        /tmp/skyscow-scripts/sleev-wrapper.sh \
         /usr/local/bin/sleev; \
     install -m 0755 \
-        /tmp/holycode-scripts/sleev-gateway-sync.sh \
+        /tmp/skyscow-scripts/sleev-gateway-sync.sh \
         /usr/local/bin/sleev-gateway-sync.sh; \
-    rm -rf /tmp/holycode-scripts; \
+    rm -rf /tmp/skyscow-scripts; \
     \
     # Xvfb is no longer used. Chromium runs natively headless.
     rm -rf /etc/s6-overlay/s6-rc.d/xvfb; \

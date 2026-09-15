@@ -1,5 +1,5 @@
 ---
-description: Resolve a GitHub issue through a scoped implementation PR — validate the defect against current HEAD, route through the normal HolyCode workflow, and hand off to the independent resolution verifier without closing the issue
+description: Resolve a GitHub issue through a scoped implementation PR — validate the defect against current HEAD, route through the normal SkyScow workflow, and hand off to the independent resolution verifier without closing the issue
 argument-hint: "<issue URL or number> [target branch override] [context]"
 ---
 
@@ -30,7 +30,7 @@ Determine the authoritative target branch/ref from the issue metadata and reposi
 
 ## Execution
 
-Route the work through the normal HolyCode workflow.
+Route the work through the normal SkyScow workflow.
 
 Nyx is the coordinator, not the replacement for downstream roles:
 

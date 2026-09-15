@@ -1,11 +1,11 @@
-# HolyCode - Full Configuration Reference
+# SkyScow - Full Configuration Reference
 # Copy this file to docker-compose.yaml and customize.
 # All options documented. Uncomment what you need.
 
 services:
-  holycode:
-    image: ghcr.io/xiaden/holycode:latest
-    container_name: holycode
+  skyscow:
+    image: ghcr.io/xiaden/skyscow:latest
+    container_name: skyscow
     restart: unless-stopped
     logging:
       driver: json-file

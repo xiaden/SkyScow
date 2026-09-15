@@ -50,7 +50,7 @@ def _assert_planning_consistent(result: dict, policy: dict) -> None:
 def _measure(workspace, files, policy_file=None, monkeypatch=None):
     if policy_file is not None and monkeypatch is not None:
         override = copy_fixture(workspace, policy_file, "override.yaml")
-        monkeypatch.setenv("HOLYCODE_CONTEXT_BUDGET_POLICY", str(override))
+        monkeypatch.setenv("SKYSCOW_CONTEXT_BUDGET_POLICY", str(override))
     return context_budget.context_budget(files=files, workspace_root=workspace)
 
 
@@ -515,7 +515,7 @@ class TestWorkerLimitChecks:
         # A single phase over the worker limit must be flagged.
         copy_fixture(workspace, "plans/multi_phase.md", "plans/TASK-x.md")
         monkeypatch.setenv(
-            "HOLYCODE_CONTEXT_BUDGET_POLICY",
+            "SKYSCOW_CONTEXT_BUDGET_POLICY",
             str(copy_fixture(workspace, "policy/tiny.yaml", "tiny.yaml")),
         )
         result = _measure(

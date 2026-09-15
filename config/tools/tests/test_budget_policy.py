@@ -75,7 +75,7 @@ class TestLoadPolicy:
 
     def test_env_override_wins(self, workspace, fixtures, monkeypatch):
         override = copy_fixture(workspace, "policy/tiny.yaml", "config/override.yaml")
-        monkeypatch.setenv("HOLYCODE_CONTEXT_BUDGET_POLICY", str(override))
+        monkeypatch.setenv("SKYSCOW_CONTEXT_BUDGET_POLICY", str(override))
         copy_fixture(workspace, "policy/valid.yaml", "config/agent-context-budgets.yaml")
         policy, diagnostics = load_policy(workspace)
         assert policy["worker_phase_limit"] == 10

@@ -2,10 +2,10 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in HolyCode:
+If you discover a security vulnerability in SkyScow:
 
 1. **Do not** open a public GitHub issue
-2. Open a security advisory at https://github.com/xiaden/HolyCode/security/advisories/new with:
+2. Open a security advisory at https://github.com/xiaden/SkyScow/security/advisories/new with:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact

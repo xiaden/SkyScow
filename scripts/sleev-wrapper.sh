@@ -1,6 +1,6 @@
 #!/bin/bash
 # ------------------------------------------------------------------
-# HolyCode sleev wrapper – runs the selected Sleev CLI with tolerant exit
+# SkyScow sleev wrapper – runs the selected Sleev CLI with tolerant exit
 # handling.
 #
 # Gateway synchronization and supervision are owned elsewhere:

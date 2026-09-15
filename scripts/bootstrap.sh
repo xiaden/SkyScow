@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-# HolyCode - Version-aware configuration bootstrap
+# SkyScow - Version-aware configuration bootstrap
 #
 # The image ships a manifest alongside its OpenCode configuration. This script
 # reconciles that manifest with the persistent home directory on every start.
@@ -14,12 +14,12 @@ OC_HOME="${OC_HOME:-/home/opencode}"
 OC_USER="${OC_USER:-opencode}"
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
-SOURCE_DIR="${SOURCE_DIR:-/usr/local/share/holycode}"
+SOURCE_DIR="${SOURCE_DIR:-/usr/local/share/skyscow}"
 SOURCE_MANIFEST="${SOURCE_MANIFEST:-$SOURCE_DIR/bootstrap-manifest.tsv}"
 CONFIG_DIR="$OC_HOME/.config/opencode"
 STATE_DIR="$OC_HOME/.local/state/opencode"
-STATE_MANIFEST="${STATE_MANIFEST:-$STATE_DIR/.holycode-bootstrap-manifest.tsv}"
-LOCK_FILE="$STATE_DIR/.holycode-bootstrap.lock"
+STATE_MANIFEST="${STATE_MANIFEST:-$STATE_DIR/.skyscow-bootstrap-manifest.tsv}"
+LOCK_FILE="$STATE_DIR/.skyscow-bootstrap.lock"
 MODE="${1:-auto}"
 
 case "$MODE" in
@@ -247,7 +247,7 @@ copy_shipped() {
     mkdir -p "$(dirname "$target")"
 
     local temporary
-    temporary="$(mktemp "${target}.holycode.XXXXXX")"
+    temporary="$(mktemp "${target}.skyscow.XXXXXX")"
     cp -a -- "$source" "$temporary"
     mv -f -- "$temporary" "$target"
 }
@@ -475,9 +475,9 @@ write_state_manifest() {
 }
 
 configure_git_identity() {
-    [[ "${HOLYCODE_SKIP_GIT_CONFIG:-0}" == 1 ]] && return 0
-    local git_user_name="${GIT_USER_NAME:-HolyCode User}"
-    local git_user_email="${GIT_USER_EMAIL:-noreply@holycode.local}"
+    [[ "${SKYSCOW_SKIP_GIT_CONFIG:-0}" == 1 ]] && return 0
+    local git_user_name="${GIT_USER_NAME:-SkyScow User}"
+    local git_user_email="${GIT_USER_EMAIL:-noreply@skyscow.local}"
     # safe.directory is a multi-valued setting. Preserve existing entries and
     # add /workspace only when it is not already present.
     if ! runuser -u "$OC_USER" -- git config --global --get-all safe.directory '^/workspace$' >/dev/null 2>&1; then
@@ -494,7 +494,7 @@ if [[ "$DRY_RUN" == 0 ]]; then
     flock -n 9 || die "another bootstrap process is running ($LOCK_FILE)"
 fi
 
-LEGACY_SENTINEL="$CONFIG_DIR/.holycode-bootstrapped"
+LEGACY_SENTINEL="$CONFIG_DIR/.skyscow-bootstrapped"
 if [[ -e "$LEGACY_SENTINEL" || -L "$LEGACY_SENTINEL" ]]; then
     if [[ "$DRY_RUN" == 1 ]]; then
         log "would remove obsolete first-boot sentinel"

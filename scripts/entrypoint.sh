@@ -2,7 +2,7 @@
 set -e
 
 # ==============================================================================
-# HolyCode - Container Entrypoint
+# SkyScow - Container Entrypoint
 # Handles: UID/GID remapping, directory pre-creation, configuration
 #          reconciliation, s6-overlay handoff
 # ==============================================================================
@@ -58,7 +58,7 @@ fi
 check_cifs_compatibility() {
     [ -d "$OC_HOME" ] || return 0
     local test_db
-    test_db=$(mktemp "${OC_HOME}/.holycode-wal-test-XXXXXX.db" 2>/dev/null) || return 0
+    test_db=$(mktemp "${OC_HOME}/.skyscow-wal-test-XXXXXX.db" 2>/dev/null) || return 0
 
     if python3 - "$test_db" 2>/dev/null <<'PY'; then
 import sqlite3

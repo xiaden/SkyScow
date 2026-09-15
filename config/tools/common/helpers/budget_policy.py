@@ -4,7 +4,7 @@ Owns two responsibilities:
 
 1. Loading ``config/agent-context-budgets.yaml`` — the single shipped policy
    source. Resolution order (first hit wins):
-     1. ``HOLYCODE_CONTEXT_BUDGET_POLICY`` environment override (testing).
+     1. ``SKYSCOW_CONTEXT_BUDGET_POLICY`` environment override (testing).
      2. ``<workspace_root>/config/agent-context-budgets.yaml`` (repo layout).
      3. ``~/.config/opencode/agent-context-budgets.yaml`` (installed image
         layout).
@@ -72,7 +72,7 @@ _INTEGER_KEYS = (
 )
 
 POLICY_FILE_NAME = "agent-context-budgets.yaml"
-POLICY_ENV_VAR = "HOLYCODE_CONTEXT_BUDGET_POLICY"
+POLICY_ENV_VAR = "SKYSCOW_CONTEXT_BUDGET_POLICY"
 
 # Allowlist for frontmatter ``model:`` values: identifiers only, no quoting,
 # no whitespace, no interpolation. Anything else is untrusted and ignored.

@@ -1,4 +1,4 @@
-name: HolyCode - Build and Push to GHCR
+name: SkyScow - Build and Push to GHCR
 run-name: ${{ github.ref_name }}
 
 on:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GHCR_IMAGE: ghcr.io/xiaden/holycode
+  GHCR_IMAGE: ghcr.io/xiaden/skyscow
 
 jobs:
   build-and-push:
@@ -57,9 +57,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            HOLYCODE_VERSION=${{ startsWith(github.ref_name, 'v') && github.ref_name || '0.0.0' }}
+            SKYSCOW_VERSION=${{ startsWith(github.ref_name, 'v') && github.ref_name || '0.0.0' }}
           outputs: >-
-            type=image,name=${{ env.GHCR_IMAGE }},annotation-index.org.opencontainers.image.description=Pre-configured OpenCode development environment with 50+ dev tools and headless Chromium
+            type=image,name=${{ env.GHCR_IMAGE }},annotation-index.org.opencontainers.image.description=Agentic software-engineering harness built around OpenCode with 50+ dev tools and headless Chromium
           cache-from: |
             type=gha
             type=registry,ref=${{ env.GHCR_IMAGE }}:buildcache

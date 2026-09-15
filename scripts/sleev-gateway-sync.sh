@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# HolyCode - Sleev version synchronizer
+# SkyScow - Sleev version synchronizer
 #
 # Selects one complete Sleev release for the persistent volume before s6 starts:
 #   - the CLI at ~/.local/share/sleev/cli/current/sleev
@@ -29,7 +29,7 @@ CLI_ROOT="${OC_HOME}/.local/share/sleev/cli"
 GATEWAY_ROOT="${OC_HOME}/.local/share/sleev/gateway"
 CLI_CURRENT="${CLI_ROOT}/current"
 GATEWAY_CURRENT="${GATEWAY_ROOT}/current"
-PACKAGED_GATEWAY="/usr/local/share/holycode/sleev/gateway/packaged/sleeve-gateway"
+PACKAGED_GATEWAY="/usr/local/share/skyscow/sleev/gateway/packaged/sleeve-gateway"
 PACKAGED_CLI="/usr/local/bin/sleev.real"
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
@@ -170,7 +170,7 @@ install_packaged_release() {
     install -m 0755 "$PACKAGED_GATEWAY" "${gateway_dir}/sleeve-gateway"
 
     for legal in "${LEGAL_FILES[@]}"; do
-        source="/usr/local/share/holycode/sleev/gateway/packaged/${legal}"
+        source="/usr/local/share/skyscow/sleev/gateway/packaged/${legal}"
         if [ -f "$source" ]; then
             install -m 0644 "$source" "${gateway_dir}/${legal}"
         fi

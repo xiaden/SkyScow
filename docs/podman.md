@@ -1,12 +1,12 @@
-# HolyCode with Podman
+# SkyScow with Podman
 
-Podman can run the same HolyCode image as Docker. Use this guide when you prefer a daemonless or rootless container runtime, especially on Fedora, RHEL, CoreOS, Rocky, AlmaLinux, or similar Linux hosts.
+Podman can run the same SkyScow image as Docker. Use this guide when you prefer a daemonless or rootless container runtime, especially on Fedora, RHEL, CoreOS, Rocky, AlmaLinux, or similar Linux hosts.
 
-This guide mirrors the minimal HolyCode web UI setup. For the full Docker Compose reference, use the main README and `docker-compose.full.yaml`.
+This guide mirrors the minimal SkyScow web UI setup. For the full Docker Compose reference, use the main README and `docker-compose.full.yaml`.
 
 ## What this guide covers
 
-- Running the HolyCode web UI with `podman run`
+- Running the SkyScow web UI with `podman run`
 - Keeping OpenCode state, cache, and workspace files in bind mounts
 - Loading provider keys from `.env` with `--env-file .env`
 - SELinux labels for Fedora/RHEL/CoreOS hosts
@@ -15,7 +15,7 @@ This guide mirrors the minimal HolyCode web UI setup. For the full Docker Compos
 
 ## Prerequisites
 
-Install Podman on the host and run the command from the HolyCode project folder, or from another folder that contains the same `.env.example`, data, cache, and workspace paths.
+Install Podman on the host and run the command from the SkyScow project folder, or from another folder that contains the same `.env.example`, data, cache, and workspace paths.
 
 Copy the environment template and add at least one provider key:
 
@@ -35,11 +35,11 @@ Create the host directories:
 mkdir -p ./data/opencode ./local-cache/opencode ./workspace
 ```
 
-Run HolyCode:
+Run SkyScow:
 
 ```bash
 podman run -d \
-  --name holycode \
+  --name skyscow \
   --restart unless-stopped \
   --shm-size=2g \
   -p 4096:4096 \
@@ -49,7 +49,7 @@ podman run -d \
   --env-file .env \
   -e PUID=$(id -u) \
   -e PGID=$(id -g) \
-  ghcr.io/xiaden/holycode:latest
+  ghcr.io/xiaden/skyscow:latest
 ```
 
 Open http://localhost:4096.
@@ -61,19 +61,19 @@ What the important options do:
 - `./data/opencode:/home/opencode` persists OpenCode config, sessions, plugins, and service state.
 - `./local-cache/opencode:/home/opencode/.cache/opencode` keeps plugin and package cache on local disk.
 - `./workspace:/workspace` mounts your project files.
-- `--env-file .env` loads provider keys and optional HolyCode toggles without putting secrets in shell history.
-- `PUID` and `PGID` tell HolyCode which host UID/GID to use for file ownership inside mounted paths.
-- `ghcr.io/xiaden/holycode:latest` pulls from GitHub Container Registry.
+- `--env-file .env` loads provider keys and optional SkyScow toggles without putting secrets in shell history.
+- `PUID` and `PGID` tell SkyScow which host UID/GID to use for file ownership inside mounted paths.
+- `ghcr.io/xiaden/skyscow:latest` pulls from GitHub Container Registry.
 
-If you use a different host folder, keep the container paths unchanged. `/home/opencode`, `/home/opencode/.cache/opencode`, and `/workspace` are the paths HolyCode expects inside the container.
+If you use a different host folder, keep the container paths unchanged. `/home/opencode`, `/home/opencode/.cache/opencode`, and `/workspace` are the paths SkyScow expects inside the container.
 
 ## SELinux hosts
 
-On SELinux hosts such as Fedora, RHEL, or CoreOS, unlabeled bind mounts can look like permission problems from inside the container. Add `:Z` to each HolyCode bind mount for a private label used by this one container:
+On SELinux hosts such as Fedora, RHEL, or CoreOS, unlabeled bind mounts can look like permission problems from inside the container. Add `:Z` to each SkyScow bind mount for a private label used by this one container:
 
 ```bash
 podman run -d \
-  --name holycode \
+  --name skyscow \
   --restart unless-stopped \
   --shm-size=2g \
   -p 4096:4096 \
@@ -83,7 +83,7 @@ podman run -d \
   --env-file .env \
   -e PUID=$(id -u) \
   -e PGID=$(id -g) \
-  ghcr.io/xiaden/holycode:latest
+  ghcr.io/xiaden/skyscow:latest
 ```
 
 Use `:z` only when the same host path must be shared by multiple containers. Do not casually relabel broad system paths or your entire home directory.
@@ -99,28 +99,28 @@ Check these if files are unexpectedly owned or blocked:
 - The host paths exist before running the container.
 - SELinux hosts use `:Z` or `:z` labels as described above.
 
-Some rootless setups use custom user namespace modes such as `--userns=keep-id`. Do not add that flag by default for HolyCode; it changes how the container process user is mapped. Use it only after testing that it matches your host policy and does not interfere with HolyCode's `PUID`/`PGID` remapping.
+Some rootless setups use custom user namespace modes such as `--userns=keep-id`. Do not add that flag by default for SkyScow; it changes how the container process user is mapped. Use it only after testing that it matches your host policy and does not interfere with SkyScow's `PUID`/`PGID` remapping.
 
-## Updating HolyCode
+## Updating SkyScow
 
 Pull the latest image:
 
 ```bash
-podman pull ghcr.io/xiaden/holycode:latest
+podman pull ghcr.io/xiaden/skyscow:latest
 ```
 
 Then recreate the container:
 
 ```bash
-podman stop holycode
-podman rm holycode
+podman stop skyscow
+podman rm skyscow
 ```
 
 Run the `podman run` command again. Your data stays in `./data/opencode`, `./local-cache/opencode`, and `./workspace`.
 
-Do not use `podman start holycode` as an update path. It restarts the existing container with the old image, environment variables, ports, and mount settings.
+Do not use `podman start skyscow` as an update path. It restarts the existing container with the old image, environment variables, ports, and mount settings.
 
-`--restart unless-stopped` restarts the container after normal exits unless you explicitly stopped it. Reboot persistence depends on Podman's `podman-restart.service`. If you later manage HolyCode through systemd or Quadlet, use systemd's `Restart=` behavior instead of Podman's `--restart` flag.
+`--restart unless-stopped` restarts the container after normal exits unless you explicitly stopped it. Reboot persistence depends on Podman's `podman-restart.service`. If you later manage SkyScow through systemd or Quadlet, use systemd's `Restart=` behavior instead of Podman's `--restart` flag.
 
 ## Troubleshooting
 
@@ -149,7 +149,7 @@ Use `:z` only when multiple containers must share the same host path.
 
 ### Port 4096 already in use
 
-Publish HolyCode on a different host port while keeping the container port at `4096`:
+Publish SkyScow on a different host port while keeping the container port at `4096`:
 
 ```bash
 -p 4097:4096

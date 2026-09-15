@@ -1,8 +1,13 @@
 # Third-Party Licenses
 
-HolyCode includes third-party software distributed within the Docker image.
-Each component retains its original license. HolyCode's own source code is
+SkyScow includes third-party software distributed within the Docker image.
+Each component retains its original license. SkyScow's own source code is
 licensed under MIT (see LICENSE).
+
+SkyScow was originally derived from HolyCode by CoderLuii and subsequently
+developed as an independent project. This notice describes SkyScow; it does
+not imply endorsement by or continued affiliation with HolyCode or CoderLuii.
+The notices below apply to inherited and bundled dependencies.
 
 ## OpenCode (opencode-ai)
 
@@ -12,9 +17,9 @@ licensed under MIT (see LICENSE).
 - npm: https://www.npmjs.com/package/opencode-ai
 - Website: https://opencode.ai
 
-OpenCode is the core AI coding agent bundled in HolyCode. It is installed
+OpenCode is the core AI coding agent bundled in SkyScow. It is installed
 via npm as a global package and runs as an s6-overlay supervised process.
-HolyCode does not modify OpenCode's source code.
+SkyScow does not modify OpenCode's source code.
 
 ## opencode-claude-auth (optional plugin)
 
@@ -25,7 +30,7 @@ HolyCode does not modify OpenCode's source code.
 Optional OpenCode plugin that bridges Claude Code OAuth credentials into
 OpenCode. Not installed by default. Enabled via ENABLE_CLAUDE_AUTH=true
 environment variable. Auto-installed by OpenCode's plugin system at
-container startup when enabled. HolyCode does not modify this plugin.
+container startup when enabled. SkyScow does not modify this plugin.
 
 Note: This plugin impersonates the Claude CLI at the HTTP level to pass
 Anthropic OAuth validation. Use at your own risk regarding Anthropic's
@@ -41,7 +46,7 @@ Terms of Service.
 Optional OpenCode plugin for multi-agent orchestration. Not installed by
 default. Enabled via ENABLE_OH_MY_OPENAGENT=true environment variable.
 Auto-installed by OpenCode's plugin system at container startup when
-enabled. HolyCode does not modify this plugin.
+enabled. SkyScow does not modify this plugin.
 
 ## s6-overlay
 
@@ -70,7 +75,7 @@ automation via Playwright and Puppeteer.
 Installed via pip. Uses the system Chromium binary, not Playwright's
 bundled browsers.
 
-HolyCode also vendors Playwright's Docker seccomp profile at
+SkyScow also vendors Playwright's Docker seccomp profile at
 `config/chromium-seccomp.json` under the same Apache-2.0 license. The profile
 permits the namespace syscalls required by Chromium's setuid sandbox.
 
@@ -133,7 +138,7 @@ permits the namespace syscalls required by Chromium's setuid sandbox.
 - Copyright: DeepSeek AI
 - Source: https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-0731
 
-HolyCode includes the model's tokenizer.json artifact for deterministic
+SkyScow includes the model's tokenizer.json artifact for deterministic
 context-size measurements. Model weights are not included.
 
 For a complete list of installed packages and their licenses, inspect the

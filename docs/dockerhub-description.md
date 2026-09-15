@@ -1,19 +1,19 @@
-# HolyCode
+# SkyScow
 
 **One container. Every tool. Any provider.**
 
-OpenCode AI coding agent with built-in web UI, 50+ dev tools, headless browser, and process supervision. Provider-agnostic — bring any API key.
+Agentic software-engineering harness built around the OpenCode AI coding agent with built-in web UI, 50+ dev tools, headless browser, and process supervision. Provider-agnostic — bring any API key.
 
-[![GitHub Stars](https://img.shields.io/github/stars/xiaden/HolyCode?style=flat-square&logo=github)](https://github.com/xiaden/HolyCode)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://github.com/xiaden/HolyCode/blob/main/LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/xiaden/SkyScow?style=flat-square&logo=github)](https://github.com/xiaden/SkyScow)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://github.com/xiaden/SkyScow/blob/main/LICENSE)
 
 ## Quick Start
 
 ```yaml
 services:
-  holycode:
-    image: ghcr.io/xiaden/holycode:latest
-    container_name: holycode
+  skyscow:
+    image: ghcr.io/xiaden/skyscow:latest
+    container_name: skyscow
     restart: unless-stopped
     shm_size: 2g
     ports:
@@ -63,5 +63,5 @@ docker compose up -d
 
 ## Links
 
-- [GitHub](https://github.com/xiaden/HolyCode)
-- [Podman Guide](https://github.com/xiaden/HolyCode/blob/main/docs/podman.md)
+- [GitHub](https://github.com/xiaden/SkyScow)
+- [Podman Guide](https://github.com/xiaden/SkyScow/blob/main/docs/podman.md)
