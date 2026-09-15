@@ -13,6 +13,12 @@ Treat the GitHub issue as the authoritative work item. Read the full issue body 
 
 If current HEAD shows the issue is already resolved, obsolete, incorrectly scoped, or substantially superseded, do not manufacture a change. Report the evidence on the issue instead.
 
+## Repository resolution
+
+Derive the authoritative `owner/repo` from the issue URL. Every `gh` command that operates on the repository — `gh issue view`, `gh issue comment`, `gh pr create`, `gh pr view`, `gh run view`, `gh api` — MUST pass an explicit `--repo <owner>/<repo>`.
+
+Never rely on the ambient `gh` default repository. In a fork clone that has an `upstream` remote and no `remote.<name>.gh-resolved` entry, bare `gh` resolves to the parent repository rather than `origin`, so an unqualified command silently targets the wrong repository.
+
 ## Target branch
 
 Determine the authoritative target branch/ref from the issue metadata and repository context.
@@ -68,7 +74,7 @@ Before performing or initiating any Git/GitHub operation, load every applicable 
 
 - Create a scoped implementation branch from the authoritative target branch.
 - Keep commits reviewable and organized by remediation scope. Multiple commits are fine when they represent coherent implementation/test boundaries; do not create artificial commit fragmentation.
-- Push the branch and open a PR back into the authoritative target branch.
+- Push the branch and open a PR back into the authoritative target branch in the issue's repository, using an explicit `--repo <owner>/<repo>`; do not rely on the ambient `gh` default.
 
 The PR should:
 
@@ -85,7 +91,7 @@ The GPT QA Resolution Verifier owns final issue closure after independently veri
 
 ## Issue handoff
 
-After the PR is created, add a concise comment to the original issue containing:
+After the PR is created, add a concise comment to the original issue (`gh issue comment --repo <owner>/<repo> <issue>`) containing:
 
 - PR link/number;
 - implementation branch;
