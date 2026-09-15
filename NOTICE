@@ -1,0 +1,19 @@
+SkyScow
+=======
+
+SkyScow is an agentic software-engineering harness built around OpenCode.
+
+Provenance
+----------
+
+SkyScow was originally derived from HolyCode by CoderLuii and subsequently
+developed as an independent project.
+
+The original HolyCode copyright and MIT permission notice is retained in
+LICENSE as required for the inherited substantial portions of this software.
+
+This project is not affiliated with, sponsored by, or endorsed by HolyCode
+or CoderLuii.
+
+Third-party components bundled in the Docker image are listed in
+THIRD-PARTY-NOTICES.
