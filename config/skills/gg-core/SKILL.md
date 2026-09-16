@@ -1,6 +1,6 @@
 ---
 name: gg-core
-description: Use for local Git work: commits and branches, merge and rebase, worktrees, reflog recovery, commit signing, and local hooks. Load when performing local operations on your own working tree and history.
+description: "Use for local Git work: commits and branches, merge and rebase, worktrees, reflog recovery, commit signing, and local hooks. Load when performing local operations on your own working tree and history."
 ---
 
 # gg-core

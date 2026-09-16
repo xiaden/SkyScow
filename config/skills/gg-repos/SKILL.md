@@ -1,6 +1,6 @@
 ---
 name: gg-repos
-description: Use for GitHub collaboration and repository hygiene: remotes, pull requests, code review, protected branches, issues and projects, releases, and environments. Load when maintaining or reviewing a shared GitHub repository via the direct PAT-authenticated gh CLI.
+description: "Use for GitHub collaboration and repository hygiene: remotes, pull requests, code review, protected branches, issues and projects, releases, and environments. Load when maintaining or reviewing a shared GitHub repository via the direct PAT-authenticated gh CLI."
 ---
 
 # gg-repos

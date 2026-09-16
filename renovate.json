@@ -64,6 +64,16 @@
       "customType": "regex",
       "fileMatch": ["^Dockerfile$"],
       "matchStrings": [
+        "ARG OPENCODE_VERSION=(?<currentValue>[^\\s]+)"
+      ],
+      "depNameTemplate": "opencode-ai",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": [
         "(?<depName>(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*)@(?<currentValue>\\d+(?:\\.\\d+)*(?:[-+][0-9A-Za-z.-]+)?)"
       ],
       "datasourceTemplate": "npm",

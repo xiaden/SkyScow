@@ -583,6 +583,8 @@ Sleev uses versioned layouts under `/home/opencode/.local/share/sleev/{cli,gatew
 
 Rebuild the container anytime. Run `docker compose pull && docker compose up -d` and your sessions, settings, and configs come back automatically.
 
+**Plugins aren't pruned on upgrade.** The shipped config (`opencode.json` and the files under `plugins/`) is reconciled on every start, but the plugin package state — `node_modules/`, `package.json`, and `package-lock.json` under `.config/opencode`, and the contents of `.cache/opencode` — is generated at runtime and left alone. Since `opencode.json` decides which plugins load, removing or updating a plugin can leave the old package on disk without changing behavior. Clearing it is manual; see Troubleshooting.
+
 **SQLite WAL note.** The sessions database uses Write-Ahead Logging. Don't copy the `.db` file while the container is running. Stop the container first if you need to back up or migrate the database file.
 
 **Network storage note.** If `./data/opencode` is on a CIFS/SMB network mount (NAS, Synology, TrueNAS), you need two mount options:
@@ -761,6 +763,22 @@ sudo mount /mnt/share
 Restart SkyScow: `docker compose up -d --force-recreate`
 
 If you are using the default SkyScow Compose files, the cache mount is `./local-cache/opencode:/home/opencode/.cache/opencode`. Keep that path on local disk. If your entire SkyScow folder lives on network storage, replace it with an absolute local host path.
+
+</details>
+
+<details>
+<summary><strong>A plugin I removed or updated still leaves files behind</strong></summary>
+
+The shipped config is reconciled on every start, but the plugin *packages* are not. `node_modules/`, `package.json`, and `package-lock.json` under `/home/opencode/.config/opencode`, plus the contents of `/home/opencode/.cache/opencode`, are generated at runtime and left untouched.
+
+`opencode.json` decides which plugins load, so a stale package won't change behavior — it just occupies disk. To reclaim it, delete `node_modules/` and `package-lock.json` and let them be rebuilt:
+
+```bash
+docker exec skyscow rm -rf /home/opencode/.config/opencode/node_modules /home/opencode/.config/opencode/package-lock.json
+docker compose up -d --force-recreate
+```
+
+This re-installs every plugin, including any you added yourself, so the next start needs network access. Deleting `.cache/opencode` is not required and only forces re-downloads.
 
 </details>
 
