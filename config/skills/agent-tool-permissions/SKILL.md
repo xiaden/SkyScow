@@ -15,7 +15,7 @@ Every OpenCode agent (`~/.config/opencode/agents/*.md`) has a YAML frontmatter b
 
 **Not yet documented:** The permission validation pipeline (how/when OpenCode checks the frontmatter against tool calls), the plugin tool registration lifecycle.
 
-**Last extended:** 2026-07-10
+**Last extended:** 2026-09-16
 
 ## Key Findings
 
@@ -32,7 +32,7 @@ Every OpenCode agent (`~/.config/opencode/agents/*.md`) has a YAML frontmatter b
 ### Plugin Tools Require Two Steps
 - **Location:** `~/.config/opencode/opencode.json` (plugin registration) + agent frontmatter (permission grant)
 - **What:** A plugin-provided tool becomes available at runtime only after (1) the plugin is registered in `opencode.json`'s `"plugin"` array, and (2) at least one agent has it in their `permission:` block.
-- **Why it matters:** The `opencode-research-papers` plugin (v1.4.5) IS registered in `opencode.json` (line 7: `"opencode-research-papers"`) but NO agent has `research_papers` in their permission block. The tool exists at runtime but no agent can call it.
+- **Why it matters:** Registration and permission grant are independent. `opencode-research-papers` is registered in `opencode.json`'s `"plugin"` array, but registration alone grants its `research_papers` tool to no agent — each agent must list the tool in its own `permission:` block (e.g. `support-researcher.md`, `nyx.md`). A registered plugin whose tool no block lists exists at runtime yet is callable by no agent.
 
 ### No Config-Level Tool Assignment
 - **Location:** `~/.config/opencode/opencode.json`
@@ -40,7 +40,7 @@ Every OpenCode agent (`~/.config/opencode/agents/*.md`) has a YAML frontmatter b
 - **Why it matters:** There is no central configuration registry — you must edit each agent file individually.
 
 ### research_papers Tool Parameters
-- **Source:** `opencode-research-papers` plugin v1.4.5 (`dist/tools/research_papers.js`)
+- **Source:** `opencode-research-papers` plugin (`dist/tools/research_papers.js`)
 - **Parameters:**
   - `query` (string, required) — research field/topic
   - `source` (enum: "arxiv" | "openalex" | "semantic_scholar" | "auto", default: "auto")
@@ -67,7 +67,7 @@ permission:
 This applies to any tool — built-in or plugin-provided. No other configuration is needed (the plugin must already be registered in `opencode.json`).
 
 ## Sources
-- `~/.config/opencode/agents/agent.md` — primary agent, full permission block (lines 5-32)
+- `~/.config/opencode/agents/nyx.md` — default/primary agent (`default_agent: nyx`), full permission block
 - `~/.config/opencode/agents/support-researcher.md` — researcher agent permission block
 - `~/.config/opencode/agents/rnd-ideator.md` — ideator agent permission block
 - `~/.config/opencode/agents/rnd-dd-author.md` — DD author agent permission block

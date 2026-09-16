@@ -7,6 +7,20 @@ Resolve the GitHub issue below through a scoped implementation PR:
 
 $ARGUMENTS
 
+## Workspace preflight (early return)
+
+This command mutates the local workspace, so it must run inside a checkout of the repository that owns the issue.
+
+1. Parse the issue reference from the arguments above **before** reading the issue:
+   - a full issue URL (`https://github.com/<owner>/<repo>/issues/<n>`) supplies the authoritative `<owner>/<repo>` directly;
+   - a bare number means the issue belongs to the workspace's own repository.
+2. Resolve the workspace repository:
+   - `git rev-parse --show-toplevel` must succeed — the command must run inside a git working tree;
+   - read the `origin` remote URL and, when present, the `upstream` remote URL (`git remote get-url origin`, `git remote get-url upstream`).
+3. Normalize each remote URL to `<owner>/<repo>` — handling `git@github.com:<owner>/<repo>.git`, `ssh://git@github.com/<owner>/<repo>.git`, and `https://github.com/<owner>/<repo>` with or without a `.git` suffix and with trailing slashes — and compare case-insensitively. A fork clone is a match when `upstream`, not only `origin`, is the issue's repository.
+
+**Early return:** if the workspace is not a git working tree, exposes no GitHub remote, or no remote matches the issue's `<owner>/<repo>`, stop immediately. Report the expected `<owner>/<repo>`, the remotes actually configured in the workspace, and the mismatch, then make no further tool calls — do not read, comment on, or modify the issue, and do not create branches, edit files, commit, or push. Never proceed against a different repository.
+
 ## Authoritative work item
 
 Treat the GitHub issue as the authoritative work item. Read the full issue body and **all** comments before doing anything else, including any prior GPT QA Resolution Review comments. Validate the reported defect against current repository state rather than blindly implementing the proposed correction.

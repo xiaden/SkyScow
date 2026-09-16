@@ -335,9 +335,9 @@ RUN set -eux; \
 RUN python3 -m pip install \
         --no-cache-dir \
         --break-system-packages \
-        "mcp>=1,<2" \
-        "tiktoken>=0,<1" \
-        "tokenizers>=0.23,<1";
+        "mcp==1.30.0" \
+        "tiktoken==0.14.0" \
+        "tokenizers==0.23.2";
 
 # The tokenizer is shipped locally so context measurements are deterministic
 # and do not require runtime access to Hugging Face.
@@ -373,12 +373,12 @@ RUN set -eux; \
         --allow-scripts=opencode-ai,sleev,@ast-grep/cli \
         "opencode-ai@${OPENCODE_VERSION}" \
         "sleev@${SLEEV_VERSION}" \
-        pnpm@11 \
-        @ast-grep/cli; \
+        pnpm@11.27.0 \
+        @ast-grep/cli@0.45.3; \
     \
     npm install -g \
         --legacy-peer-deps \
-        @cortexkit/aft; \
+        @cortexkit/aft@0.56.1; \
     \
     # Preserve the real Sleev executable behind SkyScow's wrapper.
     mv /usr/local/bin/sleev /usr/local/bin/sleev.real; \

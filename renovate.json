@@ -53,10 +53,21 @@
       "customType": "regex",
       "fileMatch": ["^Dockerfile$"],
       "matchStrings": [
-        "ARG HERMES_AGENT_REF=(?<currentValue>[^\\s]+)"
+        "ARG RGA_VERSION=(?<currentValue>[^\\s]+)"
       ],
-      "depNameTemplate": "NousResearch/hermes-agent",
-      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "phiresky/ripgrep-all",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": [
+        "ARG DIFFTASTIC_VERSION=(?<currentValue>[^\\s]+)"
+      ],
+      "depNameTemplate": "Wilfred/difftastic",
+      "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver",
       "extractVersionTemplate": "^v?(?<version>.+)$"
     },
@@ -67,6 +78,25 @@
         "ARG OPENCODE_VERSION=(?<currentValue>[^\\s]+)"
       ],
       "depNameTemplate": "opencode-ai",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": [
+        "ARG SLEEV_VERSION=(?<currentValue>[^\\s]+)"
+      ],
+      "depNameTemplate": "sleev",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^config/opencode\\.json$"],
+      "matchStrings": [
+        "\"(?<depName>@?[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)?)@(?<currentValue>\\d+(?:\\.\\d+)*(?:[-+][0-9A-Za-z.-]+)?)\""
+      ],
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
     },
