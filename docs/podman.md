@@ -42,7 +42,7 @@ podman run -d \
   --name skyscow \
   --restart unless-stopped \
   --shm-size=2g \
-  -p 4096:4096 \
+  -p 127.0.0.1:4096:4096 \
   -v ./data/opencode:/home/opencode \
   -v ./local-cache/opencode:/home/opencode/.cache/opencode \
   -v ./workspace:/workspace \
@@ -52,12 +52,12 @@ podman run -d \
   ghcr.io/xiaden/skyscow:latest
 ```
 
-Open http://localhost:4096.
+Open http://localhost:4096. The port is published on the host's loopback interface only, so it is not reachable from other machines.
 
 What the important options do:
 
 - `--shm-size=2g` gives Chromium and browser automation enough shared memory.
-- `-p 4096:4096` publishes the OpenCode web UI.
+- `-p 127.0.0.1:4096:4096` publishes the OpenCode web UI on the host's loopback interface, so it is not reachable from other machines. To expose it remotely, bind a wider interface **and** set `OPENCODE_SERVER_PASSWORD` in `.env` (see the main README's Environment Variables) — an unauthenticated OpenCode server can execute code with your mounted workspace and provider credentials.
 - `./data/opencode:/home/opencode` persists OpenCode config, sessions, plugins, and service state.
 - `./local-cache/opencode:/home/opencode/.cache/opencode` keeps plugin and package cache on local disk.
 - `./workspace:/workspace` mounts your project files.
@@ -76,7 +76,7 @@ podman run -d \
   --name skyscow \
   --restart unless-stopped \
   --shm-size=2g \
-  -p 4096:4096 \
+  -p 127.0.0.1:4096:4096 \
   -v ./data/opencode:/home/opencode:Z \
   -v ./local-cache/opencode:/home/opencode/.cache/opencode:Z \
   -v ./workspace:/workspace:Z \
@@ -152,7 +152,7 @@ Use `:z` only when multiple containers must share the same host path.
 Publish SkyScow on a different host port while keeping the container port at `4096`:
 
 ```bash
--p 4097:4096
+-p 127.0.0.1:4097:4096
 ```
 
 Then open http://localhost:4097.

@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
     shm_size: 2g
     ports:
-      - "4096:4096"
+      - "127.0.0.1:4096:4096"   # local-only by default
     volumes:
       - ./data/opencode:/home/opencode
       - ./local-cache/opencode:/home/opencode/.cache/opencode
@@ -28,8 +28,10 @@ services:
 
 ```bash
 docker compose up -d
-# Open http://localhost:4096
+# Open http://localhost:4096 (published on loopback only)
 ```
+
+> The web UI is bound to the host's loopback interface by default. To expose it to other machines, publish a wider interface **and** set `OPENCODE_SERVER_PASSWORD` — an unauthenticated OpenCode server can execute code with your workspace and provider credentials.
 
 
 ## What's Inside

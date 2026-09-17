@@ -79,7 +79,7 @@ services:
     restart: unless-stopped
     shm_size: 2g
     ports:
-      - "4096:4096"
+      - "127.0.0.1:4096:4096"   # local-only by default
     volumes:
       - ./data/opencode:/home/opencode
       - ./local-cache/opencode:/home/opencode/.cache/opencode
@@ -105,6 +105,8 @@ Open http://localhost:4096. You're in.
 > `./data/opencode` is only an example host path. If your compose file lives at `/opt/skyscow`, that same bind mount becomes `/opt/skyscow/data/opencode` on the host.
 
 > Keep `./local-cache/opencode` on local disk. If this project folder lives on NAS/CIFS/SMB storage, change that cache mount to an absolute local host path instead.
+
+> **Local access only by default.** `127.0.0.1:4096:4096` publishes the web UI on the Docker host's loopback interface, so other machines cannot reach the agent. To allow remote access, publish a wider bind **and** set `OPENCODE_SERVER_PASSWORD` — an unauthenticated OpenCode server can execute code with your workspace and provider credentials. See [Environment Variables](#environment-variables).
 
 ---
 
@@ -187,7 +189,7 @@ services:
     security_opt:
       - seccomp=./config/chromium-seccomp.json   # Chromium sandbox (required)
     ports:
-      - "4096:4096"           # OpenCode web UI
+      - "127.0.0.1:4096:4096" # OpenCode web UI (local-only; see note below)
     volumes:
       - ./data/opencode:/home/opencode
       - ./local-cache/opencode:/home/opencode/.cache/opencode
@@ -197,6 +199,8 @@ services:
       - PGID=1000
       - ANTHROPIC_API_KEY=your-key-here  # Or swap for any provider key
 ```
+
+> The port mapping is loopback-only. To reach the web UI from another machine, publish a wider bind **and** set `OPENCODE_SERVER_PASSWORD` first.
 
 
 
@@ -219,7 +223,7 @@ services:
     shm_size: 2g
 
     ports:
-      - "4096:4096"   # OpenCode web UI
+      - "127.0.0.1:4096:4096"   # OpenCode web UI (local-only by default)
 
     volumes:
       # --- Main SkyScow data ---
@@ -269,11 +273,13 @@ services:
       # - OPENCODE_ENABLE_EXA=true
 
       # --- Web UI Security (basic auth for opencode web) ---
+      # Required whenever the port is published beyond loopback: an
+      # unauthenticated opencode web is a code-executing agent surface.
       # - OPENCODE_SERVER_PASSWORD=your-password
       # - OPENCODE_SERVER_USERNAME=opencode
 ```
 
-For the shipped `docker-compose.full.yaml` reference file, see the one included in this repo.
+The port mapping is loopback-only by default; widen it only together with `OPENCODE_SERVER_PASSWORD`. For the shipped `docker-compose.full.yaml` reference file, see the one included in this repo.
 
 
 
@@ -313,7 +319,7 @@ Prefer Podman? SkyScow uses the same container image there too. The Podman guide
 | `OPENCODE_DISABLE_LSP_DOWNLOAD` | (none) | Disable automatic LSP server downloads |
 | `OPENCODE_DISABLE_AUTOCOMPACT` | (none) | Disable automatic context compaction |
 | `OPENCODE_ENABLE_EXA` | (none) | Enable Exa web search integration |
-| `OPENCODE_SERVER_PASSWORD` | (none) | Protect the web UI with basic auth |
+| `OPENCODE_SERVER_PASSWORD` | (none) | Basic-auth password; required when the web UI is exposed beyond localhost |
 | `OPENCODE_SERVER_USERNAME` | `opencode` | Username for web UI basic auth |
 
 > `OPENCODE_DISABLE_AUTOUPDATE` and `OPENCODE_DISABLE_TERMINAL_TITLE` are set to `true` by default in the Docker image. You can override them if needed.

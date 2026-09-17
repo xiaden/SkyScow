@@ -19,7 +19,10 @@ services:
       - seccomp=./config/chromium-seccomp.json
 
     ports:
-      - "4096:4096" # OpenCode web UI
+      # Loopback-only by default. To reach the web UI from other hosts, change
+      # this to "4096:4096" (or a specific host IP) AND set
+      # OPENCODE_SERVER_PASSWORD below, so the agent is not left unauthenticated.
+      - "127.0.0.1:4096:4096" # OpenCode web UI (local-only)
 
     volumes:
       # --- Persistent state (all OpenCode data under home dir) ---
@@ -66,5 +69,7 @@ services:
       # - OPENCODE_ENABLE_EXA=true
 
       # --- Web UI Security (basic auth for opencode web) ---
+      # Required whenever the port is published beyond loopback: an
+      # unauthenticated opencode web is a code-executing agent surface.
       # - OPENCODE_SERVER_PASSWORD=your-password
       # - OPENCODE_SERVER_USERNAME=opencode

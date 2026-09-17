@@ -1,6 +1,6 @@
 # SkyScow - Quick Start
 # Usage: docker compose up -d
-# Web UI: http://localhost:4096
+# Web UI: http://localhost:4096 (published on loopback only)
 
 services:
   skyscow:
@@ -16,7 +16,10 @@ services:
     security_opt:
       - seccomp=./config/chromium-seccomp.json
     ports:
-      - "4096:4096"
+      # Loopback-only by default: the agent is not reachable from other hosts.
+      # To expose it on the network, bind a wider interface AND set
+      # OPENCODE_SERVER_PASSWORD (see README).
+      - "127.0.0.1:4096:4096"
     volumes:
       - ./data/opencode:/home/opencode
       - ./local-cache/opencode:/home/opencode/.cache/opencode
