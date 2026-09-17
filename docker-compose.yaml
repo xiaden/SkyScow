@@ -25,7 +25,18 @@ services:
       - ./local-cache/opencode:/home/opencode/.cache/opencode
       - ./workspace:/workspace
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    # Optional: set GITHUB_TOKEN_FILE=./secrets/github_token in .env before startup when GitHub access is needed.
+    secrets:
+      - source: github_token
+        target: github_token
+        uid: "${PUID:-1000}"
+        gid: "${PGID:-1000}"
+        mode: 0440
+
+secrets:
+  github_token:
+    file: ${GITHUB_TOKEN_FILE:-/dev/null}
 

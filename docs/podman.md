@@ -9,6 +9,7 @@ This guide mirrors the minimal SkyScow web UI setup. For the full Docker Compose
 - Running the SkyScow web UI with `podman run`
 - Keeping OpenCode state, cache, and workspace files in bind mounts
 - Loading provider keys from `.env` with `--env-file .env`
+- Optionally mounting a runtime-only GitHub token with a Podman secret
 - SELinux labels for Fedora/RHEL/CoreOS hosts
 - Rootless Podman permission and user namespace notes
 - Safe update and recreate behavior
@@ -24,6 +25,18 @@ cp .env.example .env
 ```
 
 Edit `.env` and set the provider you plan to use, for example `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or another supported provider variable.
+
+GitHub access is optional. To use a runtime-only GitHub token, create a Podman secret without leaving the token in `.env` or the persistent data mount:
+
+```bash
+mkdir -p ./secrets
+umask 077
+${EDITOR:-vi} ./secrets/github_token
+podman secret create github_token ./secrets/github_token
+rm ./secrets/github_token
+```
+
+The commands below omit the optional secret so the base setup works without GitHub access. For GitHub access, add `--secret github_token,type=mount` before the image name. Podman mounts it read-only at `/run/secrets/github_token`; SkyScow uses it for Git and GitHub CLI operations without copying it into `/home/opencode`.
 
 Podman treats relative bind mount sources as paths relative to the directory where you run `podman`. Missing bind mount sources fail, so create them first.
 
@@ -62,6 +75,7 @@ What the important options do:
 - `./local-cache/opencode:/home/opencode/.cache/opencode` keeps plugin and package cache on local disk.
 - `./workspace:/workspace` mounts your project files.
 - `--env-file .env` loads provider keys and optional SkyScow toggles without putting secrets in shell history.
+- For GitHub access, add `--secret github_token,type=mount` after creating the Podman secret described above. The mounted file is consumed at `/run/secrets/github_token`; do not add `GITHUB_TOKEN` to `.env`.
 - `PUID` and `PGID` tell SkyScow which host UID/GID to use for file ownership inside mounted paths.
 - `ghcr.io/xiaden/skyscow:latest` pulls from GitHub Container Registry.
 
@@ -81,8 +95,6 @@ podman run -d \
   -v ./local-cache/opencode:/home/opencode/.cache/opencode:Z \
   -v ./workspace:/workspace:Z \
   --env-file .env \
-  -e PUID=$(id -u) \
-  -e PGID=$(id -g) \
   ghcr.io/xiaden/skyscow:latest
 ```
 

@@ -397,6 +397,8 @@ COPY scripts/entrypoint.sh \
      scripts/bootstrap.sh \
      scripts/sleev-wrapper.sh \
      scripts/sleev-gateway-sync.sh \
+     scripts/with-github-secret \
+     scripts/git-credential-secret \
      /tmp/skyscow-scripts/
 
 COPY s6-overlay/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
@@ -436,6 +438,12 @@ RUN set -eux; \
     install -m 0755 \
         /tmp/skyscow-scripts/sleev-gateway-sync.sh \
         /usr/local/bin/sleev-gateway-sync.sh; \
+    install -m 0755 \
+        /tmp/skyscow-scripts/with-github-secret \
+        /usr/local/bin/with-github-secret; \
+    install -m 0755 \
+        /tmp/skyscow-scripts/git-credential-secret \
+        /usr/local/bin/git-credential-secret; \
     rm -rf /tmp/skyscow-scripts; \
     \
     # Xvfb is no longer used. Chromium runs natively headless.

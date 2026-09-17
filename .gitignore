@@ -22,6 +22,9 @@ node_modules/
 .opencode/
 artifacts/logs/
 
+# Runtime secrets
+secrets/
+
 # Docker overrides
 data/
 local-cache/

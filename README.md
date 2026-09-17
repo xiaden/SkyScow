@@ -88,6 +88,12 @@ services:
       - PUID=1000
       - PGID=1000
       - ANTHROPIC_API_KEY=your-key-here
+    secrets:
+      - github_token
+
+secrets:
+  github_token:
+    file: ${GITHUB_TOKEN_FILE:-/dev/null}
 ```
 
 In that example, `/home/opencode` is the fixed path **inside** the container. On the host, `./data/opencode` and `./local-cache/opencode` are just example bind-mount paths relative to the folder containing your `docker-compose.yaml`. You can replace them with any host paths you want.
@@ -105,6 +111,8 @@ Open http://localhost:4096. You're in.
 > `./data/opencode` is only an example host path. If your compose file lives at `/opt/skyscow`, that same bind mount becomes `/opt/skyscow/data/opencode` on the host.
 
 > Keep `./local-cache/opencode` on local disk. If this project folder lives on NAS/CIFS/SMB storage, change that cache mount to an absolute local host path instead.
+
+> If you need GitHub CLI access, set `GITHUB_TOKEN_FILE=./secrets/github_token` in `.env`, create that file with a fine-grained token, and use `umask 077` so only your user can read it. Compose mounts it read-only at `/run/secrets/github_token` and SkyScow does not copy it into persistent OpenCode state. Do not put the token in `.env`. The file and variable are optional; omit them when GitHub access is not needed.
 
 > **Local access only by default.** `127.0.0.1:4096:4096` publishes the web UI on the Docker host's loopback interface, so other machines cannot reach the agent. To allow remote access, publish a wider bind **and** set `OPENCODE_SERVER_PASSWORD` — an unauthenticated OpenCode server can execute code with your workspace and provider credentials. See [Environment Variables](#environment-variables).
 
@@ -153,7 +161,7 @@ OpenCode is provider-agnostic. Set whichever API key you use and you're done.
 | Groq | `GROQ_API_KEY` | Fast inference |
 | AWS Bedrock | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | Set all three |
 | Azure OpenAI | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_API_VERSION` | Set all three |
-| GitHub | `GITHUB_TOKEN` | GitHub CLI auth and Copilot |
+| GitHub | `GITHUB_TOKEN_FILE` | Optional host path to a runtime-only GitHub token file; mounted at `/run/secrets/github_token` when set |
 | Vertex AI | (configured via OpenCode) | Google Vertex AI models |
 | GitHub Models | (configured via OpenCode) | GitHub-hosted models |
 | Ollama | (configured via OpenCode) | Local models via Ollama |
@@ -198,6 +206,12 @@ services:
       - PUID=1000
       - PGID=1000
       - ANTHROPIC_API_KEY=your-key-here  # Or swap for any provider key
+    secrets:
+      - github_token
+
+secrets:
+  github_token:
+    file: ${GITHUB_TOKEN_FILE:-/dev/null}
 ```
 
 > The port mapping is loopback-only. To reach the web UI from another machine, publish a wider bind **and** set `OPENCODE_SERVER_PASSWORD` first.
@@ -253,7 +267,8 @@ services:
       # - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       # - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       # - GROQ_API_KEY=${GROQ_API_KEY:-}
-      # - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      # GitHub CLI uses the optional runtime secret mounted at
+      # /run/secrets/github_token; do not put the token in .env.
 
       # --- AWS Bedrock (uncomment all 3 for Bedrock) ---
       # - AWS_ACCESS_KEY_ID=
@@ -307,7 +322,7 @@ Prefer Podman? SkyScow uses the same container image there too. The Podman guide
 | `OPENAI_API_KEY` | (none) | OpenAI GPT models |
 | `GEMINI_API_KEY` | (none) | Google Gemini |
 | `GROQ_API_KEY` | (none) | Groq fast inference |
-| `GITHUB_TOKEN` | (none) | GitHub CLI auth and Copilot |
+| `GITHUB_TOKEN_FILE` | (unset) | Optional host path to a fine-grained GitHub token file; Compose uses `/dev/null` when unset and mounts the configured file read-only at `/run/secrets/github_token` |
 | `AWS_ACCESS_KEY_ID` | (none) | AWS Bedrock - set all three AWS vars |
 | `AWS_SECRET_ACCESS_KEY` | (none) | AWS Bedrock |
 | `AWS_REGION` | (none) | AWS Bedrock region (e.g. `us-east-1`) |

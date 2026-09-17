@@ -24,6 +24,12 @@ services:
       - ./workspace:/workspace
     environment:
       - ANTHROPIC_API_KEY=your-key-here
+    secrets:
+      - github_token
+
+secrets:
+  github_token:
+    file: ${GITHUB_TOKEN_FILE:-/dev/null}
 ```
 
 ```bash
@@ -32,6 +38,8 @@ docker compose up -d
 ```
 
 > The web UI is bound to the host's loopback interface by default. To expose it to other machines, publish a wider interface **and** set `OPENCODE_SERVER_PASSWORD` — an unauthenticated OpenCode server can execute code with your workspace and provider credentials.
+>
+> For GitHub CLI access, set `GITHUB_TOKEN_FILE=./secrets/github_token` in `.env`, create that file with a fine-grained token, and keep it out of the image and persistent OpenCode state. Compose mounts it read-only at `/run/secrets/github_token` for runtime use. The file is optional; omit the variable and file when GitHub access is not needed.
 
 
 ## What's Inside
@@ -60,6 +68,7 @@ docker compose up -d
 | `OPENAI_API_KEY` | OpenAI |
 | `GEMINI_API_KEY` | Google Gemini |
 | `GROQ_API_KEY` | Groq |
+| `GITHUB_TOKEN_FILE` | Optional host path to a fine-grained GitHub token; mounted read-only at `/run/secrets/github_token` when set |
 | `PUID` / `PGID` | Container user UID/GID (default: 1000) |
 | `OPENCODE_SERVER_PASSWORD` | Protect web UI with basic auth |
 

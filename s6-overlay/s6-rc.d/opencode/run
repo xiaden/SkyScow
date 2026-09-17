@@ -1,4 +1,6 @@
 #!/command/with-contenv sh
 cd /workspace
 export HOME=/home/opencode
-exec s6-setuidgid opencode opencode --log-level WARN web --port 4096 --hostname 0.0.0.0
+exec s6-setuidgid opencode \
+  /usr/local/bin/with-github-secret \
+  opencode --log-level WARN web --port 4096 --hostname 0.0.0.0

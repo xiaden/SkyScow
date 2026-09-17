@@ -36,8 +36,8 @@ services:
 
     environment:
       # --- Container user ---
-      - PUID=1000 # Match your host UID for file permissions
-      - PGID=1000 # Match your host GID for file permissions
+      - PUID=${PUID:-1000} # Match your host UID for file permissions
+      - PGID=${PGID:-1000} # Match your host GID for file permissions
       # - SLEEV_VERSION=1.6.16 # Override; startup fetches/verifies CLI + gateway
 
       # --- Git identity (used on first boot) ---
@@ -49,7 +49,8 @@ services:
       # - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       # - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       # - GROQ_API_KEY=${GROQ_API_KEY:-}
-      # - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      # GitHub CLI uses the optional runtime secret mounted at
+      # /run/secrets/github_token; do not put the token in .env.
 
       # --- AWS Bedrock (uncomment all 3 for Bedrock) ---
       # - AWS_ACCESS_KEY_ID=
@@ -73,3 +74,15 @@ services:
       # unauthenticated opencode web is a code-executing agent surface.
       # - OPENCODE_SERVER_PASSWORD=your-password
       # - OPENCODE_SERVER_USERNAME=opencode
+
+    # Optional: set GITHUB_TOKEN_FILE=./secrets/github_token in .env before startup when GitHub access is needed.
+    secrets:
+      - source: github_token
+        target: github_token
+        uid: "${PUID:-1000}"
+        gid: "${PGID:-1000}"
+        mode: 0440
+
+secrets:
+  github_token:
+    file: ${GITHUB_TOKEN_FILE:-/dev/null}

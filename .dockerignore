@@ -13,8 +13,9 @@ docs/
 # Assets (logo, screenshots)
 assets/
 
-# Runtime data (should never be in build context)
+# Runtime data and secrets (should never be in build context)
 data/
+secrets/
 local-cache/
 workspace/
 
