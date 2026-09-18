@@ -18,6 +18,7 @@ from common.helpers.dd_md import (
 )
 from common.tools.dd_archive import dd_archive
 from common.tools.dd_create import dd_create
+from common.tools.plan_archive import plan_archive
 from common.tools.dd_read import dd_read
 
 
@@ -212,8 +213,50 @@ def test_archive_rejects_completed_bundle_collision_and_preserves_pending_bundle
 
     assert result["error"] == "already_exists"
     assert pending_bundle.exists()
-    assert "**Status:** Completed" in pending_document.read_text(encoding="utf-8")
+    assert "**Status:** Draft" in pending_document.read_text(encoding="utf-8")
     assert (completed_bundle / "DD.md").read_text(encoding="utf-8") == "existing completed bundle\n"
+
+
+def test_archive_force_replaces_completed_bundle(workspace):
+    dd_create(**create_args(workspace))
+    pending_bundle = workspace / "artifacts/designs/pending/sample-dd"
+    completed_bundle = workspace / "artifacts/designs/completed/sample-dd"
+    completed_bundle.mkdir(parents=True)
+    (completed_bundle / "DD.md").write_text("old completed bundle\n", encoding="utf-8")
+    (completed_bundle / "old-sibling.txt").write_text("old\n", encoding="utf-8")
+
+    result = dd_archive("sample-dd", force=True, workspace_root=workspace)
+
+    destination = workspace / "artifacts/designs/completed/sample-dd"
+    assert json.loads(result["output"])["archived"] is True
+    assert not pending_bundle.exists()
+    assert "**Status:** Completed" in (destination / "DD.md").read_text(encoding="utf-8")
+    assert not (destination / "old-sibling.txt").exists()
+
+
+def test_plan_archive_rejects_collision_and_force_replaces(workspace):
+    pending = workspace / "artifacts/plans/pending"
+    pending.mkdir(parents=True)
+    plan = pending / "TASK-collision.md"
+    plan.write_text(
+        "# Collision Plan\n\n### Phase 1: Setup\n\n- [x] P1-S1 Complete the work\n",
+        encoding="utf-8",
+    )
+    completed = workspace / "artifacts/plans/completed/TASK-collision.md"
+    completed.parent.mkdir(parents=True)
+    completed.write_text("old plan\n", encoding="utf-8")
+
+    result = plan_archive("TASK-collision", workspace_root=workspace)
+
+    assert result["error"] == "already_exists"
+    assert plan.exists()
+    assert completed.read_text(encoding="utf-8") == "old plan\n"
+
+    forced = plan_archive("TASK-collision", force=True, workspace_root=workspace)
+
+    assert json.loads(forced["output"])["archived"] is True
+    assert not plan.exists()
+    assert "P1-S1" in completed.read_text(encoding="utf-8")
 
 
 def test_archive_retries_after_completed_bundle_collision_is_cleared(workspace):

@@ -268,9 +268,10 @@ const tools = {
   }),
 
   dd_archive: tool({
-    description: "Archive a pending DD bundle by updating DD.md to Completed and moving pending/{slug}/ to completed/{slug}/ after linked plans are complete.",
+    description: "Archive a pending DD bundle by updating DD.md to Completed and moving pending/{slug}/ to completed/{slug}/ after linked plans are complete. Refuses an occupied destination unless force is true.",
     args: {
       name: requiredString("DD name"),
+      force: optionalBoolean("Replace an existing completed bundle"),
     },
     async execute(args: ToolArgs, context: ToolContext) {
       return runPythonTool("common.tools.dd_archive", args, context)
@@ -342,10 +343,11 @@ const tools = {
   }),
 
   plan_archive: tool({
-    description: "Archive a completed task plan from pending to completed.",
+    description: "Archive a completed task plan from pending to completed. Refuses an occupied destination unless force is true.",
     args: {
       plan_name: requiredString("Plan name"),
       ignore_blocked: optionalBoolean("Archive despite Blocked annotations"),
+      force: optionalBoolean("Replace an existing completed plan"),
     },
     async execute(args: ToolArgs, context: ToolContext) {
       return runPythonTool("common.tools.plan_archive", args, context)

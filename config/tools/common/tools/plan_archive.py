@@ -15,6 +15,7 @@ PLANS_COMPLETED_DIR = "artifacts/plans/completed"
 def plan_archive(
     plan_name: str,
     ignore_blocked: bool = False,
+    force: bool = False,
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
@@ -86,10 +87,17 @@ def plan_archive(
             "blocked_steps": blocked,
         }
 
-    # Move to completed
+    # Move to completed, refusing collisions unless explicitly forced.
     dest_dir = workspace_root / PLANS_COMPLETED_DIR
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / filename
+    if dest.exists() and not force:
+        return {
+            "error": "already_exists",
+            "message": f"Completed plan already exists: {PLANS_COMPLETED_DIR}/{filename}",
+        }
+    if dest.exists():
+        dest.unlink()
     shutil.move(str(source), str(dest))
 
     import json as _json
@@ -109,6 +117,7 @@ if __name__ == "__main__":
     result = plan_archive(
         plan_name=args["plan_name"],
         ignore_blocked=args.get("ignore_blocked", False),
+        force=args.get("force", False),
         workspace_root=Path(args["workspace_root"]),
     )
     print(json.dumps(result))

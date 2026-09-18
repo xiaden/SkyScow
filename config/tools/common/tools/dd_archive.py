@@ -20,6 +20,7 @@ PLANS_PENDING_DIR = "artifacts/plans/pending"
 
 def dd_archive(
     name: str,
+    force: bool = False,
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
@@ -110,7 +111,17 @@ def dd_archive(
             "pending_plans": pending_plans,
         }
 
-    # Update status to Completed in the markdown
+    dest_dir = workspace_root / DESIGNS_COMPLETED_DIR
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / slug
+    if dest.exists() and not force:
+        return {
+            "error": "already_exists",
+            "message": f"Completed design document already exists: {DESIGNS_COMPLETED_DIR}/{slug}",
+        }
+
+    # Update status only after a normal collision check. Force explicitly
+    # authorizes replacing the existing completed bundle.
     updated_markdown = re.sub(
         r"^\*\*Status:\*\*\s+\S+",
         "**Status:** Completed",
@@ -118,18 +129,9 @@ def dd_archive(
         count=1,
         flags=re.MULTILINE,
     )
-
-    # Write updated content, then move
     source.write_text(updated_markdown, encoding="utf-8")
-
-    dest_dir = workspace_root / DESIGNS_COMPLETED_DIR
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / slug
     if dest.exists():
-        return {
-            "error": "already_exists",
-            "message": f"Completed design document already exists: {DESIGNS_COMPLETED_DIR}/{slug}",
-        }
+        shutil.rmtree(dest)
     shutil.move(str(source_dir), str(dest))
 
     import json as _json
@@ -148,6 +150,7 @@ if __name__ == "__main__":
     args = json.loads(sys.stdin.read())
     result = dd_archive(
         name=args["name"],
+        force=args.get("force", False),
         workspace_root=Path(args["workspace_root"]),
     )
     print(json.dumps(result))
