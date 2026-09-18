@@ -27,7 +27,6 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.delenv("SKYSCOW_CONTEXT_BUDGET_POLICY", raising=False)
     monkeypatch.delenv("SKYSCOW_DEEPSEEK_TOKENIZER_PATH", raising=False)
-    monkeypatch.delenv("SKYSCOW_DEEPSEEK_TOKENIZER_CACHE", raising=False)
     (tmp_path / "home").mkdir(exist_ok=True)
 
 

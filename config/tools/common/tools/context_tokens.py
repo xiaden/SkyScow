@@ -1,10 +1,9 @@
 """Count model tokens for workspace file subsections.
 
-The tokenizer artifact verification / download / cache machinery moved to
-``common.helpers.tokenizer_helpers`` (the shared tokenizer boundary). This
-module keeps its public ``context_tokens`` contract unchanged: same input
-validation, same o200k / DS_V4_F_0731 counts, same weighting formula, same
-error codes.
+The shipped tokenizer loading moved to ``common.helpers.tokenizer_helpers``
+(the shared tokenizer boundary). This module keeps its public
+``context_tokens`` contract unchanged: same input validation, same o200k /
+DS_V4_F_0731 counts, same weighting formula, same error codes.
 """
 
 from __future__ import annotations
@@ -15,27 +14,12 @@ from typing import Any
 
 from ..helpers.file_helpers import resolve_file_path
 from ..helpers.tokenizer_helpers import (
-    DEEPSEEK_TOKENIZER_CACHE_PATH,
-    DEEPSEEK_TOKENIZER_PATH,
-    DEEPSEEK_TOKENIZER_REVISION,
-    DEEPSEEK_TOKENIZER_SHA256,
-    DEEPSEEK_TOKENIZER_URL,
     SECTION_SEPARATOR,
     assemble_sections,
     load_tokenizers,
     read_subsection,
     weighted_tokens,
 )
-
-# Backward-compatible aliases: canonical definitions live in tokenizer_helpers.
-__all__ = [
-    "DEEPSEEK_TOKENIZER_CACHE_PATH",
-    "DEEPSEEK_TOKENIZER_PATH",
-    "DEEPSEEK_TOKENIZER_REVISION",
-    "DEEPSEEK_TOKENIZER_SHA256",
-    "DEEPSEEK_TOKENIZER_URL",
-    "SECTION_SEPARATOR",
-]
 
 
 def _error(error: str, message: str) -> dict[str, str]:

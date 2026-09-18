@@ -1,13 +1,10 @@
 """Regression tests: context_tokens retains its counting contract.
 
-Proves the o200k / DS_V4_F_0731 counts, the weighting formula, verified
-system-artifact preference, and cache/download fallback survive the refactor
-to shared tokenizer helpers.
+Proves the o200k / DS_V4_F_0731 counts, the weighting formula, and shipped
+system-artifact loading survive the refactor to shared tokenizer helpers.
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 import pytest
 
@@ -141,39 +138,10 @@ class TestHelperReuse:
         assert "context_tokens._" not in source
 
 
-class TestVerifiedArtifactPreference:
-    def test_system_artifact_is_verified(self):
-        """The shipped system artifact must satisfy the pinned digest."""
-        verified = th.verified_path(th.DEEPSEEK_TOKENIZER_PATH)
-        assert verified is not None, "system tokenizer artifact is not verified"
-
-    def test_resolve_prefers_verified_system_path(self, monkeypatch):
-        """Regression: resolution prefers the verified system artifact."""
-        monkeypatch.setattr(
-            th, "verified_path", lambda p: p if p == th.DEEPSEEK_TOKENIZER_PATH else None
-        )
-        calls = []
-
-        def _download():
-            calls.append("download")
-            return Path("/nonexistent/downloaded.json")
-
-        monkeypatch.setattr(th, "download_tokenizer", _download)
-        assert th.resolve_tokenizer_path() == th.DEEPSEEK_TOKENIZER_PATH
-        assert calls == []
-
-    def test_download_fallback_reused_from_verified_cache(self, monkeypatch, tmp_path):
-        """Regression: a verified cache path is reused without re-downloading."""
-        cache = tmp_path / "cache" / "tokenizer.json"
-        cache.parent.mkdir(parents=True)
-        cache.write_text("{}")
-        monkeypatch.setattr(th, "DEEPSEEK_TOKENIZER_CACHE_PATH", cache)
-        monkeypatch.setattr(
-            th, "verified_path", lambda p: cache if p == cache else None
-        )
-        # If download is attempted, urlopen raises instead of fetching.
-        def _explode(*args, **kwargs):
-            raise AssertionError("verified cache must be reused without download")
-
-        monkeypatch.setattr(th.urllib.request, "urlopen", _explode)
-        assert th.download_tokenizer() == cache
+class TestShippedArtifact:
+    def test_resolve_requires_shipped_system_path(self, monkeypatch, tmp_path):
+        """Resolution does not fall back to downloads when the artifact is absent."""
+        missing = tmp_path / "missing-tokenizer.json"
+        monkeypatch.setattr(th, "DEEPSEEK_TOKENIZER_PATH", missing)
+        with pytest.raises(FileNotFoundError, match="tokenizer is missing"):
+            th.resolve_tokenizer_path()
