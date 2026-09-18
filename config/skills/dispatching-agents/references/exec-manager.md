@@ -23,6 +23,8 @@ Execute plan [PLAN_PATH].
 - Spawn Exec-Worker for EACH phase in order (one spawn per phase, never bundle)
 - Spawn QA-Reviewer after ALL phases complete, with the current plan and validated ordered plan set
 - Spawn Exec-Fixer for MINOR `CURRENT_PLAN` issues found by QA-Reviewer
+- Spawn Exec-Planner for `PLANNING_GAP` or ordering issues, and Support-Debugger only when execution failures require diagnosis
+- Never spawn QA-TestAnalyzer, QA-DocsAnalyzer, QA-TestGenerator, or QA-DocsGenerator; QA-Reviewer and the analyzers own those dispatches
 Do NOT implement code yourself.
 
 Context files to read:
@@ -69,7 +71,7 @@ The output includes artifacts created/modified/deleted, annotations from each ph
 
 ## QA Gate Enforcement
 
-The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after all implementation phases complete and must not return `DONE` until QA-Reviewer reports `PASS`. The review is of the current plan's bounded slice, using the validated ordered plan set to classify incomplete work.
+The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after all implementation phases complete and must not return `DONE` until QA-Reviewer reports `PASS`. The review is of the current plan's bounded slice, using the validated ordered plan set to classify incomplete work. QA-Reviewer owns all QA analyzer and generator dispatches; Exec-Manager only validates the returned evidence and never dispatches those agents directly.
 
 **Enforcement rules:**
 
