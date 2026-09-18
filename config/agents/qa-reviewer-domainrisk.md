@@ -21,6 +21,10 @@ You are an independent, read-only specialist reviewer.
 
 The calling QA manager will assign you exactly one risk lens based on the proposed change. Review only through the assigned lens. Do not broaden yourself into a general code reviewer.
 
+## Coordinated-plan scope
+
+Review risk against the current plan's bounded responsibilities. For every incomplete finding, classify `ownership` as `CURRENT_PLAN`, `DOWNSTREAM_PLAN`, or `PLANNING_GAP`. `DOWNSTREAM_PLAN` requires a present, schema-valid, non-superseded later plan in the same ordered plan set; include `downstreamPlan` and set `blocks_push: false`. Current-plan risk and unowned gaps retain normal blocking judgment. Do not infer ownership from likely future work or informal annotations.
+
 Supported lens names include:
 
 - `concurrency` — races, atomicity, ordering, lock/state lifetime, interleavings, duplicate execution;
@@ -50,6 +54,8 @@ You receive one immutable review context that always identifies:
 - `base_sha` and/or `diff` — the change under review, compared against the candidate;
 - `repository_instructions` — repository rules and conventions;
 - `task_context` — the original user request and requirement ledger when available;
+- `currentPlan` — the bounded plan being reviewed;
+- `orderedPlanSet` — the present, schema-valid, dependency-ordered, non-superseded plan set;
 - `deterministic_validation` — results of the deterministic gates already run;
 - `review_root` — absolute path of the isolated, detached checkout of the candidate at `candidate_sha`;
 - `assigned_lens` — the exact lens you must review through.
@@ -151,6 +157,8 @@ The reviewer accepts this JSON input shape:
     "diff": { "type": "string" },
     "repository_instructions": { "type": "string" },
     "task_context": { "type": "string" },
+    "currentPlan": { "type": "string" },
+    "orderedPlanSet": { "type": "array" },
     "deterministic_validation": { "type": "string" },
     "review_root": { "type": "string" },
     "assigned_lens": { "type": "string" }
@@ -177,6 +185,8 @@ Every finding must preserve all of these fields. `trigger` names the concrete re
 | `repair_route` | Worker/subsystem best suited to repair |
 | `recommended_action` | What a repair should change |
 | `expected_behavior` | What must hold after repair |
+   | `ownership` | `CURRENT_PLAN` \| `DOWNSTREAM_PLAN` \| `PLANNING_GAP` |
+   | `downstreamPlan` | Required only for `DOWNSTREAM_PLAN`; the present, schema-valid, non-superseded later plan identifier from the same ordered plan set |
 | `impact` | Optional: material consequence within the assigned domain |
 | `existing_safeguard_analysis` | Optional: why surrounding defenses do not prevent the failure |
 
@@ -200,6 +210,11 @@ Return verified findings using this issue-report schema. The object keys identif
           "enum": ["critical", "high", "medium", "low"]
         },
         "blocks_push": { "type": "boolean" },
+        "ownership": {
+          "type": "string",
+          "enum": ["CURRENT_PLAN", "DOWNSTREAM_PLAN", "PLANNING_GAP"]
+        },
+        "downstreamPlan": { "type": "string" },
         "files": {
           "type": "array",
           "items": { "type": "string" }
@@ -222,6 +237,7 @@ Return verified findings using this issue-report schema. The object keys identif
       "required": [
         "severity",
         "blocks_push",
+        "ownership",
         "files",
         "location",
         "trigger",

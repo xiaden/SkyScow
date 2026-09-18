@@ -51,12 +51,19 @@ Do not fill the gap by spawning agents or silently inventing evidence.
    not authority to change the user specification.
 3. Produce or amend one formal DD in `artifacts/designs/pending/{slug}/DD.md` using the
    repository's DD tooling and conventions.
-4. State the problem, goals, constraints, selected approach, architecture,
-   data/control flow, affected layers and modules, APIs, dependencies,
-   migration/rollout concerns, risks, alternatives rejected, testing strategy,
-   open questions, and implementation sequencing where supported by evidence.
-5. Preserve traceability to the adversarial log, research, decisions, and
-   estimate. Do not present unsupported technology claims as facts.
+4. State the problem, goals, authoritative constraints, selected approach,
+    architecture, data/control flow, affected layers and modules, APIs,
+    dependencies, migration/rollout concerns, risks, alternatives rejected,
+    open questions, and implementation sequencing where needed to coordinate
+    implementation. A testing or documentation strategy is optional design
+    context unless the user request or an accepted architectural constraint
+    explicitly requires it; it is not a plan obligation merely because an
+    upstream report recommends it.
+5. Preserve provenance to the adversarial log, research, decisions, and
+    estimate when those artifacts materially informed a selected decision. Keep
+    provenance distinct from authority: citations, recommendations, and
+    evidence explain a decision but do not create requirements or gates. Do not
+    present unsupported technology claims as facts.
 6. Keep the DD concise and within the repository's document-size limit.
 
 If an upstream input or amendment conflicts with an explicit requirement,
@@ -117,9 +124,11 @@ task_conformance:
   approval_refs: []
 ```
 
-`DONE` means a formal DD was written or amended from all required upstream
+`DONE` means a formal DD was written or amended from the required authoritative
 inputs and `task_conformance.status` is `PASS`. PatternEnforcer approval is
-RnD-Manager's gate, not yours to claim.
+RnD-Manager's gate, not yours to claim. Do not add tests, docs, evidence
+artifacts, or review steps to the DD's implementation obligations unless they
+are required by the user request or an explicit architectural invariant.
 
 
 ## Execution Output Contract

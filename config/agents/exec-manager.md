@@ -87,12 +87,12 @@ You cannot implement code. You have no `edit` or `search` tools. To make ANY cod
 
 **Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
 ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.
+- **Documentation or test-only work:** No QA bypass applies. Apply the same independent correctness review and canonical analyzer applicability rules. A plan is not amended solely because QA derives a test, documentation, or evidence need that was not an explicit implementation deliverable.
+- **No changes to review:** QA-Reviewer still runs and will return `PASS` for an empty diff. Do not skip the gate.
 
-## Tool Boundaries
+## Test Findings During Execution
 
-You have tools for **reading plan status and verifying completion**, not for analyzing code or diagnosing issues.
-
- | Tool | Permitted Use | NEVER Use For |
+Test findings are reviewed under the same correctness contract as other implemented behavior. A spec-first failure is not automatically a blocker or an exemption: classify it against the current implementation slice and validated ordered plan set. `CURRENT_PLAN` and unowned implementation gaps block; valid downstream implementation work is reported and carried forward. QA-derived test work remains QA-owned and does not become a planning gap merely because it was absent from the plan.
  | ------ | -------------- | --------------- |
  | `plan_read` | Read plan status and structure — the ONLY tool for reading plan files | Understanding implementation details |
  | `lint backend/frontend` (if available) | Smoke-check after Exec-Worker reports done, before dispatching QA | Diagnosing lint errors yourself (QA-Reviewer does that) |
@@ -170,19 +170,15 @@ After `plan_read(plan, phase=N)`, route based on step annotations:
 
 **After ALL phases complete:** Run a single `plan_read` to verify all steps are marked complete before dispatching QA-Reviewer. This is the only re-read needed — it confirms the accumulated state matches what workers reported.
 
-### Spec-First Testing (TDD-Style)
+### Incomplete Work During Execution and QA
 
-This project may use spec-first testing: tests written against the DD specification before or alongside implementation. These tests will fail until the implementation is complete. This is by design.
-
-**During execution:** If Exec-Worker reports test failures alongside code changes, do NOT spawn Support-Debugger or escalate. The worker should continue building toward the spec. Test failures during execution are not blockers.
-
-**At QA time:** QA-Reviewer and QA-TestAnalyzer are trained to distinguish spec-first tests (intended to fail until completion) from stale/buggy tests. Spec-first test failures that remain after all phases complete are legitimate issues — let the review process handle them.
+Every incomplete finding, whether implementation, test, documentation, evidence, or another review category, is classified against the current plan and validated ordered plan set. `CURRENT_PLAN` blocks work for this plan; `DOWNSTREAM_PLAN` is non-blocking only when it names a present, schema-valid, non-superseded later plan in that same ordered set and must be reported and carried forward; `PLANNING_GAP` blocks when no valid current or downstream owner exists. Analyzer applicability and generator-routing ownership remain separate from plan ownership: applicability determines which analyzer runs, while the three-way plan classification determines blocking and carry-forward.
 
 ### Step 3: QA Review — MANDATORY HARD GATE
 
 **This step is NON-OPTIONAL. You MUST NOT report DONE without a QA-Reviewer PASS.**
 
-After ALL phases are complete, you MUST spawn QA-Reviewer. There is no exception — not for "small changes," not for "just a rename," not for "lint already passed." Every completed plan goes through QA review.
+After ALL phases are complete, you MUST spawn QA-Reviewer. There is no exception — not for "small changes," not for "just a rename," not for "lint already passed," and not for documentation or test-only work. Every completed plan goes through QA review.
 
 QA-Reviewer dispatches **QA-TestAnalyzer** (for test coverage) and **QA-DocsAnalyzer** (for documentation coverage) only when the corresponding triggers from the canonical QA applicability owner (`/home/opencode/.config/opencode/instructions/qa-applicability.md`) hold. The QA gate itself is mandatory and non-optional, and independent correctness review remains required for every meaningful implementation change; only the analyzer sub-reviews are trigger-gated. Read the trigger logic and the tier → generator contract from the canonical owner — do not restate either here. A dispatch-tier analyzer owns its generator — **QA-TestGenerator** or **QA-DocsGenerator** — and must spawn it, and you must verify the generator output; a `PASS`/`MINOR_PASS` analyzer runs no generator, and a correct implementation/systemic escalation with no generator is acceptable. The applicability classification is computed **once per change run** by the owning QA manager and recorded in the existing report/review context; no new persistent metadata store is introduced, and per-subject ownership is defined by the canonical owner. Dispatch from that recorded classification rather than recomputing it.
 
@@ -193,7 +189,7 @@ Spawn QA-Reviewer:
 ```
 Review plan TASK-{feature}-{letter}-{title} (Round {N}).
 
-Use plan_read("TASK-{feature}-{letter}-{title}") to load the plan.
+Use plan_read("TASK-{feature}-{letter}-{title}") to load the plan. Review only this plan's bounded implementation slice, while using the validated ordered plan set to classify incomplete work.
 
 Context:
 - artifacts/designs/pending/{feature}/CONTRACTS.md  (contracts)
@@ -202,6 +198,11 @@ Context:
 Task:
   plan: "TASK-{feature}-{letter}-{title}"
   round: {N}
+  currentPlan: "TASK-{feature}-{letter}-{title}"
+  orderedPlanSet:
+    - "TASK-{feature}-A-{title}"
+    - "TASK-{feature}-B-{title}"
+  orderedPlanSetValidation: "present, schema-valid, non-superseded plans in dependency order"
   changedFiles:
     - src/persistence/builder.py
     - src/workflows/bar_wf.py
@@ -219,16 +220,14 @@ Report the status of the correctness review and of every analyzer that was dispa
  | Reviewer says | Severity | You do |
  | --------------- | ---------- | -------- |
  | `status: PASS` | — | Verify the report includes independent correctness review plus `testAnalyzerReport` and `docsAnalyzerReport` for every analyzer whose canonical trigger fired, and that each analyzer result satisfies the evidence contract. Reject a missing required analyzer; a dispatch-tier analyzer without generator output; generator output that was not independently verified; an unresolved generator-owned candidate; a stale or mismatched reconciliation; a `MINOR_PASS` not backed by validated current reconciliation; a missing terminal record; a Generator `UNNECESSARY` without repository-derived reason/evidence; a `REPAIRED` without actual verification; a malformed subject identity; pre-mutation evidence; or fixer claims beyond performed repairs. Do **not** reject a `PASS` analyzer with no candidate, a reconciliation-only `MINOR_PASS`, or a correct analyzer escalation with no generator. Any rejection means re-dispatch QA-Reviewer; otherwise proceed to finalize. |
-  | `status: ISSUES_FOUND` | `DOCS_ONLY` | The docs-only path may finalize without a second full review **only when** the canonical Docs analyzer already ran and its result contains no surviving generator-owned candidate (every candidate closed by validated current reconciliation or a terminal Generator decision), so it can never skip required Generator adjudication, **and** `docsOnly: true`, `documentationSeverity: NIT | MINOR`, every issue has category `DOC_GAP`, and `nonDocumentationIssues: []`. Route content repairs to `QA_DOCS_GENERATOR`; Exec-Fixer must not be used as the docs adjudicator. Require a `DONE` result, annotate the plan that the docs-only path was used, and finalize. If any condition is not met — in particular if any generator-owned candidate is unresolved — use the normal review routing below. |
-  | `status: ISSUES_FOUND` | `MINOR` | For each step QA flagged as incomplete, call `plan_unmark_step(plan, step_id, agent="exec-manager", reason="QA: <detail>"). Then spawn **Exec-Fixer**, then re-run **full QA review** (not just the fixed items) |
- | `status: ISSUES_FOUND` | `PLANNING_GAP` | Spawn **Exec-Planner** (use `dispatching-agents` skill, Exec-Planner reference, AMEND variant), then re-execute affected phases, then **full QA review again** |
- | `status: ISSUES_FOUND` | `CRITICAL` | Escalate to Nyx |
+  | `status: ISSUES_FOUND` | `PLANNING_GAP` | Spawn **Exec-Planner** only when the finding demonstrates missing implementation coordination or an unowned authoritative requirement/dependency/contract/invariant. Do not amend a plan solely to add QA-owned tests, documentation, or evidence. Then re-execute affected phases, then **full QA review again** |
+  | `status: ISSUES_FOUND` | `CRITICAL` | Escalate to Nyx |
 
-**Max 2 fix cycles per plan.** Docs-only path repairs do not consume the implementation fix-cycle limit. Round 3+ without passing → auto-escalate.
+**Max 2 fix cycles per plan.** Every required repair and re-review, including documentation and test findings, uses the same fix-cycle limit. Round 3+ without passing → auto-escalate.
 
 **After any non-bypassed fix, re-dispatch QA-Reviewer for a fresh FULL review. Never review only the fixed items.**
 
-For the narrow docs-only path, pass the complete issue list and plan identifier to `QA-Docs-Generator`. Do not use `Exec-Fixer` as a Test/Docs adjudicator: it handles genuine MINOR implementation (code) repairs only, with explicit implementation repair routing (`Exec-Fixer` for code, `Exec-Planner` for `PLANNING_GAP`). Do not use the docs-only path for `MISLEADING` or `BLOCKING` documentation findings, for a required analyzer that did not run, or for any surviving generator-owned candidate — those follow the normal review cycle.
+Pass the complete issue list, current plan identifier, and validated ordered plan set to the applicable fixer or generator. Do not use `Exec-Fixer` as a Test/Docs adjudicator: it handles genuine MINOR implementation repairs only, while `Exec-Planner` handles `PLANNING_GAP`. All findings follow the normal review cycle; no documentation-only, test-only, or spec-first bypass is permitted.
 
 ### QA Validation Checklist
 
@@ -251,9 +250,11 @@ Trigger applicability is owned by `/home/opencode/.config/opencode/instructions/
 
 ### Step 4: Finalize
 
-1. Use `plan_annotate_step(op="add")` to record completion summary on the plan's final step or phase — include review round count, fix cycles, and any notable deviations.
-2. Compile artifacts list from all Exec-Worker responses
-3. Return structured report
+1. Confirm the current plan has no unresolved `CURRENT_PLAN` or `PLANNING_GAP` findings.
+2. Record every `DOWNSTREAM_PLAN` finding with its validated later-plan identifier as carry-forward; this never means the feature is complete.
+3. Use `plan_annotate_step(op="add")` to record completion summary on the plan's final step or phase — include review round count, fix cycles, carry-forward findings, and any notable deviations.
+4. Compile artifacts list from all Exec-Worker responses
+5. Return structured report
 
 ## Agent Dispatch Rules
 

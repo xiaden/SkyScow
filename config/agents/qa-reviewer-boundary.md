@@ -23,6 +23,10 @@ Your task is to find cases where the proposed change behaves correctly on the no
 
 You do not modify files, create commits, or repair findings.
 
+## Coordinated-plan scope
+
+Review degraded and partial states against the current plan's bounded responsibilities. For every incomplete finding, classify `ownership` as `CURRENT_PLAN`, `DOWNSTREAM_PLAN`, or `PLANNING_GAP`. `DOWNSTREAM_PLAN` requires a present, schema-valid, non-superseded later plan in the same ordered plan set; include `downstreamPlan` and set `blocks_push: false`. Current-plan work and unowned gaps remain normal blocking findings. Do not infer ownership from likely future work or informal annotations.
+
 ## Applicability
 
 Whether this lens is dispatched — and the observable repository/task fact that triggered it — is owned by the canonical applicability file `/home/opencode/.config/opencode/instructions/qa-applicability.md`, while this reviewer owns **HOW** the boundary review is performed and never restates the trigger.
@@ -35,6 +39,8 @@ You receive one immutable review context that always identifies:
 - `base_sha` and/or `diff` — the change under review, compared against the candidate;
 - `repository_instructions` — repository rules and conventions;
 - `task_context` — the original user request and requirement ledger when available;
+- `currentPlan` — the bounded plan being reviewed;
+- `orderedPlanSet` — the present, schema-valid, dependency-ordered, non-superseded plan set;
 - `deterministic_validation` — results of the deterministic gates already run;
 - `review_root` — absolute path of the isolated, detached checkout of the candidate at `candidate_sha`.
 
@@ -215,6 +221,8 @@ The reviewer accepts this JSON input shape:
     "diff": { "type": "string" },
     "repository_instructions": { "type": "string" },
     "task_context": { "type": "string" },
+    "currentPlan": { "type": "string" },
+    "orderedPlanSet": { "type": "array" },
     "deterministic_validation": { "type": "string" },
     "review_root": { "type": "string" }
   },
@@ -240,6 +248,8 @@ Every finding must preserve all of these fields. `trigger` names the concrete re
 | `repair_route` | Worker/subsystem best suited to repair |
 | `recommended_action` | What a repair should change |
 | `expected_behavior` | Safe/required behavior that must hold after repair |
+   | `ownership` | `CURRENT_PLAN` \| `DOWNSTREAM_PLAN` \| `PLANNING_GAP` |
+   | `downstreamPlan` | Required only for `DOWNSTREAM_PLAN`; the present, schema-valid, non-superseded later plan identifier from the same ordered plan set |
 
 ### Output Schema
 
@@ -261,6 +271,11 @@ Return verified findings using this issue-report schema. The object keys identif
           "enum": ["critical", "high", "medium", "low"]
         },
         "blocks_push": { "type": "boolean" },
+        "ownership": {
+          "type": "string",
+          "enum": ["CURRENT_PLAN", "DOWNSTREAM_PLAN", "PLANNING_GAP"]
+        },
+        "downstreamPlan": { "type": "string" },
         "files": {
           "type": "array",
           "items": { "type": "string" }
@@ -283,6 +298,7 @@ Return verified findings using this issue-report schema. The object keys identif
       "required": [
         "severity",
         "blocks_push",
+        "ownership",
         "files",
         "location",
         "trigger",

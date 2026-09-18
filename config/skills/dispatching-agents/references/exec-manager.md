@@ -21,8 +21,8 @@ Execute plan [PLAN_PATH].
 
 **Your job is to spawn your workers:**
 - Spawn Exec-Worker for EACH phase in order (one spawn per phase, never bundle)
-- Spawn QA-Reviewer after ALL phases complete
-- Spawn Exec-Fixer for MINOR issues found by QA-Reviewer
+- Spawn QA-Reviewer after ALL phases complete, with the current plan and validated ordered plan set
+- Spawn Exec-Fixer for MINOR `CURRENT_PLAN` issues found by QA-Reviewer
 Do NOT implement code yourself.
 
 Context files to read:
@@ -35,6 +35,9 @@ task:
   plan: "TASK-{feature}-{letter}-{title}"
   startPhase: 1
   reviewRequired: true
+  currentPlan: "TASK-{feature}-{letter}-{title}"
+  orderedPlanSet: ["TASK-{feature}-A-{title}", "TASK-{feature}-B-{title}"]
+  orderedPlanSetValidation: "present, schema-valid, non-superseded, dependency-ordered"
 ```
 
 Use precedence authoritative user request > DD > plan/contracts >
@@ -66,7 +69,7 @@ The output includes artifacts created/modified/deleted, annotations from each ph
 
 ## QA Gate Enforcement
 
-The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after all implementation phases complete and must not return `DONE` until QA-Reviewer reports `PASS`.
+The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after all implementation phases complete and must not return `DONE` until QA-Reviewer reports `PASS`. The review is of the current plan's bounded slice, using the validated ordered plan set to classify incomplete work.
 
 **Enforcement rules:**
 
@@ -76,7 +79,7 @@ The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer aft
 4. **MAJOR issues require escalation.** Architectural problems, missing functionality, or systemic bugs cannot be handled by Exec-Fixer alone.
 5. **Evidence contract.** Reject the report unless every analyzer whose canonical trigger fired inspected current state, produced candidates before reading history, and resolved each surviving generator-owned candidate with specialized Generator terminal evidence or a validated current reconciliation. Reject a missing required analyzer, an unresolved generator-owned candidate, a stale or mismatched reconciliation, a missing terminal record, a Generator `UNNECESSARY` without repository-derived reason/evidence, a `REPAIRED` without actual verification, a malformed subject identity, pre-mutation evidence, or fixer claims beyond performed repairs. Accept a valid specialized Generator `UNNECESSARY` without override, preserve `BLOCKED`/`ESCALATED` ownership, and reopen a stale `REPAIRED` after fresh analysis. The manager never decides a candidate is "too minor" to reach its Generator, and never overrides a valid specialized `UNNECESSARY`.
 
-**Fix cycle flow:** QA-Reviewer reports MINOR → Spawn Exec-Fixer with issue list → Re-run QA-Reviewer → Repeat until PASS or escalation. Each fix cycle requires a full QA-Reviewer re-run; a fix writes its terminal repair record before returning. A targeted re-check is never a substitute for the full re-run.
+**Fix cycle flow:** QA-Reviewer reports a blocking `CURRENT_PLAN` issue → Spawn Exec-Fixer with the issue list → Re-run QA-Reviewer → Repeat until PASS or escalation. `PLANNING_GAP` is blocking and routes to Exec-Planner; a valid `DOWNSTREAM_PLAN` issue is reported and carried forward without blocking this plan. Each fix cycle requires a full QA-Reviewer re-run; a targeted re-check is never a substitute for the full re-run.
 
 **Edge cases:**
 
@@ -84,27 +87,12 @@ The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer aft
 - **QA-Reviewer returns ambiguous results:** Re-spawn with clarification request — do not interpret output yourself.
 - **Fix cycle exceeds 3 iterations:** Escalate. Issues are likely systemic.
 - **Manager tempted to call a candidate "too minor":** Not permitted. Every surviving generator-owned candidate reaches its Generator exactly once or is closed by a validated current reconciliation.
-- **Docs-only path requested:** Valid only when the canonical Docs analyzer already ran and closed every candidate (validated current reconciliation or a terminal Generator decision) and all findings are localized documentation nits. Route content repairs to `QA-Docs-Generator`; Exec-Fixer is never used as a Test/Docs adjudicator.
+- **Documentation or test-only work:** No QA bypass applies. Apply the same independent correctness review and canonical analyzer applicability rules. A plan is not amended solely because QA derives a test, documentation, or evidence need that was not an explicit implementation deliverable.
 - **No changes to review:** QA-Reviewer still runs and will return `PASS` for an empty diff. Do not skip the gate.
 
-## Spec-First Testing Strategy
+## Test Findings During Execution
 
-This project follows **spec-first testing** (TDD-style): tests are authored against the design document specification and expected to fail until implementation completes.
-
-**Exec-Worker behavior:**
-- Spec-first tests exist as the target — implementation works toward making them pass
-- Test failures during phased implementation are expected, not blockers
-- Do NOT modify spec tests to make them pass — change the implementation instead
-
-**QA-Reviewer must distinguish between:**
-- **Spec-first test failures:** tests from the spec that haven't passed yet (legitimate findings)
-- **Stale tests:** tests referencing removed functionality (bugs in the tests)
-- **Buggy tests:** tests with incorrect assertions (bugs in the tests)
-
-**What NOT to do:**
-- Do NOT dispatch Support-Debugger for spec-first test failures during execution
-- Do NOT modify spec tests to match incomplete implementation
-- Do NOT skip QA-Reviewer because spec tests are failing
+Test findings are reviewed under the same correctness contract as other implemented behavior. A spec-first failure is not automatically a blocker or an exemption: classify it against the current implementation slice and validated ordered plan set. `CURRENT_PLAN` and unowned implementation gaps block; valid downstream implementation work is reported and carried forward. QA-derived test work remains QA-owned and does not become a planning gap merely because it was absent from the plan.
 
 | Symptom | Likely cause | Action |
 |---------|-------------|--------|
@@ -116,4 +104,4 @@ This project follows **spec-first testing** (TDD-style): tests are authored agai
 
 ### Lifecycle Preflight
 
-Before dispatching workers, sweep for plans with no open steps still pending, duplicate basenames across lifecycle directories, stray backups, and superseded executable artifacts. For six or more coordinated plans, require a current recorded `Exec-PlanGate: PASS`; missing or non-PASS blocks dispatch. For five or fewer plans, the gate is not required; if invoked, it must record `NOT_REQUIRED`, and a missing or stale result is never treated as that verdict. Exec-Manager verifies the result and never spawns the gate. Include archival and `COMPLETION.md` requirements in the completion handoff.
+Before dispatching workers, sweep for plans with no open steps still pending, duplicate basenames across lifecycle directories, stray backups, and superseded executable artifacts. For six or more coordinated plans, require a current recorded `Exec-PlanGate: PASS`; missing or non-PASS blocks dispatch. For five or fewer plans, the gate is not required; if invoked, it must record `NOT_REQUIRED`, and a missing or stale result is never treated as that verdict. Exec-Manager verifies the result and never spawns the gate. The QA dispatch must include the current plan plus the present, schema-valid, non-superseded ordered plan set. Never report feature completion or archive while any later plan in that set remains incomplete. Include archival and `COMPLETION.md` requirements in the completion handoff.

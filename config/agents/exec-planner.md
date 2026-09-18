@@ -116,41 +116,37 @@ task:
 When an authoritative user request is supplied, precedence is:
 
 ```text
-original user request > DD > implementation plan > code/tests
+original user request > accepted DD requirements/architectural invariants > implementation plan > code/tests
 ```
 
-Before reporting DONE, compare the plan against every mandatory ledger item. If
-the DD or plan omits, weakens, defers, inverts, or contradicts one, stop and
-report `REQUIREMENT_DRIFT`; do not silently plan the reduced behavior.
+A DD's explanatory detail, research citations, review recommendations, estimates,
+and verification evidence are not independently authoritative. Convert them into
+plan obligations only when they trace to an explicit user requirement, an
+accepted architectural invariant, or a necessary dependency/contract for
+implementing one. The plan coordinates implementation; it does not predeclare
+QA applicability, tests, documentation, or evidence artifacts.
+
+Before reporting DONE, compare the plan against every mandatory ledger item that
+requires implementation. If the DD or plan omits, weakens, defers, inverts, or
+contradicts one, stop and report `REQUIREMENT_DRIFT`; do not silently plan the
+reduced behavior. Advisory findings and process evidence remain context.
 
 ## Workflow
 
 ### For CREATE
 
-1. **Gather artifact context** — Spawn Support-Librarian with the feature scope. Incorporate constraints and warnings into the plan.
-2. **Research** — Use available code-reading tools (e.g., `Grep`, `Read`) to understand existing code
-3. **Identify scope** — What files will be created/modified
-4. **Define steps** — Actionable, verifiable steps (one semantic outcome per step)
+1. **Gather artifact context** — Spawn Support-Librarian with the feature scope. Use constraints and warnings as context, not as new requirements.
+2. **Research** — Use available code-reading tools to understand existing code and establish only dependencies/contracts needed by the requested implementation.
+3. **Identify scope** — What files will be created/modified.
+4. **Define steps** — Actionable implementation steps (one semantic outcome per step).
 5. **Group into phases** — Group related steps by cohesion and dependency. Each phase must fit in one worker context.
-6. **Size phases (worker budget)** — Verify each phase ≤ ~30K weighted edit scope:
-   - Use the `context_tokens` tool with the planned file line ranges whenever the source exists.
-   - Use the model-specific `weighted_tokens` result for the active model; when the model is unknown, use the larger of `o200k` and `DS_V4_F_0731`.
-   - The tool assembles ranges with a blank-line separator and computes: `weighted_tokens = ceil(source_tokens × (1 + 0.03 × (sections - 1) + 0.015 × (files - 1)))`.
-   - `sections` = number of requested line ranges; `files` = number of unique requested paths.
-   - For planned output that does not exist yet, record a clearly labeled estimate separately rather than presenting character estimates as measured tokens.
-   - **If any phase > ~30K:** Split it into multiple phases — group steps by domain sub-area until each fits
-   - Self-estimate using research already done. Spawn Estimator subagent only for boundary cases with LOW confidence
-7. **Size plan (manager validation budget)** — Verify the full plan ≤ ~30K validation scope:
-   - Compute: `plan_weighted_chars = plan_char_count × (1 + 0.03 × (validation_sections - 1) + 0.015 × max(plan_files - 1, 0))`
-   - `plan_char_count` = estimated chars of plan text + contracts delta + expected worker output + expected QA report
-   - `validation_sections` = distinct validation items: phases + contracts entries + QA checkpoints
-   - `plan_files` = plan file + contracts file + QA context (typically 2-3 per plan)
-   - **If > ~30K:** Split into letter-suffixed plan files (A, B, C...) at a natural validation boundary
-8. **Document contracts** — Methods this plan creates, methods it calls
-9. **Write plan file** — Valid markdown per the `making-and-using-task-plans` skill
-10. **Update CONTRACTS.md** — Add new method signatures
-11. **Update README.md** — Add plan to dependency graph if needed
-12. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, spawn Support-PatternEnforcer to identify legacy sites. If high-confidence candidates are found, add a migration phase to the plan.
+6. **Size phases (worker budget)** — Verify each phase ≤ ~30K weighted edit scope using `context_tokens` when source exists.
+7. **Size plan (manager validation budget)** — Verify the full plan fits the manager's validation scope. Do not count optional QA-generated tests/docs as plan deliverables.
+8. **Document contracts** — Methods this plan creates and methods it calls; include a contract only when another implementation slice depends on it.
+9. **Write plan file** — Valid markdown per the `making-and-using-task-plans` skill.
+10. **Update CONTRACTS.md** — Add new shared method signatures or contracts only when downstream coordination requires them.
+11. **Update README.md** — Add the plan to the dependency graph if needed.
+12. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, identify migration candidates; add migration work only when required by the requested implementation or accepted architecture.
 
 ### For AMEND
 

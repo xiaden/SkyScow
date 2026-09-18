@@ -143,6 +143,12 @@ contextFiles:        # READ THESE FIRST
 task:
   plan: "TASK-{feature}-{letter}-{title}"
   task_family: "TASK-{feature}-{letter}-{title}"  # existing family identity for qa_record_read
+  currentPlan: "TASK-{feature}-{letter}-{title}"
+  orderedPlanSet:    # present, schema-valid, dependency-ordered, non-superseded plans
+    - id: "TASK-{feature}-{letter}-{title}"
+      status: present
+      schemaValid: true
+      superseded: false
   changedFiles:      # Implementation files to analyze
     - "src/persistence/constructor/builder.py"
     - "src/workflows/bar_wf.py"
@@ -222,8 +228,10 @@ The distinction determines routing: spec-first tests remain as-is (they will pas
 
 #### 5. Compile the Candidate Report
 
-Every finding is a candidate with explicit, stable identity and classification. Do **not** tier or
-dismiss candidates yet — produce the full candidate set first.
+Every finding is a candidate with explicit, stable identity and classification. For incomplete
+findings, include separate `planOwnership` and `blocksCurrentPlan` fields (plus `downstreamPlan`
+when `planOwnership: DOWNSTREAM_PLAN`). Do **not** tier or dismiss candidates yet — produce
+the full candidate set first.
 
 ```yaml
 candidates:
@@ -264,11 +272,19 @@ candidates:
       evidence: "Test asserts == [] and receives None"
 ```
 
-Classify each candidate's `ownership`:
+Classify each candidate's `ownership` as generator-routing ownership only:
 
 - `generator` — a missing or stale test the specialized generator can repair.
 - `implementation` — the test is correct and the implementation is wrong.
 - `systemic` — the gap is structural (test infrastructure broken, module never covered by design).
+
+For incomplete work, carry separate plan-level fields: `planOwnership` is exactly
+`CURRENT_PLAN`, `DOWNSTREAM_PLAN`, or `PLANNING_GAP`, and `blocksCurrentPlan` is the
+blocking result. `DOWNSTREAM_PLAN` is valid only when `downstreamPlan` names a present,
+schema-valid, non-superseded later plan in the supplied dependency-ordered `orderedPlanSet`;
+it is reported and carried forward with `blocksCurrentPlan: false`. `CURRENT_PLAN` and
+`PLANNING_GAP` use `blocksCurrentPlan: true`. Do not rename or overload `ownership`, and
+do not let plan-level classification change generator routing.
 
 ### Phase B: Reconcile against durable round records (only after candidates exist)
 
@@ -353,8 +369,10 @@ candidates:            # produced before any history read
     severity: MAJOR
     priority: HIGH
     stale: false
-    ownership: generator
-    reason: "Public method, no tests"
+     ownership: generator        # generator-routing ownership
+     planOwnership: CURRENT_PLAN  # plan-level incomplete-work classification
+     blocksCurrentPlan: true
+     reason: "Public method, no tests"
 
 reconciliation:        # one entry per candidate
   - subject: {kind: behavior, module: "src.persistence.constructor.builder", symbol: "FieldAccessor.insert"}

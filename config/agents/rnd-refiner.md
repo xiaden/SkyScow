@@ -144,7 +144,7 @@ All turns are sequential. Each turn MUST complete before the next begins. The ad
 
 Use `todowrite` to track progress across turns. Label turns as: T1 through T8.
 
-**Technology-choice invariant:** Whenever a turn introduces, compares, upgrades, or relies on a technology, library, framework, SDK, platform, runtime, protocol, or version, the responsible agent must validate it against current official or maintainer sources. The validation must check support status, compatibility, deprecations, security caveats, and relevant limitations, and explain best fit for this project's constraints. Record source and check date. Newest is not automatically best; unvalidated claims must be labeled provisional.
+**Technology-choice evidence:** When a turn introduces, compares, upgrades, or relies on a technology, library, framework, SDK, platform, runtime, protocol, or version, the responsible agent should validate material claims against current official or maintainer sources. Record sources and check dates when they materially support the selected decision, label unvalidated claims provisional, and do not treat source presence, check dates, or currency evidence as requirements unless the user explicitly requested that evidence.
 
 #### Round 1: Approach Generation + Critique
 
@@ -317,27 +317,20 @@ Do not silently accept a failed adversarial process. A design that hasn't been s
 ## Completion Gate
 
 Before reporting DONE, verify:
-1. All 8 turns completed with non-empty, substantive output at each step
-2. At least one approach was genuinely challenged (Counter found a valid issue the Ideator addressed)
-3. Every citation in the final document can be followed to a real source
-4. The bundle-root `ADVERSARIAL.md` contains the full adversarial history (approaches, critiques, responses, outcomes). The bundle-root `DD.md` remains a skeleton with only the Manager's input.
-5. No turn was skipped, merged, or replaced with a generic acknowledgment
+1. The selected adversarial turns completed with substantive output; if a turn is skipped, the reason is recorded
+2. At least one approach was genuinely challenged when the design had competing approaches or material risk
+3. Material citations in the final document are followable, or the affected claim is labeled provisional
+4. The bundle-root `ADVERSARIAL.md` contains the relevant adversarial history. The bundle-root `DD.md` remains a skeleton until DDAuthor distills it.
+5. No process artifact is promoted into a product requirement or execution gate without an explicit ledger or accepted architectural basis
 
 ## Final Validation
 
-After all 8 turns complete, validate the full document:
-
 ### Structural Check
 
-All 8 sections must be present in the ADVERSARIAL LOG (not the DD):
-- [x] `## Proposed Approaches`
-- [x] `## Critique`
-- [x] `## Refined Approaches`
-- [x] `## Surviving Concerns`
-- [x] `## Implementation Patterns`
-- [x] `## Pattern Risks`
-- [x] `## Final Patterns`
-- [x] `## Open Risks & Human Questions`
+The log should contain the sections produced by the selected turns. When the
+standard eight-turn route is used, check for the eight expected sections; a
+shorter route is valid when its reason is recorded. Structural completeness of
+the adversarial log is process evidence, not a product requirement.
 
 ### Quality Check
 
@@ -356,8 +349,8 @@ Does the document tell a coherent story?
 - Are rejected approaches explained (not just silently dropped)?
 - Are risks surfaced with enough context for a human to decide?
 - Are human-judgment questions substantive and well-framed?
-- For every technology choice, are currency, support, compatibility, deprecation/security caveats, and best-fit rationale validated with authoritative sources and check dates?
-- Does the document avoid treating newest as automatically best and clearly label unvalidated claims as provisional?
+- For each consequential technology choice, is the best-fit rationale supported by appropriate evidence, with unvalidated claims labeled provisional?
+- Does the document avoid treating newest as automatically best, and keep evidence distinct from requirements and execution gates?
 
 ## Output
 

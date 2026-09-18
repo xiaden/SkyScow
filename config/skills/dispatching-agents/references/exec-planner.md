@@ -44,9 +44,7 @@ Context files to read:
 Librarian briefing: [paste briefing or "see attached context"]
 Key constraints: [key constraints from Librarian/PatternEnforcer]
 
-Precedence: authoritative user request > DD > plan > code/tests. Compare the
-plan against every mandatory ledger item; report REQUIREMENT_DRIFT rather than
-planning behavior that omits, weakens, defers, inverts, or contradicts one.
+Precedence: authoritative user request > accepted DD requirements/architectural invariants > plan > code/tests. Research, review recommendations, estimates, and verification evidence are advisory unless explicitly adopted as a requirement, invariant, dependency, or contract. Compare the plan against every mandatory ledger item that requires implementation; report REQUIREMENT_DRIFT rather than omitting, weakening, deferring, inverting, or contradicting one. Do not predeclare QA-owned tests, documentation, or evidence artifacts.
 ```
 
 ### Required Fields
@@ -58,13 +56,11 @@ planning behavior that omits, weakens, defers, inverts, or contradicts one.
 
 ### Spec-First Testing
 
-This project uses spec-first testing (TDD-style). When planning:
-- Include contracts and behavior specs clearly enough that tests can be written against them
-- Plans may include a phase for writing spec tests (can be before or after code)
-- Do NOT design phased rollouts that bypass spec tests
+### Implementation coordination
 
----
+Describe contracts and behavior precisely enough for implementation and downstream coordination. A plan may include a spec-first test step only when the user explicitly requested that test deliverable or the accepted architecture makes the executable test artifact part of the implementation. Otherwise QA independently decides whether tests, docs, or corrective work are needed after implementation.
 
+Do not add generic README, CONTRACTS, evidence, review, test, or documentation steps merely to satisfy a prior planning or validation artifact. Add them only when required to coordinate an authoritative implementation change.
 ## AMEND: Plan Amendment
 
 Use when QA-Reviewer flags PLANNING_GAP issues, or when Support-Debugger identifies that a fix requires plan changes.

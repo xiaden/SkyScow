@@ -100,10 +100,9 @@ Grouping guidelines:
 ### Phase 2: [Phase Name]
 ...
 
-## Testing Strategy
-- Unit tests: [files to test]
-- Integration tests: [flows to test]
-- E2E tests: [user journeys to test]
+## Verification and quality context (optional)
+
+Record testing or documentation context only when it is part of the requested behavior or an accepted architectural constraint. Otherwise record the changed surface and relevant risks for downstream QA. QA independently determines test and documentation applicability, generation, and corrective work after implementation; phases need not carry universal test obligations.
 
 ## Risks & Mitigations
 - **Risk**: [Description]
@@ -122,10 +121,10 @@ Grouping guidelines:
 2. **Consider edge cases** — think about error scenarios, null values, empty states
 3. **Minimize changes** — prefer extending existing code over rewriting
 4. **Maintain patterns** — follow existing project conventions
-5. **Enable testing** — structure changes to be easily testable
-6. **Think incrementally** — each step should be verifiable
-7. **Document decisions** — explain why, not just what
-8. **Budget by context, not counts** — Phase count and step count are proxies. Weighted context (chars × cognitive weight) is the measurement. One 300K phase fails where four 7K phases succeed. The ~30K threshold governs both per-phase (worker dispatch) and per-plan (manager validation) splitting decisions.
+5. **Enable review** — make changed surfaces and contracts easy for downstream QA to inspect
+6. **Think incrementally** — each implementation step should be understandable and verifiable with repository-defined checks when relevant
+7. **Document decisions** — explain why, not just what; distinguish requirements from rationale
+8. **Budget by context, not counts** — Phase count and step count are proxies.
 
 ---
 

@@ -15,42 +15,27 @@ create the DD yourself and do not allow DDAuthor to orchestrate other agents.
 Authoritative user request: [verbatim, unabridged original user request]
 Requirement ledger:
 - R1: [exact wording] — mandatory | constraint | optional | open detail
-- R2: [exact wording] — mandatory | constraint | optional | open detail
-Requirements: [inline requirements or exact ASR path]
-Integration points: [modules/services/APIs, if known]
-Constraints: [technology, security, compatibility, timeline, or ADR constraints]
-Required output: a DD in artifacts/designs/pending/ plus all supporting reports.
-
-Canonical stages, in order:
-1. Support-Librarian: artifacts and prior decisions.
-2. Support-Researcher: codebase and current technology evidence.
-3. RnD-Refiner: complete eight-turn adversarial process, including Ideator,
-   Counter-Ideator, Improver, and Counter-Improver turns.
-4. RnD-Architect: concrete options and tradeoff matrix.
-5. RnD-ComplexityAdvisor: complexity and abstraction review.
-6. RnD-Estimator: final sizing only; it cannot downgrade DD_REQUIRED.
-7. RnD-DDAuthor: author the formal DD from every upstream artifact.
-8. Support-PatternEnforcer: validate module coverage and requirement
-   conformance; route material gaps to DDAuthor and rerun this gate after
+The original user request is the sole source of product requirements. Preserve a
+verbatim copy and an immutable requirement ledger. Research, adversarial review,
+architecture options, complexity analysis, estimates, PatternEnforcer findings,
+and verification evidence inform decisions but do not independently create
+requirements or implementation gates. Promote a finding only when it is
+explicitly adopted into the ledger, an accepted architectural invariant, or a
+necessary dependency/contract for satisfying one.
    amendment.
 
-Once DD_REQUIRED is selected, no stage may be skipped or shortened.
-Completion requires the DD, adversarial log, research, architecture,
-complexity review, estimate, PatternEnforcer approval, and a PASS against the
-immutable requirement ledger. The user request, not an agent summary or DD,
-is the authoritative product specification.
+Once DD_REQUIRED is selected, the selected R&D stages are process requirements for producing a trustworthy DD; they are not product requirements and do not become downstream implementation gates. Completion requires the route's recorded DD, decision evidence, and requirement-conformance result. The user request, not an agent summary or DD, is the authoritative product specification.
 ```
 
-## Route-gate dispatch
-
-```text
-Assess [REQUEST] and choose the route.
-
-Run RnD-Estimator first unless the user explicitly requires a DD. Return
-PLAN_ONLY or DD_REQUIRED with sizing and rationale. If DD_REQUIRED, the route
-is immutable and the full formal DD dispatch above must follow.
-Do not create a DD or implementation plan yourself.
-```
+5. **RnD-DDAuthor** writes the formal DD from the authoritative ledger and
+   selected architectural decisions. Upstream artifacts are evidence and
+   provenance, not additional requirements.
+6. **RnD-PatternEnforcer** performs the final requirement-conformance check and
+   may identify a real contradiction or missing invariant. It may not require
+   tests, docs, citations, or evidence artifacts solely because its checklist
+   names them.
+7. **RnD-Manager** validates the DD and returns `READY_FOR_PLANNING` only when
+   requirements and accepted architecture are coherent.
 
 ## Research-only dispatch
 

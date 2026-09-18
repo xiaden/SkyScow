@@ -27,12 +27,13 @@ Plans + Ledger → Dispatch Exec-Manager → [internal: phases/review/fix] → U
    **When plans have sequential dependencies** (Plan B requires Plan A's outputs), dispatch one at a time in order.
 
    For each dispatch:
-   - `DONE` → update the ledger (Phase 3), then return to step 2 for the next plan(s)
+    - `DONE` → verify no unresolved `CURRENT_PLAN` or `PLANNING_GAP` findings, record any validated `DOWNSTREAM_PLAN` carry-forward, update the ledger (Phase 3), then return to step 2 for the next plan(s)
    - `BLOCKED` → investigate the blocker; if resolvable provide guidance and re-dispatch; if not, stop and notify the user
    - `ESCALATE` → stop immediately; present the blocker to the user; do not retry
 
 **3. When all plans have returned `DONE`:**
-   - Archive the feature (Phase 5)
+   - Confirm every plan in the present, schema-valid, non-superseded ordered set passed its mandatory QA gate and all carry-forward findings were resolved by their owning later plans
+   - Only then archive the feature (Phase 5); never claim feature completion or archival while a later plan remains incomplete
 
 ---
 
@@ -116,26 +117,28 @@ If any are missing, run `decomposing-design-documents` first.
 
 ## Phase 2: Execute Plan
 
-For each plan in dependency order, dispatch a Exec-Manager. Dispatch independent plans in parallel (see Rule 4).
+For each plan in dependency order, dispatch a Exec-Manager with the current plan and validated ordered plan set. Dispatch independent plans in parallel (see Rule 4).
 
-### 2a. Quality Gate (Enforced by Exec-Manager)
+### 2a. Quality Handoff (Enforced by Exec-Manager)
 
-Each Exec-Manager enforces a full quality gate before returning DONE. Nyx doesn't run these checks — the Exec-Manager's internal Reviewer does:
+Each Exec-Manager runs the repository-defined checks relevant to the changed surface and its independent QA review before returning DONE. The implementation plan remains responsible for implementation steps, dependencies, contracts, and explicit requested/architectural deliverables; QA owns post-implementation test and documentation applicability, generation, and corrective work.
 
 | Gate | Check | Standard |
 |------|-------|----------|
-| **Lint** | Zero errors on all affected paths | Mandatory — blocks DONE |
-| **Type Check** | Build/type check passes (tsc, mypy, etc.) | Mandatory — blocks DONE |
+| **Repository checks** | Checks selected from the observable changed surface and repository capabilities | Required when applicable; no invented commands |
 | **Layer Compliance** | No upward imports, correct DI patterns | Mandatory — blocks DONE |
-| **Contract Adherence** | Actual signatures match CONTRACTS.md | Mandatory — blocks DONE |
-| **Code Quality** | No mutation, file <800 lines, functions <50 lines, nesting <4, no console.log/print(), no bare except, no TODO/FIXME | Mandatory — blocks DONE |
-| **Test Coverage** | Applies when the changed surface matches the tests triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); coverage policy is repository-defined: honor the repository's own coverage threshold or verification policy when one exists, otherwise coverage is diagnostic only — no universal percentage (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`) | Conditional — blocks DONE only when the repository defines a coverage policy |
-| **Security Review** | Applies when the changed surface matches a security trigger per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); the security-sensitive surface list is owned by `/home/opencode/.config/opencode/skills/security-review/SKILL.md` | Conditional — blocks DONE only when such a surface changed |
-| **Build** | Project builds successfully | Mandatory — blocks DONE |
-| **Completeness** | All plan steps implemented, no stubs, no "will implement later" | Mandatory — blocks DONE |
-| **Drift Detection** | Implementation matches design intent, no scope creep, no missing methods | Mandatory — blocks DONE |
+| **Contract Adherence** | Actual signatures match authoritative shared contracts | Mandatory — blocks DONE |
+| **Code Quality** | Repository/project coding standards | Mandatory — blocks DONE |
+| **QA correctness** | Independent review of the implemented current-plan slice | Mandatory — blocks DONE |
+| **Test/Documentation QA** | Canonical analyzers/generators when their applicability triggers hold | Conditional QA ownership — never a universal plan deliverable |
+| **Completeness** | All current-plan implementation steps and authoritative current-plan responsibilities delivered | Mandatory — current-plan omissions and unowned implementation gaps block DONE |
+| **Drift Detection** | Implementation matches accepted requirements and architectural intent without scope creep | Mandatory |
 
-Fix cycles (up to 2 rounds) resolve issues before DONE. 3+ rounds → ESCALATE.
+Fix cycles resolve current-plan-owned implementation issues before DONE. Valid downstream-owned implementation work is reported as carry-forward; QA-owned test/documentation work is routed through QA and does not become a planning gap merely because it was absent from the plan.
+
+### Coordinated-Plan QA Semantics
+
+Each plan is a bounded implementation slice in the dependency-ordered plan set. Exec-Manager and QA-Reviewer evaluate the current plan against its own steps, contracts, and deliverables, while receiving the validated ordered plan set for incomplete-work classification. `CURRENT_PLAN` findings block normally. `DOWNSTREAM_PLAN` findings must name a present, schema-valid, non-superseded later plan in the same set; they are reported and carried forward without blocking the current plan. `PLANNING_GAP` findings have no valid owner and remain blocking/escalatory. This rule applies identically to correctness, boundary, journey, domain-risk, test, and documentation findings. Feature completion and archival still require every plan to return DONE.
 
 ### 2b. Dispatch Exec-Manager
 
@@ -152,6 +155,9 @@ task:
   plan: "TASK-{feature}-{letter}-{title}"
   startPhase: 1         # Or resume from incomplete
   reviewRequired: true
+  currentPlan: "TASK-{feature}-{letter}-{title}"
+  orderedPlanSet: ["TASK-{feature}-A-{title}", "TASK-{feature}-B-{title}"]
+  orderedPlanSetValidation: "present, schema-valid, non-superseded, dependency-ordered"
 ```
 
 For a coordinated group of six or more plans, Exec-Planner must complete the Exec-PlanGate preflight and return `PASS` with the plan group before any Exec-Manager is dispatched. Exec-Manager verifies that result; it does not spawn the gate.
@@ -175,7 +181,7 @@ For details on how Exec-Manager constructs subagent prompts and handles review i
  | `BLOCKED` | Investigate blocker. If resolvable, provide guidance and re-dispatch. If not, stop execution. |
  | `ESCALATE` | Stop. Present to user. Common causes: 3+ fix rounds, fundamental design issue, missing requirements. |
 
-**Do NOT re-run Exec-Manager for DONE.** The plan is complete. Proceed to ledger update.
+**Do NOT re-run Exec-Manager for DONE.** The current bounded slice passed its gate; retain any validated `DOWNSTREAM_PLAN` carry-forward and proceed to ledger update. The feature is not complete until every plan in the set passes.
 
 ---
 
@@ -187,7 +193,8 @@ DD operations are performed by internal agents through the registered OpenCode p
 
 After Exec-Manager returns DONE:
 
-1. **Update CONTRACTS.md** with *actual* implementations, not planned signatures
+1. **Verify carry-forward:** every `DOWNSTREAM_PLAN` finding names a present, schema-valid, non-superseded later plan in the same ordered set; `CURRENT_PLAN` and `PLANNING_GAP` findings must not remain unresolved.
+2. **Update CONTRACTS.md** with *actual* implementations, not planned signatures
 2. Use available code-reading tools (e.g., `Read`, `Grep`) to get real signatures from the codebase
 3. Note any deviations from the original plan in the Decisions table
 4. Date-stamp the update with the plan letter
@@ -206,7 +213,7 @@ Proceed to the next plan in dependency order. Return to Phase 2.
 
 ## Phase 5: Archive Feature
 
-After all plans' Exec-Managers return DONE, the ledger is updated, and the user is informed of any deviations — archive the feature. DD completion is represented by the DD's `**Status:** Completed` metadata; a completed bundle may remain under `artifacts/designs/pending/{feature}/` if its move is pending or unsuccessful. No `COMPLETION.md` is generated or required.
+After every plan in the validated ordered set has returned DONE, its mandatory QA gate has passed, all downstream carry-forward findings are resolved, the ledger is updated, and the user is informed of deviations — archive the feature. Never archive while a later plan remains incomplete. DD completion is represented by the DD's `**Status:** Completed` metadata; a completed bundle may remain under `artifacts/designs/pending/{feature}/` if its move is pending or unsuccessful. No `COMPLETION.md` is generated or required.
 
 See [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) for the DD bundle move protocol, verification steps, and standalone plan handling.
 
@@ -233,7 +240,7 @@ When starting a new session mid-feature:
 
 Before declaring feature execution complete:
 
-- [ ] All Exec-Managers returned DONE **→ Full implementation + all quality gates passed**
+- [ ] All Exec-Managers returned DONE **→ Each plan's bounded responsibilities and all quality gates passed; downstream-owned work was carried into later plans**
 - [ ] CONTRACTS.md reflects actual implementations **→ No plan-vs-code drift**
 - [ ] Available linter passes on full workspace **→ Zero errors**
 - [ ] Test coverage gate applies per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); repository-defined coverage policy honored where one exists, otherwise coverage reported as diagnostic (no universal percentage, see `/home/opencode/.config/opencode/instructions/validation-mandate.md`) **→ No coverage regression**

@@ -128,6 +128,12 @@ contextFiles:        # READ THESE FIRST
 task:
   plan: "TASK-{feature}-{letter}-{title}"
   task_family: "TASK-{feature}-{letter}-{title}"  # existing family identity for qa_record_read
+  currentPlan: "TASK-{feature}-{letter}-{title}"
+  orderedPlanSet:    # present, schema-valid, dependency-ordered, non-superseded plans
+    - id: "TASK-{feature}-{letter}-{title}"
+      status: present
+      schemaValid: true
+      superseded: false
   changedFiles:      # Implementation files to analyze
     - "src/persistence/constructor/builder.py"
     - "src/workflows/bar_wf.py"
@@ -208,8 +214,10 @@ apiDocs:
 
 #### 4. Compile the Candidate Report
 
-Every finding is a candidate with explicit, stable identity and classification. Do **not** tier or
-dismiss candidates yet — produce the full candidate set first.
+Every finding is a candidate with explicit, stable identity and classification. For incomplete
+findings, include separate `planOwnership` and `blocksCurrentPlan` fields (plus `downstreamPlan`
+when `planOwnership: DOWNSTREAM_PLAN`). Do **not** tier or dismiss candidates yet — produce
+the full candidate set first.
 
 ```yaml
 candidates:
@@ -251,11 +259,19 @@ candidates:
       evidence: "Handler schema includes library_id; API doc omits it"
 ```
 
-Classify each candidate's `ownership`:
+Classify each candidate's `ownership` as generator-routing ownership only:
 
 - `generator` — missing, stale, or drifted documentation the specialized generator can repair.
 - `systemic` — structural doc rot (docs no longer maintained, multiple contradicting files, core
   surface completely undocumented).
+
+For incomplete work, carry separate plan-level fields: `planOwnership` is exactly
+`CURRENT_PLAN`, `DOWNSTREAM_PLAN`, or `PLANNING_GAP`, and `blocksCurrentPlan` is the
+blocking result. `DOWNSTREAM_PLAN` is valid only when `downstreamPlan` names a present,
+schema-valid, non-superseded later plan in the supplied dependency-ordered `orderedPlanSet`;
+it is reported and carried forward with `blocksCurrentPlan: false`. `CURRENT_PLAN` and
+`PLANNING_GAP` use `blocksCurrentPlan: true`. Do not rename or overload `ownership`, and
+do not let plan-level classification change generator routing.
 
 Documentation that is simply absent on an optional, non-contract surface is still a candidate; the
 **Generator** decides `UNNECESSARY` with evidence, not this analyzer. A required public/operator
@@ -341,8 +357,10 @@ candidates:            # produced before any history read
     severity: MAJOR
     priority: HIGH
     stale: false
-    ownership: generator
-    reason: "Public API, no documentation"
+     ownership: generator        # generator-routing ownership
+     planOwnership: CURRENT_PLAN  # plan-level incomplete-work classification
+     blocksCurrentPlan: true
+     reason: "Public API, no documentation"
 
 reconciliation:        # one entry per candidate
   - subject: {kind: symbol, symbol: "src.persistence.constructor.builder.FieldAccessor.insert"}

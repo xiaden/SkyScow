@@ -25,7 +25,7 @@ Review the implementation of:
 ## Task
 Plan: {plan file path}
 Round: {N}  ← Orchestrator fills this in. Round 1 = first review of this plan. Round 2 = after a fix cycle. Round 3+ = auto-flag DISCUSS regardless of issue severity.
-All phases of this plan are complete. Review the full implementation for quality, correctness, and architectural compliance.
+All phases of this plan are complete. Review this plan's bounded implementation slice for quality, correctness, and architectural compliance. Use the present validated ordered plan set to distinguish work owned by this plan from work explicitly owned by a later plan; the feature may remain incomplete only when that later owner is present, schema-valid, and non-superseded.
 
 ## Layer Docs
 {Include ALL that apply to layers touched by this plan. Copy the relevant rows from the table below.}
@@ -41,6 +41,7 @@ All phases of this plan are complete. Review the full implementation for quality
  | Frontend | `{frontend_instructions_file}` | UI conventions, framework patterns, no `any` | 
 
 Also include:
+- The current plan plus the validated ordered plan set and dependency order. Validate any downstream owner as present, schema-valid, non-superseded, and later in the same set; do not treat valid later-plan responsibilities as current-plan omissions.
 - Target plan: `artifacts/plans/pending/TASK-{feature}-{letter}-*.md`
 - Contracts ledger: `artifacts/designs/pending/{feature}/CONTRACTS.md`
 - Feature parts README: `artifacts/designs/pending/{feature}/README.md`
@@ -117,32 +118,35 @@ Perform ALL of the following checks. Do not skip any category.
 - Essentia imports only in ml_audio_comp.py / ml_preprocess_comp.py
 
 ### 6. Completeness
-- Every plan step has a corresponding implementation (not just a checkbox)
-- No methods declared but empty
-- No "will implement later" patterns
-- Tests created if the plan specified them
-- Migrations created if schema changes were made
-
+- Every current-plan step has a corresponding implementation (not just a checkbox)
+- Every current-plan-owned method, contract, and implementation deliverable is implemented
+- No current-plan-owned method is empty or deferred
+- Intentional incomplete implementation work is classified `CURRENT_PLAN`, `DOWNSTREAM_PLAN`, or `PLANNING_GAP`
+- `CURRENT_PLAN` and `PLANNING_GAP` findings block this plan
+- `DOWNSTREAM_PLAN` is non-blocking only with a validated later-plan identifier in the same present set; report it and carry it forward
+- Do not treat absence of a test, documentation, or QA evidence step as a plan omission unless that artifact is explicitly required by the user request or accepted architecture
+- Migrations are created if this plan owns schema changes
 ### 7. Drift Detection
 - Does the implementation match the DESIGN INTENT, not just the plan letter?
 - If the subagent deviated from the plan (check annotations), was the deviation justified?
 - Are there any methods or files created that weren't in the plan? (scope creep)
-- Are there methods from the plan that weren't created? (incomplete)
+- Are current-plan methods missing? (current-plan incomplete)
+- Is missing work explicitly owned by a valid downstream plan, or is it an unowned planning gap?
 
 ### 8. Coverage (Repository-Defined)
-- Whether this lens applies and its test/documentation trigger conditions are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; this protocol references that owner and owns only the HOW of coverage verification, never restating its trigger logic
-- Coverage is a diagnostic unless the repository defines its own coverage threshold or verification policy; honor the repository policy when present and never apply a universal percentage (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`)
-- Discover and run the repository's own coverage command; do not assume `npm test`, `--coverage`, or any generic coverage command exists
-- If the repository defines no coverage policy, report coverage as unavailable/diagnostic rather than inventing a threshold
-- Flag a coverage **regression** against the repository's own policy or prior baseline; do not flag the absence of a universal percentage
-- A documentation-only, comment-only, or non-executable-static-metadata change is not a category-wide exemption: it suppresses no lens whose canonical trigger fires, and applicability is read from the canonical record rather than inferred from the change category
+- Whether test or documentation analysis applies is owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; this protocol owns only review of the resulting implementation and generator output
+- Coverage is a diagnostic unless the repository defines its own coverage threshold or verification policy; honor repository policy when present and never apply a universal percentage
+- Discover and run repository checks relevant to the changed surface; do not assume generic commands
+- If no coverage policy exists, report coverage as unavailable/diagnostic rather than inventing a threshold
+- Flag a regression against the repository's own policy or baseline, not absence of a universal percentage
+- QA-owned test/documentation generation is not retroactively added to the plan
 
 ### 9. Security Review (Conditional)
 - Whether this lens applies and its observable trigger are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; the canonical security-sensitive surface list is owned by the `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`); neither list is restated here
 - When triggered, run the canonical `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`) for its checklist and findings; this protocol references it and must not restate or weaken its checks
 - When no such surface changed, security review is not applicable — record that explicitly rather than reporting a security pass
 - A critical or high security finding routes to DISCUSS
-- A documentation-only, comment-only, or non-executable-static-metadata change is not a category-wide exemption: if it fires the canonical security trigger, security review remains REQUIRED and applicability is read from the canonical record rather than inferred from the change category
+- Documentation-only, comment-only, and non-executable-static-metadata changes receive the same strict review and ownership classification; if a canonical security trigger fires, security review remains REQUIRED
 
 ## Output Format
 
@@ -151,6 +155,8 @@ Return your review in this exact structure:
 ### Verdict: {PASS | ISSUES_FOUND}
 
 ### Scope Classification: {NO_PLAN_NEEDED | PLAN_NEEDED | DISCUSS}
+
+For every incomplete finding, include `ownership: CURRENT_PLAN | DOWNSTREAM_PLAN | PLANNING_GAP`, `downstreamPlan` when applicable, `blocksCurrentPlan: true | false`, and the validation basis for the owner. `CURRENT_PLAN` and `PLANNING_GAP` block; a valid downstream owner is reported as carry-forward and does not block this plan. Never infer ownership from annotations or a likely future plan.
 
 **Rationale:** {1-2 sentences. Example:
 - NO_PLAN_NEEDED: "Two minor issues in one file — a stale comment and an unused import. Single subagent fix."

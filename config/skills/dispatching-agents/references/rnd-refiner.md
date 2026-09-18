@@ -52,25 +52,24 @@ The bolded turn-by-turn spawn instructions are **required** — RnD-Refiner orch
 
 ## Expected Output
 
-- A shared design document in `artifacts/designs/pending/`
-- Approach proposals with web-cited evidence
-- Adversarial critiques ranked by context relevance
-- Implementation patterns with risk assessments
-- Validated final design ready for planning
-
 ## How the Adversarial Pipeline Works
 
-1. **Approach generation (Turn 1):** RnD-Ideator proposes creative approaches with evidence.
-2. **Approach critique (Turn 2):** RnD-CounterIdeator searches for documented failures, postmortems, and pitfalls.
-3. **Approach refinement (Turn 3):** RnD-Ideator addresses valid criticisms and drops failures.
-4. **Surviving concerns (Turn 4):** RnD-CounterIdeator identifies unresolved risks.
-5. **Pattern generation (Turn 5):** RnD-Improver designs implementation patterns.
-6. **Pattern critique (Turn 6):** RnD-CounterImprover identifies edge cases and integration risks.
-7. **Pattern refinement (Turn 7):** RnD-Improver addresses valid pattern critiques.
-8. **Final counter-review (Turn 8):** RnD-CounterImprover records open risks and human questions.
+The standard route has eight turns, but the route is evidence-gathering, not a
+new authority layer:
 
-Each turn appends to the shared adversarial log. The result is evidence for
-DDAuthor's final DD, not a final DD itself.
+1. **Approach generation:** propose approaches with evidence.
+2. **Approach critique:** search for documented failures and pitfalls.
+3. **Approach refinement:** address valid criticisms and drop failures.
+4. **Surviving concerns:** identify unresolved risks.
+5. **Pattern generation:** design implementation patterns.
+6. **Pattern critique:** identify edge cases and integration risks.
+7. **Pattern refinement:** address valid pattern critiques.
+8. **Final counter-review:** record open risks and human questions.
+
+Each selected turn appends to the shared adversarial log. The result is evidence
+for DDAuthor's final DD, not a final DD itself. Skipped or abbreviated turns are
+acceptable when the route does not need them; record the reason and do not turn
+turn-count, citation, or evidence completeness into downstream plan obligations.
 
 ## GitHub Actions context (when relevant)
 

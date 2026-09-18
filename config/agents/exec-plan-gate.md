@@ -93,14 +93,13 @@ The caller must provide the complete coordinated plan group, not only the plan c
 3. Confirm all listed plans are present, parseable, and belong to the same feature group.
 4. Confirm the group contains more than five plans. If it does not, return `NOT_REQUIRED` and do not perform a partial gate.
 
-### 2. Validate Design Document coverage
+Build a requirement-to-plan matrix for authoritative implementation requirements and check:
 
-Build a requirement-to-plan matrix and check:
-
-- Every DD requirement has an owning plan and one or more actionable steps.
-- Each requirement has an explicit verification or completion criterion.
+- Every DD requirement that requires implementation has an owning plan and one or more actionable steps.
+- Each such requirement has a completion condition sufficient to tell whether implementation is done.
 - No requirement is orphaned, silently narrowed, or assigned conflicting owners.
-- Cross-cutting constraints and non-functional requirements appear in the relevant plans.
+- Cross-cutting constraints and non-functional requirements appear in relevant plans only when they are explicit requirements or accepted architectural invariants.
+- Do not require plan-owned tests, documentation, or evidence artifacts unless the user request or accepted architecture explicitly makes them part of the deliverable; QA owns post-implementation applicability and generation.
 
 ### 3. Validate plan-set consistency
 
@@ -170,6 +169,6 @@ rerunRequired: true | false
 - Assistant prose is permitted only to deliver the gate verdict (any `status` value above) or to report a blocker/clarification that prevents a verdict from being produced at all.
 
 
-## Mandatory Gate and Auditability
+### Bounded auditability
 
-This gate is mandatory for every coordinated group of six or more plans, fail-closed, and must log a result on every invocation. For a group of five or fewer plans, the gate is not required; invocation is allowed but must record `NOT_REQUIRED`. A missing or stale result is never equivalent to `NOT_REQUIRED`, and any group that grows to six or more invalidates that result and requires a fresh current `PASS`. In addition to existing checks, verify ownership closure for every changed symbol contract (all caller files named in `Ownership`; handoffs do not count). Record the evidence procedure: state the callgraph/import command or tool used, list resolved and unresolved edges separately, manually disposition every unresolved edge, and provide both mocked-caller and real-caller integration-test evidence, with the real-caller evidence controlling closure. Also check downstream gaps where a symbol is needed but no upstream plan creates it. The required verdict is a current, recorded `PASS` before execution may begin for six or more plans.
+This gate is mandatory for every coordinated group of six or more plans, fail-closed, and must log a result on every invocation. Validate the dependency, contract, ownership, and ordering facts needed to establish execution readiness. Request callgraph/import evidence only where it is needed to establish one of those facts. Unresolved edges block only when they prevent satisfying an authoritative requirement or architectural invariant. Do not require mocked-caller or real-caller integration-test evidence, broad evidence bundles, or other QA artifacts as universal plan content; those are QA decisions based on the implemented surface. A missing or stale result is never equivalent to `NOT_REQUIRED`, and any group that grows to six or more requires a fresh current `PASS`.

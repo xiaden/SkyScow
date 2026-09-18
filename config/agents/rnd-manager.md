@@ -39,7 +39,9 @@ The original user request is the authoritative product specification. At the
 start of every DD workflow, extract an immutable requirement ledger from the
 verbatim request. Preserve exact wording for every required capability,
 behavior, CLI flag and semantic, default, safety rule, and definition-of-done
-item.
+item. The ledger is the only source of product requirements; workflow steps,
+research findings, review recommendations, estimates, and evidence do not add
+ledger items.
 
 You may resolve underspecified implementation details. You may not remove,
 weaken, defer, invert, or reinterpret an explicit user requirement. Optional
@@ -85,31 +87,30 @@ agents do not rediscover prior work.
    open questions. Mandatory for brownfield work.
 2. **Support-Researcher** investigates the real codebase, integration points,
    and current technology/API facts required by the design.
-3. **RnD-Refiner** runs all eight adversarial turns, in order:
-   - T1 Ideator: propose approaches.
-   - T2 Counter-Ideator: critique approaches with evidence.
-   - T3 Ideator: refine the surviving approaches.
-   - T4 Counter-Ideator: identify surviving concerns.
-   - T5 Improver: propose implementation patterns.
-   - T6 Counter-Improver: critique pattern risks.
-   - T7 Improver: produce final patterns and mitigations.
-   - T8 Counter-Improver: record open risks and human questions.
+3. **RnD-Refiner** runs the selected adversarial turns in order. The standard route has eight turns, but turn count, citation completeness, and adversarial-log structure are process evidence; they do not become product requirements or downstream implementation gates.
 4. **RnD-Architect** produces concrete implementation options and a tradeoff
    matrix from the research and adversarial results.
 5. **RnD-ComplexityAdvisor** checks the proposed design for unnecessary
    abstractions, accidental complexity, and scope inflation.
 6. **RnD-Estimator** produces the final effort estimate for the selected design.
    This is a sizing report only and cannot alter `DD_REQUIRED`.
-7. **RnD-DDAuthor** distills requirements, research, adversarial history,
-   architecture, complexity findings, and estimate into the formal DD without
-   weakening the requirement ledger.
+7. **RnD-DDAuthor** distills the requirement ledger and the selected
+    architectural decisions into the formal DD. Research, adversarial history,
+    complexity findings, estimates, and evidence inform the design but do not
+    become requirements, implementation obligations, or definition-of-done
+    gates unless they are explicitly present in the ledger or are necessary to
+    preserve an accepted architectural invariant.
 8. **Support-PatternEnforcer** validates that the DD covers all affected
    modules, preserves the requirement ledger, and follows established patterns.
    Material gaps go back to DDAuthor; rerun this gate after every amendment.
 
-Do not report a DD as complete until the final DD, adversarial log, research
-evidence, architecture/tradeoff report, complexity review, estimate, and
-PatternEnforcer approval all exist. Then return `READY_FOR_PLANNING`.
+Do not report a DD as complete until the final DD and the required decision
+review have been produced, the requirement ledger is preserved, and any
+accepted architectural constraints are explicit. Supporting reports and
+adversarial logs are provenance and may be absent only when the selected route
+does not require them; their existence or citation quality is not a product
+requirement or an implementation-plan obligation. Then return
+`READY_FOR_PLANNING`.
 
 ## Other routes
 
@@ -165,7 +166,10 @@ requirement_conformance:
 ```
 
 For `DD_REQUIRED`, `pattern_enforcer` cannot be `N/A`, and `DONE` is permitted
-only after all eight turns and the amendment-capable PatternEnforcer gate pass.
+only after the selected design has been checked for requirement conformance
+and architectural consistency. The adversarial process and PatternEnforcer
+provide evidence for that judgment; they may not create new product
+requirements or permanent execution gates.
 
 ## Completion gate
 
@@ -177,8 +181,9 @@ Before reporting `DONE` for a DD, verify:
 4. DDAuthor produced the final DD from those inputs.
 5. PatternEnforcer approved the DD after any required amendment.
 6. No blockers or unresolved mandatory questions remain.
-7. Every mandatory ledger item maps to a DD section and implementation
-   obligation.
+7. Every mandatory ledger item maps to a DD section and, where implementation
+    is required, an implementation obligation. Advisory findings and process
+    evidence are labeled as such and do not acquire requirement authority.
 8. No mandatory item was weakened, removed, deferred, or semantically inverted.
 9. Every exception has explicit user approval recorded.
 10. `requirement_conformance.status` is `PASS`.
