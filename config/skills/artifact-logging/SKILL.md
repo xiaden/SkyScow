@@ -114,6 +114,6 @@ Agents **cannot** read logs from:
 
 ## Process-Artifact Lifecycle
 
-`artifacts/designs/process/` has one owning README/index. Every process artifact records an owner, status, and disposition. Completed artifacts move to the archive or are explicitly deprecated; stale handoffs are disposed rather than left executable. Large adversarial logs must declare a retention period or an archive/deprecate disposition.
+DD adversarial logs live as root-level `ADVERSARIAL.md` files inside each `artifacts/designs/pending/{slug}/` or `artifacts/designs/completed/{slug}/` bundle. Bundle artifacts record their owner, status, and disposition; completed bundles move to `artifacts/designs/completed/{slug}/` or are explicitly deprecated. Large adversarial logs must declare a retention period or an archive/deprecate disposition.
 
 When a plan or DD is superseded, update only its `Status` field according to the ADR/supersession convention, add a back-pointer to the superseding artifact, and remove it from the executable set. Mark stale handoffs superseded when their contract is superseded.

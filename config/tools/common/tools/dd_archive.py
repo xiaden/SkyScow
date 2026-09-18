@@ -7,7 +7,13 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from ..helpers.dd_md import DD_PREFIX, DESIGNS_COMPLETED_DIR, DESIGNS_PENDING_DIR, parse_dd
+from ..helpers.dd_md import (
+    DD_FILENAME,
+    DESIGNS_COMPLETED_DIR,
+    DESIGNS_PENDING_DIR,
+    dd_bundle_slug,
+    parse_dd,
+)
 
 PLANS_PENDING_DIR = "artifacts/plans/pending"
 
@@ -17,12 +23,16 @@ def dd_archive(
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
-    """Archive a design document from pending to completed.
+    """Complete and archive a pending Design Document bundle.
 
-    Verifies all convention-linked plans are completed first.
-    Updates status to Completed before moving.
+    Verifies all convention-linked plans are completed first, then records
+    ``**Status:** Completed`` in ``DD.md`` before attempting to move the
+    entire bundle to the completed designs directory. The status is
+    authoritative: if the ordinary bundle move cannot complete, the completed
+    DD may remain in its pending bundle location and can be retried.
+
     Returns {"archived": True, "path": "...", "linked_plans_completed": [...]} on success.
-    Returns {"error": "...", "message": "..."} on failure.
+    Returns {"error": "...", "message": "..."} on validation or archival failure.
     """
     if not name.strip():
         return {"error": "invalid_name", "message": "Name cannot be empty"}
@@ -34,17 +44,17 @@ def dd_archive(
             "message": "Name must not contain path separators",
         }
 
-    # Normalize name
-    name = name.removesuffix(".md")
-    if not name.startswith(DD_PREFIX):
-        name = f"{DD_PREFIX}{name}"
-    filename = f"{name}.md"
+    try:
+        slug = dd_bundle_slug(name)
+    except ValueError as exc:
+        return {"error": "invalid_name", "message": str(exc)}
 
-    source = workspace_root / DESIGNS_PENDING_DIR / filename
+    source_dir = workspace_root / DESIGNS_PENDING_DIR / slug
+    source = source_dir / DD_FILENAME
     if not source.exists():
         return {
             "error": "not_found",
-            "message": f"Design document not found in pending: {filename}",
+            "message": f"Design document not found in pending: {slug}/{DD_FILENAME}",
         }
 
     # Validate DD is parseable
@@ -53,9 +63,6 @@ def dd_archive(
         parse_dd(markdown)
     except (ValueError, OSError) as exc:
         return {"error": "parse_error", "message": str(exc)}
-
-    # Extract slug from filename: DD-{slug}.md
-    slug = name.removeprefix(DD_PREFIX)
 
     # Check for linked plans still in pending
     pending_dir = workspace_root / PLANS_PENDING_DIR
@@ -79,8 +86,8 @@ def dd_archive(
         pattern = f"TASK-{slug}-*.md"
         completed_plans.extend(plan_file.name for plan_file in completed_dir.glob(pattern))
 
-    # Also check parts directory for plan names
-    parts_readme = workspace_root / f"artifacts/designs/parts/{slug}/README.md"
+    # Check the bundle README for linked plan names.
+    parts_readme = source_dir / "README.md"
     if parts_readme.exists():
         try:
             readme_text = parts_readme.read_text(encoding="utf-8")
@@ -117,16 +124,21 @@ def dd_archive(
 
     dest_dir = workspace_root / DESIGNS_COMPLETED_DIR
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / filename
-    shutil.move(str(source), str(dest))
+    dest = dest_dir / slug
+    if dest.exists():
+        return {
+            "error": "already_exists",
+            "message": f"Completed design document already exists: {DESIGNS_COMPLETED_DIR}/{slug}",
+        }
+    shutil.move(str(source_dir), str(dest))
 
     import json as _json
 
-    rel_path = f"{DESIGNS_COMPLETED_DIR}/{filename}"
+    rel_path = f"{DESIGNS_COMPLETED_DIR}/{slug}/{DD_FILENAME}"
     return {
         "output": _json.dumps({"archived": True, "path": rel_path, "linked_plans_completed": completed_plans}),
         "title": "Archive DD",
-        "metadata": {"target": name},
+        "metadata": {"target": f"DD-{slug}"},
     }
 
 

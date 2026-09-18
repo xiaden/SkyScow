@@ -42,8 +42,8 @@ All phases of this plan are complete. Review the full implementation for quality
 
 Also include:
 - Target plan: `artifacts/plans/pending/TASK-{feature}-{letter}-*.md`
-- Contracts ledger: `artifacts/designs/parts/{feature}/CONTRACTS.md`
-- Feature parts README: `artifacts/designs/parts/{feature}/README.md`
+- Contracts ledger: `artifacts/designs/pending/{feature}/CONTRACTS.md`
+- Feature parts README: `artifacts/designs/pending/{feature}/README.md`
 - This review protocol file
 
 ## Plan Content

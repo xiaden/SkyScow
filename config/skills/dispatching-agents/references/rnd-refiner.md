@@ -35,8 +35,8 @@ Do NOT design the feature yourself — orchestrate the adversarial pipeline.
 Requirements: [user requirements or path to requirements doc]
 Librarian briefing: [paste briefing or "see attached context"]
 Prior decisions to respect: [key constraints]
-Output: adversarial log in artifacts/designs/process/ plus the input skeleton in
-artifacts/designs/pending/. RnD-DDAuthor writes the final DD later.
+Output: root-level ADVERSARIAL.md and DD.md in the per-DD bundle under
+artifacts/designs/pending/{slug}/. RnD-DDAuthor writes the final DD later.
 ```
 
 ## Required Fields

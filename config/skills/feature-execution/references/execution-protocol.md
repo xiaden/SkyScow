@@ -76,8 +76,8 @@ If Phase 1, write: "This is the first phase. No prior work."}
  | Context | Source | Purpose |
  | --- | --- | --- |
  | Target plan | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` | Phase boundaries, step descriptions, what NOT to implement yet |
- | Contracts ledger | `artifacts/designs/parts/{feature}/CONTRACTS.md` | Method signatures to call or create — prevents guessing |
- | Feature parts README | `artifacts/designs/parts/{feature}/README.md` | Execution rounds, dependency order, scope boundaries |
+ | Contracts ledger | `artifacts/designs/pending/{feature}/CONTRACTS.md` | Method signatures to call or create — prevents guessing |
+ | Feature parts README | `artifacts/designs/pending/{feature}/README.md` | Execution rounds, dependency order, scope boundaries |
  | This prompt template | `{execution_protocol_file}` | Reference for constructing the subagent prompt |
  | **Layer instructions — include ALL that apply to this phase:** | | |
  | Interfaces layer | `{interfaces_instructions_file}` | Route handlers, auth, data-validation-only rule |

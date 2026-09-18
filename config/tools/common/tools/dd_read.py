@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from ..helpers.dd_md import (
-    DD_PREFIX,
+    DD_FILENAME,
+    dd_bundle_slug,
     DESIGNS_COMPLETED_DIR,
     DESIGNS_PENDING_DIR,
     parse_dd,
@@ -23,18 +24,13 @@ def _resolve_dd_path(name: str, workspace_root: Path) -> tuple[Path | None, str]
 
     Returns (path_or_none, location_label).
     """
-    # Normalize name
-    if name.endswith(".md"):
-        name = name[:-3]
-    if not name.startswith(DD_PREFIX):
-        name = f"{DD_PREFIX}{name}"
-    filename = f"{name}.md"
+    slug = dd_bundle_slug(name)
 
-    pending = workspace_root / DESIGNS_PENDING_DIR / filename
+    pending = workspace_root / DESIGNS_PENDING_DIR / slug / DD_FILENAME
     if pending.exists():
         return pending, "pending"
 
-    completed = workspace_root / DESIGNS_COMPLETED_DIR / filename
+    completed = workspace_root / DESIGNS_COMPLETED_DIR / slug / DD_FILENAME
     if completed.exists():
         return completed, "completed"
 
@@ -62,7 +58,10 @@ def dd_read(
             "message": "Name must not contain path separators",
         }
 
-    dd_path, location = _resolve_dd_path(name, workspace_root)
+    try:
+        dd_path, location = _resolve_dd_path(name, workspace_root)
+    except ValueError as exc:
+        return {"error": "invalid_name", "message": str(exc)}
     if dd_path is None:
         return {
             "error": "dd_not_found",

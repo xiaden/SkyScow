@@ -22,7 +22,7 @@ Review the implementation for plan [PLAN_PATH].
 
 Context files to read:
 - [PLAN_PATH]  — the plan
-- [DESIGN_DOC_PATH]  — design document
+- [DESIGN_DOC_PATH]  — design document (for example, `artifacts/designs/pending/auth/DD.md`)
 - [CONTRACTS_PATH]  — contracts ledger (if multi-part feature)
 - [AUTHORITATIVE_REQUEST] — verbatim original user request and requirement ledger
 
@@ -42,8 +42,8 @@ QA-TestAnalyzer and QA-DocsAnalyzer each run when their canonical applicability 
 |-------|-------------|---------|
 | `[PLAN_PATH]` | Path to the plan file | `artifacts/plans/pending/TASK-auth-A-login.md` |
 | `plan` | Plan identifier | `TASK-auth-A-login` |
-| `designDoc` | Path to design document | `artifacts/designs/pending/auth-design.md` |
-| `contractsPath` | Path to contracts ledger or "N/A" | `artifacts/designs/parts/auth/CONTRACTS.md` |
+| `designDoc` | Path to design document | `artifacts/designs/pending/auth/DD.md` |
+| `contractsPath` | Path to contracts ledger or "N/A" | `artifacts/designs/pending/auth/CONTRACTS.md` |
 
 ## Expected Output
 

@@ -196,7 +196,7 @@ Review plan TASK-{feature}-{letter}-{title} (Round {N}).
 Use plan_read("TASK-{feature}-{letter}-{title}") to load the plan.
 
 Context:
-- artifacts/designs/parts/{feature}/CONTRACTS.md  (contracts)
+- artifacts/designs/pending/{feature}/CONTRACTS.md  (contracts)
 - {layer_instructions_file}  (layer rules)
 
 Task:
@@ -499,4 +499,4 @@ DONE means verified completion — not "workers were dispatched."
 
 ## Lifecycle and Gate Enforcement
 
-Before dispatching any worker, perform the startup lifecycle sweep: fully checked plans must be archived or explicitly marked `complete, awaiting QA`; reject duplicate basenames across `pending/` and `completed/` and stray backup files. For a group of six or more plans, verify the current recorded `Exec-PlanGate` `PASS`; if missing, stale, or non-PASS, fail closed. For five or fewer plans, the gate is not required; if invoked, it must record `NOT_REQUIRED`, and a missing or stale result is not equivalent. Exec-Manager verifies the gate result and never spawns the gate. Do not dispatch superseded plans. After QA passes for the family, enforce archival of every plan and the DD, generation of `COMPLETION.md`, and assertion that no feature files remain in `pending/` or `designs/parts/`.
+Before dispatching any worker, perform the startup lifecycle sweep: fully checked plans must be archived or explicitly marked `complete, awaiting QA`; reject duplicate basenames across `pending/` and `completed/` and stray backup files. For a group of six or more plans, verify the current recorded `Exec-PlanGate` `PASS`; if missing, stale, or non-PASS, fail closed. For five or fewer plans, the gate is not required; if invoked, it must record `NOT_REQUIRED`, and a missing or stale result is not equivalent. Exec-Manager verifies the gate result and never spawns the gate. Do not dispatch superseded plans. After QA passes for the family, archive the completed plan files. For a DD bundle, use the registered `dd_archive` agentic tool; DD completion is authoritative when its `DD.md` has `**Status:** Completed`, no `COMPLETION.md` is generated or required, and an ordinary move failure may leave the completed bundle in `artifacts/designs/pending/{slug}/` for retry. Do not assert cleanup of the obsolete `artifacts/designs/parts/` location.

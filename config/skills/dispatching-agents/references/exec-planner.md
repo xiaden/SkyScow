@@ -76,8 +76,8 @@ Amend plan TASK-{feature}-{letter}-{title}.
 
 Context files:
 - artifacts/plans/pending/TASK-{feature}-{letter}-{title}.md  (existing plan)
-- artifacts/designs/parts/{feature}/CONTRACTS.md
-- artifacts/designs/parts/{feature}/README.md
+- artifacts/designs/pending/{feature}/CONTRACTS.md
+- artifacts/designs/pending/{feature}/README.md
 
 task:
   type: AMEND
@@ -107,8 +107,8 @@ Reorder plans for feature {feature}.
 
 Context files:
 - artifacts/plans/pending/  (all plan files for this feature)
-- artifacts/designs/parts/{feature}/CONTRACTS.md
-- artifacts/designs/parts/{feature}/README.md
+- artifacts/designs/pending/{feature}/CONTRACTS.md
+- artifacts/designs/pending/{feature}/README.md
 
 task:
   type: REORDER

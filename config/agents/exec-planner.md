@@ -187,9 +187,9 @@ summary: "Created TASK-{feature}-{letter}-{title}.md with {N} phases, {M} steps"
 artifacts:
   - path: "artifacts/plans/pending/TASK-{feature}-{letter}-{title}.md"
     action: created | modified
-  - path: "artifacts/designs/parts/{feature}/CONTRACTS.md"
+  - path: "artifacts/designs/pending/{feature}/CONTRACTS.md"
     action: modified
-  - path: "artifacts/designs/parts/{feature}/README.md"
+  - path: "artifacts/designs/pending/{feature}/README.md"
     action: modified  # If dependency changes
 validation:
   planRead: PASS  # plan_read succeeded

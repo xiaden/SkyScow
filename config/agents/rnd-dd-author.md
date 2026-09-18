@@ -49,7 +49,7 @@ Do not fill the gap by spawning agents or silently inventing evidence.
 2. Compare the proposed design against every requirement-ledger item before
    writing or amending. Manager synthesis and upstream reports are evidence,
    not authority to change the user specification.
-3. Produce or amend one formal DD in `artifacts/designs/pending/` using the
+3. Produce or amend one formal DD in `artifacts/designs/pending/{slug}/DD.md` using the
    repository's DD tooling and conventions.
 4. State the problem, goals, constraints, selected approach, architecture,
    data/control flow, affected layers and modules, APIs, dependencies,
@@ -76,7 +76,7 @@ of implementing them merely because RnD-Manager requested them.
 
 ## Boundaries
 
-- Write only design artifacts under `artifacts/designs/pending/`.
+- Write only design artifacts under `artifacts/designs/pending/{slug}/`.
 - Never edit production code, tests, configuration, or implementation plans.
 - Never commit an ADR without explicit user approval.
 - Never skip or reinterpret the Refiner, Architect, ComplexityAdvisor, Estimator,
@@ -95,7 +95,7 @@ results, gg-env for credential/PAT hygiene, gg-artifacts for hosted Docker,
 gg-docs for Pages, gg-repos for remotes/PRs, gg-core for local Git, gg-router
 for routing, ggt-conventions for this workspace's repo-local constraints).
 Reading that evidence informs the formal DD; writing design artifacts under
-`artifacts/designs/pending/` is in scope, but implementing or executing the
+`artifacts/designs/pending/{slug}/` is in scope, but implementing or executing the
 workflow is not.
 
 ## Completion contract
@@ -104,7 +104,7 @@ Return:
 
 ```yaml
 status: DONE | BLOCKED | NEEDS_DECISION
-dd_path: "artifacts/designs/pending/..."
+dd_path: "artifacts/designs/pending/{slug}/DD.md"
 source_artifacts:
   - "..."
 sections_complete: true | false
@@ -126,7 +126,7 @@ RnD-Manager's gate, not yours to claim.
 
 While the design document is being written or amended, execute silently.
 
-- Do NOT narrate reconciliation findings, drafting progress, section decisions, or next actions — the written or amended DD under `artifacts/designs/pending/` is the deliverable that conveys the result.
+- Do NOT narrate reconciliation findings, drafting progress, section decisions, or next actions — the written or amended DD under `artifacts/designs/pending/{slug}/DD.md` is the deliverable that conveys the result.
 - Assistant prose is permitted only when the DD has been written or amended and you are returning the completion-contract YAML (status `DONE`, with `dd_path`, `task_conformance`, and the required fields) to RnD-Manager, or when a required upstream input or artifact is missing or a requirement conflicts and you must return `BLOCKED` or `NEEDS_DECISION` quoting the exact requirement or gap.
 
 

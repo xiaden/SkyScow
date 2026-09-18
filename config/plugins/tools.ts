@@ -237,7 +237,7 @@ const tools = {
   }),
 
   dd_read: tool({
-    description: "Read and parse a Design Document.",
+    description: "Read and parse a Design Document bundle, preferring pending/{slug}/DD.md before completed/{slug}/DD.md.",
     args: {
       name: requiredString("DD name"),
     },
@@ -247,7 +247,7 @@ const tools = {
   }),
 
   dd_create: tool({
-    description: "Create a new Design Document in artifacts/designs/pending/.",
+    description: "Create a new Design Document bundle in artifacts/designs/pending/{slug}/ with root-level DD.md.",
     args: {
       title: requiredString("Title"),
       slug: requiredString("URL-safe slug"),
@@ -268,7 +268,7 @@ const tools = {
   }),
 
   dd_archive: tool({
-    description: "Archive a design document from pending to completed.",
+    description: "Archive a pending DD bundle by updating DD.md to Completed and moving pending/{slug}/ to completed/{slug}/ after linked plans are complete.",
     args: {
       name: requiredString("DD name"),
     },

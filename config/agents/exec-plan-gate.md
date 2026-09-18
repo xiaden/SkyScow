@@ -71,9 +71,9 @@ permission:
 ```yaml
 task:
   feature: "{feature-slug}"
-  designDoc: "artifacts/designs/pending/{feature}-design.md"
-  contracts: "artifacts/designs/parts/{feature}/CONTRACTS.md"
-  readme: "artifacts/designs/parts/{feature}/README.md"
+  designDoc: "artifacts/designs/pending/{feature}/DD.md"
+  contracts: "artifacts/designs/pending/{feature}/CONTRACTS.md"
+  readme: "artifacts/designs/pending/{feature}/README.md"
   plans:
     - "artifacts/plans/pending/TASK-{feature}-A-{title}.md"
     - "artifacts/plans/pending/TASK-{feature}-B-{title}.md"

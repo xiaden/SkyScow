@@ -9,9 +9,9 @@ Pipeline for implementing a set of feature plans produced by `decomposing-design
 
 ```
 Plans + Ledger → Dispatch Exec-Manager → [internal: phases/review/fix] → Update Ledger → Next Plan → Archive
-                        ↓                              ↓                      ↓                         ↓
-                 One per plan              Exec-Manager handles           Nyx updates         COMPLETION.md
-                                           execution lifecycle            CONTRACTS.md          → artifacts/plans/completed/
+                         ↓                              ↓                      ↓                         ↓
+                  One per plan              Exec-Manager handles           Nyx updates         DD status + plan archival
+                                            execution lifecycle            CONTRACTS.md          → completed bins
 ```
 
 ### Execution Decision Flowchart
@@ -91,8 +91,8 @@ _(Govern clean-up after feature completion)_
 Before starting execution:
 
 1. Feature plans exist: `artifacts/plans/pending/TASK-{feature}-{A..Z}-*.md`
-2. Parts README exists: `artifacts/designs/parts/{feature}/README.md`
-3. Contracts ledger exists: `artifacts/designs/parts/{feature}/CONTRACTS.md`
+2. Parts README exists: `artifacts/designs/pending/{feature}/README.md`
+3. Contracts ledger exists: `artifacts/designs/pending/{feature}/CONTRACTS.md`
 4. All plans pass `plan_read` (schema-valid)
 
 If any are missing, run `decomposing-design-documents` first.
@@ -143,9 +143,9 @@ Fix cycles (up to 2 rounds) resolve issues before DONE. 3+ rounds → ESCALATE.
 # Dispatch to Exec-Manager agent
 contextFiles:
   - artifacts/plans/pending/TASK-{feature}-{letter}-{title}.md    # The plan
-  - artifacts/designs/parts/{feature}/CONTRACTS.md      # Current contracts
-  - artifacts/designs/parts/{feature}/README.md         # Feature structure
-  - artifacts/designs/pending/DD-{feature}.md               # Design doc
+  - artifacts/designs/pending/{feature}/CONTRACTS.md      # Current contracts
+  - artifacts/designs/pending/{feature}/README.md         # Feature structure
+  - artifacts/designs/pending/{feature}/DD.md               # Design doc
   - {layer_instructions_file}  # Per layer in this plan
 
 task:
@@ -179,6 +179,10 @@ For details on how Exec-Manager constructs subagent prompts and handles review i
 
 ---
 
+## Internal DD Tool Usage
+
+DD operations are performed by internal agents through the registered OpenCode plugin tools `dd_create`, `dd_read`, and `dd_archive`. `dd_create` writes `artifacts/designs/pending/{slug}/DD.md`; `dd_read` accepts a slug or conventional DD name and prefers the pending bundle before the completed bundle; `dd_archive` validates linked plans, sets the DD status to `Completed`, and moves the bundle when possible. Direct `python3 -m common.tools.<module>` invocation is only the focused test boundary. These tools do not introduce generic artifact writes, arbitrary artifact filesystem access, or a user-facing CLI.
+
 ## Phase 3: Update Ledger
 
 After Exec-Manager returns DONE:
@@ -202,9 +206,9 @@ Proceed to the next plan in dependency order. Return to Phase 2.
 
 ## Phase 5: Archive Feature
 
-After all plans' Exec-Managers return DONE, the ledger is updated, and the user is informed of any deviations — archive the feature.
+After all plans' Exec-Managers return DONE, the ledger is updated, and the user is informed of any deviations — archive the feature. DD completion is represented by the DD's `**Status:** Completed` metadata; a completed bundle may remain under `artifacts/designs/pending/{feature}/` if its move is pending or unsuccessful. No `COMPLETION.md` is generated or required.
 
-See [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) for the full completion manifest template, move protocol, verification steps, and standalone plan handling.
+See [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) for the DD bundle move protocol, verification steps, and standalone plan handling.
 
 ---
 
@@ -212,8 +216,8 @@ See [references/archival-protocol.md](file:///home/opencode/.config/opencode/ski
 
 When starting a new session mid-feature:
 
-1. Read `artifacts/designs/parts/{feature}/README.md` — execution rounds
-2. Read `artifacts/designs/parts/{feature}/CONTRACTS.md` — implemented contracts
+1. Read `artifacts/designs/pending/{feature}/README.md` — execution rounds
+2. Read `artifacts/designs/pending/{feature}/CONTRACTS.md` — implemented contracts
 3. For each plan, run `plan_read` to check completion status
 4. Identify state:
    - **Plan fully complete + ledger updated** → skip it (CONTRACTS.md has entries)
@@ -236,9 +240,10 @@ Before declaring feature execution complete:
 - [ ] Security review applies per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); surface list per `/home/opencode/.config/opencode/skills/security-review/SKILL.md` **→ Security-sensitive surfaces covered**
 - [ ] No orphaned fix plans with incomplete steps **→ Clean state**
 - [ ] User informed of any design deviations **→ Alignment**
-- [ ] COMPLETION.md generated in `{feature}/` **→ Audit trail**
+- [ ] DD status is `Completed`; no completion manifest is generated or required **→ Authoritative DD completion state**
 - [ ] All artifacts moved to `artifacts/plans/completed/` **→ Clean working directory**
-- [ ] No feature files remain in `artifacts/plans/pending/` or `artifacts/designs/parts/` **→ Verified clean state**
+- [ ] No feature plan files remain in `artifacts/plans/pending/`; standalone plan archival is complete **→ Verified plan cleanup**
+- [ ] If the DD bundle move succeeded, no feature files remain in `artifacts/designs/pending/{feature}/`; if the move is pending or unsuccessful, the completed DD may remain there for retry **→ Bundle cleanup is optional after authoritative completion status**
 
 ---
 
@@ -246,7 +251,7 @@ Before declaring feature execution complete:
 
 - [references/execution-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/execution-protocol.md) — Subagent dispatch patterns, prompt templates, and context injection rules (used internally by Exec-Manager)
 - [references/review-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/review-protocol.md) — Review dispatch protocol, checklist, scope classification, and fix cycle limits (used internally by Exec-Manager)
-- [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) — Completion manifest template, artifact move protocol, and verification steps (used by Nyx in Phase 5)
+- [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) — DD completion-status, bundle-move protocol, and verification steps (used by Nyx in Phase 5)
 
 
 ## Lifecycle Enforcement Gates
@@ -263,8 +268,7 @@ Before starting a feature family, inspect every plan status. Fully checked plans
 
 ### Strengthened Rule 7: Archive the Whole Feature
 
-After all plans pass QA, archive every plan and the DD to `completed/`, generate `COMPLETION.md`, and assert that no feature files remain in `pending/` or `designs/parts/`. Do not report completion while any process artifact or handoff remains executable.
-
+After all plans pass QA, archive every plan and update the DD status to `Completed`. Use the registered internal `dd_archive` tool to move the complete DD bundle to `artifacts/designs/completed/{feature}/` when possible. The status remains authoritative if the move is pending or unsuccessful; do not generate or require `COMPLETION.md`, and do not report standalone plan archival as DD completion.
 ### CI Evidence Location
 
 CI-gating manifests and evidence must live in tracked repository paths, never under the gitignored `artifacts/` tree, and static YAML or manifest presence is never `CI_PASS`. The `LOCAL_PASS` / `LOCAL_UNAVAILABLE` / `CI_DEFERRED` / `CI_PASS` labels are owned by `/home/opencode/.config/opencode/skills/ci-lint-test-gates/SKILL.md`; this section references that canonical owner. Preserve the label recorded by the producing gate and never relabel local or deferred evidence as `CI_PASS`.

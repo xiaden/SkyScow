@@ -103,7 +103,7 @@ contextFiles:
 
 Create TWO files:
 
-**1. Design Document (skeleton):** `artifacts/designs/pending/DD-{slug}.md`
+**1. Design Document (skeleton):** `artifacts/designs/pending/{slug}/DD.md`
 
 This file contains ONLY the input from Manager. The adversarial agents do NOT write to this file. DDAuthor will distill decisions into it later.
 
@@ -123,7 +123,7 @@ This file contains ONLY the input from Manager. The adversarial agents do NOT wr
 {from Manager input}
 ```
 
-**2. Adversarial Log:** `artifacts/designs/process/ADVERSARIAL-{slug}.md`
+**2. Adversarial Log:** `artifacts/designs/pending/{slug}/ADVERSARIAL.md`
 
 This is the shared scratch pad. All 8 turns append here. This file carries the full fight — approaches, critiques, refinements, risks, open questions. DDAuthor reads it to distill decisions, but the raw debate never appears in the DD.
 
@@ -131,7 +131,7 @@ This is the shared scratch pad. All 8 turns append here. This file carries the f
 # Adversarial Design Log: {Feature Title}
 
 *This file records the full adversarial refinement process.
-The design document (DD-{slug}.md) contains distilled decisions, not this raw debate.*
+The design document (DD.md) contains distilled decisions, not this raw debate.*
 
 ---
 *Sections below are appended by design agents during adversarial refinement.*
@@ -320,7 +320,7 @@ Before reporting DONE, verify:
 1. All 8 turns completed with non-empty, substantive output at each step
 2. At least one approach was genuinely challenged (Counter found a valid issue the Ideator addressed)
 3. Every citation in the final document can be followed to a real source
-4. The adversarial log (`ADVERSARIAL-{slug}.md`) contains the full adversarial history (approaches, critiques, responses, outcomes). The design document (`DD-{slug}.md`) remains a skeleton with only the Manager's input.
+4. The bundle-root `ADVERSARIAL.md` contains the full adversarial history (approaches, critiques, responses, outcomes). The bundle-root `DD.md` remains a skeleton with only the Manager's input.
 5. No turn was skipped, merged, or replaced with a generic acknowledgment
 
 ## Final Validation
@@ -364,8 +364,8 @@ Does the document tell a coherent story?
 ```yaml
 status: DONE | BLOCKED | QUALITY_CONCERN
 summary: "Adversarial design complete: {title}"
-design_document: "artifacts/designs/pending/DD-{slug}.md"
-adversarial_log: "artifacts/designs/process/ADVERSARIAL-{slug}.md"
+design_document: "artifacts/designs/pending/{slug}/DD.md"
+adversarial_log: "artifacts/designs/pending/{slug}/ADVERSARIAL.md"
 
 rounds_completed: 4
 turns_completed: 8

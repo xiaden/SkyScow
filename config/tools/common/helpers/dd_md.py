@@ -33,6 +33,7 @@ SLUG_PATTERN: re.Pattern[str] = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
 DD_PREFIX = "DD-"
 DESIGNS_PENDING_DIR = "artifacts/designs/pending"
 DESIGNS_COMPLETED_DIR = "artifacts/designs/completed"
+DD_FILENAME = "DD.md"
 
 # --- Regex patterns ---
 
@@ -250,8 +251,18 @@ def parse_dd(markdown: str) -> DesignDocument:
 
 
 def make_dd_filename(slug: str) -> str:
-    """Generate the filename for a DD from its slug."""
+    """Generate the legacy filename for a DD from its slug."""
     return f"{DD_PREFIX}{slug}.md"
+
+
+def dd_bundle_slug(name: str) -> str:
+    """Return a validated slug from a slug or conventional DD filename."""
+    normalized = name.removesuffix(".md")
+    normalized = normalized.removeprefix(DD_PREFIX)
+    error = validate_slug(normalized)
+    if error:
+        raise ValueError(error)
+    return normalized
 
 
 def today_iso() -> str:

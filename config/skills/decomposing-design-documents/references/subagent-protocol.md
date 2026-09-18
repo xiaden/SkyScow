@@ -27,7 +27,7 @@ Create an implementation plan for:
 {Part title}: {3-5 sentence scope from README}
 
 ## Design Document
-Read the full design context from: `artifacts/designs/pending/DD-{feature}.md`
+Read the full design context from: `artifacts/designs/pending/{feature}/DD.md`
 Focus on sections relevant to this part.
 
 ## Contracts from Prior Plans

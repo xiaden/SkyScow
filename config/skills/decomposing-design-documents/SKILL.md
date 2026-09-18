@@ -18,10 +18,10 @@ Requirements → [RnD-Manager DD workflow → DDAuthor] → Design Doc → Decom
 
 | Phase | Action | Output |
  | --- | --- | --- |
- | 0 (Optional) | Dispatch DDAuthor if no design doc exists | `artifacts/designs/pending/DD-{feature}.md` |
+ | 0 (Optional) | Dispatch DDAuthor if no design doc exists | `artifacts/designs/pending/{feature}/DD.md` |
  | 0.5 | DD Acceptance Gate — confirm accepted status and compare the ledger against the verbatim user request | Recorded comparison; `REQUIREMENT_DRIFT` on omission/weakening |
- | 1 | Decompose design doc into lettered parts | `artifacts/designs/parts/{feature}/README.md` |
- | 2 | Create contracts ledger | `artifacts/designs/parts/{feature}/CONTRACTS.md` |
+ | 1 | Decompose design doc into lettered parts | `artifacts/designs/pending/{feature}/README.md` |
+ | 2 | Create contracts ledger | `artifacts/designs/pending/{feature}/CONTRACTS.md` |
  | 3 | Dispatch Exec-Planner per part, validate, update ledger, close contract ownership | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` |
  | 4 | Cross-validate all plans for gaps and conflicts | Fixes applied to plan files |
  | 5 | Supersession sweep — retire superseded DDs/plans with back-pointers | Updated `Status`, back-pointers, clean `pending/` |
@@ -77,7 +77,7 @@ _(Ensure plans account for the implementation workflow selected by the changed s
 **Entry criteria:** Requirements exist but no design document has been created yet.
 **Exit criteria:** Design document created, reviewed by user, and ready for decomposition.
 
-**Skip this phase if:** A complete and reviewed design document already exists at `artifacts/designs/pending/DD-{feature}.md`
+**Skip this phase if:** A complete and reviewed design document already exists at `artifacts/designs/pending/{feature}/DD.md`
 
 If the user has requirements but no design doc, dispatch RnD-Manager for its
 complete formal DD workflow. Do not dispatch DDAuthor directly; it is the final
@@ -104,7 +104,7 @@ task:
 
 | Status | Action |
 | --- | --- |
-| `DONE` | Design doc created at `artifacts/designs/pending/DD-{feature}.md`. Present to user for review; once approved, proceed to Phase 1. |
+| `DONE` | Design doc created at `artifacts/designs/pending/{feature}/DD.md`. Present to user for review; once approved, proceed to Phase 1. |
 | `NEEDS_DECISION` | Present Manager's questions to the user. Collect answers. Re-dispatch with answers appended to requirements. Do not proceed to Phase 1 until `DONE` is returned. |
 | `BLOCKED` | Critical information is missing or a DD stage failed. Stop execution and discuss the blocker with the user. Do not re-dispatch until the blocker is resolved. |
 
@@ -112,11 +112,11 @@ task:
 
 ## Phase 1: Decompose
 
-**Entry criteria:** A complete and reviewed design document exists at `artifacts/designs/pending/DD-{feature}.md`.
-**Exit criteria:** `artifacts/designs/parts/{feature}/README.md` created and reviewed by user.
+**Entry criteria:** A complete and reviewed design document exists at `artifacts/designs/pending/{feature}/DD.md`.
+**Exit criteria:** `artifacts/designs/pending/{feature}/README.md` created and reviewed by user.
 
-**Input:** Design document (e.g., `artifacts/designs/pending/DD-{feature}.md`)
-**Output:** `artifacts/designs/parts/{feature}/README.md`
+**Input:** Design document (e.g., `artifacts/designs/pending/{feature}/DD.md`)
+**Output:** `artifacts/designs/pending/{feature}/README.md`
 
 Read the design doc. Identify natural part boundaries:
 
@@ -132,7 +132,7 @@ Read the design doc. Identify natural part boundaries:
 
 Assign letters (A, B, C...) in topological order. Group into execution rounds.
 
-Create `artifacts/designs/parts/{feature}/README.md`:
+Create `artifacts/designs/pending/{feature}/README.md`:
 
 ```markdown
 # {Feature} — Implementation Parts
@@ -161,7 +161,7 @@ Round 3: F (depends on Round 2 outputs)
 Detailed scope: See `PART-A-scope.md`
 ```
 
-**Per-part scope documents.** Each part gets a detailed scope document in `artifacts/designs/parts/{feature}/PART-{letter}-scope.md` containing file paths, contracts, integration details, and testing requirements. These specs absorb implementation detail that does not belong in the DD.
+**Per-part scope documents.** Each part gets a detailed scope document in `artifacts/designs/pending/{feature}/PART-{letter}-scope.md` containing file paths, contracts, integration details, and testing requirements. These specs absorb implementation detail that does not belong in the DD.
 
 Present the README to the user for review before proceeding.
 
@@ -177,10 +177,10 @@ If either fails, extract implementation details to part scope documents before p
 
 ## Phase 2: Initialize Contracts Ledger
 
-**Entry criteria:** `artifacts/designs/parts/{feature}/README.md` exists and has been reviewed.
-**Exit criteria:** `artifacts/designs/parts/{feature}/CONTRACTS.md` created with architecture rules and empty contract sections.
+**Entry criteria:** `artifacts/designs/pending/{feature}/README.md` exists and has been reviewed.
+**Exit criteria:** `artifacts/designs/pending/{feature}/CONTRACTS.md` created with architecture rules and empty contract sections.
 
-**Output:** `artifacts/designs/parts/{feature}/CONTRACTS.md`
+**Output:** `artifacts/designs/pending/{feature}/CONTRACTS.md`
 
 The contracts ledger accumulates verified facts from completed plans. Downstream Exec-Planner subagents receive it as context, replacing guesswork with concrete signatures.
 
@@ -198,7 +198,7 @@ Initial content:
 
 ## Phase 3: Plan in Rounds
 
-**Entry criteria:** Both `README.md` and `CONTRACTS.md` exist under `artifacts/designs/parts/{feature}/`.
+**Entry criteria:** Both `README.md` and `CONTRACTS.md` exist under `artifacts/designs/pending/{feature}/`.
 **Exit criteria:** All plans validated, `CONTRACTS.md` updated after each plan, all rounds complete.
 
 For each execution round from the README:
@@ -210,9 +210,9 @@ For each part in the round, dispatch the Exec-Planner agent. See [references/sub
 ```yaml
 # Dispatch to Exec-Planner agent (see .opencode/agents/exec-planner.md)
 contextFiles:
-  - artifacts/designs/pending/DD-{feature}.md              # Design doc
-  - artifacts/designs/parts/{feature}/README.md            # Parts breakdown
-  - artifacts/designs/parts/{feature}/CONTRACTS.md         # Current contracts
+  - artifacts/designs/pending/{feature}/DD.md              # Design doc
+  - artifacts/designs/pending/{feature}/README.md            # Parts breakdown
+  - artifacts/designs/pending/{feature}/CONTRACTS.md         # Current contracts
   - {layer_instructions_file}          # Per layer in this part
 
 task:
@@ -314,8 +314,8 @@ Large features will exceed a single session. The skill is designed for this.
 
 **The contracts ledger IS the continuity artifact.** When resuming in a new session:
 
-1. Read `artifacts/designs/parts/{feature}/README.md` — execution rounds
-2. Read `artifacts/designs/parts/{feature}/CONTRACTS.md` — all completed decisions
+1. Read `artifacts/designs/pending/{feature}/README.md` — execution rounds
+2. Read `artifacts/designs/pending/{feature}/CONTRACTS.md` — all completed decisions
 3. Check which plans exist in `artifacts/plans/pending/TASK-{feature}-*.md`
 4. Resume at the next incomplete round
 

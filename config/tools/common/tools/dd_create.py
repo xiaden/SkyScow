@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from ..helpers.dd_md import (
+    DD_FILENAME,
     DESIGNS_PENDING_DIR,
     DesignDocument,
     generate_dd,
-    make_dd_filename,
     today_iso,
     validate_slug,
     validate_status,
@@ -60,13 +60,12 @@ def dd_create(
         return {"error": "invalid_title", "message": "Title cannot be empty"}
 
     # Check target doesn't already exist
-    filename = make_dd_filename(slug)
-    target_dir = workspace_root / DESIGNS_PENDING_DIR
-    target_path = target_dir / filename
+    target_dir = workspace_root / DESIGNS_PENDING_DIR / slug
+    target_path = target_dir / DD_FILENAME
     if target_path.exists():
         return {
             "error": "already_exists",
-            "message": f"Design document already exists: {DESIGNS_PENDING_DIR}/{filename}",
+            "message": f"Design document already exists: {DESIGNS_PENDING_DIR}/{slug}/{DD_FILENAME}",
         }
 
     # Build sections dict preserving order
@@ -109,7 +108,7 @@ def dd_create(
 
     import json as _json
 
-    rel_path = f"{DESIGNS_PENDING_DIR}/{filename}"
+    rel_path = f"{DESIGNS_PENDING_DIR}/{slug}/{DD_FILENAME}"
     return {
         "output": _json.dumps({"path": rel_path, "title": doc.title}),
         "title": "Create DD",
