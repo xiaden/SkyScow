@@ -1,27 +1,24 @@
 /**
- * ECC Plugin Hooks for OpenCode (trimmed)
+ * ECC Plugin Hooks for OpenCode (SkyScow-trimmed)
+ *
+ * This file follows the upstream ECC OpenCode hook where its behavior is useful,
+ * while retaining SkyScow's deliberate reduction of ECC's broader hook surface.
  *
  * Kept hooks:
- * - file.edited → change recording (powers changed-files tool)
- * - file.watcher.updated → external change recording
- * - session.idle → console.log audit + desktop notification
+ * - file.edited / file.watcher.updated → change recording
+ * - session.idle → incremental console.log audit + desktop notification
  * - session.deleted → cleanup
- * - shell.env → environment injection (PROJECT_ROOT, PACKAGE_MANAGER, DETECTED_LANGUAGES)
- * - permission.ask → auto-approve safe operations (reads, formatters, tests, read-only git)
+ * - shell.env → PROJECT_ROOT, PACKAGE_MANAGER, and language detection
+ * - permission.ask → auto-approve reads, formatters, and tests
  *
  * Custom tools:
  * - changed-files → session change tree with +/- indicators
  *
- * Removed (redundant with agent system / aft_inspect / lint rules):
- * - file.edited prettier auto-format (agents handle formatting)
- * - file.edited per-file console.log grep (duplicated by idle sweep)
- * - tool.execute.after tsc check (aft_inspect does this better)
- * - tool.execute.after PR logging (agents don't create PRs)
- * - tool.execute.before git push / doc warning / long cmd reminders (agents can't push; instructions cover the rest)
- * - session.created CLAUDE.md check (legacy Claude Code artifact)
- * - todo.updated progress logging (noise)
- * - dependency-analyzer tool (shallow — never ran real checks)
- * - profile gating system (all kept hooks run unconditionally)
+ * Removed from upstream ECC:
+ * - Git and package-manager auto-approval
+ * - automatic formatting and per-edit console.log checks
+ * - TypeScript checks, PR reminders, documentation warnings, and long-command reminders
+ * - session-created, todo, compaction, profile, and dependency-analyzer features
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
@@ -31,7 +28,6 @@ import {
   initStore,
   recordChange,
   clearChanges,
-  getChangedPaths,
 } from "./lib/changed-files-store.js"
 import changedFilesTool from "./lib/changed-files.js"
 
@@ -63,6 +59,7 @@ export const ECCHooksPlugin = async ({
   worktree,
 }: PluginInput) => {
   const worktreePath = worktree || directory
+  const editedFiles = new Set<string>()
   initStore(worktreePath)
 
   const resolvePath = (p: string): string =>
@@ -80,6 +77,7 @@ export const ECCHooksPlugin = async ({
 
     /** Records agent-initiated edits (powers changed-files tool) */
     "file.edited": async (event: { path: string }) => {
+      editedFiles.add(event.path)
       recordChange(event.path, "modified")
     },
 
@@ -89,28 +87,26 @@ export const ECCHooksPlugin = async ({
       if (event.type === "create" || event.type === "add") changeType = "added"
       else if (event.type === "delete" || event.type === "remove") changeType = "deleted"
       recordChange(event.path, changeType)
+      if (event.type === "change" && /\.(ts|tsx|js|jsx)$/.test(event.path)) {
+        editedFiles.add(event.path)
+      }
     },
 
     // ── Session Lifecycle ────────────────────────────────────────────────
 
-    /** Final console.log sweep across all changed files + desktop notification */
+    /** Incremental console.log audit across files edited since the last idle */
     "session.idle": async () => {
-      const changed = getChangedPaths()
-      if (changed.length === 0) return
-
-      const jsTsFiles = changed.filter(({ path: p }) =>
-        /\.(ts|tsx|js|jsx)$/.test(p)
-      )
+      if (editedFiles.size === 0) return
 
       let totalCount = 0
       const filesWithLogs: string[] = []
 
-      for (const { path: filePath } of jsTsFiles) {
+      for (const filePath of editedFiles) {
+        if (!/\.(ts|tsx|js|jsx)$/.test(filePath)) continue
+
         try {
-          const content = fs.readFileSync(resolvePath(filePath), "utf-8")
-          const count = content.split("\n").filter((line) =>
-            line.includes("console.log")
-          ).length
+          const result = await $`grep -c "console\\.log" ${resolvePath(filePath)} 2>/dev/null`.text()
+          const count = Number.parseInt(result.trim(), 10)
           if (count > 0) {
             totalCount += count
             filesWithLogs.push(filePath)
@@ -131,6 +127,8 @@ export const ECCHooksPlugin = async ({
         log("info", "[ECC] Audit passed: No console.log statements found")
       }
 
+      editedFiles.clear()
+
       // Desktop notification
       try {
         if (process.platform === "darwin") {
@@ -145,6 +143,7 @@ export const ECCHooksPlugin = async ({
 
     /** Clean up session state */
     "session.deleted": async () => {
+      editedFiles.clear()
       clearChanges()
     },
 
@@ -193,8 +192,7 @@ export const ECCHooksPlugin = async ({
 
     /**
      * Auto-approve safe operations to reduce permission friction.
-     * Categories: read-only tools, read-only git, formatters/linters,
-     * test runners, package manager info commands.
+     * Categories: read/search tools, formatters/linters, and test runners.
      */
     "permission.ask": async (event: PermissionEvent) => {
       try {
@@ -208,14 +206,6 @@ export const ECCHooksPlugin = async ({
         // Read/search tools
         if (["read", "glob", "grep", "search", "list"].includes(event.tool)) {
           return { approved: true, reason: "Read-only operation" }
-        }
-
-        // Read-only git
-        if (
-          event.tool === "bash" &&
-          /^git (diff|status|log|show|branch|stash list|remote -v)/.test(cmd)
-        ) {
-          return { approved: true, reason: "Read-only git" }
         }
 
         // Formatters + linters
@@ -232,14 +222,6 @@ export const ECCHooksPlugin = async ({
           /^(npm test|npx (vitest|jest|playwright|mocha)|pytest|go test|cargo test|bun test|dotnet test)/.test(cmd)
         ) {
           return { approved: true, reason: "Test execution" }
-        }
-
-        // Package manager info (read-only)
-        if (
-          event.tool === "bash" &&
-          /^(npm|pnpm|yarn|bun) (ls|list|outdated|audit|why|info|view|explain)/.test(cmd)
-        ) {
-          return { approved: true, reason: "Package manager info" }
         }
 
         // Let user decide
