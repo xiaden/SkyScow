@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from common.helpers.qa_round_records import (
+    identity_index_path,
     load_records,
     record_identity,
     record_path,
@@ -120,6 +121,23 @@ def test_write_returns_path_and_persists_before_return(workspace):
     path = workspace / returned["path"]
     assert path.exists()
     assert json.loads(path.read_text(encoding="utf-8")) == returned["record"]
+
+
+def test_incremental_identity_index_rebuilds_after_index_loss(workspace):
+    first = record(family="TASK-index")
+    assert "error" not in qa_record_write(first, workspace_root=workspace)
+    path = record_path(workspace, "TASK-index", 1, "qa-test-generator")
+    index = identity_index_path(path)
+    assert index.exists()
+    index.unlink()
+    duplicate = qa_record_write(first, workspace_root=workspace)
+    assert duplicate["error"] == "invalid_qa_record"
+    assert "duplicate" in duplicate["message"]
+    distinct = qa_record_write(
+        first | {"subject": {"kind": "behavior", "symbol": "second"}},
+        workspace_root=workspace,
+    )
+    assert "error" not in distinct
 
 
 def test_repeat_writes_retain_every_same_writer_record(workspace):

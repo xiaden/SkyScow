@@ -180,6 +180,16 @@ def record_identity(record: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def record_identity_key(record: dict[str, Any]) -> str:
+    """Serialize a record identity for indexed duplicate detection."""
+    return json.dumps(record_identity(record), ensure_ascii=False, separators=(",", ":"))
+
+
+def identity_index_path(path: Path) -> Path:
+    """Return the derived duplicate-identity index beside a JSONL history."""
+    return path.with_name(path.name + ".index.sqlite3")
+
+
 def validate_record(record: dict[str, Any]) -> dict[str, Any]:
     """Validate and normalize a terminal QA round record.
 
