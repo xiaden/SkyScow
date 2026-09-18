@@ -102,6 +102,49 @@ def test_terminal_schema_and_fixer_scope(workspace):
     assert "error" not in qa_record_write(record(writer="exec-fixer", family="TASK-fix"), workspace_root=workspace)
 
 
+def test_indexed_read_rebuilds_and_preserves_substring_filters(workspace):
+    first = record(family="TASK-index-read") | {
+        "subject": {"kind": "behavior", "symbol": "alpha"},
+        "source_ref": "finding-abc",
+    }
+    second = first | {
+        "subject": {"kind": "behavior", "symbol": "beta"},
+        "source_ref": "finding-xyz",
+    }
+    assert "error" not in qa_record_write(first, workspace_root=workspace)
+    assert "error" not in qa_record_write(second, workspace_root=workspace)
+    path = record_path(workspace, "TASK-index-read", 1, "qa-test-generator")
+    identity_index_path(path).unlink()
+    result = qa_record_read(
+        workspace_root=workspace,
+        task_family="TASK-index-read",
+        subject="bet",
+        source_ref="xyz",
+    )
+    assert "error" not in result
+    assert json.loads(result["output"])["records"] == [second]
+
+
+def test_read_missing_selected_history_is_empty(workspace):
+    result = qa_record_read(
+        workspace_root=workspace,
+        task_family="TASK-missing-round",
+        round=1,
+        writer="qa-test-generator",
+    )
+    assert "error" not in result
+    assert json.loads(result["output"])["records"] == []
+
+
+def test_incomplete_history_line_fails_closed(workspace):
+    path = record_path(workspace, "TASK-incomplete", 1, "qa-test-generator")
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(record(family="TASK-incomplete")), encoding="utf-8")
+    result = qa_record_read(workspace_root=workspace, task_family="TASK-incomplete")
+    assert result["error"] == "invalid_qa_history"
+    assert "incomplete" in result["message"]
+
+
 def test_missing_malformed_and_cross_family_history_fail_closed(workspace):
     result = qa_record_read(workspace_root=workspace, task_family="TASK-none")
     assert json.loads(result["output"])["records"] == []

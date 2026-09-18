@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -188,6 +189,103 @@ def record_identity_key(record: dict[str, Any]) -> str:
 def identity_index_path(path: Path) -> Path:
     """Return the derived duplicate-identity index beside a JSONL history."""
     return path.with_name(path.name + ".index.sqlite3")
+
+
+def synchronize_identity_index(
+    connection: sqlite3.Connection,
+    path: Path,
+    *,
+    task_family: str,
+    writer: str,
+) -> None:
+    """Create or advance the derived record index under a writer lock."""
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS records ("
+        "identity TEXT PRIMARY KEY, payload TEXT NOT NULL, "
+        "subject_text TEXT NOT NULL, decision TEXT NOT NULL, "
+        "source_kind TEXT NOT NULL, source_ref TEXT NOT NULL)"
+    )
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    )
+    # Indexes created by the first write-side optimization had a separate
+    # identities table. It is derived state, so discard that obsolete table
+    # and rebuild the single records index when encountered.
+    had_legacy_index = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'identities'"
+    ).fetchone()
+    if had_legacy_index:
+        connection.execute("DROP TABLE identities")
+
+    row = connection.execute(
+        "SELECT value FROM metadata WHERE key = 'indexed_offset'"
+    ).fetchone()
+    mtime_row = connection.execute(
+        "SELECT value FROM metadata WHERE key = 'indexed_mtime_ns'"
+    ).fetchone()
+    count_row = connection.execute(
+        "SELECT value FROM metadata WHERE key = 'indexed_count'"
+    ).fetchone()
+    current_stat = path.stat() if path.exists() else None
+    current_size = current_stat.st_size if current_stat is not None else 0
+    current_mtime_ns = current_stat.st_mtime_ns if current_stat is not None else 0
+    indexed_offset = int(row[0]) if row is not None else -1
+    indexed_mtime_ns = int(mtime_row[0]) if mtime_row is not None else -1
+    indexed_count = int(count_row[0]) if count_row is not None else -1
+    record_count = connection.execute("SELECT COUNT(*) FROM records").fetchone()[0]
+
+    if (
+        had_legacy_index
+        or indexed_offset < 0
+        or indexed_offset > current_size
+        or indexed_mtime_ns < 0
+        or indexed_count < 0
+        or indexed_count != record_count
+        or (indexed_offset == current_size and indexed_mtime_ns != current_mtime_ns)
+    ):
+        connection.execute("DELETE FROM records")
+        indexed_offset = 0
+        indexed_count = 0
+
+    if indexed_offset < current_size:
+        with path.open("rb") as stream:
+            stream.seek(indexed_offset)
+            tail = stream.read()
+        if tail and not tail.endswith(b"\n"):
+            raise ValueError("incomplete QA history line")
+        for raw_line in tail.splitlines():
+            if not raw_line.strip():
+                continue
+            checked = validate_record(json.loads(raw_line))
+            if checked["task_family"] != task_family or checked["writer"] != writer:
+                raise ValueError("cross-family or writer-mismatched history")
+            identity = record_identity_key(checked)
+            payload = json.dumps(checked, ensure_ascii=False, sort_keys=True)
+            connection.execute(
+                "INSERT INTO records(identity, payload, subject_text, decision, "
+                "source_kind, source_ref) VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    identity,
+                    payload,
+                    json.dumps(checked["subject"], sort_keys=True),
+                    checked["decision"],
+                    checked["source_kind"],
+                    checked["source_ref"],
+                ),
+            )
+            indexed_count += 1
+
+    for key, value in (
+        ("indexed_offset", current_size),
+        ("indexed_mtime_ns", current_mtime_ns),
+        ("indexed_count", indexed_count),
+    ):
+        connection.execute(
+            "INSERT INTO metadata(key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, str(value)),
+        )
+    connection.commit()
 
 
 def validate_record(record: dict[str, Any]) -> dict[str, Any]:

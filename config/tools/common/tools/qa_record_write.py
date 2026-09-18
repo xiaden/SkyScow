@@ -12,55 +12,11 @@ from ..helpers.qa_round_records import (
     identity_index_path,
     record_identity_key,
     record_path,
+    synchronize_identity_index,
     validate_record,
 )
 
 
-def _synchronize_identity_index(
-    connection: sqlite3.Connection,
-    path: Path,
-    *,
-    task_family: str,
-    writer: str,
-) -> None:
-    """Create or advance the duplicate-identity index under the writer lock."""
-    connection.execute(
-        "CREATE TABLE IF NOT EXISTS identities (identity TEXT PRIMARY KEY)"
-    )
-    connection.execute(
-        "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-    )
-    row = connection.execute(
-        "SELECT value FROM metadata WHERE key = 'indexed_offset'"
-    ).fetchone()
-    current_size = path.stat().st_size if path.exists() else 0
-    indexed_offset = int(row[0]) if row is not None else -1
-
-    if indexed_offset < 0 or indexed_offset > current_size:
-        connection.execute("DELETE FROM identities")
-        indexed_offset = 0
-
-    if indexed_offset < current_size:
-        with path.open("rb") as stream:
-            stream.seek(indexed_offset)
-            tail = stream.read()
-        for raw_line in tail.splitlines():
-            if not raw_line.strip():
-                continue
-            checked = validate_record(json.loads(raw_line))
-            if checked["task_family"] != task_family or checked["writer"] != writer:
-                raise ValueError("cross-family or writer-mismatched history")
-            connection.execute(
-                "INSERT INTO identities(identity) VALUES (?)",
-                (record_identity_key(checked),),
-            )
-
-    connection.execute(
-        "INSERT INTO metadata(key, value) VALUES ('indexed_offset', ?) "
-        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        (str(current_size),),
-    )
-    connection.commit()
 
 
 def qa_record_write(record: dict[str, Any], *, workspace_root: Path) -> dict[str, Any]:
@@ -94,7 +50,7 @@ def qa_record_write(record: dict[str, Any], *, workspace_root: Path) -> dict[str
                     # crash, so do not add a second synchronous durability
                     # barrier to every terminal record.
                     index.execute("PRAGMA synchronous = OFF")
-                    _synchronize_identity_index(
+                    synchronize_identity_index(
                         index,
                         path,
                         task_family=checked["task_family"],
@@ -102,7 +58,7 @@ def qa_record_write(record: dict[str, Any], *, workspace_root: Path) -> dict[str
                     )
                     identity_key = record_identity_key(checked)
                     if index.execute(
-                        "SELECT 1 FROM identities WHERE identity = ?",
+                        "SELECT 1 FROM records WHERE identity = ?",
                         (identity_key,),
                     ).fetchone():
                         raise ValueError("duplicate record identity")
@@ -121,13 +77,26 @@ def qa_record_write(record: dict[str, Any], *, workspace_root: Path) -> dict[str
                             pass
                         raise
 
+                    payload = json.dumps(checked, ensure_ascii=False, sort_keys=True)
                     index.execute(
-                        "INSERT INTO identities(identity) VALUES (?)",
-                        (identity_key,),
+                        "INSERT INTO records(identity, payload, subject_text, decision, "
+                        "source_kind, source_ref) VALUES (?, ?, ?, ?, ?, ?)",
+                        (
+                            identity_key,
+                            payload,
+                            json.dumps(checked["subject"], sort_keys=True),
+                            checked["decision"],
+                            checked["source_kind"],
+                            checked["source_ref"],
+                        ),
                     )
                     index.execute(
                         "UPDATE metadata SET value = ? WHERE key = 'indexed_offset'",
                         (str(path.stat().st_size),),
+                    )
+                    index.execute(
+                        "UPDATE metadata SET value = ? WHERE key = 'indexed_mtime_ns'",
+                        (str(path.stat().st_mtime_ns),),
                     )
                     index.commit()
             finally:
