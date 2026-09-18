@@ -75,4 +75,3 @@ docker compose up -d
 ## Links
 
 - [GitHub](https://github.com/xiaden/SkyScow)
-- [Podman Guide](https://github.com/xiaden/SkyScow/blob/main/docs/podman.md)

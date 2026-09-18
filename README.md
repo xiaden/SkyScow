@@ -45,19 +45,18 @@ OpenCode is provider-agnostic: point it at Anthropic, OpenAI, Google Gemini, Gro
 | 4 | [Provider Support](#provider-support) |
 | 5 | [Docker Compose - Quick](#docker-compose---quick) |
 | 6 | [Docker Compose - Full](#docker-compose---full) |
-| 7 | [Podman](#podman) |
-| 8 | [Environment Variables](#environment-variables) |
-| 9 | [What's Inside](#whats-inside) |
-| 10 | [Architecture](#architecture) |
-| 11 | [CLI Usage](#cli-usage) |
-| 12 | [Data and Persistence](#data-and-persistence) |
-| 13 | [Permissions](#permissions) |
-| 14 | [Upgrading](#upgrading) |
-| 15 | [Troubleshooting](#troubleshooting) |
-| 16 | [Building Locally](#building-locally) |
-| 17 | [Contributing](#contributing) |
-| 18 | [Support](#support) |
-| 19 | [License](#license) |
+| 7 | [Environment Variables](#environment-variables) |
+| 8 | [What's Inside](#whats-inside) |
+| 9 | [Architecture](#architecture) |
+| 10 | [CLI Usage](#cli-usage) |
+| 11 | [Data and Persistence](#data-and-persistence) |
+| 12 | [Permissions](#permissions) |
+| 13 | [Upgrading](#upgrading) |
+| 14 | [Troubleshooting](#troubleshooting) |
+| 15 | [Building Locally](#building-locally) |
+| 16 | [Contributing](#contributing) |
+| 17 | [Support](#support) |
+| 18 | [License](#license) |
 
 ---
 
@@ -295,16 +294,6 @@ services:
 ```
 
 The port mapping is loopback-only by default; widen it only together with `OPENCODE_SERVER_PASSWORD`. For the shipped `docker-compose.full.yaml` reference file, see the one included in this repo.
-
-
-
----
-
-## Podman
-
-Prefer Podman? SkyScow uses the same container image there too. The Podman guide covers the minimal `podman run` setup, env-file usage, SELinux labels, rootless permissions, and update/recreate behavior.
-
-**[Read the Podman guide](docs/podman.md)**
 
 
 
