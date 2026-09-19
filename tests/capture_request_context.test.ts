@@ -38,7 +38,7 @@ function message(
 }
 
 function history(records: RecordShape[], error?: unknown) {
-  return error === undefined ? { data: records } : { data: undefined, error }
+  return error === undefined ? records : { data: undefined, error }
 }
 
 function supportedHistory(anchor = "  Request\n\twith **Markdown**  ", invocation = "invoke") {
@@ -78,7 +78,21 @@ afterEach(async () => {
 })
 
 describe("capture_request_context", () => {
-  test("registers exactly one native tool with only from and returns its artifact path", async () => {
+  test("accepts a successful bare records array from session.messages", () => {
+    const response = [
+      message("anchor", "user", "Request"),
+      message("invocation", "user", "invoke"),
+    ]
+
+    const projection = projectHistory(response, { from: "Request" }, SESSION, "invocation")
+
+    expect(projection.messages.map(({ id, role, text }) => ({ id, role, text }))).toEqual([
+      { id: "anchor", role: "user", text: "Request" },
+    ])
+    expect(projection.boundaryMessageId).toBe("anchor")
+  })
+
+  test("registers exactly one native tool with only from and projects one bare-array read", async () => {
     const root = await tempRoot()
     const calls = { count: 0 }
     const input = clients(supportedHistory(), calls)
@@ -91,7 +105,12 @@ describe("capture_request_context", () => {
 
     expect(artifactPath).toMatch(new RegExp(`${root}/artifacts/requests/CTX_[a-z]+-[a-z]+\\.md$`))
     expect(calls.count).toBe(1)
-    expect(await readFile(artifactPath, "utf8")).toContain("# Request Context")
+    const artifact = await readFile(artifactPath, "utf8")
+    expect(artifact).toContain("# Request Context")
+    expect(artifact).toContain("  Request\n\twith **Markdown**  ")
+    expect(artifact).toContain("answer\r\nwith Unicode: café 😀")
+    expect(artifact).not.toContain("invoke")
+    expect(artifact).toContain('- boundary_message_id: "assistant"')
   })
 
   test("validates input before the one history read", async () => {
@@ -103,8 +122,32 @@ describe("capture_request_context", () => {
     expect(calls.count).toBe(0)
   })
 
+  test("rejects missing or empty official session context before reading history", async () => {
+    const calls = { count: 0 }
+    const input = clients(supportedHistory(), calls)
+
+    for (const sessionID of [undefined, ""]) {
+      await expect(
+        captureRequestContext(input as never, { from: "Request" }, { ...context("/tmp"), sessionID } as never),
+      ).rejects.toThrow("invalid_input")
+    }
+
+    expect(calls.count).toBe(0)
+  })
+
+  test("rejects missing invocation context before reading history", async () => {
+    const calls = { count: 0 }
+    const input = clients(supportedHistory(), calls)
+    const missingMessageID = { sessionID: SESSION, directory: "/tmp" }
+
+    await expect(captureRequestContext(input as never, { from: "Request" }, missingMessageID as never)).rejects.toThrow(
+      "invalid_input",
+    )
+    expect(calls.count).toBe(0)
+  })
+
   test("normalizes only White_Space for unique matching and preserves original text", () => {
-    expect(normalizeForAnchor("\u00a0Request\u2003\nwith\ttext\uFEFF")).toBe("Request with text\uFEFF")
+    expect(normalizeForAnchor("\u00a0Request\u2003\nwith\ttext\uFEFF")).toBe("Request with text")
     const projection = projectHistory(supportedHistory(), { from: " Request with **Markdown** " }, SESSION, "invocation")
     expect(projection.anchorMessageId).toBe("anchor")
     expect(projection.messages[0]?.text).toBe("  Request\n\twith **Markdown**  ")
@@ -115,9 +158,184 @@ describe("capture_request_context", () => {
     expect(projection.messages.map(({ id, role }) => `${id}:${role}`)).toEqual([
       "anchor:user",
       "assistant:assistant",
-      "invocation:user",
     ])
+    expect(projection.messages.map(({ text }) => text)).not.toContain("invoke")
+    expect(projection.boundaryMessageId).toBe("assistant")
     expect(projection.messages[1]?.text).toContain("café 😀")
+  })
+
+  test("excludes positively identified child-session records while retaining current-session boundaries", () => {
+    const childRecord = message("child", "assistant", "child-session content", {
+      sessionID: "child_session",
+    })
+    const response = history([
+      message("anchor", "user", "Request"),
+      childRecord,
+      message("assistant", "assistant", "current-session answer"),
+      message("invocation", "user", "invoke"),
+    ])
+
+    const projection = projectHistory(response, { from: "Request" }, SESSION, "invocation")
+
+    expect(projection.anchorMessageId).toBe("anchor")
+    expect(projection.boundaryMessageId).toBe("assistant")
+    expect(projection.messages.map(({ id }) => id)).toEqual(["anchor", "assistant"])
+    expect(projection.messages.map(({ text }) => text)).not.toContain("child-session content")
+    expect(projection.messages[0]?.text).toBe("Request")
+    expect(projection.messages[1]?.text).toBe("current-session answer")
+  })
+
+  test("validates malformed child records before exclusion while excluding valid child records", () => {
+    const validChild = message("child-valid", "assistant", "child content", {
+      sessionID: "child_session",
+    })
+    const validProjection = projectHistory(
+      history([
+        message("anchor", "user", "Request"),
+        validChild,
+        message("assistant", "assistant", "current answer"),
+        message("invocation", "user", "invoke"),
+      ]),
+      { from: "Request" },
+      SESSION,
+      "invocation",
+    )
+
+    expect(validProjection.messages.map(({ id }) => id)).toEqual(["anchor", "assistant"])
+    expect(validProjection.messages.map(({ text }) => text)).not.toContain("child content")
+
+    const malformedChildren: unknown[] = [
+      { info: { sessionID: "child_session", role: "assistant", time: { completed: 1 } }, parts: [] },
+      {
+        info: { id: "child-unknown", sessionID: "child_session", role: "future-role", time: { completed: 1 } },
+        parts: [],
+      },
+      {
+        info: { id: "child-unknown-part", sessionID: "child_session", role: "assistant", time: { completed: 1 } },
+        parts: [{ type: "future-part" }],
+      },
+    ]
+
+    for (const malformedChild of malformedChildren) {
+      expect(() =>
+        projectHistory(
+          history([
+            message("anchor", "user", "Request"),
+            malformedChild as RecordShape,
+            message("assistant", "assistant", "current answer"),
+            message("invocation", "user", "invoke"),
+          ]),
+          { from: "Request" },
+          SESSION,
+          "invocation",
+        ),
+      ).toThrow("history_ambiguous")
+    }
+  })
+
+  test("excludes supported result and tool-result message and part variants", () => {
+    const resultRoles = ["tool-result", "tool_result", "toolResult", "result"]
+    const roleRecords = resultRoles.map((role, index) => ({
+      info: { id: `result-role-${index}`, sessionID: SESSION, role, time: { completed: 1 } },
+      parts: [{ type: "text", text: `hidden ${role}` }],
+    }))
+    const resultParts = ["tool-result", "tool_result", "toolResult", "result", "result-text", "result_text"].map(
+      (type, index) => ({
+        info: { id: `result-part-${index}`, sessionID: SESSION, role: "assistant", time: { completed: 1 } },
+        parts: [{ type, text: `hidden ${type}` }],
+      }),
+    )
+    const response = history([
+      message("anchor", "user", "Request"),
+      ...roleRecords,
+      ...resultParts,
+      message("assistant", "assistant", "visible answer"),
+      message("invocation", "user", "invoke"),
+    ])
+
+    const projection = projectHistory(response, { from: "Request" }, SESSION, "invocation")
+
+    expect(projection.messages.map(({ id }) => id)).toEqual(["anchor", "assistant"])
+    expect(projection.messages.map(({ text }) => text)).toEqual(["Request", "visible answer"])
+    expect(projection.boundaryMessageId).toBe("assistant")
+    expect(projection.messages.every(({ text }) => !text.startsWith("hidden"))).toBe(true)
+  })
+
+  test("validates completion before excluding non-transcript boundary records", () => {
+    const incompleteToolOnly = [
+      message("anchor", "user", "Request"),
+      {
+        info: { id: "pending-tool", sessionID: SESSION, role: "assistant", time: {} },
+        parts: [{ type: "tool", callID: "tool-1" }],
+      },
+      message("invocation", "user", "invoke"),
+    ]
+
+    expect(() => projectHistory(incompleteToolOnly, { from: "Request" }, SESSION, "invocation")).toThrow(
+      "pre-invocation completion boundary",
+    )
+
+    const completedNonTranscript = [
+      message("anchor", "user", "Request"),
+      {
+        info: { id: "completed-tool", sessionID: SESSION, role: "assistant", time: { completed: 1 } },
+        parts: [{ type: "tool", callID: "tool-1" }],
+      },
+      {
+        info: { id: "completed-synthetic", sessionID: SESSION, role: "assistant", time: { completed: 1 } },
+        parts: [{ type: "text", text: "hidden synthetic", synthetic: true }],
+      },
+      message("assistant", "assistant", "visible answer"),
+      message("invocation", "user", "invoke"),
+    ]
+
+    const projection = projectHistory(completedNonTranscript, { from: "Request" }, SESSION, "invocation")
+
+    expect(projection.messages.map(({ id, role, text }) => `${id}:${role}:${text}`)).toEqual([
+      "anchor:user:Request",
+      "assistant:assistant:visible answer",
+    ])
+    expect(projection.boundaryMessageId).toBe("assistant")
+  })
+
+  test("stops at the first exact invocation boundary so suffix records cannot poison the prefix", () => {
+    const response = history([
+      message("anchor", "user", "Request"),
+      message("assistant", "assistant", "visible answer"),
+      message("invocation", "user", "invoke"),
+      message("later-invocation", "user", "later duplicate invocation"),
+      { info: { id: "malformed-suffix", sessionID: SESSION, role: "future-role" }, parts: [] },
+    ])
+
+    const projection = projectHistory(response, { from: "Request" }, SESSION, "invocation")
+
+    expect(projection.messages.map(({ id }) => id)).toEqual(["anchor", "assistant"])
+    expect(projection.boundaryMessageId).toBe("assistant")
+    expect(projection.messages.map(({ text }) => text)).not.toContain("later duplicate invocation")
+  })
+
+  test("accepts a non-user invocation boundary and fails closed when it is absent or unmatched", () => {
+    const nonUserBoundary = history([
+      message("anchor", "user", "Request"),
+      message("assistant", "assistant", "visible answer"),
+      message("boundary", "assistant", "invocation boundary"),
+    ])
+
+    const projection = projectHistory(nonUserBoundary, { from: "Request" }, SESSION, "boundary")
+
+    expect(projection.boundaryMessageId).toBe("assistant")
+    expect(projection.messages.map(({ id, role }) => `${id}:${role}`)).toEqual([
+      "anchor:user",
+      "assistant:assistant",
+    ])
+    expect(projection.messages.map(({ text }) => text)).not.toContain("invocation boundary")
+
+    expect(() => projectHistory(nonUserBoundary, { from: "Request" }, SESSION, "missing-boundary")).toThrow(
+      "invocation boundary is unavailable",
+    )
+    expect(() => projectHistory(history([message("anchor", "user", "Request")]), { from: "Request" }, SESSION, "boundary")).toThrow(
+      "invocation boundary is unavailable",
+    )
   })
 
   test("requires exact current-session ownership, ordering, completion, and one anchor", () => {
@@ -127,7 +345,7 @@ describe("capture_request_context", () => {
       ["incomplete assistant", history([message("anchor", "user", "Request"), message("assistant", "assistant", "pending", { time: {} }), message("invocation", "user", "invoke")])],
       ["zero anchors", history([message("other", "user", "Other"), message("invocation", "user", "invoke")])],
       ["multiple anchors", history([message("a", "user", "Request"), message("b", "user", " Request "), message("invocation", "user", "invoke")])],
-      ["excluded internal", history([message("a", "user", "Request"), message("x", "internal", "private"), message("invocation", "user", "invoke")])],
+      ["incomplete excluded internal", history([message("a", "user", "Request"), message("x", "internal", "private"), message("visible", "assistant", "answer"), message("invocation", "user", "invoke")])],
       ["unknown role", history([message("a", "user", "Request"), { info: { id: "x", sessionID: SESSION, role: "future-role", time: { completed: 1 } }, parts: [] }, message("invocation", "user", "invoke")])],
       ["unknown part", history([message("a", "user", "Request"), { info: { id: "x", sessionID: SESSION, role: "assistant", time: { completed: 1 } }, parts: [{ type: "future-part" }] }, message("invocation", "user", "invoke")])],
     ]
@@ -142,7 +360,7 @@ describe("capture_request_context", () => {
       history([], "unavailable"),
       { error: "transport" },
       { data: [{ info: {}, parts: [] }] },
-      history([message("anchor", "user", "Request"), message("invocation", "user", "invoke")]),
+      { data: [] },
     ]
     for (const response of cases) {
       const input = clients(response)
@@ -157,6 +375,8 @@ describe("capture_request_context", () => {
     expect(text).toContain("text_bytes_utf8: 32")
     expect(text).toContain("\r\nwith Unicode: café 😀")
     expect(text).toContain('artifact_kind: "request_context"')
+    expect(text).toContain('boundary_message_id: "assistant"')
+    expect(text).not.toContain("invoke")
     expect(text).not.toContain("summary")
     expect(text).not.toContain("handoff_goal")
     expect(text).not.toContain("interpretation")

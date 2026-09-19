@@ -3,6 +3,7 @@ import { randomInt } from "node:crypto"
 import { mkdir, open } from "node:fs/promises"
 import path from "node:path"
 
+/** Arguments for capturing one visible request context from the current session. */
 export type CaptureArgs = { from: string }
 
 type SessionMessage = {
@@ -17,6 +18,13 @@ type VisibleMessage = {
   completed: boolean
 }
 
+/**
+ * Validated visible transcript and provenance selected for artifact serialization.
+ *
+ * The projection identifies the current session, the unique visible-user anchor,
+ * and the last completed message at the invocation boundary. `messages` contains
+ * only visible user and assistant text in the supported history order.
+ */
 export type TranscriptProjection = {
   sessionId: string
   anchorMessageId: string
@@ -26,6 +34,12 @@ export type TranscriptProjection = {
 
 const KNOWN_NON_TEXT_PARTS = new Set([
   "tool",
+  "tool-result",
+  "tool_result",
+  "toolResult",
+  "result",
+  "result-text",
+  "result_text",
   "reasoning",
   "subtask",
   "compaction",
@@ -65,11 +79,22 @@ function messageIdFromInfo(info: Record<string, unknown>): string {
 
 function roleFromInfo(info: Record<string, unknown>): "user" | "assistant" | "excluded" {
   if (info.role === "user" || info.role === "assistant") return info.role
-  if (info.role === "system" || info.role === "developer" || info.role === "internal") return "excluded"
+  if (
+    info.role === "system" ||
+    info.role === "developer" ||
+    info.role === "internal" ||
+    info.role === "tool" ||
+    info.role === "tool-result" ||
+    info.role === "tool_result" ||
+    info.role === "toolResult" ||
+    info.role === "result"
+  ) return "excluded"
   fail("history_ambiguous", "unknown message role")
 }
 
-function isCompleted(info: Record<string, unknown>, role: "user" | "assistant"): boolean {
+function isCompleted(info: Record<string, unknown>, role: "user" | "assistant" | "excluded"): boolean {
+  // User records are complete by the supported message model. Every other record
+  // must expose an explicit completed timestamp before it can be excluded.
   if (role === "user") return true
   const time = info.time
   if (typeof time !== "object" || time === null) return false
@@ -105,29 +130,53 @@ function visibleText(parts: unknown[]): string {
   return text
 }
 
-function parseResponse(value: unknown): SessionMessage[] {
+function parseResponse(value: unknown): unknown[] {
   if (!Array.isArray(value) || value.length === 0) fail("history_unavailable", "history is unavailable")
-  return value.map((entry) => {
-    if (typeof entry !== "object" || entry === null) {
-      fail("history_ambiguous", "malformed history record")
-    }
-    const record = entry as Record<string, unknown>
-    if (typeof record.info !== "object" || record.info === null || !Array.isArray(record.parts)) {
-      fail("history_ambiguous", "malformed history record")
-    }
-    return { info: record.info as Record<string, unknown>, parts: record.parts }
-  })
+  // Keep records opaque until the strict invocation boundary is selected. Records after
+  // that boundary are intentionally not allowed to poison an otherwise valid prefix.
+  return value
 }
 
 function historyData(response: unknown): unknown {
-  if (typeof response !== "object" || response === null) fail("history_unavailable", "history response is unavailable")
+  // The installed session.messages operation returns its successful value as
+  // the records array. Do not introduce a second reader or normalize another
+  // response API here; only retain the SDK error-envelope handling needed for
+  // failures represented by the supported client result.
+  if (Array.isArray(response)) return response
+  if (typeof response !== "object" || response === null) {
+    fail("history_unavailable", "history response is unavailable")
+  }
   const envelope = response as Record<string, unknown>
-  if ("error" in envelope && envelope.error !== undefined) fail("history_unavailable", "history API returned an error")
-  if (!("data" in envelope)) fail("history_unavailable", "history response has no data")
-  return envelope.data
+  if ("error" in envelope && envelope.error !== undefined) {
+    fail("history_unavailable", "history API returned an error")
+  }
+  fail("history_unavailable", "history response is not a supported success array")
 }
 
-/** Project one supported session.messages response into the exact visible transcript. */
+/**
+ * Project one current-session response into the exact visible transcript before invocation.
+ *
+ * The invocation record is an exclusive cutoff: it is never included in the transcript or
+ * used as provenance boundary content. Only records in `sessionId` with visible user or
+ * assistant text are projected; child-session and supported non-transcript records are
+ * excluded after structural and completion validation. Anchor matching normalizes only
+ * whitespace, while emitted text remains unchanged. Any ambiguous or unavailable history
+ * condition fails closed by throwing instead of returning a partial projection.
+ *
+ * Args:
+ *   response: The single supported `session.messages` response to classify and project.
+ *   args: Capture arguments containing the normalized-match source text in `from`.
+ *   sessionId: The official current-session identifier used to filter records.
+ *   invocationMessageId: The official invocation boundary record identifier.
+ *
+ * Returns:
+ *   The validated current-session transcript and its anchor and exclusive pre-invocation
+ *   boundary identifiers.
+ *
+ * Raises:
+ *   Error: If input, history structure, visibility, completion, anchor uniqueness, session
+ *     ownership, or the exclusive pre-invocation boundary is invalid or ambiguous.
+ */
 export function projectHistory(
   response: unknown,
   args: CaptureArgs,
@@ -140,26 +189,62 @@ export function projectHistory(
   const normalizedFrom = normalizeForAnchor(args.from)
   if (!normalizedFrom) fail("invalid_input", "from must not be empty")
   const records = parseResponse(historyData(response))
-  const messages: VisibleMessage[] = []
+  // Establish the strict boundary before validating/classifying history. Only records
+  // through the boundary can influence this invocation; later records are outside the
+  // supported prefix and must not invalidate it.
+  let invocationIndex = -1
+  let invocationCount = 0
+  for (let index = 0; index < records.length; index += 1) {
+    const raw = records[index]
+    if (typeof raw !== "object" || raw === null) fail("history_ambiguous", "malformed history record")
+    const record = raw as Record<string, unknown>
+    if (typeof record.info !== "object" || record.info === null || !Array.isArray(record.parts)) {
+      fail("history_ambiguous", "malformed history record")
+    }
+    const info = record.info as Record<string, unknown>
+    const rawId = info.id ?? info.messageID ?? info.messageId
+    const rawSessionId = info.sessionID ?? info.sessionId
+    // Boundary discovery is intentionally prefix-first: the first exact current-session
+    // identity is the exclusive fence. Nothing after it is part of this invocation's
+    // supported sample and therefore cannot add duplicate or malformed evidence.
+    if (rawId === invocationMessageId && rawSessionId === sessionId) {
+      invocationIndex = index
+      invocationCount = 1
+      break
+    }
+  }
+  if (invocationIndex < 0 || invocationCount !== 1) fail("history_ambiguous", "invocation boundary is unavailable")
 
-  for (const record of records) {
-    const id = messageIdFromInfo(record.info)
-    if (sessionIdFromInfo(record.info) !== sessionId) fail("history_ambiguous", "wrong session ownership")
-    const role = roleFromInfo(record.info)
+  type ValidatedRecord = {
+    id: string
+    sessionId: string
+    role: "user" | "assistant" | "excluded"
+    text: string
+    completed: boolean
+  }
+  const validatedRecords: ValidatedRecord[] = []
+  for (let index = 0; index <= invocationIndex; index += 1) {
+    const raw = records[index]
+    if (typeof raw !== "object" || raw === null) fail("history_ambiguous", "malformed history record")
+    const record = raw as Record<string, unknown>
+    if (typeof record.info !== "object" || record.info === null || !Array.isArray(record.parts)) {
+      fail("history_ambiguous", "malformed history record")
+    }
+    const info = record.info as Record<string, unknown>
+    const id = messageIdFromInfo(info)
+    const recordSessionId = sessionIdFromInfo(info)
+    const role = roleFromInfo(info)
     const text = visibleText(record.parts)
-    if (role === "excluded") continue
-    if (!text) continue
-    messages.push({ id, role, text, completed: isCompleted(record.info, role) })
+    const isBoundary = index === invocationIndex
+    const completed = isBoundary ? true : isCompleted(info, role)
+    if (!completed) fail("history_ambiguous", "pre-invocation completion boundary is unavailable")
+    validatedRecords.push({ id, sessionId: recordSessionId, role, text, completed })
   }
 
-  const invocationIndex = messages.findIndex((message) => message.id === invocationMessageId)
-  if (invocationIndex < 0) fail("history_ambiguous", "invocation boundary is unavailable")
-  if (messages[invocationIndex].role !== "user") fail("history_ambiguous", "invocation boundary is not a user message")
-  const beforeInvocation = messages.slice(0, invocationIndex + 1)
-  if (beforeInvocation.some((message) => !message.completed)) {
-    fail("history_ambiguous", "pre-invocation completion boundary is unavailable")
-  }
-
+  // The invocation record is an exclusive cutoff and is never projected.
+  const beforeInvocation = validatedRecords
+    .slice(0, invocationIndex)
+    .filter((record) => record.sessionId === sessionId && record.role !== "excluded" && record.text)
   const anchors = beforeInvocation.filter(
     (message) => message.role === "user" && normalizeForAnchor(message.text) === normalizedFrom,
   )
@@ -167,6 +252,7 @@ export function projectHistory(
   const anchorIndex = beforeInvocation.findIndex((message) => message.id === anchors[0].id)
   const selected = beforeInvocation.slice(anchorIndex)
   const boundary = selected[selected.length - 1]
+  if (!boundary) fail("history_ambiguous", "pre-invocation boundary is empty")
   return {
     sessionId,
     anchorMessageId: anchors[0].id,
@@ -202,17 +288,46 @@ export function serializeTranscript(projection: TranscriptProjection): Uint8Arra
   return new TextEncoder().encode(lines.join("\n"))
 }
 
-/** Read the supported current-session history exactly once and project it. */
+/**
+ * Read, project, and serialize the current request context without publishing it.
+ *
+ * This validates the official execution context before making exactly one supported
+ * `session.messages` history read. The response is projected with the exclusive
+ * pre-invocation cutoff (the invocation record is excluded), then serialized exactly
+ * as the validated transcript and mechanical provenance. The function does not use a
+ * fallback reader or publish an artifact; unsupported, unavailable, malformed, or
+ * ambiguous input fails closed by throwing.
+ *
+ * Args:
+ *   input: Official plugin input providing the supported session history client.
+ *   args: Capture arguments containing the visible user anchor in `from`.
+ *   context: Official tool context providing the current session, invocation boundary,
+ *     and invocation directory.
+ *
+ * Returns:
+ *   The validated transcript projection and its deterministic serialized UTF-8 bytes.
+ *
+ * Raises:
+ *   Error: If input or official context is invalid, the one history read fails, or the
+ *     response cannot establish the required exclusive pre-invocation projection.
+ */
 export async function captureRequestContext(
   input: PluginInput,
   args: CaptureArgs,
   context: ToolContext,
 ): Promise<{ projection: TranscriptProjection; bytes: Uint8Array }> {
+  if (typeof args !== "object" || args === null || typeof args.from !== "string") {
+    fail("invalid_input", "from must be a string")
+  }
+  if (!normalizeForAnchor(args.from)) fail("invalid_input", "from must not be empty")
   if (typeof context.sessionID !== "string" || !context.sessionID) {
     fail("invalid_input", "official session context is unavailable")
   }
   if (typeof context.messageID !== "string" || !context.messageID) {
     fail("invalid_input", "official invocation boundary is unavailable")
+  }
+  if (typeof context.directory !== "string" || !context.directory) {
+    fail("invalid_input", "official invocation directory is unavailable")
   }
   // Official PluginInput.client.session.messages accepts the current session path
   // and invocation directory; no private storage or fallback reader is used.

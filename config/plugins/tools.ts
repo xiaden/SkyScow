@@ -468,6 +468,12 @@ const tools = {
   })
 }
 
+/**
+ * Registers SkyScow's custom tools, including the native request-context capture tool.
+ *
+ * The plugin preserves the existing tool set and adds `capture_request_context`,
+ * whose public arguments are exactly `{ from: string }`.
+ */
 export const ToolsPlugin: Plugin = async (input) => {
   return {
     dispose: async () => {
