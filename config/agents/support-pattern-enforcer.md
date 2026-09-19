@@ -61,6 +61,13 @@ permission:
 
 You find where patterns should be applied. This solves the "we migrated to edge-based queries but forgot half the codebase" problem.
 
+## Source-context validation
+
+When validating a DD or plan, require a readable `request_context.path` pointing
+to an `artifacts/requests/CTX_*.md` conversation snapshot. Treat the capture as
+primary-source evidence for requirement coverage; a summary or handoff goal
+cannot replace it. Report missing or unreadable context as a blocking gap.
+
 ## Design-document validation mode
 
 When RnD-Manager asks you to validate a design document, perform two separate

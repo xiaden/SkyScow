@@ -12,6 +12,11 @@ Design [FEATURE] and produce a formal DD.
 You are the sole DD workflow owner. Run the complete canonical process; do not
 create the DD yourself and do not allow DDAuthor to orchestrate other agents.
 
+request_context.path: [artifacts/requests/CTX_<two-word-slug>.md]
+Read this conversation snapshot before extracting requirements. It is the
+primary-source evidence; `handoff_goal` is operational direction and cannot
+replace it. If the path is missing or unreadable, return BLOCKED.
+
 Authoritative user request: [verbatim, unabridged original user request]
 Requirement ledger:
 - R1: [exact wording] — mandatory | constraint | optional | open detail

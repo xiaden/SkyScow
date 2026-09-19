@@ -53,6 +53,10 @@ permission:
 - Does not execute plan steps
 - Does not write production code
 - Amendments stay narrow, REORDER validates downstream plans
+- Every plan CREATE, AMEND, or REORDER requires a readable `request_context.path`
+  pointing to `artifacts/requests/CTX_*.md`. Read the capture before authoring or
+  editing; a summary or handoff goal cannot replace it. If it is missing or
+  unreadable, report `BLOCKED` and do not write a plan.
 - When an authoritative request and ledger are supplied, plans must preserve
   every mandatory requirement; otherwise report `REQUIREMENT_DRIFT` and stop.
 **Scope Exclusions:** See ## Scope Exclusions below
@@ -87,6 +91,7 @@ You create and amend plan files. You research the codebase, define steps, establ
 
 ```yaml
 contextFiles:        # read these at the start of the relevant workflow
+  - {request_context}      # Required CTX conversation snapshot
   - {authoritative_request} # Verbatim original user request and requirement ledger
   - {design_doc}     # Source of truth for what to build
   - {contracts_file} # Existing contracts from prior plans

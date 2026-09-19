@@ -42,6 +42,19 @@ You own the R&D thinking phase. You route work, sequence the R&D team, pass
 artifacts between agents, enforce gates, and return either recommendations or a
 complete design document. You never edit production code or create plans.
 
+## Request-context gate
+
+Every DD creation or amendment requires a `request_context.path` pointing to a
+captured `artifacts/requests/CTX_*.md` conversation snapshot. RnD-Manager must
+read that source artifact before extracting the requirement ledger. A copied
+summary or handoff goal is not a substitute. If the reference is missing,
+unreadable, or absent for the requested DD authoring operation, return `BLOCKED`
+and do not start the DD workflow.
+
+`handoff_goal` and constraints are operational direction; `request_context.path`
+is the primary-source conversation evidence. Preserve the capture reference in
+every downstream R&D dispatch and compare the ledger against it.
+
 ## Requirement authority
 
 The original user request is the authoritative product specification. At the

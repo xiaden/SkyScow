@@ -19,7 +19,7 @@ Requirements → [RnD-Manager DD workflow → DDAuthor] → Design Doc → Decom
 | Phase | Action | Output |
  | --- | --- | --- |
  | 0 (Optional) | Dispatch DDAuthor if no design doc exists | `artifacts/designs/pending/{feature}/DD.md` |
- | 0.5 | DD Acceptance Gate — confirm accepted status and compare the ledger against the verbatim user request | Recorded comparison; `REQUIREMENT_DRIFT` on omission/weakening |
+ | 0.5 | DD Acceptance Gate — require a readable `request_context.path` capture, confirm accepted status, and compare the ledger against the verbatim user request | Recorded comparison; `REQUIREMENT_DRIFT` on omission/weakening |
  | 1 | Decompose design doc into lettered parts | `artifacts/designs/pending/{feature}/README.md` |
  | 2 | Create contracts ledger | `artifacts/designs/pending/{feature}/CONTRACTS.md` |
  | 3 | Dispatch Exec-Planner per part, validate, update ledger, close contract ownership | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` |
@@ -86,8 +86,11 @@ authoring stage owned by Manager:
 ```yaml
 # Dispatch to RnD-Manager
 contextFiles:
+  - artifacts/requests/CTX_<two-word-slug>.md     # Required source conversation
   - AGENTS.md                                      # Architecture rules
   - {layer_instructions_file}  # Layer patterns
+
+request_context: "artifacts/requests/CTX_<two-word-slug>.md"
 
 task:
   type: CREATE
@@ -368,6 +371,12 @@ JSON Schema for Architecture Decision Record markdown files. Relevant when a pla
 ## Lifecycle and Contract Gates
 
 ### Phase 0.5: DD Acceptance Gate
+
+Every DD creation or amendment must carry a readable
+`request_context.path` to an `artifacts/requests/CTX_*.md` conversation snapshot.
+Read the snapshot before validating the immutable requirement ledger. A summary,
+DD, or handoff goal cannot replace the source capture; missing or unreadable
+context blocks acceptance and decomposition.
 
 Before decomposition, the DD must have a recognized accepted status (`Approved` or `Completed`). An `Approved` DD may remain in `pending/` only when its metadata explicitly names the prerequisite disposition, responsible owner, and transition condition; without those fields it is stale/invalid and cannot be decomposed, executed, or archived as complete. A `Completed` DD belongs in `artifacts/designs/completed/`. Compare the DD requirement ledger against the verbatim original user request and record that comparison. If any ledger item is omitted, weakened, deferred, inverted, or contradicted, stop with `REQUIREMENT_DRIFT`; do not decompose.
 

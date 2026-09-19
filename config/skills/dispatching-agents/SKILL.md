@@ -77,6 +77,15 @@ safety rules, and definition-of-done items. Downstream agents must compare their
 output against it. Summaries and derived artifacts never replace the original
 request.
 
+For DD creation/amendment and plan CREATE/AMEND/REORDER, the handoff must also
+include a readable `request_context.path` to an `artifacts/requests/CTX_*.md`
+conversation snapshot created by Nyx with `capture_request_context`. The capture
+is primary-source conversation evidence; `handoff_goal` and constraints are
+operational direction and do not replace it. Missing or unreadable context is a
+blocking dispatch failure. Nyx must capture the relevant conversation before
+routing these authoring operations; downstream agents must read and preserve the
+reference.
+
 ### Dispatch Decision Tree
 
 ```

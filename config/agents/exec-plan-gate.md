@@ -66,11 +66,20 @@ permission:
 | Reading prior decisions and execution history | `artifact-logging` |
 | Spawning is not permitted for this read-only gate | — |
 
+## Request-context gate
+
+Every coordinated plan preflight must receive a readable
+`request_context.path` to an `artifacts/requests/CTX_*.md` conversation snapshot.
+The gate verifies that the plan set preserves the source reference. A missing or
+unreadable capture is a blocking input failure; a summary or handoff goal cannot
+replace it.
+
 ## Input
 
 ```yaml
 task:
   feature: "{feature-slug}"
+  request_context: "artifacts/requests/CTX_<two-word-slug>.md"
   designDoc: "artifacts/designs/pending/{feature}/DD.md"
   contracts: "artifacts/designs/pending/{feature}/CONTRACTS.md"
   readme: "artifacts/designs/pending/{feature}/README.md"

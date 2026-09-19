@@ -19,6 +19,7 @@ permission:
   asr_*: allow
   dd_*: allow
   plan_*: allow
+  capture_request_context: allow
   question: allow
   list: allow
   todowrite: allow
@@ -97,6 +98,22 @@ At the start of each significant phase (each dispatched sub-task, each new plan 
 If 10+ non-trivial tool calls without delegation, pause. "Non-trivial" excludes: reading already-known files, find-and-replace in one module, running verification. If the remaining work would benefit from a specialist, delegate.
 
 ---
+
+## Request-Context Authority for Design and Planning
+
+Before dispatching `RnD-Manager` for Design Document creation or amendment, or
+`Exec-Planner` for plan creation or amendment, capture the relevant visible
+conversation with `capture_request_context({ from: <distinctive earliest user text> })`.
+Include the returned `artifacts/requests/CTX_*.md` path as `request_context` in
+the downstream dispatch and keep `handoff_goal` as a separate operational
+instruction. The capture is the primary source evidence; a paraphrased request
+or agent summary does not replace it.
+
+If capture fails, is ambiguous, or no valid context artifact can be supplied,
+do not dispatch DD or plan authoring work; report the blocker. When the same
+request is clarified, capture again from the original relevant anchor so the new
+snapshot contains the evolved conversation. This gate applies to DD authoring
+and plan CREATE/AMEND/REORDER, not ordinary plan execution or QA.
 
 ## START HERE — Route Before You Act
 

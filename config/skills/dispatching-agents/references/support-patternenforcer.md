@@ -87,4 +87,10 @@ Support-PatternEnforcer returns confidence-tiered results:
 
 ### Required Lifecycle Checks
 
-Coverage checks must compare the DD ledger with the verbatim user request and report `REQUIREMENT_DRIFT`. Plan checks must verify ownership closure for every changed symbol contract, including every caller file; handoff annotations do not close gaps. Use the repository callgraph/import tooling (for example, `aft_callgraph` callers/impact plus language-aware import analysis) and include its evidence: list resolved edges and unresolved edges separately, manually record a disposition for every unresolved edge, and compare mocked-caller coverage with a real-caller integration test; a mock-only caller test does not close ownership. Also report downstream symbols with no upstream creator and stale/superseded executable artifacts.
+DD and plan coverage checks require a readable `request_context.path` pointing to
+an `artifacts/requests/CTX_*.md` conversation snapshot. The capture is the
+primary-source evidence; a summary or handoff goal cannot replace it. Missing or
+unreadable context is a blocking gap. Coverage checks must compare the DD ledger
+with the verbatim user request and report `REQUIREMENT_DRIFT`. Plan checks must
+verify ownership closure for every changed symbol contract, including every
+caller file; handoff annotations do not close gaps. Use the repository callgraph/import tooling (for example, `aft_callgraph` callers/impact plus language-aware import analysis) and include its evidence: list resolved edges and unresolved edges separately, manually record a disposition for every unresolved edge, and compare mocked-caller coverage with a real-caller integration test; a mock-only caller test does not close ownership. Also report downstream symbols with no upstream creator and stale/superseded executable artifacts.

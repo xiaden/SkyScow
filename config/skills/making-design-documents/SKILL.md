@@ -170,8 +170,16 @@ All detail lives in `references/`, loaded on demand at Level 3:
 | [`references/typescript-design.md`](file:///home/opencode/.config/opencode/skills/making-design-documents/references/typescript-design.md) | TS/JS patterns: discriminated unions, branded types, Zod, Result types |
 
 
+## Source Conversation Requirement
+
+Every DD creation or amendment must reference a readable
+`artifacts/requests/CTX_*.md` conversation snapshot as `request_context.path`.
+The snapshot is the primary source evidence for the requirement ledger; a
+summary, DD, or handoff goal cannot replace it. Missing or unreadable context
+blocks authoring and acceptance.
+
 ## DD Lifecycle and Requirement Conformance
 
-DD lifecycle states are `Draft`, `Proposed`, `Accepted`, `Complete (accepted)`, `NEEDS_DECISION`, and `Superseded`. Draft/Proposed/NEEDS_DECISION DDs remain in `pending/`. An accepted DD may remain intentionally in `pending/` only as an explicit prerequisite and only when its metadata names the prerequisite disposition, owner, and next transition (including the condition or event that permits movement to `completed/`). A `Complete (accepted)` DD must be moved to `completed/` with matching `Status`; a pending DD without that metadata is stale/invalid and cannot be decomposed, executed, or archived as complete.
+DD lifecycle states are `Draft`, `Approved`, `Completed`, `Superseded`, and `Rejected`. Draft and Rejected DDs remain in `pending/`; an Approved DD may remain intentionally in `pending/` only as an explicit prerequisite and only when its metadata names the prerequisite disposition, owner, and next transition (including the condition or event that permits movement to `completed/`). A Completed DD belongs in `completed/`; a pending DD without the required prerequisite metadata is stale/invalid and cannot be decomposed, executed, or archived as complete.
 
 Before marking a DD accepted, require an independent reviewer to check that the DD ledger is traceable to the verbatim original user request. Author self-review alone is insufficient. Any mismatch is `REQUIREMENT_DRIFT` and blocks acceptance until resolved or explicitly decided by the user.

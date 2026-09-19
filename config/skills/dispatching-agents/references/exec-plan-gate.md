@@ -45,14 +45,22 @@ task:
   rerunReason: "[initial-preflight|plan-amended|plan-reordered|design-doc-changed]"
 ```
 
+## Request-context prerequisite
+
+The gate input must include a readable `request_context.path` pointing to an
+`artifacts/requests/CTX_*.md` conversation snapshot. Verify that the plan set
+retains this source reference. Missing or unreadable context is a blocking input
+failure; a summary or handoff goal cannot replace it.
+
 ## Required Checks
 
-1. All listed plans are present and schema-valid.
-2. Every DD requirement maps to plan ownership, actionable steps, and verification.
-3. Dependencies are explicit, acyclic, and executable in the README's order.
-4. Cross-plan contracts, signatures, schemas, migrations, APIs, and assumptions agree.
-5. Shared ownership and parallel write overlap are safe or explicitly serialized.
-6. No contradictions, missing prerequisites, duplicate ownership, or unowned outputs exist.
+1. The request-context capture is present and readable, and the plan set preserves its reference.
+2. All listed plans are present and schema-valid.
+3. Every DD requirement maps to plan ownership, actionable steps, and verification.
+4. Dependencies are explicit, acyclic, and executable in the README's order.
+5. Cross-plan contracts, signatures, schemas, migrations, APIs, and assumptions agree.
+6. Shared ownership and parallel write overlap are safe or explicitly serialized.
+7. No contradictions, missing prerequisites, duplicate ownership, or unowned outputs exist.
 
 ## Routing
 

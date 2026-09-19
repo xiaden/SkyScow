@@ -37,12 +37,17 @@ Use when a design document needs to be broken into implementation plans.
 Create an implementation plan from design document: [DD_PATH]
 
 Context files to read:
+- [REQUEST_CONTEXT] — required `artifacts/requests/CTX_*.md` source conversation; read before planning
 - [DD_PATH]  — design document
 - [CONTRACTS_PATH]  — contracts ledger (if multi-part feature)
 - [AUTHORITATIVE_REQUEST] — verbatim original user request and requirement ledger
 
 Librarian briefing: [paste briefing or "see attached context"]
 Key constraints: [key constraints from Librarian/PatternEnforcer]
+
+The `request_context` path is required for CREATE, AMEND, and REORDER. A
+summary or handoff goal cannot replace it; missing or unreadable context blocks
+planning.
 
 Precedence: authoritative user request > accepted DD requirements/architectural invariants > plan > code/tests. Research, review recommendations, estimates, and verification evidence are advisory unless explicitly adopted as a requirement, invariant, dependency, or contract. Compare the plan against every mandatory ledger item that requires implementation; report REQUIREMENT_DRIFT rather than omitting, weakening, deferring, inverting, or contradicting one. Do not predeclare QA-owned tests, documentation, or evidence artifacts.
 ```
@@ -71,6 +76,7 @@ Use when QA-Reviewer flags PLANNING_GAP issues, or when Support-Debugger identif
 Amend plan TASK-{feature}-{letter}-{title}.
 
 Context files:
+- artifacts/requests/CTX_<two-word-slug>.md  (required source conversation)
 - artifacts/plans/pending/TASK-{feature}-{letter}-{title}.md  (existing plan)
 - artifacts/designs/pending/{feature}/CONTRACTS.md
 - artifacts/designs/pending/{feature}/README.md
@@ -83,6 +89,7 @@ task:
 
 ### Required Fields
 
+- `artifacts/requests/CTX_<two-word-slug>.md`: Readable source conversation for the plan set
 - `TASK-{feature}-{letter}-{title}`: The plan to amend
 - `reason`: The PLANNING_GAP detail from the review report or debugger's root cause
 
@@ -102,6 +109,7 @@ Use when plans are out of sequence (e.g., A, B, E, C, D instead of A, B, C, D, E
 Reorder plans for feature {feature}.
 
 Context files:
+- artifacts/requests/CTX_<two-word-slug>.md  (required source conversation)
 - artifacts/plans/pending/  (all plan files for this feature)
 - artifacts/designs/pending/{feature}/CONTRACTS.md
 - artifacts/designs/pending/{feature}/README.md

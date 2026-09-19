@@ -13,6 +13,11 @@ You must not spawn agents or define a workflow. RnD-Manager already completed
 the Librarian, Support-Researcher, full eight-turn Refiner, Architect,
 ComplexityAdvisor, and final Estimator stages.
 
+request_context.path: [artifacts/requests/CTX_<two-word-slug>.md]
+Read this conversation snapshot before authoring or amending. It is the
+primary-source evidence; a DD or handoff goal cannot replace it. If the path is
+missing or unreadable, return BLOCKED.
+
 Authoritative user request: [verbatim, unabridged original user request]
 Requirement ledger:
 - R1: [exact wording] — mandatory | constraint | optional | open detail

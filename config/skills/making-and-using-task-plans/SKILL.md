@@ -114,6 +114,16 @@ Before declaring a plan complete:
 - Related skills: `decomposing-design-documents` (multi-plan decomposition), `feature-execution` (execution pipeline)
 
 
+## Request Context for Plan Authoring
+
+Plan CREATE and AMEND operations must carry a readable
+`request_context.path` to an `artifacts/requests/CTX_*.md` conversation snapshot.
+The planner must read it before authoring or editing and preserve its reference
+in the plan's source context. A summary or handoff goal cannot replace the
+capture; missing or unreadable context blocks plan authoring. REORDER operations
+must preserve the existing request-context reference when one is already
+required by the plan set.
+
 ## Plan Lifecycle and Ownership Validation
 
 Plans have four lifecycle states: `pending`, `in-flight`, `complete-awaiting-QA`, and `archived` (in `completed/`). A plan with zero open steps is not still `in-flight`; archive it or mark it explicitly `complete-awaiting-QA`.
