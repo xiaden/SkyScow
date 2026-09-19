@@ -1,6 +1,7 @@
 import { type Plugin, tool } from "@opencode-ai/plugin"
 import path from "path"
 import os from "os"
+import { createCaptureRequestContextTool } from "./capture_request_context"
 
 const TOOLS_DIR = path.join(os.homedir(), ".config/opencode/tools")
 
@@ -467,11 +468,14 @@ const tools = {
   })
 }
 
-export const ToolsPlugin: Plugin = async () => {
+export const ToolsPlugin: Plugin = async (input) => {
   return {
     dispose: async () => {
       console.log("[ToolsPlugin] Disposing")
     },
-    tool: tools,
+    tool: {
+      ...tools,
+      capture_request_context: createCaptureRequestContextTool(input),
+    },
   }
 }

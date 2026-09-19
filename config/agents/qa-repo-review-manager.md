@@ -9,7 +9,12 @@ permission:
   glob: allow
   grep: allow
   bash: allow
-  task: allow
+  task:
+    "*": deny
+    qa-repo-reviewer-correctness: allow
+    qa-repo-reviewer-boundary: allow
+    qa-repo-reviewer-journey: allow
+    qa-repo-reviewer-domainrisk: allow
   lsp: allow
   question: allow
   skill: allow

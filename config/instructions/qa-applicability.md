@@ -189,7 +189,7 @@ Generation gating — a test is generated only when all of the following hold:
 - there is a concrete behavioral gap that can be meaningfully exercised,
 - the generated test has a meaningful behavioral oracle,
 - the test must run (an unexecuted test is not evidence),
-- the test must be independently re-evaluated, not accepted merely because it was generated,
+- the generator must run the test and report its result; the parent reviewer does not repeat that verification,
 - the test must not merely reproduce the implementation,
 - excessive mocking is avoided when a real caller or path can be exercised.
 
@@ -207,7 +207,7 @@ Docs review is REQUIRED when the changed surface contains any of these observabl
 - startup behavior,
 - installation or deployment behavior,
 - public schemas,
-- agent/tool/skill contracts,
+- agent/tool/skill contracts when they define a documentation oracle or explicitly require documentation review,
 - user workflows,
 - explicitly requested documentation.
 
@@ -215,14 +215,14 @@ Clarifying observable cases:
 
 - a README typo with no contract change may be Docs `NOT_APPLICABLE` or lightweight;
 - installation or deployment documentation for a changed CLI flag or command requires Docs;
-- a change to an agent, tool, or skill contract requires Docs.
+- a change to an agent, tool, or skill contract requires Docs only when the contract defines a documentation oracle or explicitly requires documentation review.
 
 Universal documentation analysis is forbidden for purely internal implementation detail.
 
-`UNNECESSARY` is not permitted when an observable public or operator contract changed.
+An applicable analyzer must return `PASS`, `GENERATED`, or `FAIL`; it must not silently waive an observable public or operator contract gap.
 
-When documentation is generated, it must be verified against authoritative code, config, and
-manifests rather than trusting fluent generated prose.
+The documentation generator verifies generated claims against authoritative code, config, and
+manifests and reports its result; the parent reviewer does not repeat that verification.
 
 ## Evidence-based `NOT_APPLICABLE`
 
@@ -241,26 +241,23 @@ Invalid examples (never sufficient):
 
 ## Analyzer and generator contract
 
-An analyzer runs whenever its applicability trigger fires. Whether the generator then runs is decided
-by the analyzer's tier — an analyzer running never by itself forces the generator to run.
+An applicable analyzer inspects only its own domain: TestAnalyzer handles testing, and DocsAnalyzer handles
+documentation. The analyzer decides whether a concrete repairable gap exists and may dispatch its permitted
+generator once.
 
-- `PASS` and `MINOR_PASS` mean the generator is `NOT_REQUIRED`.
-- `MINOR_DISPATCH` and `MAJOR_DISPATCH` require the generator.
-- An implementation or systemic escalation does not automatically run the generator.
+Each analyzer returns exactly one status:
 
-This section owns tier → generator routing. The "Generation gating" list under "Tests applicability"
-owns generation quality gating and remains in force: generator output must still be independently
-re-evaluated, not accepted merely because it was generated. The two are complementary and do not
-conflict.
+- `PASS` — no actionable gap and no generator is needed.
+- `GENERATED` — the generator successfully repaired a concrete gap and reported changed files.
+- `FAIL` — analysis or generation could not complete successfully; the result includes a concise reason.
 
-The owning manager enforces this contract. It rejects a missing required analyzer, a dispatch-tier
-analyzer without generator output, and generator output that has not been independently verified. It
-does **not** reject a `PASS`/`MINOR_PASS` run because no generator ran, nor a correct analyzer
-escalation that has no generator.
+This section owns applicability and routing. The analyzer owns the generator handoff; the generator owns its
+specialized edits and relevant verification. QA-Reviewer owns direct review of the changed subject and runs
+relevant tests/checks after analyzer completion. It does not repeat generator verification.
 
-Exactly one generation cycle occurs per analyzer run. The existing tier vocabulary — `PASS`,
-`MINOR_PASS`, `MINOR_DISPATCH`, `MAJOR_DISPATCH`, `MAJOR_RAISE` — is preserved unchanged: no tier is
-renamed and no tier is invented.
+The owning manager rejects a missing required analyzer, an unrecognized status, a `GENERATED` result without
+successful generator status and changed files, or a `FAIL` result without a reason. Exactly one generator
+handoff is permitted per analyzer run. No tiered analyzer status or alternate analyzer disposition is used.
 
 ## Canonical classification record
 

@@ -28,7 +28,7 @@ from datetime import date
 
 # --- Constants ---
 
-DD_STATUSES: frozenset[str] = frozenset({"Draft", "Approved", "Completed", "Superseded"})
+DD_STATUSES: frozenset[str] = frozenset({"Draft", "Approved", "Completed", "Superseded", "Rejected"})
 SLUG_PATTERN: re.Pattern[str] = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
 DD_PREFIX = "DD-"
 DESIGNS_PENDING_DIR = "artifacts/designs/pending"

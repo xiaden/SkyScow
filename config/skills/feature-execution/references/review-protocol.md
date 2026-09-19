@@ -134,7 +134,7 @@ Perform ALL of the following checks. Do not skip any category.
 - Is missing work explicitly owned by a valid downstream plan, or is it an unowned planning gap?
 
 ### 8. Coverage (Repository-Defined)
-- Whether test or documentation analysis applies is owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; this protocol owns only review of the resulting implementation and generator output
+- Whether test or documentation analysis applies is owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; this protocol owns review of the resulting implementation and consumes analyzer outcomes without re-reviewing generator work
 - Coverage is a diagnostic unless the repository defines its own coverage threshold or verification policy; honor repository policy when present and never apply a universal percentage
 - Discover and run repository checks relevant to the changed surface; do not assume generic commands
 - If no coverage policy exists, report coverage as unavailable/diagnostic rather than inventing a threshold

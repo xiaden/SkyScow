@@ -21,25 +21,22 @@ owns only HOW documentation analysis is performed.
 ## Dispatch Template
 
 ```
-Analyze documentation coverage and accuracy for changed files.
+Analyze documentation coverage and accuracy for the changed files.
 
 Context files to read:
-- [PLAN_PATH]  — the plan that produced these changes
+- [PLAN_PATH]
 - [list changed files covered by the plan]
 - [existing docs or READMEs for context]
 
 scope: "[files/modules to analyze]"
 plan: "[plan identifier]"
-task_family: "[existing task family — passed to qa_record_read]"
+changedFiles: ["..."]
 
-Inspect the current repository and produce candidate findings FIRST, before reading any prior QA round
-record. Each candidate needs an explicit gap kind, stable subject, severity/priority, stale flag, and
-generator-vs-systemic ownership. Then reconcile each candidate against the durable round records via
-qa_record_read. Every surviving generator-owned candidate — minor or major — MUST reach
-qa-docs-generator exactly once, then be re-verified; no candidate is dismissed as too minor. Only
-validated current reconciliation may close a candidate without generation. A required public/operator
-documentation gap can never be waived. A dispatch-tier result is incomplete until the generator has run.
-```
+Inspect the current surface and report concrete documentation gaps. If a repairable gap exists, dispatch
+`qa-docs-generator` once with only its `description`, `files`, and `reason`. The Generator owns documentation
+edits and verification. Return exactly `PASS`, `GENERATED`, or `FAIL`; `GENERATED` requires changed files,
+and `FAIL` requires a concise reason. Do not re-analyze docs, inspect durable Generator records, or
+reconstruct Generator history.
 
 ## Required Fields
 
@@ -47,47 +44,17 @@ documentation gap can never be waived. A dispatch-tier result is incomplete unti
 |-------|-------------|---------|
 | `scope` | Files/modules to analyze | `src/api/routes/, docs/api/` |
 | `plan` | Plan identifier for context | `TASK-api-A-endpoints` |
-| `task_family` | Existing task family for durable-record reconciliation | `TASK-api-A-endpoints` |
+| `changedFiles` | Changed surface | `["src/api/routes.py"]` |
 
 ## Expected Output
 
-| Tier | Meaning | Action |
-|------|---------|--------|
-| `PASS` | No candidate gap at all | No action needed |
-| `MINOR_PASS` | Every produced candidate was closed by validated current reconciliation | No new generation; report reconciliation basis |
-| `MINOR_DISPATCH` | Surviving generator-owned candidates | Spawn QA-DocsGenerator with candidate list |
-| `MAJOR_DISPATCH` | Significant surviving generator-owned candidates | Spawn QA-DocsGenerator with prioritized candidates |
-| `MAJOR_RAISE` | Systemic documentation problem | Escalate to the owning path |
+DD lifecycle inputs use only `Draft`, `Approved`, `Completed`, `Superseded`, or `Rejected`; an `Approved` pending prerequisite is valid only with disposition, responsible owner, and transition condition.
 
-Output includes:
-- The full candidate set (gap kind, stable subject, severity/priority, stale flag, ownership)
-- The reconciliation outcome per candidate (suppressed / reopened / new, with basis)
-- Coverage assessment per file/module
-- Missing docstrings (specific functions/classes)
-- Stale docs (docs for removed/renamed APIs)
-- Doc/code drift (docs say one thing, code does another)
+| Status | Meaning | Action |
+|--------|---------|--------|
+| `PASS` | No actionable documentation gap; no generator needed | Return to caller |
+| `GENERATED` | Generator successfully repaired a concrete gap | Return changed files |
+| `FAIL` | Analysis or generation could not complete successfully | Return reason/failure kind |
 
-## Fresh-Before-History Ordering (hard invariant)
-
-Fresh current-state inspection and candidate production MUST precede any read of prior QA round records.
-Prior records are reconciliation evidence, never an analysis exclusion list. A dispatch prompt that asks
-the analyzer to "check history first" contradicts this contract.
-
-## Reconciliation Rules
-
-Prior `UNNECESSARY` suppresses a repeat only after the current subject and its reason/evidence are
-revalidated against current state; a material subject/behavior change invalidates it and reopens the
-candidate, and a still-required public/operator documentation gap can never be suppressed. Prior
-`REPAIRED` is rechecked and can reopen. Prior `BLOCKED`/`ESCALATED` preserves ownership unless material
-conditions changed. No matching record means the candidate is new. History that was never produced by an
-analyzer is never persisted or used to suppress discovery. Missing history is empty; malformed,
-cross-family, or writer-mismatched history fails closed.
-
-## Routing by Tier
-
-| Tier | Action |
-|------|--------|
-| `PASS` | Return to caller — no candidate gaps |
-| `MINOR_PASS` | Return to caller — all candidates closed by validated current reconciliation; no new generation |
-| `MINOR_DISPATCH` or `MAJOR_DISPATCH` | Spawn `qa-docs-generator` exactly once with the surviving candidate list |
-| `MAJOR_RAISE` | Escalate — systemic documentation problem requires the owning path |
+Each gap contains only `description`, `files`, and `reason`. `GENERATED` requires non-empty changed files;
+`FAIL` requires a concise reason.

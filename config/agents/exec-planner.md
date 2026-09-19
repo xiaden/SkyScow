@@ -1,5 +1,5 @@
 ---
-description: Creates or amends implementation plan files. Used for new plans from design docs, fix plans from review gaps, or amendments to existing plans. Does not execute — only plans. May spawn Support-Researcher for deep codebase/external research.
+description: Creates or amends implementation plan files. Used for new plans from design docs, fix plans from review gaps, or amendments to existing plans. Does not execute — only plans. May spawn Exec-PlanGate for coordinated-plan preflight and Support-Librarian, Support-PatternEnforcer, or Support-Researcher for planning context and validation.
 maintainer: "agent-team"
 mode: subagent
 model: omniroute/luna-combo
@@ -10,7 +10,12 @@ permission:
   grep: allow
   log_read: allow
   log_write: allow
-  task: allow
+  task:
+    "*": deny
+    exec-plan-gate: allow
+    support-librarian: allow
+    support-pattern-enforcer: allow
+    support-researcher: allow
   context_tokens: allow
   plan_*: allow
   adr_read: allow
@@ -316,6 +321,6 @@ DONE means verified. Never "should be fine" — only actual evidence.
 
 ## Lifecycle and Ownership Closure (Mandatory)
 
-Before CREATE, AMEND, FIX_PLAN, or REORDER, verify the DD acceptance status and compare the DD ledger with the verbatim user request. Accept `Accepted` (including an accepted DD intentionally held in `pending/` only when its metadata names the prerequisite disposition, responsible owner, and next transition condition) or `Complete (accepted)`; reject `Proposed`, `Draft`, `Rejected`, and stale/invalid pending DDs that are not explicitly marked as accepted prerequisites. Each accepted-but-pending DD must carry metadata naming the prerequisite disposition, responsible owner, and next transition condition. If the ledger and the verbatim request differ, return `REQUIREMENT_DRIFT`; never weaken the ledger item. Every plan `Ownership` must include every caller file for each changed symbol signature, return type, or behavior; use the repository callgraph/import tooling (for example, `aft_callgraph` callers/impact plus language-aware import analysis), list resolved and unresolved edges, manually dispose of each unresolved edge, and require both mocked-caller and real-caller integration-test evidence; the real caller path controls closure for signature or return-type changes. Report the supersession sweep: update superseded artifact `Status`, add a back-pointer, and remove it from the executable set. Amend the owning plan unless a bounded successor-graph family is justified. A permitted generation must record the predecessor → successor edge, bounded scope, named predecessor and successor metadata, supersession metadata/back-pointers, and a recorded Exec-PlanGate `PASS`; without all of those conditions it is not executable.
+Before CREATE, AMEND, FIX_PLAN, or REORDER, verify the DD acceptance status and compare the DD ledger with the verbatim user request. Accept `Approved` (including an approved DD intentionally held in `pending/` only when its metadata names the prerequisite disposition, responsible owner, and transition condition) or `Completed`; reject `Draft`, `Rejected`, and stale/invalid pending DDs that are not explicitly marked as approved prerequisites. Each approved-but-pending DD must carry metadata naming the prerequisite disposition, responsible owner, and transition condition. If the ledger and the verbatim request differ, return `REQUIREMENT_DRIFT`; never weaken the ledger item. Every plan `Ownership` must include every caller file for each changed symbol signature, return type, or behavior; use the repository callgraph/import tooling (for example, `aft_callgraph` callers/impact plus language-aware import analysis), list resolved and unresolved edges, manually dispose of each unresolved edge, and require both mocked-caller and real-caller integration-test evidence; the real caller path controls closure for signature or return-type changes. Report the supersession sweep: update superseded artifact `Status`, add a back-pointer, and remove it from the executable set. Amend the owning plan unless a bounded successor-graph family is justified. A permitted generation must record the predecessor → successor edge, bounded scope, named predecessor and successor metadata, supersession metadata/back-pointers, and a recorded Exec-PlanGate `PASS`; without all of those conditions it is not executable.
 
 Each feature has one authoritative requirement ledger. Amend it with a dated append or fully supersede it; never duplicate section numbers or stack contradictory clauses.

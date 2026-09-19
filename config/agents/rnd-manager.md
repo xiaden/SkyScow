@@ -10,7 +10,16 @@ permission:
   grep: allow
   log_read: allow
   log_write: allow
-  task: allow
+  task:
+    "*": deny
+    support-librarian: allow
+    support-researcher: allow
+    rnd-refiner: allow
+    rnd-architect: allow
+    rnd-complexity-advisor: allow
+    rnd-estimator: allow
+    rnd-dd-author: allow
+    support-pattern-enforcer: allow
   dd_*: allow
   adr_*: allow
   asr_*: allow
@@ -196,4 +205,4 @@ not dispatch.
 
 ## DD Acceptance and Terminal Lifecycle
 
-Before accepting a DD, require an independent requirement-conformance check against the verbatim user request and immutable ledger. A mismatch is `REQUIREMENT_DRIFT`; stop or ask the user, never reinterpret it. A `Complete (accepted)` DD must be moved to `artifacts/designs/completed/` with a consistent `Status`. An `Accepted` DD may intentionally remain in `pending/` only as a prerequisite when its metadata explicitly names the prerequisite disposition, owner, and next transition condition; otherwise it is stale/invalid and cannot be decomposed, executed, or archived as complete. When a later artifact supersedes a DD or plan, run a supersession sweep: update the superseded artifact's `Status`, add a back-pointer, and remove it from the executable set.
+Before accepting a DD, require an independent requirement-conformance check against the verbatim user request and immutable ledger. A mismatch is `REQUIREMENT_DRIFT`; stop or ask the user, never reinterpret it. A `Completed` DD must be moved to `artifacts/designs/completed/` with a consistent `Status`. An `Approved` DD may intentionally remain in `pending/` only as a prerequisite when its metadata explicitly names the prerequisite disposition, responsible owner, and transition condition; otherwise it is stale/invalid and cannot be decomposed, executed, or archived as complete. When a later artifact supersedes a DD or plan, run a supersession sweep: update the superseded artifact's `Status`, add a back-pointer, and remove it from the executable set.

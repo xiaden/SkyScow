@@ -117,9 +117,11 @@ def test_slug_and_status_validation_preserve_contracts():
     assert validate_slug("bad_") is not None
     assert validate_slug("") == "Slug cannot be empty"
 
-    for status in DD_STATUSES:
+    for status in ("Draft", "Approved", "Completed", "Superseded", "Rejected"):
+        assert status in DD_STATUSES
         assert validate_status(status) is None
     assert validate_status("In Review") is not None
+    assert validate_status("Accepted") is not None
 
 
 def test_bundle_slug_accepts_supported_name_forms_and_rejects_invalid_names():

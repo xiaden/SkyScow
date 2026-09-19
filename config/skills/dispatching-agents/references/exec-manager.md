@@ -63,15 +63,17 @@ The bolded worker-spawn instructions are **required** — they remind Exec-Manag
 
 | Status | Meaning |
 |--------|---------|
+| `Approved` | Accepted DD prerequisite in `pending/` only with disposition, responsible owner, and transition condition |
+| `Completed` | Terminal DD status; archive/move semantics apply |
 | `DONE` | All phases complete, QA-Reviewer passed |
 | `BLOCKED` | A blocker cannot be resolved internally |
 | `ESCALATE` | Nyx input is needed |
 
-The output includes artifacts created/modified/deleted, annotations from each phase, QA review status (mandatory for DONE), test/docs analyzer status, and — for every surviving generator-owned candidate — the terminal Generator evidence or the validated current reconciliation.
+The output includes artifacts created/modified/deleted, annotations from each phase, and the QA-Reviewer verdict (mandatory for DONE).
 
 ## QA Gate Enforcement
 
-The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after all implementation phases complete and must not return `DONE` until QA-Reviewer reports `PASS`. The review is of the current plan's bounded slice, using the validated ordered plan set to classify incomplete work. QA-Reviewer owns all QA analyzer and generator dispatches; Exec-Manager only validates the returned evidence and never dispatches those agents directly.
+The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after all implementation phases complete and must not return `DONE` until QA-Reviewer reports `PASS`. The review is of the current plan's bounded slice, using the validated ordered plan set to classify incomplete work. Exec-Manager consumes the QA-Reviewer report and does not substitute its own review.
 
 **Enforcement rules:**
 
@@ -79,19 +81,17 @@ The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer aft
 2. **Only `PASS` unlocks `DONE`.** Any other status (`MINOR`, `MAJOR`, `FAIL`) must trigger a fix cycle or escalation.
 3. **Exec-Fixer handles MINOR issues.** After fixes, re-run QA-Reviewer.
 4. **MAJOR issues require escalation.** Architectural problems, missing functionality, or systemic bugs cannot be handled by Exec-Fixer alone.
-5. **Evidence contract.** Reject the report unless every analyzer whose canonical trigger fired inspected current state, produced candidates before reading history, and resolved each surviving generator-owned candidate with specialized Generator terminal evidence or a validated current reconciliation. Reject a missing required analyzer, an unresolved generator-owned candidate, a stale or mismatched reconciliation, a missing terminal record, a Generator `UNNECESSARY` without repository-derived reason/evidence, a `REPAIRED` without actual verification, a malformed subject identity, pre-mutation evidence, or fixer claims beyond performed repairs. Accept a valid specialized Generator `UNNECESSARY` without override, preserve `BLOCKED`/`ESCALATED` ownership, and reopen a stale `REPAIRED` after fresh analysis. The manager never decides a candidate is "too minor" to reach its Generator, and never overrides a valid specialized `UNNECESSARY`.
+5. **QA-Reviewer owns quality review.** Exec-Manager does not perform a substitute review or reinterpret the QA report.
 
-**Fix cycle flow:** QA-Reviewer reports a blocking `CURRENT_PLAN` issue → Spawn Exec-Fixer with the issue list → Re-run QA-Reviewer → Repeat until PASS or escalation. `PLANNING_GAP` is blocking and routes to Exec-Planner; a valid `DOWNSTREAM_PLAN` issue is reported and carried forward without blocking this plan. Each fix cycle requires a full QA-Reviewer re-run; a targeted re-check is never a substitute for the full re-run.
+**Fix cycle flow:** QA-Reviewer reports a blocking issue → Spawn Exec-Fixer with the issue list → Re-run QA-Reviewer → Repeat until PASS or escalation. `PLANNING_GAP` is blocking and routes to Exec-Planner; a valid `DOWNSTREAM_PLAN` issue is reported and carried forward without blocking this plan. Each fix cycle requires a full QA-Reviewer re-run; a targeted re-check is never a substitute for the full re-run.
 
 **Edge cases:**
 
 - **QA-Reviewer fails to spawn:** Retry once. If second attempt fails, escalate with spawn error.
 - **QA-Reviewer returns ambiguous results:** Re-spawn with clarification request — do not interpret output yourself.
-- **Fix cycle exceeds 3 iterations:** Escalate. Issues are likely systemic.
-- **Manager tempted to call a candidate "too minor":** Not permitted. Every surviving generator-owned candidate reaches its Generator exactly once or is closed by a validated current reconciliation.
-- **Documentation or test-only work:** No QA bypass applies. Apply the same independent correctness review and canonical analyzer applicability rules. A plan is not amended solely because QA derives a test, documentation, or evidence need that was not an explicit implementation deliverable.
+- **Manager receives a QA report:** Consume the QA-Reviewer verdict as a whole; do not reinterpret it.
+- **Documentation or test-only work:** No QA bypass applies. QA-Reviewer decides the applicable review depth.
 - **No changes to review:** QA-Reviewer still runs and will return `PASS` for an empty diff. Do not skip the gate.
-
 ## Test Findings During Execution
 
 Test findings are reviewed under the same correctness contract as other implemented behavior. A spec-first failure is not automatically a blocker or an exemption: classify it against the current implementation slice and validated ordered plan set. `CURRENT_PLAN` and unowned implementation gaps block; valid downstream implementation work is reported and carried forward. QA-derived test work remains QA-owned and does not become a planning gap merely because it was absent from the plan.

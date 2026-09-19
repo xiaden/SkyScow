@@ -9,7 +9,9 @@ permission:
   edit: allow
   write: allow
   bash: allow
-  task: allow
+  task:
+    "*": allow
+    support-pattern-enforcer: allow
   log_read: allow
   log_write: allow
   log_archive: allow
