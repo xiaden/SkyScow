@@ -78,6 +78,19 @@ afterEach(async () => {
 })
 
 describe("capture_request_context", () => {
+  test("orders SDK history records by message creation time before matching the anchor", () => {
+    const response = [
+      message("invocation", "user", "invoke", { time: { created: 3 } }),
+      message("anchor", "user", "Request", { time: { created: 1 } }),
+      message("assistant", "assistant", "visible answer", { time: { created: 2, completed: 2 } }),
+    ]
+
+    const projection = projectHistory(response, { from: "Request" }, SESSION, "invocation")
+
+    expect(projection.messages.map(({ id }) => id)).toEqual(["anchor", "assistant"])
+    expect(projection.boundaryMessageId).toBe("assistant")
+  })
+
   test("accepts a successful bare records array from session.messages", () => {
     const response = [
       message("anchor", "user", "Request"),
@@ -89,6 +102,18 @@ describe("capture_request_context", () => {
     expect(projection.messages.map(({ id, role, text }) => ({ id, role, text }))).toEqual([
       { id: "anchor", role: "user", text: "Request" },
     ])
+    expect(projection.boundaryMessageId).toBe("anchor")
+  })
+
+  test("accepts the SDK fields response envelope from session.messages", () => {
+    const records = [
+      message("anchor", "user", "Request"),
+      message("invocation", "user", "invoke"),
+    ]
+
+    const projection = projectHistory({ data: records, error: undefined }, { from: "Request" }, SESSION, "invocation")
+
+    expect(projection.messages.map(({ id }) => id)).toEqual(["anchor"])
     expect(projection.boundaryMessageId).toBe("anchor")
   })
 
@@ -295,6 +320,23 @@ describe("capture_request_context", () => {
       "anchor:user:Request",
       "assistant:assistant:visible answer",
     ])
+    expect(projection.boundaryMessageId).toBe("assistant")
+  })
+
+  test("ignores incomplete historical records before the selected anchor", () => {
+    const response = history([
+      {
+        info: { id: "stale-incomplete", sessionID: SESSION, role: "assistant", time: {} },
+        parts: [{ type: "tool", callID: "old-tool" }],
+      },
+      message("anchor", "user", "Request"),
+      message("assistant", "assistant", "visible answer"),
+      message("invocation", "user", "invoke"),
+    ])
+
+    const projection = projectHistory(response, { from: "Request" }, SESSION, "invocation")
+
+    expect(projection.messages.map(({ id }) => id)).toEqual(["anchor", "assistant"])
     expect(projection.boundaryMessageId).toBe("assistant")
   })
 

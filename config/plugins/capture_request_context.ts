@@ -138,10 +138,9 @@ function parseResponse(value: unknown): unknown[] {
 }
 
 function historyData(response: unknown): unknown {
-  // The installed session.messages operation returns its successful value as
-  // the records array. Do not introduce a second reader or normalize another
-  // response API here; only retain the SDK error-envelope handling needed for
-  // failures represented by the supported client result.
+  // The generated SDK client uses its default fields response shape:
+  // { data: records, error: undefined, ... }. Keep bare arrays for direct
+  // fixtures and fail closed for envelopes without a successful data array.
   if (Array.isArray(response)) return response
   if (typeof response !== "object" || response === null) {
     fail("history_unavailable", "history response is unavailable")
@@ -150,33 +149,38 @@ function historyData(response: unknown): unknown {
   if ("error" in envelope && envelope.error !== undefined) {
     fail("history_unavailable", "history API returned an error")
   }
+  if (Array.isArray(envelope.data)) return envelope.data
   fail("history_unavailable", "history response is not a supported success array")
 }
 
-/**
- * Project one current-session response into the exact visible transcript before invocation.
- *
- * The invocation record is an exclusive cutoff: it is never included in the transcript or
- * used as provenance boundary content. Only records in `sessionId` with visible user or
- * assistant text are projected; child-session and supported non-transcript records are
- * excluded after structural and completion validation. Anchor matching normalizes only
- * whitespace, while emitted text remains unchanged. Any ambiguous or unavailable history
- * condition fails closed by throwing instead of returning a partial projection.
- *
- * Args:
- *   response: The single supported `session.messages` response to classify and project.
- *   args: Capture arguments containing the normalized-match source text in `from`.
- *   sessionId: The official current-session identifier used to filter records.
- *   invocationMessageId: The official invocation boundary record identifier.
- *
- * Returns:
- *   The validated current-session transcript and its anchor and exclusive pre-invocation
- *   boundary identifiers.
- *
- * Raises:
- *   Error: If input, history structure, visibility, completion, anchor uniqueness, session
- *     ownership, or the exclusive pre-invocation boundary is invalid or ambiguous.
- */
+function orderHistoryRecords(records: unknown[]): unknown[] {
+  const entries = records.map((raw, index) => {
+    if (typeof raw !== "object" || raw === null) fail("history_ambiguous", "malformed history record")
+    const record = raw as Record<string, unknown>
+    if (typeof record.info !== "object" || record.info === null || !Array.isArray(record.parts)) {
+      fail("history_ambiguous", "malformed history record")
+    }
+    const info = record.info as Record<string, unknown>
+    const time = info.time
+    const created =
+      typeof time === "object" && time !== null && typeof (time as Record<string, unknown>).created === "number"
+        ? ((time as Record<string, unknown>).created as number)
+        : undefined
+    return { raw, index, created }
+  })
+  if (entries.length < 2 || entries.some(({ created }) => created === undefined || !Number.isFinite(created))) {
+    return records
+  }
+  // The session API may return records newest-first, while projection operates on
+  // conversation order. Message creation time is the supported ordering signal.
+  return [...entries]
+    .sort((left, right) => {
+      if (left.created !== right.created) return left.created! - right.created!
+      return left.index - right.index
+    })
+    .map(({ raw }) => raw)
+}
+
 export function projectHistory(
   response: unknown,
   args: CaptureArgs,
@@ -188,12 +192,9 @@ export function projectHistory(
   }
   const normalizedFrom = normalizeForAnchor(args.from)
   if (!normalizedFrom) fail("invalid_input", "from must not be empty")
-  const records = parseResponse(historyData(response))
-  // Establish the strict boundary before validating/classifying history. Only records
-  // through the boundary can influence this invocation; later records are outside the
-  // supported prefix and must not invalidate it.
+  const records = orderHistoryRecords(parseResponse(historyData(response)))
+
   let invocationIndex = -1
-  let invocationCount = 0
   for (let index = 0; index < records.length; index += 1) {
     const raw = records[index]
     if (typeof raw !== "object" || raw === null) fail("history_ambiguous", "malformed history record")
@@ -204,16 +205,37 @@ export function projectHistory(
     const info = record.info as Record<string, unknown>
     const rawId = info.id ?? info.messageID ?? info.messageId
     const rawSessionId = info.sessionID ?? info.sessionId
-    // Boundary discovery is intentionally prefix-first: the first exact current-session
-    // identity is the exclusive fence. Nothing after it is part of this invocation's
-    // supported sample and therefore cannot add duplicate or malformed evidence.
+    // The first exact current-session identity is the exclusive fence. Nothing after
+    // it is part of this invocation's supported sample.
     if (rawId === invocationMessageId && rawSessionId === sessionId) {
       invocationIndex = index
-      invocationCount = 1
       break
     }
   }
-  if (invocationIndex < 0 || invocationCount !== 1) fail("history_ambiguous", "invocation boundary is unavailable")
+  if (invocationIndex < 0) fail("history_ambiguous", "invocation boundary is unavailable")
+
+  // Locate the anchor before applying completion rules. Abandoned tool-only or internal
+  // records from earlier conversation turns are outside the requested snapshot and must
+  // not invalidate a later, otherwise valid anchor.
+  const anchors: Array<{ index: number; id: string }> = []
+  for (let index = 0; index < invocationIndex; index += 1) {
+    const raw = records[index]
+    if (typeof raw !== "object" || raw === null) fail("history_ambiguous", "malformed history record")
+    const record = raw as Record<string, unknown>
+    if (typeof record.info !== "object" || record.info === null || !Array.isArray(record.parts)) {
+      fail("history_ambiguous", "malformed history record")
+    }
+    const info = record.info as Record<string, unknown>
+    const id = messageIdFromInfo(info)
+    const recordSessionId = sessionIdFromInfo(info)
+    const role = roleFromInfo(info)
+    const text = visibleText(record.parts)
+    if (recordSessionId === sessionId && role === "user" && normalizeForAnchor(text).includes(normalizedFrom)) {
+      anchors.push({ index, id })
+    }
+  }
+  if (anchors.length !== 1) fail("history_ambiguous", "anchor is absent or ambiguous")
+  const anchorIndex = anchors[0].index
 
   type ValidatedRecord = {
     id: string
@@ -223,7 +245,7 @@ export function projectHistory(
     completed: boolean
   }
   const validatedRecords: ValidatedRecord[] = []
-  for (let index = 0; index <= invocationIndex; index += 1) {
+  for (let index = anchorIndex; index <= invocationIndex; index += 1) {
     const raw = records[index]
     if (typeof raw !== "object" || raw === null) fail("history_ambiguous", "malformed history record")
     const record = raw as Record<string, unknown>
@@ -236,21 +258,15 @@ export function projectHistory(
     const role = roleFromInfo(info)
     const text = visibleText(record.parts)
     const isBoundary = index === invocationIndex
-    const completed = isBoundary ? true : isCompleted(info, role)
+    const completed = isBoundary || isCompleted(info, role)
     if (!completed) fail("history_ambiguous", "pre-invocation completion boundary is unavailable")
     validatedRecords.push({ id, sessionId: recordSessionId, role, text, completed })
   }
 
   // The invocation record is an exclusive cutoff and is never projected.
-  const beforeInvocation = validatedRecords
-    .slice(0, invocationIndex)
+  const selected = validatedRecords
+    .slice(0, -1)
     .filter((record) => record.sessionId === sessionId && record.role !== "excluded" && record.text)
-  const anchors = beforeInvocation.filter(
-    (message) => message.role === "user" && normalizeForAnchor(message.text) === normalizedFrom,
-  )
-  if (anchors.length !== 1) fail("history_ambiguous", "anchor is absent or ambiguous")
-  const anchorIndex = beforeInvocation.findIndex((message) => message.id === anchors[0].id)
-  const selected = beforeInvocation.slice(anchorIndex)
   const boundary = selected[selected.length - 1]
   if (!boundary) fail("history_ambiguous", "pre-invocation boundary is empty")
   return {
