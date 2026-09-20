@@ -54,22 +54,19 @@ The bolded turn-by-turn spawn instructions are **required** — RnD-Refiner orch
 
 ## How the Adversarial Pipeline Works
 
-The standard route has eight turns, but the route is evidence-gathering, not a
-new authority layer:
+The standard route has exactly eight turns, but the route is evidence-gathering, not a new authority layer, proposal phase, ledger, state machine, or implementation gate:
 
-1. **Approach generation:** propose approaches with evidence.
-2. **Approach critique:** search for documented failures and pitfalls.
+1. **Approach generation:** expand credible approaches with external evidence.
+2. **Approach critique:** challenge external and architectural assumptions with documented failures.
 3. **Approach refinement:** address valid criticisms and drop failures.
-4. **Surviving concerns:** identify unresolved risks.
-5. **Pattern generation:** design implementation patterns.
-6. **Pattern critique:** identify edge cases and integration risks.
-7. **Pattern refinement:** address valid pattern critiques.
-8. **Final counter-review:** record open risks and human questions.
+4. **Surviving concerns:** validate remaining external assumptions.
+5. **Repository-native adaptation:** collapse the survivor through local architecture, behavior, and constraints.
+6. **Repository-fit challenge:** test actual paths and unnecessary mechanisms.
+7. **Bounded correction:** apply only accepted, repository-native corrections.
+8. **Final repository-fit validation:** record applicable risks and human questions, or validate the realization as good enough.
 
-Each selected turn appends to the shared adversarial log. The result is evidence
-for DDAuthor's final DD, not a final DD itself. Skipped or abbreviated turns are
-acceptable when the route does not need them; record the reason and do not turn
-turn-count, citation, or evidence completeness into downstream plan obligations.
+Each turn appends to the shared adversarial log. The result is evidence
+for DDAuthor's final DD, not a final DD itself. Refiner and all adversarial agents are observational/recommendatory until the RnD-Manager gate; only Manager-approved `MITIGATE` may authorize the smallest sufficient correction. `ACCEPT_RISK`, `NOT_APPLICABLE`, and `DEFER_TO_OWNER` preserve or route without implementation. A Counter turn may return a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result; credible validation is successful adversarial work, not a failed turn. The route requires exactly eight turns; no turn is skipped or abbreviated, and no turn-count, citation, or evidence completeness becomes a downstream plan obligation.
 
 ## GitHub Actions context (when relevant)
 

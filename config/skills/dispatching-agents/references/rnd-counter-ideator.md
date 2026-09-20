@@ -1,6 +1,6 @@
 # RnD-CounterIdeator
 
-Dispatch RnD-CounterIdeator to provide adversarial critique of proposed design approaches — searching for documented failures, postmortems, and pitfalls.
+Dispatch RnD-CounterIdeator to challenge externally supported design approaches with documented failures and postmortems, while allowing evidence-backed validation when no material applicable concern remains.
 
 ## When to Dispatch
 
@@ -18,11 +18,11 @@ Dispatch RnD-CounterIdeator to provide adversarial critique of proposed design a
 ## Dispatch Template
 
 ```
-Critique the proposed approaches in [DD_PATH].
+Challenge the proposed approaches in [DD_PATH].
 
-Read the approach proposals. Search for documented failures, postmortems, and known pitfalls matching each approach. Rank criticisms by context relevance. Append critique sections to the DD.
+Read the approach proposals. Search for documented failures, postmortems, and known pitfalls matching each approach. Rank concerns by context relevance. If serious examination finds no material applicable concern, append a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result instead of manufacturing an objection. Append the review to the DD.
 
-White-hat adversary — success is measured by how much the final design improves, not how many problems are found. Read-only.
+White-hat adversary — success is measured by improving or credibly validating the final design, not by how many problems are found. Read-only.
 ```
 
 ## Required Fields
@@ -33,16 +33,16 @@ White-hat adversary — success is measured by how much the final design improve
 
 ## Expected Output
 
-- Adversarial critique appended to the shared DD
-- Documented failures and postmortems matching proposed approaches
-- Pitfalls ranked by context relevance
+- Adversarial critique or a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` validation appended to the shared DD
+- Documented failures and postmortems matching proposed approaches when concerns exist
+- Assumptions challenged, evidence checked, and applicability rationale for validation results
 - Concrete risks with evidence citations
 
 This agent is part of the `rnd-refiner` adversarial pipeline. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of existing proposals.
 
 ## How It Works
 
-RnD-CounterIdeator reads approach proposals from the shared DD, web-searches for documented failures and postmortems that match each approach, ranks criticisms by how relevant they are to the specific context, and appends critique sections. It's a white-hat adversary — its success metric is how much the final design improves, not how many problems it finds.
+RnD-CounterIdeator reads approach proposals from the shared DD, searches for documented failures and postmortems when needed, ranks applicable concerns by context relevance, and appends critique or good-enough validation. It is a white-hat adversary — success is measured by improving or credibly validating the final design, not by finding more problems.
 
 ## GitHub Actions context (when relevant)
 

@@ -162,11 +162,14 @@ Exec-Manager spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direc
 RnD-Manager is the sole orchestrator for a formal DD. It dispatches Librarian,
 Researcher, Refiner, Architect, ComplexityAdvisor, Estimator, DDAuthor, and
 PatternEnforcer in its canonical order. RnD-Refiner is a nested orchestrator
-only for its fixed eight-turn adversarial sequence. DDAuthor never orchestrates
-other R&D agents. Direct dispatch of leaf R&D agents is valid only for focused
-analysis outside a formal DD workflow.
+only for its fixed eight-turn adversarial sequence. T1–T4 expand and challenge
+externally supported architecture; T5–T8 adapt and validate repository fit.
+Counter agents may return a substantiated `NO_MATERIAL_CONCERNS` /
+`GOOD_ENOUGH` result; credible validation is a successful adversarial outcome,
+not a failed turn. DDAuthor never orchestrates other R&D agents. Direct dispatch
+of leaf R&D agents is valid only for focused analysis outside a formal DD workflow.
 
-The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner in the adversarial pipeline. Direct dispatch is rare.
+The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner in the adversarial pipeline. Counter-Ideator tests external/architectural assumptions; Counter-Improver tests repository fit and unnecessary mechanisms. Both may validate a proposal when credible examination finds no material applicable concern. Direct dispatch is rare.
 
 ### QA Department
 
@@ -214,9 +217,9 @@ Exec-Manager **must not** report completion without `qaReview.status: PASS`. If 
 
 Spec-first / RED-first testing is surface-dependent, selected from observable repository/task facts per `/home/opencode/.config/opencode/instructions/validation-mandate.md`. Apply it only when the changed surface has a meaningful executable oracle — a regression test can reproduce the defect, the repository already follows a test-first style, or a spec-first test resolves genuine spec ambiguity. Do not force RED for non-test-first surfaces (for example documentation-only or configuration-only changes with no executable oracle). Where it applies, tests written against design documents are expected to fail during implementation — do NOT dispatch Support-Debugger for those expected spec-first failures. QA review must classify failures: expected (not yet implemented) vs. actual regressions.
 
-### Pattern Adoption
+### Pattern Impact Analysis
 
-After a plan introduces a new pattern, verify it propagated everywhere via Support-PatternEnforcer. If `high_confidence` gaps exist, spawn Exec-Planner (AMEND) for a migration phase.
+After an accepted change, Support-PatternEnforcer may run read-only `impact_closure` (default) to report evidence-backed impact. It may run `migration_scan` only when a Manager-accepted DD or plan explicitly establishes bounded migration scope. Findings use role-specific kinds and the shared `ADVISORY | NEEDS_OWNER | BLOCKING` envelope, route to the owning manager/planner, and never amend a plan automatically.
 
 ## Dispatch Tool: native `task`
 
@@ -299,6 +302,6 @@ Spawning a manager (Exec-Manager, RnD-Manager)?
 
 ## Lifecycle Validation Before Dispatch
 
-Every design, planning, or execution dispatch must validate DD status and requirement conformance before handing work downstream. Accept a DD only with a recognized accepted status (`Approved` or `Completed`), including an `Approved` DD intentionally held in `pending/` only when its metadata names the prerequisite disposition, responsible owner, and transition condition; reject `Draft`, `Rejected`, stale/invalid pending DDs, and any execution or archival of an unaccepted DD.
+Every design, planning, or execution dispatch must validate DD status and requirement conformance before handing work downstream. Accept a DD only with a recognized accepted status (`Complete (accepted)`, `Approved`, or `Completed`), normalizing repository wording `Complete (accepted)` as accepted; an accepted DD intentionally held in `pending/` must name the prerequisite disposition, responsible owner, and transition condition. Reject `Draft`, `Rejected`, stale/invalid pending DDs, and any execution or archival of an unaccepted DD.
 
-For plan families, the dispatcher must require ownership closure: each changed symbol contract has every caller file named in `Ownership`; a handoff annotation is not coverage. Ownership-closure evidence is a call-graph/import check that lists resolved and unresolved edges, a manual disposition for every unresolved edge (with a reason it is safe or a follow-up that resolves it), and a mock-versus-real caller integration test for every signature or return-type change. Reject missing or stale status, missing caller ownership, unresolved supersession, and `REQUIREMENT_DRIFT` rather than dispatching an unaudited family. Generational families are permitted only with an explicit predecessor → successor graph, bounded scope, supersession metadata/back-pointers, and a recorded Exec-PlanGate `PASS`. Support-Librarian and Support-PatternEnforcer dispatches must use the same checks when validating DDs or plans.
+For plan families, the owning planning layer remains responsible for ownership closure and lifecycle checks. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved edges, or validate supersession. Its impact findings are evidence for owner/planner disposition only; `BLOCKING`, confidence, closure, and routing ownership do not authorize implementation.

@@ -1,13 +1,13 @@
 # RnD-CounterImprover
 
-Dispatch RnD-CounterImprover to provide adversarial critique of implementation patterns — searching for edge cases, integration risks, and library-specific gotchas.
+Dispatch RnD-CounterImprover to validate repository fit — checking actual paths, ownership, lifecycle, dependencies, and unnecessary mechanisms, while allowing evidence-backed `GOOD_ENOUGH` validation.
 
 ## When to Dispatch
 
 **Dispatch when:**
-- RnD-Refiner delegates adversarial pattern critique in the adversarial design flow (Turns 7-8)
-- You have proposed implementation patterns and want them stress-tested for real-world risks
-- You need evidence-grounded "what could go wrong at implementation time" analysis
+- RnD-Refiner delegates repository-fit validation in the adversarial design flow (Turns 7-8)
+- You have a repository-native realization and want it stress-tested against actual local fit and consequential external risks
+- You need evidence-grounded repository-fit analysis of what could go wrong at implementation time
 
 **Do NOT dispatch when:**
 - You need approach-level critique — use `rnd-counter-ideator` instead
@@ -18,31 +18,30 @@ Dispatch RnD-CounterImprover to provide adversarial critique of implementation p
 ## Dispatch Template
 
 ```
-Critique the implementation patterns in [DD_PATH].
+Validate the repository-native realization in [DD_PATH]. Recommend, but do not decide, `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER` for evidence-backed risks; preserve applicability and currentness analysis.
 
-Read the pattern proposals. Search for edge cases, integration risks, and library-specific gotchas matching each pattern. Rank by context relevance. Append risk assessment sections to the DD.
+Trace actual repository paths, abstractions, ownership, lifecycle, dependency/API semantics, and runtime boundaries. Challenge mechanisms that duplicate repository-owned behavior. If the realization is coherent and no material applicable mismatch remains, append a substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result; do not force cross-pattern risks or unsupported edge cases. Append the review to the DD.
 
-White-hat adversary — success is measured by how much the final implementation plan improves. Read-only.
+White-hat adversary — success is measured by how much the final repository-native realization improves, or is credibly validated. Read-only.
 ```
 
 ## Required Fields
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `[DD_PATH]` | Path to the shared design document with implementation patterns | `artifacts/designs/pending/collab-editing.md` |
+| `[DD_PATH]` | Path to the shared design document with the repository-native realization | `artifacts/designs/pending/collab-editing.md` |
 
 ## Expected Output
 
-- Risk assessment appended to the shared DD
-- Edge cases and integration risks per pattern
-- Library-specific gotchas with evidence citations
+- Risk assessment or substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` validation appended to the shared DD as evidence and recommendations only; Manager decides disposition and only approved `MITIGATE` can authorize correction
+- Applicable edge cases and integration risks grounded in repository paths
+- Library-specific gotchas only when consequential and supported by evidence
 - Risks ranked by context relevance
 
-This agent is part of the `rnd-refiner` adversarial pipeline. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of existing implementation patterns.
+This agent is part of the `rnd-refiner` adversarial pipeline. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of an existing repository-native realization.
 
 ## How It Works
-
-RnD-CounterImprover reads implementation patterns from the shared DD, web-searches for edge cases, integration risks, and library-specific gotchas, ranks risks by context relevance, and appends risk assessment sections. It's a white-hat adversary — its success metric is how much the final implementation plan improves.
+RnD-CounterImprover reads the repository-native realization from the shared DD, traces local paths and ownership first, and uses external evidence only when needed to verify a consequential dependency/API or failure mechanism. It ranks applicable findings by context relevance and appends risk assessment or good-enough validation. It is a white-hat adversary — success is measured by improving or credibly validating the realization, not by finding more risks.
 
 ## GitHub Actions context (when relevant)
 

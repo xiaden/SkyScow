@@ -32,15 +32,20 @@ necessary dependency/contract for satisfying one.
 Once DD_REQUIRED is selected, the selected R&D stages are process requirements for producing a trustworthy DD; they are not product requirements and do not become downstream implementation gates. Completion requires the route's recorded DD, decision evidence, and requirement-conformance result. The user request, not an agent summary or DD, is the authoritative product specification.
 ```
 
-5. **RnD-DDAuthor** writes the formal DD from the authoritative ledger and
-   selected architectural decisions. Upstream artifacts are evidence and
-   provenance, not additional requirements.
-6. **RnD-PatternEnforcer** performs the final requirement-conformance check and
-   may identify a real contradiction or missing invariant. It may not require
-   tests, docs, citations, or evidence artifacts solely because its checklist
-   names them.
-7. **RnD-Manager** validates the DD and returns `READY_FOR_PLANNING` only when
-   requirements and accepted architecture are coherent.
+5. **RnD-Manager decision gate** independently compares the verbatim CTX,
+immutable ledger, final DD inputs, and scoped adversarial review. Record accepted
+decisions with sources and rationale, accepted non-change outcomes, and an
+explicit `implementation_authorization` list containing only Manager-approved
+`MITIGATE` corrections; `[]` is valid. Return `NEEDS_DECISION` before DDAuthor
+for unresolved material choices or ambiguous authority.
+6. **RnD-DDAuthor** records that accepted handoff in the formal DD. It preserves
+requirements and provenance but does not repair, reinterpret, promote, or
+complete an incomplete handoff. Upstream artifacts remain evidence and
+provenance, not additional requirements.
+7. **PatternEnforcer** reports read-only impact evidence to the owning
+manager/planner; it is not the independent requirement or design decision gate.
+8. **RnD-Manager** returns `READY_FOR_PLANNING` only after the independent gate
+and DD recording are coherent.
 
 ## Research-only dispatch
 
@@ -59,9 +64,10 @@ adversarial turns and the PatternEnforcer gate. `DONE` means verified completion
 not dispatch.
 
 If any design decision would remove, weaken, defer, disable, invert, or change
-the semantics of an explicit requirement, return `NEEDS_DECISION`, quote the
-affected requirement, provide the evidence, and ask the user. Do not instruct
-DDAuthor to encode the change without explicit user approval.
+the semantics of an explicit requirement, or if authority for a material choice
+is ambiguous, return `NEEDS_DECISION`, quote the affected requirement/choice,
+provide sources and rationale, and ask the user. Do not instruct DDAuthor to
+repair or encode the unresolved change.
 
 ## Do not dispatch when
 

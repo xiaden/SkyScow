@@ -1,14 +1,15 @@
 # RnD-Improver
 
-Dispatch RnD-Improver to analyze existing code and suggest concrete improvements, or to propose implementation patterns for a chosen design approach.
+Dispatch RnD-Improver to analyze existing code and suggest concrete improvements, or, in adversarial mode, to adapt a production-backed approach into the smallest repository-native realization.
 
 ## When to Dispatch
 
 **Dispatch when:**
 - You want to improve existing code and need structured suggestions
 - An implementation plan needs concrete patterns — "how should we implement approach A?"
+- RnD-Refiner needs repository-fit adaptation after the external approach has survived T1–T4
 - You're evaluating whether an existing module could be restructured for better maintainability
-- RnD-Refiner delegates pattern design to this agent in the adversarial design flow
+- RnD-Refiner delegates repository-native adaptation to this agent in the adversarial design flow
 
 **Do NOT dispatch when:**
 - You need creative ideation — use `rnd-ideator` instead
@@ -29,7 +30,7 @@ Context files to read:
 scope: "[files/modules to analyze]"
 focus areas: "[specific areas to improve — e.g., error handling, performance, readability, testability]"
 
-Suggest concrete improvements with implementation patterns. Read-only — analysis only.
+Suggest concrete improvements with implementation patterns. In adversarial mode, prefer existing repository mechanisms and explicitly allow `no additional mechanism required`. Read-only — analysis only.
 ```
 
 ## Required Fields
@@ -43,7 +44,8 @@ Suggest concrete improvements with implementation patterns. Read-only — analys
 ## Expected Output
 
 - Concrete improvement suggestions with rationale
-- Implementation patterns for each suggestion
+- In adversarial mode, the smallest repository-native realization, reused mechanisms, bounded adapters, and omitted machinery with rationale
+- Implementation patterns only where repository evidence shows they are necessary
 - Effort estimate per improvement (TRIVIAL/SMALL/MEDIUM)
 - Priority ranking (quick wins vs. structural changes)
 
@@ -51,16 +53,16 @@ This agent is **read-only** — it returns suggestions, does not modify code.
 
 ## Dispatch Variants
 
-### Pattern Design for Chosen Approach
+### Repository-Native Adaptation for Chosen Approach
 
 When RnD-Refiner delegates pattern design after an approach is chosen:
 
 ```
-Propose implementation patterns for the chosen approach in [DD_PATH].
+Adapt the chosen production-backed approach to the repository in [DD_PATH].
 
-Context: [DD_PATH] and relevant codebase files.
+Context: [DD_PATH] and the relevant repository files, abstractions, ADRs, dependencies, lifecycle, and runtime boundaries.
 
-Propose concrete implementation patterns with mandatory web-cited evidence. Append to DD across two turns.
+Identify what the repository already supplies, what conflicts, and the smallest bounded adapter or substitution required. Do not invent mechanisms for every implementation dimension; `no additional mechanism required` is valid. Use external citations only when they materially verify an adaptation or consequential technology claim. Append to the DD across two turns. On the second turn, consume Manager-approved dispositions: only `MITIGATE` authorizes the smallest repository-native correction; preserve `ACCEPT_RISK` and `NOT_APPLICABLE`, and leave `DEFER_TO_OWNER` unchanged pending owner decision.
 ```
 
 ## GitHub Actions context (when relevant)

@@ -109,26 +109,36 @@ agents do not rediscover prior work.
    open questions. Mandatory for brownfield work.
 2. **Support-Researcher** investigates the real codebase, integration points,
    and current technology/API facts required by the design.
-3. **RnD-Refiner** runs the selected adversarial turns in order. The standard route has eight turns, but turn count, citation completeness, and adversarial-log structure are process evidence; they do not become product requirements or downstream implementation gates.
+3. **RnD-Refiner** runs the existing adversarial workflow in exactly eight sequential turns. T1–T4 expand and challenge externally supported architecture; T5–T8 adapt and validate repository fit. A Counter turn may credibly conclude `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH`; that is successful validation, not a failed turn. The turns remain process evidence, not product requirements or downstream implementation gates, and Refiner/adversarial recommendations remain non-authoritative until this Manager gate.
 4. **RnD-Architect** produces concrete implementation options and a tradeoff
    matrix from the research and adversarial results.
 5. **RnD-ComplexityAdvisor** checks the proposed design for unnecessary
    abstractions, accidental complexity, and scope inflation.
-6. **RnD-Estimator** produces the final effort estimate for the selected design.
-   This is a sizing report only and cannot alter `DD_REQUIRED`.
-7. **RnD-DDAuthor** distills the requirement ledger and the selected
-    architectural decisions into the formal DD. Research, adversarial history,
-    complexity findings, estimates, and evidence inform the design but do not
-    become requirements, implementation obligations, or definition-of-done
-    gates unless they are explicitly present in the ledger or are necessary to
-    preserve an accepted architectural invariant.
-8. **Support-PatternEnforcer** validates that the DD covers all affected
-   modules, preserves the requirement ledger, and follows established patterns.
-   Material gaps go back to DDAuthor; rerun this gate after every amendment.
+6. **RnD-Estimator** produces the final effort estimate for the reviewed design.
+    This is a sizing report only and cannot alter `DD_REQUIRED`.
+7. **RnD-Manager decision gate:** independently compare the verbatim CTX, the
+    immutable requirement ledger, the final DD inputs, and the scoped adversarial
+    review. Record each accepted decision with its sources and rationale, record
+    accepted non-change outcomes, and include an explicit
+    `implementation_authorization` list containing only Manager-approved
+    `MITIGATE` corrections; an empty list is valid. Return `NEEDS_DECISION` to
+    the user before DDAuthor whenever a material choice or decision authority is
+    unresolved or ambiguous. Evidence, closure, ownership, and recommendations
+    never authorize implementation by themselves.
+8. **RnD-DDAuthor** records the Manager's accepted decisions and non-change
+    outcomes in the formal DD. It preserves requirements and provenance but does
+    not repair, reinterpret, promote, or complete an incomplete or
+    `NEEDS_DECISION` handoff.
+9. **Support-PatternEnforcer** performs read-only repository impact analysis;
+    its findings route to the owning manager/planner and do not replace the
+    Manager's independent conformance or decision gate.
 
-Do not report a DD as complete until the final DD and the required decision
-review have been produced, the requirement ledger is preserved, and any
-accepted architectural constraints are explicit. Supporting reports and
+Do not report a DD as complete until the Manager decision gate has independently
+compared verbatim CTX + immutable ledger + final DD, recorded accepted decisions,
+sources, rationale, scoped adversarial outcomes, and explicit implementation
+authorization (possibly empty), and DDAuthor has recorded that accepted handoff.
+The requirement ledger and any accepted architectural constraints must remain
+explicit. Supporting reports and
 adversarial logs are provenance and may be absent only when the selected route
 does not require them; their existence or citation quality is not a product
 requirement or an implementation-plan obligation. Then return
@@ -198,10 +208,11 @@ requirements or permanent execution gates.
 Before reporting `DONE` for a DD, verify:
 
 1. `DD_REQUIRED` is locked.
-2. All eight adversarial turns completed substantively.
+2. All eight adversarial turns completed with substantive evidence; Counter validation may conclude `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` when its examination is documented.
 3. All required reports and exact artifact paths are present.
 4. DDAuthor produced the final DD from those inputs.
-5. PatternEnforcer approved the DD after any required amendment.
+5. The Manager independently compared verbatim CTX + immutable ledger + final DD;
+   PatternEnforcer findings were treated as evidence only and routed to their owner.
 6. No blockers or unresolved mandatory questions remain.
 7. Every mandatory ledger item maps to a DD section and, where implementation
     is required, an implementation obligation. Advisory findings and process
@@ -218,4 +229,6 @@ not dispatch.
 
 ## DD Acceptance and Terminal Lifecycle
 
-Before accepting a DD, require an independent requirement-conformance check against the verbatim user request and immutable ledger. A mismatch is `REQUIREMENT_DRIFT`; stop or ask the user, never reinterpret it. A `Completed` DD must be moved to `artifacts/designs/completed/` with a consistent `Status`. An `Approved` DD may intentionally remain in `pending/` only as a prerequisite when its metadata explicitly names the prerequisite disposition, responsible owner, and transition condition; otherwise it is stale/invalid and cannot be decomposed, executed, or archived as complete. When a later artifact supersedes a DD or plan, run a supersession sweep: update the superseded artifact's `Status`, add a back-pointer, and remove it from the executable set.
+Before accepting a DD, RnD-Manager independently compares the verbatim user request/CTX,
+immutable ledger, and final DD. A mismatch or ambiguous authority is not silently
+repaired or promoted: stop and return `NEEDS_DECISION` to the user. A `Completed` DD must be moved to `artifacts/designs/completed/` with a consistent `Status`. An `Approved` or `Complete (accepted)` DD may intentionally remain in `pending/` only as a prerequisite when its metadata explicitly names the prerequisite disposition, responsible owner, and transition condition; otherwise it is stale/invalid and cannot be decomposed, executed, or archived as complete. When a later artifact supersedes a DD or plan, run a supersession sweep: update the superseded artifact's `Status`, add a back-pointer, and remove it from the executable set.
