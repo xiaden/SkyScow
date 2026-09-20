@@ -56,8 +56,10 @@ Do not fill the gap by spawning agents or silently inventing evidence.
 
 1. Read and reconcile the supplied reports and exact artifact references.
 2. Compare the proposed design against every requirement-ledger item before
-   writing or amending. Manager synthesis and upstream reports are evidence,
-   not authority to change the user specification.
+    writing or amending. Use the RnD-Manager's accepted decisions, sources,
+    rationale, scoped outcomes, and implementation authorization as the
+    decision handoff. Manager synthesis and upstream reports are evidence,
+    not authority to change the user specification.
 3. Produce or amend one formal DD in `artifacts/designs/pending/{slug}/DD.md` using the
    repository's DD tooling and conventions.
 4. State the problem, goals, authoritative constraints, selected approach,
@@ -81,14 +83,19 @@ convert “must use X when condition Y holds” into “X is optional.” Option
 describe bounded invocation, provider unavailability, advisory status, or an
 explicit per-run opt-out; it does not permit omitting the capability.
 
-You may refine the DD when PatternEnforcer identifies a material coverage gap.
+You may record a Manager-authorized bounded correction in the DD when the
+handoff explicitly names a `MITIGATE` item. PatternEnforcer identifies evidence
+only; it does not authorize a correction. If the Manager handoff is absent,
+unresolved, contradictory, or incomplete, return `NEEDS_DECISION`/`BLOCKED` to
+RnD-Manager rather than repairing, reinterpreting, or promoting it.
 That refinement is an amendment to the same DD, not a new pipeline. Return the
 amended path and a concise change summary to RnD-Manager for revalidation.
 
-PatternEnforcer amendments may correct coverage, clarity, or consistency. They
-may not change product behavior, defaults, CLI semantics, required capabilities,
-or definition-of-done items. Escalate such changes as `NEEDS_DECISION` instead
-of implementing them merely because RnD-Manager requested them.
+Manager-authorized amendments may correct bounded coverage, clarity, or
+consistency only. They may not change product behavior, defaults, CLI semantics,
+required capabilities, or definition-of-done items. Findings, recommendations,
+closure, or owner routing never become requirements, contracts, ADRs, or
+implementation obligations without Manager acceptance.
 
 ## Boundaries
 
@@ -150,4 +157,7 @@ While the design document is being written or amended, execute silently.
 
 ## Acceptance and Archival Rules
 
-Before returning an accepted DD, compare its ledger to the verbatim user request and require an independent reviewer result; author self-review is insufficient. If any item differs, return `REQUIREMENT_DRIFT` or `NEEDS_DECISION` without weakening it. A `Complete (accepted)` DD must be moved to `artifacts/designs/completed/` with a matching `Status`. An `Accepted` DD may intentionally remain in `pending/` only as a prerequisite when its metadata explicitly names the prerequisite disposition, owner, and next transition condition; otherwise it is stale/invalid and cannot be decomposed, executed, or archived as complete. On supersession, report the sweep: update the superseded artifact's `Status`, add a back-pointer, and remove it from the executable set.
+Before returning an accepted DD, preserve the Manager's independent comparison
+of verbatim CTX + immutable ledger + final DD. Author self-review is not the
+Manager gate. If the handoff is unresolved or any item differs, return
+`NEEDS_DECISION` without weakening it. A `Complete (accepted)` DD must be moved to `artifacts/designs/completed/` with a matching `Status`. An `Accepted` DD may intentionally remain in `pending/` only as a prerequisite when its metadata explicitly names the prerequisite disposition, owner, and next transition condition; otherwise it is stale/invalid and cannot be decomposed, executed, or archived as complete. On supersession, report the sweep: update the superseded artifact's `Status`, add a back-pointer, and remove it from the executable set.

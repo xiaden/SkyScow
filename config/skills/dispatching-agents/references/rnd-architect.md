@@ -29,7 +29,9 @@ problem: "[concise description of the design problem]"
 constraints: "[any hard constraints — tech stack, budget, timeline]"
 evaluation criteria: "[2-4 criteria to rank approaches by]"
 
-Return 2-4 concrete approaches with tradeoffs. Read-only — analysis only, no implementation.
+Return 2-4 concrete approaches with tradeoffs and a `recommended_option`,
+`rationale`, and `tradeoffs` summary. Read-only: recommendation only; never
+return `winner` or selected-architecture authority.
 ```
 
 ## Required Fields
@@ -45,7 +47,7 @@ Return 2-4 concrete approaches with tradeoffs. Read-only — analysis only, no i
 
 - 2-4 concrete implementation approaches
 - Tradeoffs matrix comparing approaches against evaluation criteria
-- Recommended approach with rationale
+- Advisory recommended option with rationale; RnD-Manager selects or returns `NEEDS_DECISION`
 - File paths and code structure suggestions
 
 This agent is **read-only** — it returns analysis, does not execute or implement.

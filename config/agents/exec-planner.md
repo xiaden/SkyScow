@@ -156,7 +156,7 @@ reduced behavior. Advisory findings and process evidence remain context.
 9. **Write plan file** — Valid markdown per the `making-and-using-task-plans` skill.
 10. **Update CONTRACTS.md** — Add new shared method signatures or contracts only when downstream coordination requires them.
 11. **Update README.md** — Add the plan to the dependency graph if needed.
-12. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, identify migration candidates; add migration work only when required by the requested implementation or accepted architecture.
+12. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, identify migration candidates; add migration work only when required by the requested implementation or accepted architecture. PatternEnforcer discovery is evidence for this review, not migration scope or automatic plan amendment; preserve the owning planning layer's explicit disposition.
 
 ### For AMEND
 

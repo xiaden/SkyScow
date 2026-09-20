@@ -50,10 +50,11 @@ Amend the existing DD at [DD PATH] to address these PatternEnforcer findings:
 
 Do not start a new workflow or spawn agents. Preserve the existing evidence
 trail and return the same DD path plus a change summary for revalidation. This
-amendment may correct coverage, clarity, or consistency only. Any change to
-behavior, defaults, CLI semantics, required capabilities, or definition of done
-requires NEEDS_DECISION and user approval; do not implement it merely at
-Manager's request.
+amendment may record only a Manager-authorized correction to coverage, clarity,
+or consistency. Do not repair, reinterpret, or promote an incomplete handoff;
+return it to Manager. Any change to behavior, defaults, CLI semantics, required
+capabilities, or definition of done requires NEEDS_DECISION and user approval;
+do not implement it merely at Manager's request.
 ```
 
 ## Completion

@@ -63,13 +63,18 @@ The bolded worker-spawn instructions are **required** — they remind Exec-Manag
 
 | Status | Meaning |
 |--------|---------|
-| `Approved` | Accepted DD prerequisite in `pending/` only with disposition, responsible owner, and transition condition |
+| `Complete (accepted)` | Accepted DD prerequisite held in `pending/` only with disposition, responsible owner, and transition condition |
+| `Approved` | Accepted DD prerequisite held in `pending/` only with disposition, responsible owner, and transition condition |
 | `Completed` | Terminal DD status; archive/move semantics apply |
 | `DONE` | All phases complete, QA-Reviewer passed |
 | `BLOCKED` | A blocker cannot be resolved internally |
 | `ESCALATE` | Nyx input is needed |
 
 The output includes artifacts created/modified/deleted, annotations from each phase, and the QA-Reviewer verdict (mandatory for DONE).
+
+### PatternEnforcer finding disposition
+
+Support-PatternEnforcer is a read-only impact analyst. Its findings are evidence for the owning manager/planner, not migration scope or implementation authorization. Route `ownership_required` or demonstrated `coverage_required` findings to an explicit owner/planner disposition against the current plan, a separately authorized downstream plan, or no change/accepted divergence; keep `consistency_risk` advisory. Confidence, similarity, `BLOCKING`, closure, and routing ownership do not create or amend a migration phase automatically. The owning planning layer may act only after an accepted bounded migration scope is already established.
 
 ## QA Gate Enforcement
 

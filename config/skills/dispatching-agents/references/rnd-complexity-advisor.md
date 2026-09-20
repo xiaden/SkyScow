@@ -29,7 +29,9 @@ Context files to read:
 scope: "[files/modules/layers to analyze]"
 concerns: "[specific concerns — e.g., 'too many layers', 'unnecessary indirection', 'over-abstracted']"
 
-Compare against existing project patterns. Identify over-engineering and unnecessary abstraction. Read-only.
+Compare against existing project patterns. Identify over-engineering and
+unnecessary abstraction. Recommend the smallest sufficient control; do not
+select architecture or authorize implementation. Read-only.
 ```
 
 ## Required Fields
@@ -45,7 +47,9 @@ Compare against existing project patterns. Identify over-engineering and unneces
 - Complexity assessment: is the code simpler than it could be?
 - Specific instances of over-engineering or unnecessary abstraction
 - Comparison against existing project patterns (are we using patterns others don't?)
-- Concrete simplification recommendations with rationale
+- Concrete simplification recommendations with rationale, including the
+  simplest-sufficient control; recommendations do not select architecture or
+  authorize implementation
 
 This agent is **read-only** — it returns analysis, does not modify code.
 

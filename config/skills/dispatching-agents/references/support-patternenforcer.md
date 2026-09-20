@@ -1,96 +1,71 @@
 # Support-PatternEnforcer
 
-Dispatch Support-PatternEnforcer to check whether a pattern is consistently applied across the codebase.
+Dispatch Support-PatternEnforcer for read-only repository impact analysis. Evidence earns consideration; it does not earn implementation. Repository discovery establishes possible impact; it does not establish migration scope.
 
 ## When to Dispatch
 
-| Trigger | What to check |
-|---------|---------------|
-| Design document created | Validate DD coverage — does every affected module appear in the document? |
-| Plan created | Validate plan coverage — are all required changes accounted for? |
-| Plan executed (new pattern) | Verify pattern adoption — did the new pattern propagate to all relevant files? |
-| QA-Reviewer flags inconsistency | Investigate gaps — which files were missed? |
+| Trigger | Mode and question |
+|---|---|
+| An accepted DD/plan may leave a changed behavior path inconsistent | `impact_closure` (default): will this specific accepted change leave a known behavior path partially changed or inconsistent? |
+| A Manager-accepted DD/plan explicitly establishes bounded migration intent | `migration_scan`: where should that accepted migration propagate? |
+| QA-Reviewer flags a concrete inconsistency | `impact_closure` against the accepted change and supplied scope |
 
-## Dispatch Templates
+Do not dispatch for requirement conformance, lifecycle/supersession, testing policy, unresolved-edge policy, or generalized ownership closure. Those remain with their actual owners.
 
-Two templates depending on the trigger.
-
-### Coverage Check
-
-For DD/plan validation or QA-flagged inconsistencies:
+## Dispatch Template
 
 ```
-Check coverage for [DD or plan at PATH].
+Find repository impact for the accepted change at PATH.
 
-Pattern to enforce: [describe what should be touched — e.g., "all persistence modules that own X entity"]
-Scope: [list modules or directories to scan]
-Authoritative user request: [verbatim original request, when validating a DD or plan]
-Requirement ledger: [immutable ledger, when validating a DD or plan]
-
-Return module/concern gaps and any ledger requirements omitted, weakened,
-deferred, inverted, or contradicted. Internal consistency is not requirement
-compliance. Do not resolve requirement conflicts or choose product policy.
-```
-
-| Field | Description | Example |
-|-------|-------------|---------|
-| `[DD or plan at PATH]` | Path to the design document or plan file | `artifacts/designs/pending/acme-auth.md` |
-| `[describe what should be touched]` | The pattern or concern to check | "all persistence modules that own X entity" |
-| `[list modules or directories to scan]` | Scope of the check | `src/persistence/`, `src/services/` |
-
-### Pattern Adoption Check
-
-For post-execution verification that a new pattern propagated everywhere it should:
-
-```
-Find all files that should adopt the new pattern introduced by {plan name}.
-
+mode: impact_closure
 pattern:
-  name: "{descriptive name of the new pattern}"
-  description: "{what it does and why it replaces the old approach}"
+  name: "descriptive name"
+  description: "what the accepted change does"
   uses_pattern:
-    signatures:
-      - "{new function/method signature}"
-    imports:
-      - "{new import path}"
+    signatures: []
+    imports: []
   legacy_indicators:
-    signatures:
-      - "{old function/method signature}"
-    imports:
-      - "{old import path}"
+    signatures: []
+    imports: []
+    antipatterns: []
 scope:
-  include:
-    - "src/"
-  exclude:
-    - "src/migrations/"
-    - "tests/"
+  include: []
+  exclude: []
+accepted_scope_reference: "required only for migration_scan"
+
+Return role-specific findings using the shared envelope:
+kind: coverage_required | ownership_required | consistency_risk | not_applicable
+evidence: [file:line or execution-path evidence]
+impact: "behavioral impact or none"
+disposition: ADVISORY | NEEDS_OWNER | BLOCKING
+owner: "owning manager/planner or null"
 ```
+
+For `migration_scan`, cite the exact Manager-accepted DD/plan scope. A new helper, pattern, API, technique, naming similarity, or search hit does not authorize migration scanning. Findings are report-only and never amend a plan.
+
+## Evidence threshold and routing
+
+`coverage_required` requires behavioral evidence: a direct caller of a changed contract, membership in the same changed dispatch/interface family, an explicitly required equivalent implementation, accepted DD/requirement inclusion, or execution-path evidence. Similarity, imports, old-helper use, and implementation resemblance produce at most non-blocking `consistency_risk`.
+
+`BLOCKING` is limited to a demonstrated uncovered changed contract/behavior path, proven divergence from explicitly uniform behavior, or a known legacy implementation left by an accepted migration. `consistency_risk` is non-blocking. Route `coverage_required` and `ownership_required` to the owning manager/planner; the owner decides current-plan, downstream-plan, or no-change disposition. An owner, `BLOCKING`, confidence, or closure never authorizes implementation.
 
 ## Expected Output
 
-Support-PatternEnforcer returns confidence-tiered results:
+```yaml
+status: DONE
+mode: impact_closure | migration_scan
+findings:
+  - kind: coverage_required | ownership_required | consistency_risk | not_applicable
+    evidence: []
+    impact: "..."
+    disposition: ADVISORY | NEEDS_OWNER | BLOCKING
+    owner: "..."
+summary: "..."
+open_questions: []
+```
 
-| Tier | Meaning |
-|------|---------|
-| `high_confidence` | Files that definitely need the pattern |
-| `medium_confidence` | Files that might need the pattern |
-| `low_confidence` | Files that might not need the pattern |
-| `gaps` | Specific gaps where the pattern is missing |
+## Explicit non-authority
 
-## Routing Gaps
+Do not compare a DD/plan to the verbatim request or immutable ledger, emit `REQUIREMENT_DRIFT`, validate `request_context.path`, inspect lifecycle/supersession or stale artifacts, prescribe mock/real tests, resolve unresolved callgraph edges, validate generalized ownership closure, create migration phases, or amend plans. RnD-Manager owns independent CTX/ledger/final-DD conformance; Exec-Planner/owning manager owns plan assignment; artifact/design/planning owners retain lifecycle.
 
-| Context | Action on gaps |
-|---------|---------------|
-| DD or plan creation | Route back to the authoring agent (RnD-DDAuthor or Exec-Planner) for amendment before proceeding. |
-| Plan execution (new pattern) | If `high_confidence` candidates exist, spawn **Exec-Planner** (AMEND) to add a migration phase. |
-
-
-### Required Lifecycle Checks
-
-DD and plan coverage checks require a readable `request_context.path` pointing to
-an `artifacts/requests/CTX_*.md` conversation snapshot. The capture is the
-primary-source evidence; a summary or handoff goal cannot replace it. Missing or
-unreadable context is a blocking gap. Coverage checks must compare the DD ledger
-with the verbatim user request and report `REQUIREMENT_DRIFT`. Plan checks must
-verify ownership closure for every changed symbol contract, including every
-caller file; handoff annotations do not close gaps. Use the repository callgraph/import tooling (for example, `aft_callgraph` callers/impact plus language-aware import analysis) and include its evidence: list resolved edges and unresolved edges separately, manually record a disposition for every unresolved edge, and compare mocked-caller coverage with a real-caller integration test; a mock-only caller test does not close ownership. Also report downstream symbols with no upstream creator and stale/superseded executable artifacts.
+Findings route to an owner/planner for disposition. They do not become requirements, contracts, ADRs, migration scope, or implementation obligations automatically.

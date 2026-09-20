@@ -56,7 +56,7 @@ Good feature design follows a consistent process regardless of language. Start h
 
 1. **Requirements analysis** — understand the feature completely before decomposing. Identify success criteria, functional requirements, and non-functional requirements (performance, scalability, security, availability). List assumptions and constraints explicitly.
 2. **Architecture review** — analyze existing codebase structure, identify affected components, find reusable patterns. Consider what stays, what changes, and what's new.
-3. **Trade-off analysis** — for each significant design decision, document pros, cons, alternatives considered, and the rationale. When the decision constrains future work, write an ADR. See the [Architectural Principles](#architectural-principles) section and [`references/architecture-principles.md`](file:///home/opencode/.config/opencode/skills/making-design-documents/references/architecture-principles.md) for the full methodology.
+3. **Trade-off analysis** — for each significant design decision, document pros, cons, alternatives considered, and the rationale. Recommendations and evidence inform the RnD-Manager decision gate; they do not select architecture or authorize implementation. When a decision constrains future work, write an ADR only under the existing user-approval rules. See the [Architectural Principles](#architectural-principles) section and [`references/architecture-principles.md`](file:///home/opencode/.config/opencode/skills/making-design-documents/references/architecture-principles.md) for the full methodology.
 For decomposing a design document into implementation plans with dependency ordering, contracts, and cross-validation, use `decomposing-design-documents`. The design skill's job stops at producing the design document.
 
 For the full architecture principles methodology and trade-off analysis: [`references/architecture-principles.md`](file:///home/opencode/.config/opencode/skills/making-design-documents/references/architecture-principles.md).
@@ -180,6 +180,11 @@ blocks authoring and acceptance.
 
 ## DD Lifecycle and Requirement Conformance
 
-DD lifecycle states are `Draft`, `Approved`, `Completed`, `Superseded`, and `Rejected`. Draft and Rejected DDs remain in `pending/`; an Approved DD may remain intentionally in `pending/` only as an explicit prerequisite and only when its metadata names the prerequisite disposition, owner, and next transition (including the condition or event that permits movement to `completed/`). A Completed DD belongs in `completed/`; a pending DD without the required prerequisite metadata is stale/invalid and cannot be decomposed, executed, or archived as complete.
+DD lifecycle states are `Draft`, `Approved`, `Completed`, `Complete (accepted)`, `Superseded`, and `Rejected`. Draft and Rejected DDs remain in `pending/`; an Approved or `Complete (accepted)` DD may remain intentionally in `pending/` only as an explicit prerequisite and only when its metadata names the prerequisite disposition, responsible owner, and next transition (including the condition or event that permits movement to `completed/`). A Completed DD belongs in `completed/`; a pending DD without the required prerequisite metadata is stale/invalid and cannot be decomposed, executed, or archived as complete.
 
-Before marking a DD accepted, require an independent reviewer to check that the DD ledger is traceable to the verbatim original user request. Author self-review alone is insufficient. Any mismatch is `REQUIREMENT_DRIFT` and blocks acceptance until resolved or explicitly decided by the user.
+Before marking a DD accepted, RnD-Manager independently compares the verbatim
+CTX, immutable requirement ledger, and final DD. Author self-review alone is
+insufficient. A mismatch or unresolved authority returns `NEEDS_DECISION`; do
+not imply automatic promotion, a persistent Manager-decision artifact, or
+PatternEnforcer ownership of requirement conformance. DDAuthor records the
+accepted Manager handoff in the normal DD.

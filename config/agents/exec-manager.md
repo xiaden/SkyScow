@@ -267,9 +267,9 @@ The QA-Reviewer owns applicability decisions, analyzer dispatch, generator outco
 
 ### Support-PatternEnforcer dispatch
 
-Use the `dispatching-agents` skill (Support-PatternEnforcer reference, Pattern Adoption Check variant).
+Use the `dispatching-agents` skill (Support-PatternEnforcer reference, repository impact-analysis variant).
 
-Route the output: if `high_confidence` candidates exist, spawn **Exec-Planner** (AMEND) to add a migration phase to the relevant plan.
+PatternEnforcer findings are evidence for owner/planner disposition only. Route `ownership_required` or demonstrated `coverage_required` findings to the owning manager or Exec-Planner for an explicit disposition against the current plan, a separately authorized downstream plan, or no change/accepted divergence. `consistency_risk` remains advisory. Do not treat confidence, similarity, `BLOCKING`, closure, or an owner field as implementation authorization, and do not create or amend a migration phase automatically. A migration plan or phase may be created or amended only through the owning planning layer after an already accepted bounded migration scope exists.
 
 ### Support-Debugger dispatch
 

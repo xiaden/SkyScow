@@ -65,7 +65,7 @@ Precedence: authoritative user request > accepted DD requirements/architectural 
 
 Describe contracts and behavior precisely enough for implementation and downstream coordination. A plan may include a spec-first test step only when the user explicitly requested that test deliverable or the accepted architecture makes the executable test artifact part of the implementation. Otherwise QA independently decides whether tests, docs, or corrective work are needed after implementation.
 
-Do not add generic README, CONTRACTS, evidence, review, test, or documentation steps merely to satisfy a prior planning or validation artifact. Add them only when required to coordinate an authoritative implementation change.
+Do not add generic README, CONTRACTS, evidence, review, test, or documentation steps merely to satisfy a prior planning or validation artifact. Add them only when required to coordinate an authoritative implementation change. PatternEnforcer findings remain repository-impact evidence; they do not establish migration scope or automatically amend a plan. The owning planning layer records the explicit disposition after accepted migration intent exists.
 ## AMEND: Plan Amendment
 
 Use when QA-Reviewer flags PLANNING_GAP issues, or when Support-Debugger identifies that a fix requires plan changes.

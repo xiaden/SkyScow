@@ -56,7 +56,7 @@ This agent is **read-only** — it returns ideas, does not execute or implement.
 When spawned by `rnd-refiner` in the adversarial design flow, RnD-Ideator reads the shared DD file and appends approach proposals with mandatory web-cited evidence across two turns. In this mode, supply only the DD path:
 
 ```
-Read [DD_PATH] and append approach proposals with web-cited evidence across two turns.
+Read [DD_PATH] and append approach proposals with web-cited evidence across two turns. Recommendations are observational: do not select an approach, create requirements, or authorize implementation; the RnD-Manager decides. Recommend, without deciding, the four outcomes where material concerns arise.
 ```
 
 ## GitHub Actions context (when relevant)
