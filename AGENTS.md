@@ -21,7 +21,7 @@ docker compose up → entrypoint.sh → UID/GID + directories → bootstrap.sh
 ## High-value files
 
 - `Dockerfile` — source of truth for pinned image/tool versions, architecture branches, security gates, shipped config manifest, and installed entrypoints.
-- `scripts/entrypoint.sh`, `scripts/bootstrap.sh` — root startup and config reconciliation; use `runuser -u opencode` for user-level operations.
+- `scripts/entrypoint.sh`, `scripts/bootstrap.sh`, `scripts/reconcile_opencode_state.py` — root startup, config reconciliation, and OpenCode generated dependency-state cleanup; use `runuser -u opencode` for user-level operations.
 - `scripts/sleev-gateway-sync.sh`, `scripts/sleev-wrapper.sh` — Sleev release selection and CLI compatibility shim.
 - `config/opencode.json`, `config/agents/`, `config/commands/`, `config/skills/`, `config/plugins/`, `config/tools/` — shipped OpenCode configuration. Note the directory is `plugins/` (plural).
 - `s6-overlay/s6-rc.d/` — service definitions. `run`/`finish` files are shell scripts and must remain executable; each active service’s `type` is `longrun`.

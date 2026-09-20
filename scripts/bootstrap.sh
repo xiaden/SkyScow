@@ -488,6 +488,15 @@ configure_git_identity() {
     log "configured git as '$git_user_name <$git_user_email>'"
 }
 
+reconcile_opencode_state() {
+    local check_flag=()
+    [[ "$DRY_RUN" == 1 ]] && check_flag=(--check)
+    /usr/local/bin/reconcile_opencode_state.py \
+        --home "$OC_HOME" \
+        --user "$OC_USER" \
+        "${check_flag[@]}"
+}
+
 if [[ "$DRY_RUN" == 0 ]]; then
     mkdir -p "$CONFIG_DIR" "$STATE_DIR"
     exec 9>"$LOCK_FILE"
@@ -518,9 +527,11 @@ apply_pending_actions
 write_state_manifest
 
 if [[ "$DRY_RUN" == 1 ]]; then
+    reconcile_opencode_state
     log "check complete; no files changed"
 else
     chown -R "$PUID:$PGID" "$CONFIG_DIR" "$STATE_DIR"
     configure_git_identity
+    reconcile_opencode_state
     log "reconciliation complete"
 fi

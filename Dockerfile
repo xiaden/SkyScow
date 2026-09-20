@@ -395,6 +395,7 @@ COPY config/ /usr/local/share/skyscow/
 
 COPY scripts/entrypoint.sh \
      scripts/bootstrap.sh \
+     scripts/reconcile_opencode_state.py \
      scripts/sleev-wrapper.sh \
      scripts/sleev-gateway-sync.sh \
      scripts/with-github-secret \
@@ -432,6 +433,9 @@ RUN set -eux; \
     install -m 0755 \
         /tmp/skyscow-scripts/bootstrap.sh \
         /usr/local/bin/bootstrap.sh; \
+    install -m 0755 \
+        /tmp/skyscow-scripts/reconcile_opencode_state.py \
+        /usr/local/bin/reconcile_opencode_state.py; \
     install -m 0755 \
         /tmp/skyscow-scripts/sleev-wrapper.sh \
         /usr/local/bin/sleev; \
