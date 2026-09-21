@@ -45,6 +45,8 @@ Context files to read:
 Librarian briefing: [paste briefing or "see attached context"]
 Key constraints: [key constraints from Librarian/PatternEnforcer]
 
+PlanGate timing: create and validate every plan required for the coordinated group first. Only when the complete group exists may Exec-Planner evaluate coordination triggers, record Planner-owned `plan_gate: status: NOT_REQUIRED` with observable rationale, or dispatch Exec-PlanGate for a triggered group. Never gate a knowingly incomplete future group. Exec-Planner owns applicability; Exec-PlanGate is not dispatched for no-trigger groups.
+
 The `request_context` path is required for CREATE, AMEND, and REORDER. A
 summary or handoff goal cannot replace it; missing or unreadable context blocks
 planning.

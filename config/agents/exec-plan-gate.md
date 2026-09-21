@@ -98,7 +98,7 @@ task:
   rerunReason: "initial-preflight | plan-amended | plan-reordered | design-doc-changed"
 ```
 
-The caller must provide the complete coordinated plan group, not only the plan currently being executed. `coordinationTriggers` must contain only observable facts from the trigger list. A large independent group may omit this gate; a small coupled group must run it. Plan count alone never selects or skips the gate.
+The caller must provide the complete coordinated plan group, not only the plan currently being executed. `coordinationTriggers` must contain only observable facts from the trigger list. The complete coordinated plan group must be supplied. Plan count alone never selects or skips the gate; applicability is evaluated by Exec-Planner before dispatch.
 
 ## Workflow
 
@@ -107,7 +107,7 @@ The caller must provide the complete coordinated plan group, not only the plan c
 1. Read the Design Document, contracts ledger, and feature README.
 2. Read every listed plan with `plan_read`.
 3. Confirm all listed plans are present, parseable, and belong to the same feature group.
-4. Confirm the supplied coordination triggers are evidenced by the plan group. If no trigger is present, return `NOT_REQUIRED` without a partial gate.
+4. Confirm the supplied coordination triggers are evidenced by the complete plan group. This agent is not dispatched when no trigger is present; the planning owner records the explicit `NOT_REQUIRED` rationale.
 
 Build a requirement-to-plan matrix for authoritative implementation requirements and check:
 
@@ -143,12 +143,11 @@ Do not amend or repair anything. Provide exact plan and requirement references f
 - `MISSING_ARTIFACT` — a required DD, ledger, README, or plan is absent or unreadable; halt execution.
 - `NEEDS_DECISION` — the plans require an architectural or ownership decision; do not infer one.
 - `BLOCKED` — validation could not complete because of a tooling or input failure.
-- `NOT_REQUIRED` — no observable coordination-risk trigger applies; no gate was performed.
 
 ## Output
 
 ```yaml
-status: PASS | AMEND_REQUIRED | DD_CONTRADICTION | MISSING_ARTIFACT | NEEDS_DECISION | BLOCKED | NOT_REQUIRED
+status: PASS | AMEND_REQUIRED | DD_CONTRADICTION | MISSING_ARTIFACT | NEEDS_DECISION | BLOCKED
 feature: "{feature-slug}"
 coordinationTriggers: []
 validatedPlans:
@@ -187,4 +186,4 @@ rerunRequired: true | false
 
 ### Bounded auditability
 
-This gate is mandatory for every plan group with an observable coordination-risk trigger, fail-closed, and must log a result on every invocation. Validate the dependency, contract, ownership, and ordering facts needed to establish execution readiness. Request callgraph/import evidence only where it is needed to establish one of those facts. Unresolved edges block only when they prevent satisfying an authoritative requirement or architectural invariant. Do not require mocked-caller or real-caller integration-test evidence, broad evidence bundles, or other QA artifacts as universal plan content; those are QA decisions based on the implemented surface. A missing or stale result is never equivalent to `NOT_REQUIRED`; any newly triggered coordination risk requires a fresh current `PASS`.
+This gate is mandatory for every complete plan group with an observable coordination-risk trigger and fails closed. Validate the dependency, contract, ownership, and ordering facts needed to establish execution readiness. Request callgraph/import evidence only where it is needed to establish one of those facts. Unresolved edges block only when they prevent satisfying an authoritative requirement or architectural invariant. Do not require mocked-caller or real-caller integration-test evidence, broad evidence bundles, or other QA artifacts as universal plan content; those are QA decisions based on the implemented surface. A missing or stale gate result is never equivalent to the Planner-owned `NOT_REQUIRED` record; any newly triggered coordination risk requires a fresh current `PASS`.

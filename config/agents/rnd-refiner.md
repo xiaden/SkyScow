@@ -20,7 +20,12 @@ permission:
   asr_search: allow
   question: allow
   todowrite: allow
-  task: allow
+  task:
+    "*": deny
+    rnd-ideator: allow
+    rnd-counter-ideator: allow
+    rnd-improver: allow
+    rnd-counter-improver: allow
   websearch: allow
   webfetch: allow
   skill: allow
@@ -122,8 +127,10 @@ Do not run another cycle merely because historical interaction metadata exists.
 
 When `external` is selected, spawn the Ideator only when the Manager selected it,
 then spawn Counter-Ideator after the proposal. The Ideator may provide one constrained direction or a Manager-bounded candidate
-set; Counter-Ideator must return one evaluated direction to Manager and must not
-hand multiple survivors to a repository pair. It must either identify
+set; Counter-Ideator returns zero, one, or multiple surviving approaches with
+supporting evidence to Manager. Refiner does not select among survivors or pass
+an unresolved candidate set to a repository pair; Manager or the user selects one
+accepted direction before repository adaptation. It must either identify
 evidence-backed concerns with applicability or document a credible falsification
 attempt and good-enough result.
 

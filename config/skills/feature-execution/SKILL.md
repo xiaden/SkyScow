@@ -157,7 +157,7 @@ task:
   orderedPlanSetValidation: "present, schema-valid, non-superseded, dependency-ordered"
 ```
 
-When observable coordination-risk triggers apply—cross-plan contracts, shared writes/schemas/migrations/registries, nontrivial ordering/reorder, multi-plan migration, multi-plan DD amendments, generational supersession, or unresolved ownership closure—Exec-Planner must complete the read-only Exec-PlanGate preflight and return `PASS` before any Exec-Manager is dispatched. Large independent groups may skip; small coupled groups may require it. Exec-Manager verifies the current result; it does not spawn the gate.
+After all plans required for the coordinated group exist and are individually valid, Exec-Planner evaluates observable coordination-risk triggers—cross-plan contracts, shared writes/schemas/migrations/registries, nontrivial ordering/reorder, multi-plan migration, multi-plan DD amendments, generational supersession, or unresolved ownership closure. Triggered groups require the read-only Exec-PlanGate preflight and `PASS` before any Exec-Manager is dispatched. Untriggered groups receive a Planner-owned `plan_gate: status: NOT_REQUIRED` record with observable rationale. Exec-Manager verifies the current Planner record or gate result; it does not recompute applicability or spawn the gate.
 
 **Exec-Manager handles internally:**
 

@@ -15,6 +15,7 @@ permission:
     exec-fixer: allow
     exec-planner: allow
     support-debugger: allow
+    support-pattern-enforcer: allow
   log_*: allow
   plan_*: allow
   adr_*: allow

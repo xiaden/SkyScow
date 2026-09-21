@@ -153,8 +153,9 @@ reduced behavior. Advisory findings and process evidence remain context.
 6. **Size phases (worker budget)** — Verify each phase ≤ ~30K weighted edit scope using `context_tokens` when source exists.
 7. **Size plan (manager validation budget)** — Verify the full plan fits the manager's validation scope. Do not count optional QA-generated tests/docs as plan deliverables.
 8. **Document contracts** — Methods this plan creates and methods it calls; include a contract only when another implementation slice depends on it.
-9. **Select and run PlanGate when warranted** — Require the read-only gate for observable coordination risk: cross-plan producer/consumer contracts, shared writes/schemas/migrations/registries, nontrivial ordering or reorder, multi-plan migration, DD amendments affecting multiple plans, generational supersession, or unresolved ownership closure. A large independent group may skip; a small coupled group may require it. Count alone is never a trigger.
-10. **Write plan file** — Valid markdown per the `making-and-using-task-plans` skill.
+9. **Complete the required plan group** — Write every plan required for the coordinated group and verify each plan is present, parseable, and individually valid before evaluating cross-plan coordination. Do not gate a knowingly incomplete future group.
+10. **Evaluate PlanGate applicability** — After the complete group exists, record either a Planner-owned `plan_gate: status: NOT_REQUIRED` with observable rationale, or invoke the read-only gate for observable coordination risk: cross-plan producer/consumer contracts, shared writes/schemas/migrations/registries, nontrivial ordering or reorder, multi-plan migration, DD amendments affecting multiple plans, generational supersession, or unresolved ownership closure. Count alone is never a trigger.
+11. **Write/update plan files** — Keep the complete group and planning-owner applicability record synchronized; valid markdown per the `making-and-using-task-plans` skill.
 11. **Update CONTRACTS.md** — Add new shared method signatures or contracts only when downstream coordination requires them.
 12. **Update README.md** — Add the plan to the dependency graph if needed.
 13. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, use PatternEnforcer evidence only after accepted migration intent; the owning planning layer records the disposition and scope.
@@ -201,6 +202,10 @@ artifacts:
 validation:
   planRead: PASS  # plan_read succeeded
   schemaValid: true
+plan_gate:
+  status: PASS | NOT_REQUIRED | AMEND_REQUIRED | DD_CONTRADICTION | MISSING_ARTIFACT | NEEDS_DECISION | BLOCKED
+  rationale: "Observable trigger evidence, or why no trigger applies"
+  complete_group: true
 contracts:
   created:
     - "foo_aql.new_method(db, param) -> Result"

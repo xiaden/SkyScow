@@ -110,10 +110,7 @@ Manager-owned log/review context.
 The graph is dependency-ordered. Fan out genuinely independent Librarian and
 Researcher work, but do not parallelize a node whose inputs depend on another.
 Use one `rnd-refiner` invocation for each selected bounded adversarial pair
-(`external` or `repository`) with an explicit `max_cycles_per_pair`. The Manager
-evaluates the external result before selecting any repository pair; a repository
-pair never receives multiple external survivors. Refiner does not choose the whole
-R&D graph and does not decide dispositions.
+(`external` or `repository`) with an explicit `max_cycles_per_pair`. The external pair may return zero, one, or multiple surviving approaches with evidence. The Manager receives those results, may select Architect for tradeoffs, and Manager or the user selects one accepted direction before any repository pair runs. An Improver never receives an unresolved candidate set. Refiner does not choose the whole R&D graph and does not decide dispositions.
 
 When an evaluator finds a material issue, control returns here. Record exactly one
 `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER` disposition with

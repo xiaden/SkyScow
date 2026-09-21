@@ -56,7 +56,7 @@ This agent is **read-only** — it returns ideas, does not execute or implement.
 When spawned by `rnd-refiner` in the adversarial design flow, RnD-Ideator reads the shared adversarial log and performs only the Manager-selected bounded proposal or refinement. In this mode, supply the log path and selected node:
 
 ```
-Read [LOG_PATH] and perform the selected bounded proposal or Manager-authorized refinement with web-cited evidence. Recommendations are observational: do not select an approach, create requirements, or authorize implementation; the RnD-Manager decides. Recommend, without deciding, the four outcomes where material concerns arise.
+Read [LOG_PATH] and return one complete bounded proposal payload or Manager-authorized refinement payload with web-cited evidence. Recommendations are observational: do not select an approach, create requirements, or authorize implementation; the RnD-Manager decides. Return one complete bounded proposal payload with minimal control metadata; Refiner validates and appends it. Recommend, without deciding, the four outcomes where material concerns arise.
 ```
 
 ## GitHub Actions context (when relevant)

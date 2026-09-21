@@ -10,7 +10,7 @@ Dispatch Exec-PlanGate from Exec-Planner as the conditional read-only preflight 
 
 **Do NOT dispatch when:**
 
-- The complete group has no observable coordination-risk trigger (record `NOT_REQUIRED` with rationale)
+- The complete group has no observable coordination-risk trigger (the planning owner records `NOT_REQUIRED`; do not dispatch this gate)
 - A single plan needs execution — use Exec-Manager
 - Plans need to be created, amended, or reordered — use Exec-Planner
 - Completed implementation needs review — use QA-Reviewer
@@ -71,7 +71,6 @@ failure; a summary or handoff goal cannot replace it.
 | `MISSING_ARTIFACT` | Halt until required input is restored |
 | `NEEDS_DECISION` | Halt and ask for an explicit decision |
 | `BLOCKED` | Halt and report the input/tooling failure |
-| `NOT_REQUIRED` | Record and return when no observable coordination-risk trigger applies; include the evidence-based skip rationale |
 
 ## Expected Output
 
@@ -79,4 +78,4 @@ Return the Exec-PlanGate agent's complete YAML output, including coverage, depen
 
 
 ### Additional Blocking Checks
-The gate is mandatory whenever an observable coordination-risk trigger applies and logs a verdict on every invocation. Large independent groups may skip; small coupled groups may require it. A missing or stale result is never equivalent to `NOT_REQUIRED`, and a newly triggered risk requires a fresh `PASS`. Add blocking checks only for authoritative requirement coverage, implementation ownership, dependency/contract closure, ordering, and architectural invariants. Request callgraph/import evidence only where it establishes one of those facts; unresolved edges block only when they prevent satisfying an authoritative requirement or invariant. Do not require mocked/real caller tests, documentation, or other QA artifacts as universal plan content. Exec-Manager only verifies the recorded result and never spawns this gate.
+The gate is dispatched only after the complete plan group exists and whenever an observable coordination-risk trigger applies. A no-trigger group is not dispatched here; Exec-Planner owns the explicit `plan_gate: status: NOT_REQUIRED` record and observable rationale. A missing or stale result is never equivalent to that record, and a newly triggered risk requires a fresh `PASS`. Add blocking checks only for authoritative requirement coverage, implementation ownership, dependency/contract closure, ordering, and architectural invariants. Request callgraph/import evidence only where it establishes one of those facts; unresolved edges block only when they prevent satisfying an authoritative requirement or invariant. Do not require mocked/real caller tests, documentation, or other QA artifacts as universal plan content. Exec-Manager only verifies the recorded result and never spawns this gate.
