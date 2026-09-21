@@ -116,15 +116,21 @@ agents do not rediscover prior work.
    abstractions, accidental complexity, and scope inflation.
 6. **RnD-Estimator** produces the final effort estimate for the reviewed design.
     This is a sizing report only and cannot alter `DD_REQUIRED`.
-7. **RnD-Manager decision gate:** independently compare the verbatim CTX, the
-    immutable requirement ledger, the final DD inputs, and the scoped adversarial
-    review. Record each accepted decision with its sources and rationale, record
-    accepted non-change outcomes, and include an explicit
-    `implementation_authorization` list containing only Manager-approved
-    `MITIGATE` corrections; an empty list is valid. Return `NEEDS_DECISION` to
-    the user before DDAuthor whenever a material choice or decision authority is
-    unresolved or ambiguous. Evidence, closure, ownership, and recommendations
-    never authorize implementation by themselves.
+7. **RnD-Manager decision gate:** consume the actual T6 continuation payload, including
+     `log_path`, the existing `improver_session`, the existing
+     `counter_improver_session`, and every T6 finding or substantiated
+     `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result. Independently compare the
+     verbatim CTX, immutable requirement ledger, final DD inputs, and scoped
+     adversarial review. Account for every material finding with exactly one of
+     `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER`, preserving
+     provenance, rationale, and applicability; recommendations and risk-list order
+     are not dispositions. Include an explicit `implementation_authorization` list
+     containing only Manager-approved `MITIGATE` corrections; an empty list is
+     valid. Return `NEEDS_DECISION` to the user before continuation whenever any
+     material finding, authority, or choice is unresolved or ambiguous. After a
+     resolved gate, resume this same Refiner session for T7; do not spawn T7
+     directly. Evidence, closure, ownership, and recommendations never authorize
+     implementation by themselves.
 8. **RnD-DDAuthor** records the Manager's accepted decisions and non-change
     outcomes in the formal DD. It preserves requirements and provenance but does
     not repair, reinterpret, promote, or complete an incomplete or
@@ -133,7 +139,7 @@ agents do not rediscover prior work.
     its findings route to the owning manager/planner and do not replace the
     Manager's independent conformance or decision gate.
 
-Do not report a DD as complete until the Manager decision gate has independently
+Do not resume T7 or report a DD as complete until the Manager decision gate has independently
 compared verbatim CTX + immutable ledger + final DD, recorded accepted decisions,
 sources, rationale, scoped adversarial outcomes, and explicit implementation
 authorization (possibly empty), and DDAuthor has recorded that accepted handoff.
@@ -195,6 +201,30 @@ requirement_conformance:
   preserved_requirements: []
   changed_requirements: []
   approval_refs: []
+# For the T6 -> Manager -> T7 boundary, include the actual continuation payload
+# and the Manager's resolved disposition before resuming the same Refiner session.
+t6_continuation:
+  phase: T6_PAUSED
+  log_path: "artifacts/designs/pending/{slug}/ADVERSARIAL.md"
+  improver_session: "{existing persistent session id}"
+  counter_improver_session: "{existing persistent session id}"
+  findings: []
+  result: GOOD_ENOUGH | NO_MATERIAL_CONCERNS | FINDINGS
+manager_dispositions:
+  - finding_ref: "{T6 finding identifier}"
+    disposition: MITIGATE | ACCEPT_RISK | NOT_APPLICABLE | DEFER_TO_OWNER
+    provenance: "{source and evidence reference}"
+    rationale: "{Manager's independent rationale and applicability}"
+implementation_authorization:
+  - finding_ref: "{T6 finding identifier}"
+    correction: "{smallest repository-native MITIGATE correction}"
+# implementation_authorization may contain only Manager-approved MITIGATE entries;
+# an empty list is valid. T7 resumes the same Refiner session only after every
+# material finding has a resolved disposition; unresolved authority returns NEEDS_DECISION.
+t7_continuation:
+  resume_same_refiner_session: true
+  disposition_mapping_provided: true
+  status: READY_FOR_T7 | NEEDS_DECISION
 ```
 
 For `DD_REQUIRED`, `pattern_enforcer` cannot be `N/A`, and `DONE` is permitted

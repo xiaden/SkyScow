@@ -32,12 +32,19 @@ necessary dependency/contract for satisfying one.
 Once DD_REQUIRED is selected, the selected R&D stages are process requirements for producing a trustworthy DD; they are not product requirements and do not become downstream implementation gates. Completion requires the route's recorded DD, decision evidence, and requirement-conformance result. The user request, not an agent summary or DD, is the authoritative product specification.
 ```
 
-5. **RnD-Manager decision gate** independently compares the verbatim CTX,
-immutable ledger, final DD inputs, and scoped adversarial review. Record accepted
-decisions with sources and rationale, accepted non-change outcomes, and an
-explicit `implementation_authorization` list containing only Manager-approved
-`MITIGATE` corrections; `[]` is valid. Return `NEEDS_DECISION` before DDAuthor
-for unresolved material choices or ambiguous authority.
+5. **RnD-Manager decision gate** consumes the actual T6 continuation payload,
+including `log_path`, the existing `improver_session`, the existing
+`counter_improver_session`, and every T6 finding or substantiated
+`GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result. Independently compare the verbatim
+CTX, immutable ledger, final DD inputs, and scoped adversarial review. Account for
+every material finding with exactly one of `MITIGATE`, `ACCEPT_RISK`,
+`NOT_APPLICABLE`, or `DEFER_TO_OWNER`, preserving provenance, rationale, and
+applicability. Emit `implementation_authorization` containing only
+Manager-approved `MITIGATE` entries; `[]` is valid. Return `NEEDS_DECISION` before
+continuation for any unresolved material finding, authority, or choice. When
+resolved, resume the same Refiner session for T7; do not spawn T7 directly or infer
+a disposition from the risk list. Evidence, closure, ownership, and
+recommendations never authorize implementation.
 6. **RnD-DDAuthor** records that accepted handoff in the formal DD. It preserves
 requirements and provenance but does not repair, reinterpret, promote, or
 complete an incomplete handoff. Upstream artifacts remain evidence and
@@ -57,11 +64,39 @@ then return an analysis report with evidence, constraints, and recommendation.
 ```
 
 ## Required output
-
 RnD-Manager must return route, status, phase, artifact paths, recommendation,
-blockers, and requirement conformance. For a DD, it must also report all eight
-adversarial turns and the PatternEnforcer gate. `DONE` means verified completion,
-not dispatch.
+actual T6 payload accounting, disposition mapping, implementation authorization,
+and same-Refiner continuation status, blockers, and requirement conformance. For
+T6 continuation, the output must preserve the exact payload fields and persistent
+identities:
+
+```yaml
+t6_continuation:
+  phase: T6_PAUSED
+  log_path: "artifacts/designs/pending/{slug}/ADVERSARIAL.md"
+  improver_session: "{existing persistent session id}"
+  counter_improver_session: "{existing persistent session id}"
+  findings: []
+  result: GOOD_ENOUGH | NO_MATERIAL_CONCERNS | FINDINGS
+manager_dispositions:
+  - finding_ref: "{T6 finding identifier}"
+    disposition: MITIGATE | ACCEPT_RISK | NOT_APPLICABLE | DEFER_TO_OWNER
+    provenance: "{source and evidence reference}"
+    rationale: "{independent rationale and applicability}"
+implementation_authorization:
+  - finding_ref: "{T6 finding identifier}"
+    correction: "{smallest repository-native MITIGATE correction}"
+t7_continuation:
+  resume_same_refiner_session: true
+  disposition_mapping_provided: true
+  status: READY_FOR_T7 | NEEDS_DECISION
+```
+
+`implementation_authorization` contains only Manager-approved `MITIGATE` entries;
+an empty list is valid. Every material finding must have a resolved disposition
+before T7, and T7 resumes the same Refiner session rather than spawning directly.
+For a DD, it must also report all eight adversarial turns and the PatternEnforcer
+gate. `DONE` means verified completion, not dispatch.
 
 If any design decision would remove, weaken, defer, disable, invert, or change
 the semantics of an explicit requirement, or if authority for a material choice

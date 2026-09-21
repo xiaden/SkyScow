@@ -233,17 +233,19 @@ For each material risk, explain the trigger conditions and whether they match th
 Append under "## Repository-Fit Risks" in the adversarial log.
 ```
 
-After T6 completes, verify: does the adversarial log contain `## Repository-Fit Risks` with specific applicable repository-fit findings, or a substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result? Cross-mechanism interaction analysis is required only when meaningful new mechanisms exist.
+After T6 completes, verify: does the adversarial log contain `## Repository-Fit Risks` with specific applicable repository-fit findings, or a substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result? Cross-mechanism interaction analysis is required only when meaningful new mechanisms exist. T6 then terminates this half of the process and returns a concrete continuation payload to RnD-Manager containing `log_path`, the existing `improver_session`, the existing `counter_improver_session`, all T6 findings (or substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS`), and an explicit requirement that Manager provide a disposition before continuation. T6 must not dispatch or resume T7 directly.
 
 #### T7–T8: Repository-Native Correction + Final Risks
 
+T7 may begin only after RnD-Manager returns a concrete disposition mapping from the T6 payload. Manager resumes this same Refiner session; Refiner does not spawn a replacement Refiner and does not infer a disposition from the risk list.
+
 **T7 — Improver (resume):**
 
-Resume `rnd-improver` via `task` with `task_id: improver_session`.
+Resume the exact existing `rnd-improver` session via `task` with `task_id: improver_session`; do not spawn a replacement.
 
 ```
 Read the full adversarial log at {log_path}, especially "## Repository-Fit Risks".
-Consume the RnD-Manager disposition mapping. Only `MITIGATE` authorizes a design change, and it must be the smallest repository-native correction that closes the demonstrated failure. For `ACCEPT_RISK`, preserve the realization and record the owner's rationale; for `NOT_APPLICABLE`, preserve it and record why the trigger does not match; for `DEFER_TO_OWNER`, do not alter it.
+Consume the actual RnD-Manager disposition mapping returned for the T6 continuation payload. Only listed Manager-approved `MITIGATE` items authorize a design change, and each must be the smallest repository-native correction that closes the demonstrated failure. For `ACCEPT_RISK`, preserve the realization and record the owner's rationale; for `NOT_APPLICABLE`, preserve it and record why the trigger does not match; for `DEFER_TO_OWNER`, do not alter it. If any material finding lacks a resolved disposition or authority is ambiguous, stop and return `NEEDS_DECISION` rather than inferring.
 If the Counter-Improver returned `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS`, preserve that validation and do not invent new machinery. Append under "## Final Patterns" in the adversarial log.
 ```
 
@@ -251,7 +253,7 @@ After T7 completes, verify: does the adversarial log contain `## Final Patterns`
 
 **T8 — Counter-Improver (resume):**
 
-Resume `rnd-counter-improver` via `task` with `task_id: counter_improver_session`.
+Resume the exact existing `rnd-counter-improver` session via `task` with `task_id: counter_improver_session`; do not spawn a replacement.
 
 ```
 Read the full adversarial log at {log_path}, including "## Final Patterns".
@@ -417,4 +419,42 @@ Log: turn-by-turn outcomes, re-spawns and why, citation quality issues, stuck de
 ## Execution Output Contract
 
 - Do NOT restate the content returned by a subagent unless it must be recorded in the adversarial log or a validation log entry.
-- Assistant prose is permitted only when control is being returned to RnD-Manager: at the end of all 8 turns with the `## Output` YAML (status `DONE`, with `rounds_completed`, `surviving_approaches`, and the required fields), or early with an escalated `BLOCKED`/`QUALITY_CONCERN` result and the concrete failure — per the Stuck Detection and Error Handling sections — when a turn cannot be completed or citation integrity fails.
+- At the T6 pause, return control to RnD-Manager with the concrete continuation payload below. T6 must stop after its risk or good-enough result; it must not dispatch T7. The payload carries the persistent session IDs so Manager can resume this same Refiner session and the exact existing Improver/Counter-Improver sessions.
+
+```yaml
+t6_continuation:
+  phase: T6_PAUSED
+  log_path: "artifacts/designs/pending/{slug}/ADVERSARIAL.md"
+  improver_session: "{existing persistent session id}"
+  counter_improver_session: "{existing persistent session id}"
+  findings: []
+  result: GOOD_ENOUGH | NO_MATERIAL_CONCERNS | FINDINGS
+  requires_manager_disposition: true
+```
+
+- T7 input is accepted only from a real RnD-Manager disposition mapping for that payload:
+
+```yaml
+t7_input:
+  manager_dispositions:
+    - finding_ref: "{T6 finding identifier}"
+      disposition: MITIGATE | ACCEPT_RISK | NOT_APPLICABLE | DEFER_TO_OWNER
+      provenance: "{source and evidence reference}"
+      rationale: "{Manager rationale and applicability}"
+  implementation_authorization:
+    - finding_ref: "{T6 finding identifier}"
+      correction: "{Manager-approved MITIGATE correction}"
+  resume_same_refiner_session: true
+```
+
+`implementation_authorization` may contain only Manager-approved `MITIGATE` entries;
+an empty list is valid. If any material finding lacks a resolved disposition or
+authority is ambiguous, return `NEEDS_DECISION` and do not start T7. T7 resumes the
+same Refiner session and the exact persistent `improver_session`; it never spawns a
+replacement or infers authorization from findings, recommendations, or risk-list order.
+Assistant prose is permitted only when control is being returned to RnD-Manager: at
+the end of all 8 turns with the `## Output` YAML (status `DONE`, with
+`rounds_completed`, `surviving_approaches`, and the required fields), or early with
+an escalated `BLOCKED`/`QUALITY_CONCERN` result and the concrete failure — per the
+Stuck Detection and Error Handling sections — when a turn cannot be completed or
+citation integrity fails.

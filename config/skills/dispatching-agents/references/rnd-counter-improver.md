@@ -18,7 +18,7 @@ Dispatch RnD-CounterImprover to validate repository fit — checking actual path
 ## Dispatch Template
 
 ```
-Validate the repository-native realization in [DD_PATH]. Recommend, but do not decide, `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER` for evidence-backed risks; preserve applicability and currentness analysis.
+Validate the repository-native realization in [DD_PATH]. Recommend, but do not decide, `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER` for evidence-backed risks; preserve provenance, applicability, and currentness analysis. For T6, return a concrete continuation payload containing `phase: T6_PAUSED`, `log_path`, the existing `improver_session`, the existing `counter_improver_session`, all findings or a substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result, and `requires_manager_disposition: true`. Do not self-authorize mitigation or invoke T7. T7 may resume only after RnD-Manager supplies a concrete disposition mapping with exactly one of `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER` per material finding; only listed `MITIGATE` entries may authorize correction.
 
 Trace actual call/runtime paths, abstractions, ownership, lifecycle, process/supervision boundaries, dependency/API semantics, and filesystem/network/container behavior. Challenge mechanisms that duplicate repository-owned behavior and ask whether each addition is required by local evidence. If the realization is coherent and no material applicable mismatch remains, append a substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result with paths and assumptions checked; do not force cross-mechanism risks, library gotchas, or unsupported edge cases. Append the review to the DD.
 
@@ -33,9 +33,10 @@ White-hat adversary — success is measured by how much the final repository-nat
 
 ## Expected Output
 
-- Risk assessment or substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` validation appended to the shared DD as evidence and recommendations only; Manager decides disposition and only approved `MITIGATE` can authorize correction
+- Risk assessment or substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` validation appended to the shared DD as evidence and recommendations only, including provenance and applicability; Manager decides disposition and only approved `MITIGATE` can authorize correction
 - A successful validation may conclude no material repository-fit contradiction or unnecessary mechanism after documenting the falsification attempt
 - Applicable edge cases and integration risks grounded in repository paths
+- T6 continuation payload with the existing session identities and an explicit Manager-disposition requirement; no direct T7 or self-authorization
 - Library-specific gotchas only when consequential and supported by evidence
 - Risks ranked by context relevance
 
