@@ -163,13 +163,17 @@ RnD-Manager is the sole orchestrator for a formal DD. It dispatches Librarian,
 Researcher, Refiner, Architect, ComplexityAdvisor, Estimator, DDAuthor, and
 PatternEnforcer in its canonical order. RnD-Refiner is a nested orchestrator
 only for its fixed eight-turn adversarial sequence. T1–T4 expand and challenge
-externally supported architecture; T5–T8 adapt and validate repository fit.
-Counter agents may return a substantiated `NO_MATERIAL_CONCERNS` /
-`GOOD_ENOUGH` result; credible validation is a successful adversarial outcome,
-not a failed turn. DDAuthor never orchestrates other R&D agents. Direct dispatch
-of leaf R&D agents is valid only for focused analysis outside a formal DD workflow.
+externally supported architecture using world evidence; T5–T8 collapse and
+validate repository fit using local evidence. Improver is an evidence-backed
+architecture adapter, not a second Ideator: evidence earns consideration but
+does not earn implementation, and the smallest repository-native realization
+is preferred. Counter agents may return a substantiated `NO_MATERIAL_CONCERNS`
+/ `GOOD_ENOUGH` result; a credible falsification attempt that finds no material
+applicable concern is a successful adversarial outcome, not a failed turn.
+DDAuthor never orchestrates other R&D agents. Direct dispatch of leaf R&D agents
+is valid only for focused analysis outside a formal DD workflow.
 
-The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner in the adversarial pipeline. Counter-Ideator tests external/architectural assumptions; Counter-Improver tests repository fit and unnecessary mechanisms. Both may validate a proposal when credible examination finds no material applicable concern. Direct dispatch is rare.
+The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner in the adversarial pipeline. Counter-Ideator tests external/architectural assumptions and real-world evidence; Counter-Improver tests actual repository paths, ownership, lifecycle, runtime boundaries, and unnecessary mechanisms. Neither is required to discover a defect. Both may validate a proposal when credible examination finds no material applicable concern. Direct dispatch is rare.
 
 ### QA Department
 
@@ -270,9 +274,9 @@ Spawning a manager (Exec-Manager, RnD-Manager)?
   [`rnd-ideator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-ideator.md) — Creative solution generation.
   [`rnd-estimator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-estimator.md) — Effort sizing.
   [`rnd-complexity-advisor.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-complexity-advisor.md) — Complexity/over-engineering audit.
-  [`rnd-improver.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-improver.md) — Code improvement suggestions.
+  [`rnd-improver.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-improver.md) — Evidence-backed repository-native architecture adaptation.
   [`rnd-counter-ideator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) — Adversarial approach critique.
-  [`rnd-counter-improver.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md) — Adversarial pattern critique.
+  [`rnd-counter-improver.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md) — Adversarial repository-fit critique.
 
   **QA:** [`qa-push-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-push-manager.md) — Final validation and publication gate.
   [`qa-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-correctness.md) — Correctness, contract, and regression review.

@@ -5,14 +5,14 @@ Dispatch RnD-CounterIdeator to challenge externally supported design approaches 
 ## When to Dispatch
 
 **Dispatch when:**
-- RnD-Refiner delegates adversarial critique in the adversarial design flow (Turns 3-4)
+- RnD-Refiner delegates adversarial critique in the adversarial design flow (T2 and T4)
 - You have proposed approaches and want them stress-tested against real-world failure data
 - You need evidence-grounded "why this might fail" analysis
 
 **Do NOT dispatch when:**
 - You need creative proposals — use `rnd-ideator` instead
 - You need implementation analysis — use `rnd-architect` instead
-- You need pattern critique — use `rnd-counter-improver` instead
+- You need repository-fit critique — use `rnd-counter-improver` instead
 - You're doing a standard design review — this is for adversarial refinement only
 
 ## Dispatch Template
@@ -20,7 +20,7 @@ Dispatch RnD-CounterIdeator to challenge externally supported design approaches 
 ```
 Challenge the proposed approaches in [DD_PATH].
 
-Read the approach proposals. Search for documented failures, postmortems, and known pitfalls matching each approach. Rank concerns by context relevance. If serious examination finds no material applicable concern, append a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result instead of manufacturing an objection. Append the review to the DD.
+Read the approach proposals. Search for documented failures, postmortems, and known pitfalls matching each approach. Rank concerns by context relevance and state why each candidate failure does or does not apply. If serious examination finds no material applicable concern, append a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result that records assumptions challenged, evidence/search rationale, candidate failure modes, and applicability instead of manufacturing an objection. Append the review to the DD.
 
 White-hat adversary — success is measured by improving or credibly validating the final design, not by how many problems are found. Read-only.
 ```
@@ -35,8 +35,9 @@ White-hat adversary — success is measured by improving or credibly validating 
 
 - Adversarial critique or a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` validation appended to the shared DD
 - Documented failures and postmortems matching proposed approaches when concerns exist
+- A meaningful falsification attempt; an objection is not required for a successful Counter turn
 - Assumptions challenged, evidence checked, and applicability rationale for validation results
-- Concrete risks with evidence citations
+- Concrete risks with evidence citations when material concerns exist
 
 This agent is part of the `rnd-refiner` adversarial pipeline. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of existing proposals.
 

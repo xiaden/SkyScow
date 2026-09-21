@@ -28,8 +28,8 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 | rnd-refiner | Adversarial design orchestrator | 8-turn adversarial refinement across 4 persistent sessions |
 | rnd-ideator | Creative solution generator | Explores design space, ranked ideas with feasibility |
 | rnd-counter-ideator | Adversarial approach critic | Critiques proposed approaches, searches for failures/postmortems |
-| rnd-improver | Enhancement suggester | Proposes implementation patterns with web-cited evidence |
-| rnd-counter-improver | Adversarial pattern critic | Critiques implementation patterns, finds edge cases/risks |
+| rnd-improver | Evidence-backed architecture adapter | Collapses a surviving approach into the smallest repository-native realization; reuses local behavior and adds only demonstrated mechanisms |
+| rnd-counter-improver | Adversarial repository-fit validator | Challenges actual local fit, ownership, lifecycle, runtime paths, and unnecessary mechanisms; may conclude GOOD_ENOUGH |
 | rnd-architect | Implementation options analyst | 2-4 concrete approaches with tradeoffs matrix |
 | rnd-estimator | Effort estimator | TRIVIAL/SMALL/MEDIUM/LARGE/EPIC sizing |
 | rnd-complexity-advisor | Semantic complexity analyst | Determines if code is simpler than it could be |

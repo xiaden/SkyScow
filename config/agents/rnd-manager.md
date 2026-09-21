@@ -109,7 +109,7 @@ agents do not rediscover prior work.
    open questions. Mandatory for brownfield work.
 2. **Support-Researcher** investigates the real codebase, integration points,
    and current technology/API facts required by the design.
-3. **RnD-Refiner** runs the existing adversarial workflow in exactly eight sequential turns. T1–T4 expand and challenge externally supported architecture; T5–T8 adapt and validate repository fit. A Counter turn may credibly conclude `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH`; that is successful validation, not a failed turn. The turns remain process evidence, not product requirements or downstream implementation gates, and Refiner/adversarial recommendations remain non-authoritative until this Manager gate.
+3. **RnD-Refiner** runs the existing adversarial workflow in exactly eight sequential turns. T1–T4 expand and challenge externally supported architecture using world evidence; T5–T8 collapse and validate repository fit using local evidence. Improver adapts the survivor rather than reopening ideation, and Counter-Improver challenges the claimed local fit and unnecessary mechanisms. A Counter turn may credibly conclude `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` after documenting its falsification attempt; that is successful validation, not a failed turn. The turns remain process evidence, not product requirements or downstream implementation gates, and Refiner/adversarial recommendations remain non-authoritative until this Manager gate.
 4. **RnD-Architect** produces concrete implementation options and a tradeoff
    matrix from the research and adversarial results.
 5. **RnD-ComplexityAdvisor** checks the proposed design for unnecessary

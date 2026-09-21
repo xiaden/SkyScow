@@ -6,7 +6,7 @@ Dispatch RnD-Improver to analyze existing code and suggest concrete improvements
 
 **Dispatch when:**
 - You want to improve existing code and need structured suggestions
-- An implementation plan needs concrete patterns — "how should we implement approach A?"
+- An implementation plan needs repository-native realization guidance — "how should approach A fit this repository?"
 - RnD-Refiner needs repository-fit adaptation after the external approach has survived T1–T4
 - You're evaluating whether an existing module could be restructured for better maintainability
 - RnD-Refiner delegates repository-native adaptation to this agent in the adversarial design flow
@@ -30,7 +30,7 @@ Context files to read:
 scope: "[files/modules to analyze]"
 focus areas: "[specific areas to improve — e.g., error handling, performance, readability, testability]"
 
-Suggest concrete improvements with implementation patterns. In adversarial mode, prefer existing repository mechanisms and explicitly allow `no additional mechanism required`. Read-only — analysis only.
+Suggest concrete improvements with repository-native realization guidance. In adversarial mode, act as an evidence-backed architecture adapter: prefer existing repository mechanisms, the smallest sufficient adaptation, and explicitly allow `no additional mechanism required`. Evidence earns consideration; it does not earn implementation. On T7, only Manager-approved `MITIGATE` dispositions may change the realization; preserve `ACCEPT_RISK` and `NOT_APPLICABLE`, and leave `DEFER_TO_OWNER` unchanged. Read-only — analysis only.
 ```
 
 ## Required Fields
@@ -55,14 +55,13 @@ This agent is **read-only** — it returns suggestions, does not modify code.
 
 ### Repository-Native Adaptation for Chosen Approach
 
-When RnD-Refiner delegates pattern design after an approach is chosen:
+When RnD-Refiner delegates repository-native adaptation after an approach is chosen:
 
 ```
 Adapt the chosen production-backed approach to the repository in [DD_PATH].
 
-Context: [DD_PATH] and the relevant repository files, abstractions, ADRs, dependencies, lifecycle, and runtime boundaries.
-
-Identify what the repository already supplies, what conflicts, and the smallest bounded adapter or substitution required. Do not invent mechanisms for every implementation dimension; `no additional mechanism required` is valid. Use external citations only when they materially verify an adaptation or consequential technology claim. Append to the DD across two turns. On the second turn, consume Manager-approved dispositions: only `MITIGATE` authorizes the smallest repository-native correction; preserve `ACCEPT_RISK` and `NOT_APPLICABLE`, and leave `DEFER_TO_OWNER` unchanged pending owner decision.
+Context: [DD_PATH] and the relevant repository architecture, behavior, files, abstractions, ADRs, dependencies, lifecycle, and runtime boundaries.
+Identify what the repository already supplies, what conflicts, and the smallest bounded adapter or substitution required. Specialize, simplify, substitute, reuse, or remove parts of the surviving approach as local evidence warrants. Do not broaden capability or invent mechanisms for every implementation dimension; `no additional mechanism required` is valid and desirable. Use external citations only when they materially verify an adaptation or consequential technology/API claim. Append to the DD across two turns. On the second turn, consume Manager-approved dispositions: only `MITIGATE` authorizes the smallest repository-native correction; preserve `ACCEPT_RISK` and `NOT_APPLICABLE`, and leave `DEFER_TO_OWNER` unchanged pending owner decision.
 ```
 
 ## GitHub Actions context (when relevant)

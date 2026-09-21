@@ -22,15 +22,15 @@ Dispatch RnD-Refiner to run the full adversarial design refinement pipeline — 
 Run adversarial design refinement for [FEATURE].
 
 **Your job is to spawn adversarial agents across 8 sequential turns:**
-- Turn 1: RnD-Ideator (approach proposals)
-- Turn 2: RnD-CounterIdeator (adversarial critique of approaches)
-- Turn 3: RnD-Ideator (refine surviving approaches)
-- Turn 4: RnD-CounterIdeator (surface surviving concerns)
-- Turn 5: RnD-Improver (implementation patterns)
-- Turn 6: RnD-CounterImprover (pattern risks)
-- Turn 7: RnD-Improver (final patterns and mitigations)
-- Turn 8: RnD-CounterImprover (open risks and human questions)
-Do NOT design the feature yourself — orchestrate the adversarial pipeline.
+- T1: RnD-Ideator (expand credible approaches using external/world evidence)
+- T2: RnD-CounterIdeator (falsify external/architectural assumptions, or substantively validate them)
+- T3: RnD-Ideator (refine surviving externally supported approaches)
+- T4: RnD-CounterIdeator (validate remaining external assumptions, or substantively validate them)
+- T5: RnD-Improver (collapse the survivor through repository architecture and behavior)
+- T6: RnD-CounterImprover (challenge claimed repository fit and unnecessary mechanisms)
+- T7: RnD-Improver (apply only Manager-approved bounded corrections)
+- T8: RnD-CounterImprover (verify corrected repository fit, or substantively validate it)
+T1–T4 expand and challenge external architecture; T5–T8 reduce and challenge repository fit. Do NOT design the feature yourself — orchestrate the adversarial pipeline.
 
 Requirements: [user requirements or path to requirements doc]
 Librarian briefing: [paste briefing or "see attached context"]
@@ -66,7 +66,7 @@ The standard route has exactly eight turns, but the route is evidence-gathering,
 8. **Final repository-fit validation:** record applicable risks and human questions, or validate the realization as good enough.
 
 Each turn appends to the shared adversarial log. The result is evidence
-for DDAuthor's final DD, not a final DD itself. Refiner and all adversarial agents are observational/recommendatory until the RnD-Manager gate; only Manager-approved `MITIGATE` may authorize the smallest sufficient correction. `ACCEPT_RISK`, `NOT_APPLICABLE`, and `DEFER_TO_OWNER` preserve or route without implementation. A Counter turn may return a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result; credible validation is successful adversarial work, not a failed turn. The route requires exactly eight turns; no turn is skipped or abbreviated, and no turn-count, citation, or evidence completeness becomes a downstream plan obligation.
+for DDAuthor's final DD, not a final DD itself. Refiner and all adversarial agents are observational/recommendatory until the RnD-Manager gate; only Manager-approved `MITIGATE` may authorize the smallest sufficient correction. `ACCEPT_RISK`, `NOT_APPLICABLE`, and `DEFER_TO_OWNER` preserve or route without implementation. A Counter turn is substantive when it either supports a material concern or performs a credible attempt to falsify the proposal and concludes `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH`; credible validation is successful adversarial work, not a failed turn. The route requires exactly eight turns; no turn is skipped or abbreviated, and no turn-count, citation, or evidence completeness becomes a downstream plan obligation.
 
 ## GitHub Actions context (when relevant)
 

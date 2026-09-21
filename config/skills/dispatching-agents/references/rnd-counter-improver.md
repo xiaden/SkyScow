@@ -5,13 +5,13 @@ Dispatch RnD-CounterImprover to validate repository fit — checking actual path
 ## When to Dispatch
 
 **Dispatch when:**
-- RnD-Refiner delegates repository-fit validation in the adversarial design flow (Turns 7-8)
+- RnD-Refiner delegates repository-fit validation in the adversarial design flow (T6 and T8)
 - You have a repository-native realization and want it stress-tested against actual local fit and consequential external risks
 - You need evidence-grounded repository-fit analysis of what could go wrong at implementation time
 
 **Do NOT dispatch when:**
 - You need approach-level critique — use `rnd-counter-ideator` instead
-- You need pattern proposals — use `rnd-improver` instead
+- You need repository-native adaptation — use `rnd-improver` instead
 - You need implementation analysis — use `rnd-architect` instead
 - You're doing a standard code review — use QA agents instead
 
@@ -20,7 +20,7 @@ Dispatch RnD-CounterImprover to validate repository fit — checking actual path
 ```
 Validate the repository-native realization in [DD_PATH]. Recommend, but do not decide, `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER` for evidence-backed risks; preserve applicability and currentness analysis.
 
-Trace actual repository paths, abstractions, ownership, lifecycle, dependency/API semantics, and runtime boundaries. Challenge mechanisms that duplicate repository-owned behavior. If the realization is coherent and no material applicable mismatch remains, append a substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result; do not force cross-pattern risks or unsupported edge cases. Append the review to the DD.
+Trace actual call/runtime paths, abstractions, ownership, lifecycle, process/supervision boundaries, dependency/API semantics, and filesystem/network/container behavior. Challenge mechanisms that duplicate repository-owned behavior and ask whether each addition is required by local evidence. If the realization is coherent and no material applicable mismatch remains, append a substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result with paths and assumptions checked; do not force cross-mechanism risks, library gotchas, or unsupported edge cases. Append the review to the DD.
 
 White-hat adversary — success is measured by how much the final repository-native realization improves, or is credibly validated. Read-only.
 ```
@@ -34,6 +34,7 @@ White-hat adversary — success is measured by how much the final repository-nat
 ## Expected Output
 
 - Risk assessment or substantiated `GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` validation appended to the shared DD as evidence and recommendations only; Manager decides disposition and only approved `MITIGATE` can authorize correction
+- A successful validation may conclude no material repository-fit contradiction or unnecessary mechanism after documenting the falsification attempt
 - Applicable edge cases and integration risks grounded in repository paths
 - Library-specific gotchas only when consequential and supported by evidence
 - Risks ranked by context relevance
