@@ -25,7 +25,7 @@ docker compose up → entrypoint.sh → UID/GID + directories → bootstrap.sh
 - `scripts/sleev-gateway-sync.sh`, `scripts/sleev-wrapper.sh` — Sleev release selection and CLI compatibility shim.
 - `config/opencode.json`, `config/agents/`, `config/commands/`, `config/skills/`, `config/plugins/`, `config/tools/` — shipped OpenCode configuration. Note the directory is `plugins/` (plural).
 - `s6-overlay/s6-rc.d/` — service definitions. `run`/`finish` files are shell scripts and must remain executable; each active service’s `type` is `longrun`.
-- `.github/workflows/pr-validation.yml` — PR build plus `opencode --version` smoke test. `.github/workflows/docker-publish.yml` — multi-arch GHCR release on `v*` tags or manual dispatch.
+- `.github/workflows/validation.yml` — PR and main-branch build plus `opencode --version` smoke test. `.github/workflows/docker-publish.yml` — multi-arch GHCR release on `v*` tags or manual dispatch.
 - `scripts/validate_chromium_seccomp.py` and `config/chromium-seccomp.json` — pinned Chromium sandbox profile validation.
 
 ## Commands and verification
