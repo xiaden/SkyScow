@@ -2,6 +2,9 @@ name: SkyScow - PR Validation
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 concurrency:
   group: pr-validation-${{ github.event.pull_request.number || github.ref }}

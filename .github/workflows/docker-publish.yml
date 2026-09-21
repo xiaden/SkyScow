@@ -148,30 +148,62 @@ jobs:
             exit 1
           fi
 
-          checks_json="$({
-            gh api \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?filter=all&per_page=100"
-          })"
+          max_attempts=60
+          interval_seconds=10
 
-          failed=0
+          for attempt in $(seq 1 "$max_attempts"); do
+            checks_json="$({
+              gh api \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?filter=all&per_page=100"
+            })"
 
-          while IFS= read -r required; do
-            [[ -z "$required" ]] && continue
+            failed=0
+            pending=0
 
-            if jq -e \
-              --arg name "$required" \
-              '.check_runs | any(.[]; .name == $name and .conclusion == "success")' \
-              <<< "$checks_json" >/dev/null
-            then
-              echo "✓ ${required}"
-            else
-              echo "::error::Required check '${required}' has no successful run for ${GITHUB_SHA}."
-              failed=1
+            while IFS= read -r required; do
+              [[ -z "$required" ]] && continue
+
+              state="$(jq -r \
+                --arg name "$required" \
+                '.check_runs | map(select(.name == $name)) |
+                 if any(.[]; .conclusion == "success") then "success"
+                 elif any(.[]; .status != "completed") then "pending"
+                 elif length > 0 then "failed"
+                 else "pending"
+                 end' \
+                <<< "$checks_json")"
+
+              case "$state" in
+                success)
+                  echo "✓ ${required}"
+                  ;;
+                failed)
+                  echo "::error::Required check '${required}' failed for ${GITHUB_SHA}."
+                  failed=1
+                  ;;
+                pending)
+                  echo "Waiting for required check '${required}' (attempt ${attempt}/${max_attempts})..."
+                  pending=1
+                  ;;
+              esac
+            done <<< "$normalized"
+
+            if [ "$failed" -eq 1 ]; then
+              exit 1
             fi
-          done <<< "$normalized"
 
-          (( failed == 0 ))
+            if [ "$pending" -eq 0 ]; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep "$interval_seconds"
+            fi
+          done
+
+          echo "::error::Timed out waiting for required CI checks for ${GITHUB_SHA}."
+          exit 1
 
   build:
     name: Build immutable image
