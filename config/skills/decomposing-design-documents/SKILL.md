@@ -18,7 +18,7 @@ Requirements → [RnD-Manager DD workflow → DDAuthor] → Design Doc → Decom
 
 | Phase | Action | Output |
  | --- | --- | --- |
- | 0 (Optional) | Dispatch DDAuthor if no design doc exists | `artifacts/designs/pending/{feature}/DD.md` |
+ | 0 (Optional) | Dispatch RnD-Manager when a formal DD may be required; only Manager may later dispatch DDAuthor after selected evidence and disposition gates | `artifacts/designs/pending/{feature}/DD.md` |
  | 0.5 | DD Acceptance Gate — require a readable `request_context.path` capture, confirm accepted status, and compare the ledger against the verbatim user request | Recorded comparison; `REQUIREMENT_DRIFT` on omission/weakening |
  | 1 | Decompose design doc into lettered parts | `artifacts/designs/pending/{feature}/README.md` |
  | 2 | Create contracts ledger | `artifacts/designs/pending/{feature}/CONTRACTS.md` |
@@ -34,7 +34,7 @@ This skill may dispatch agents from the `.opencode/agents/` hierarchy:
 
  | Agent | When Used |
  | ------- | ----------- |
-  | `RnD-Manager` | Phase 0: Run the complete DD workflow when requirements exist but no design doc |
+  | `RnD-Manager` | Phase 0: Compose the selected DD graph when requirements exist but no design doc |
  | `Exec-Planner` | Phase 3: For each plan in dependency order |
 
 See [.opencode/agents/](.opencode/agents/) for agent specifications.
@@ -75,13 +75,15 @@ _(Ensure plans account for the implementation workflow selected by the changed s
 ## Phase 0: Create Design Document (Optional)
 
 **Entry criteria:** Requirements exist but no design document has been created yet.
-**Exit criteria:** Design document created, reviewed by user, and ready for decomposition.
+**Exit criteria:** If `DD_REQUIRED`, the selected graph has produced a design document that is reviewed by the user and ready for decomposition. Plan-only and research-only routes terminate without DD authoring or partial DD artifacts.
 
 **Skip this phase if:** A complete and reviewed design document already exists at `artifacts/designs/pending/{feature}/DD.md`
 
-If the user has requirements but no design doc, dispatch RnD-Manager for its
-complete formal DD workflow. Do not dispatch DDAuthor directly; it is the final
-authoring stage owned by Manager:
+If the user has requirements but no design doc, dispatch RnD-Manager to compose
+the smallest sufficient DD graph. The Manager selects only the capabilities needed
+by the evidence and risk, and may route plan-only or research-only work without
+creating a DD. Do not dispatch DDAuthor directly; it is the final authoring stage
+owned by Manager:
 
 ```yaml
 # Dispatch to RnD-Manager

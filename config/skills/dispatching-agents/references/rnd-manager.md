@@ -2,15 +2,16 @@
 
 Dispatch RnD-Manager when a request needs architectural design, a formal DD,
 options and tradeoffs, or R&D scope validation. RnD-Manager is the sole owner
-of the complete DD workflow and must orchestrate its workers.
+of the selected DD graph and must orchestrate only the capabilities it selects.
 
 ## Formal DD dispatch
 
 ```text
 Design [FEATURE] and produce a formal DD.
 
-You are the sole DD workflow owner. Run the complete canonical process; do not
-create the DD yourself and do not allow DDAuthor to orchestrate other agents.
+You are the sole DD workflow owner. Compose the smallest sufficient local graph
+for this request; do not create the DD yourself and do not allow DDAuthor to
+orchestrate other agents.
 
 request_context.path: [artifacts/requests/CTX_<two-word-slug>.md]
 Read this conversation snapshot before extracting requirements. It is the
@@ -29,30 +30,28 @@ explicitly adopted into the ledger, an accepted architectural invariant, or a
 necessary dependency/contract for satisfying one.
    amendment.
 
-Once DD_REQUIRED is selected, the selected R&D stages are process requirements for producing a trustworthy DD; they are not product requirements and do not become downstream implementation gates. Completion requires the route's recorded DD, decision evidence, and requirement-conformance result. The user request, not an agent summary or DD, is the authoritative product specification.
+Once DD_REQUIRED is selected, the Manager selects only the R&D capabilities
+needed for a trustworthy DD. Selected stages are process evidence, not product
+requirements or downstream implementation gates. Completion requires the recorded
+DD, routing trace, decision evidence, and requirement-conformance result. The user
+request, not an agent summary or DD, remains authoritative.
 ```
 
-5. **RnD-Manager decision gate** consumes the actual T6 continuation payload,
-including `log_path`, the existing `improver_session`, the existing
-`counter_improver_session`, and every T6 finding or substantiated
-`GOOD_ENOUGH` / `NO_MATERIAL_CONCERNS` result. Independently compare the verbatim
-CTX, immutable ledger, final DD inputs, and scoped adversarial review. Account for
-every material finding with exactly one of `MITIGATE`, `ACCEPT_RISK`,
-`NOT_APPLICABLE`, or `DEFER_TO_OWNER`, preserving provenance, rationale, and
-applicability. Emit `implementation_authorization` containing only
-Manager-approved `MITIGATE` entries; `[]` is valid. Return `NEEDS_DECISION` before
-continuation for any unresolved material finding, authority, or choice. When
-resolved, resume the same Refiner session for T7; do not spawn T7 directly or infer
-a disposition from the risk list. Evidence, closure, ownership, and
-recommendations never authorize implementation.
-6. **RnD-DDAuthor** records that accepted handoff in the formal DD. It preserves
+5. **RnD-Manager decision gate** consumes the selected reports and any adversarial
+continuation payload. Independently compare CTX, the immutable ledger, accepted
+constraints, and selected evidence. Give every material finding exactly one of
+`MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER`, preserving
+provenance and applicability. `implementation_authorization` may contain only
+Manager-approved `MITIGATE` entries. Return `NEEDS_DECISION` before any resume
+when authority or user choice is unresolved; never simulate this gate inside
+Refiner.
+6. **RnD-DDAuthor** records the accepted handoff in the formal DD. It preserves
 requirements and provenance but does not repair, reinterpret, promote, or
-complete an incomplete handoff. Upstream artifacts remain evidence and
-provenance, not additional requirements.
-7. **PatternEnforcer** reports read-only impact evidence to the owning
-manager/planner; it is not the independent requirement or design decision gate.
-8. **RnD-Manager** returns `READY_FOR_PLANNING` only after the independent gate
-and DD recording are coherent.
+complete an incomplete handoff.
+7. **PatternEnforcer**, when selected, reports read-only impact evidence to the
+owning manager/planner; it is not the requirement or design decision gate.
+8. **RnD-Manager** returns `READY_FOR_PLANNING` only after the independent gate,
+DD recording, and mandatory lifecycle checks are coherent.
 
 ## Research-only dispatch
 
@@ -64,39 +63,33 @@ then return an analysis report with evidence, constraints, and recommendation.
 ```
 
 ## Required output
-RnD-Manager must return route, status, phase, artifact paths, recommendation,
-actual T6 payload accounting, disposition mapping, implementation authorization,
-and same-Refiner continuation status, blockers, and requirement conformance. For
-T6 continuation, the output must preserve the exact payload fields and persistent
-identities:
+RnD-Manager must return route, status, phase, artifact paths, routing trace,
+recommendation, any adversarial continuation, disposition mapping,
+implementation authorization, blockers, and requirement conformance:
 
 ```yaml
-t6_continuation:
-  phase: T6_PAUSED
-  log_path: "artifacts/designs/pending/{slug}/ADVERSARIAL.md"
-  improver_session: "{existing persistent session id}"
-  counter_improver_session: "{existing persistent session id}"
+routing_trace: []
+adversarial_continuation:
+  subgraph: external | repository | both | null
+  phase: COMPLETE | PAUSED_FOR_MANAGER | NOT_SELECTED
+  log_path: null
+  sessions: []
   findings: []
-  result: GOOD_ENOUGH | NO_MATERIAL_CONCERNS | FINDINGS
+  result: GOOD_ENOUGH | NO_MATERIAL_CONCERNS | FINDINGS | null
 manager_dispositions:
-  - finding_ref: "{T6 finding identifier}"
+  - finding_ref: "{finding identifier}"
     disposition: MITIGATE | ACCEPT_RISK | NOT_APPLICABLE | DEFER_TO_OWNER
     provenance: "{source and evidence reference}"
     rationale: "{independent rationale and applicability}"
-implementation_authorization:
-  - finding_ref: "{T6 finding identifier}"
-    correction: "{smallest repository-native MITIGATE correction}"
-t7_continuation:
-  resume_same_refiner_session: true
-  disposition_mapping_provided: true
-  status: READY_FOR_T7 | NEEDS_DECISION
+implementation_authorization: []
+continuation_status: COMPLETE | READY_FOR_MANAGER | NEEDS_DECISION
 ```
 
 `implementation_authorization` contains only Manager-approved `MITIGATE` entries;
 an empty list is valid. Every material finding must have a resolved disposition
-before T7, and T7 resumes the same Refiner session rather than spawning directly.
-For a DD, it must also report all eight adversarial turns and the PatternEnforcer
-gate. `DONE` means verified completion, not dispatch.
+before a bounded follow-up or DD authoring.
+For a DD, report the selected capabilities, routing trace, and any selected
+PatternEnforcer outcome. `DONE` means verified completion, not dispatch.
 
 If any design decision would remove, weaken, defer, disable, invert, or change
 the semantics of an explicit requirement, or if authority for a material choice

@@ -11,7 +11,7 @@ Dispatch RnD-Architect to get implementation options and tradeoff analysis for a
 - You want a tradeoffs matrix to present to stakeholders
 
 **Do NOT dispatch when:**
-- You need a full design document — use `rnd-manager` or `rnd-dd-author` instead
+- You need a full design document — use `rnd-manager`; DDAuthor is Manager-only after selected evidence and dispositions
 - You need creative brainstorming — use `rnd-ideator` instead
 - You need effort sizing — use `rnd-estimator` instead
 - The problem has no design ambiguity — implement directly

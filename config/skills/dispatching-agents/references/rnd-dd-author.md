@@ -1,7 +1,6 @@
 # RnD-DDAuthor
 
-Dispatch RnD-DDAuthor only from RnD-Manager, after the complete canonical DD
-workflow has produced all required upstream reports. DDAuthor authors or amends
+Dispatch RnD-DDAuthor only from RnD-Manager, after the selected DD graph has produced sufficient upstream evidence. DDAuthor authors or amends
 the formal document; it is not an orchestrator.
 
 ## Dispatch template
@@ -10,8 +9,9 @@ the formal document; it is not an orchestrator.
 Author the formal DD for [FEATURE] from the supplied evidence.
 
 You must not spawn agents or define a workflow. RnD-Manager already completed
-the Librarian, Support-Researcher, full eight-turn Refiner, Architect,
-ComplexityAdvisor, and final Estimator stages.
+the selected Librarian, Support-Researcher, Refiner, Architect, ComplexityAdvisor,
+and Estimator capabilities needed for this DD; optional capabilities may be
+skipped with routing rationale.
 
 request_context.path: [artifacts/requests/CTX_<two-word-slug>.md]
 Read this conversation snapshot before authoring or amending. It is the

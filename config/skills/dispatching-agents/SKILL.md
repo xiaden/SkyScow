@@ -93,14 +93,14 @@ Task at hand
 ├─ A single file read or lookup? → Do it yourself (no dispatch)
 ├─ A trivial fix (typo, missing import)? → Fix it directly
 ├─ Requires deep multi-file investigation? → Dispatch Support-Researcher (standard depth)
-├─ Requires understanding prior decisions/logs/design docs? → Dispatch Support-Librarian first
+├─ Prior decisions/logs/design docs materially constrain the route? → Select Support-Librarian; otherwise record the evidence-based skip
 ├─ Requires diagnosing a failure? → Read affected files yourself first
 │  ├─ Cause is obvious after reading → Fix directly
 │  └─ Cause is unclear → Dispatch Support-Debugger
 ├─ Requires implementing from a plan? → Dispatch Exec-Manager
 ├─ Requires creating/amending a plan? → Dispatch Exec-Planner
 ├─ Requires designing a feature or formal DD? → Dispatch RnD-Manager
-│  └─ RnD-Manager owns the complete DD workflow and dispatches RnD-Refiner when DD_REQUIRED
+│  └─ RnD-Manager composes the selected DD graph and dispatches RnD-Refiner when needed
 ├─ Requires focused R&D analysis (not full design)?
 │  ├─ Implementation options + tradeoffs → RnD-Architect
 │  ├─ Creative brainstorming → RnD-Ideator
@@ -130,7 +130,7 @@ Task at hand
 | No negative constraints | Agent over-steps — researcher writes code, planner implements | Always add "Do NOT" — the bolded worker-spawn blocks in manager references exist for this reason |
 | Wrong agent for the task | Output doesn't match expectations or is formatted wrong | Check the selection table. Exec agents don't design. R&D agents don't execute. |
 | Too broad scope | Agent returns shallow, surface-level results | Narrow to one feature, one module, one decision. Multi-part work → multiple dispatches. |
-| Skipping Librarian in brownfield work | Agent proposes patterns that contradict existing ADRs | Always dispatch Support-Librarian before design or planning work on existing codebases. |
+| Missing relevant artifact context | Agent proposes patterns that contradict existing ADRs or recorded decisions | Select Support-Librarian when prior ADRs, ASRs, logs, DDs, or dead ends are relevant; otherwise record the evidence-based skip. Independent Librarian and Researcher nodes may run concurrently. |
 | Dispatching for a single-file read | Wasted context, slower than doing it yourself | If a `read` or `aft_search` call answers it, don't dispatch. |
 
 ## Agent Selection
@@ -150,8 +150,8 @@ Exec-Manager spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direc
 
 | Task | Reference |
 |------|-----------|
-| Full R&D workflow (design doc, tradeoffs, estimates) | [`rnd-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) |
-| Adversarial design refinement (8-turn pipeline; only from RnD-Manager) | [`rnd-refiner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) |
+| R&D graph composition and DD authoring | [`rnd-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) |
+| Bounded adversarial subgraph (only from RnD-Manager) | [`rnd-refiner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) |
 | Create or refine a design document (only from RnD-Manager) | [`rnd-dd-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-dd-author.md) |
 | Implementation options + tradeoffs | [`rnd-architect`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-architect.md) |
 | Creative solution generation | [`rnd-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-ideator.md) |
@@ -159,21 +159,18 @@ Exec-Manager spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direc
 | Complexity/over-engineering audit | [`rnd-complexity-advisor`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-complexity-advisor.md) |
 | Code improvement suggestions | [`rnd-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-improver.md) |
 
-RnD-Manager is the sole orchestrator for a formal DD. It dispatches Librarian,
-Researcher, Refiner, Architect, ComplexityAdvisor, Estimator, DDAuthor, and
-PatternEnforcer in its canonical order. RnD-Refiner is a nested orchestrator
-only for its fixed eight-turn adversarial sequence. T1–T4 expand and challenge
-externally supported architecture using world evidence; T5–T8 collapse and
-validate repository fit using local evidence. Improver is an evidence-backed
-architecture adapter, not a second Ideator: evidence earns consideration but
-does not earn implementation, and the smallest repository-native realization
-is preferred. Counter agents may return a substantiated `NO_MATERIAL_CONCERNS`
-/ `GOOD_ENOUGH` result; a credible falsification attempt that finds no material
-applicable concern is a successful adversarial outcome, not a failed turn.
-DDAuthor never orchestrates other R&D agents. Direct dispatch of leaf R&D agents
-is valid only for focused analysis outside a formal DD workflow.
+RnD-Manager is the sole orchestrator for a formal DD. It composes the smallest
+sufficient graph from Librarian, Researcher, Refiner, Architect,
+ComplexityAdvisor, Estimator, DDAuthor, and PatternEnforcer capabilities. It may
+fan out independent work and must preserve dependency order and static authority.
+RnD-Refiner executes only a Manager-selected bounded external/repository
+subgraph. Ideator/Counter-Ideator challenge external assumptions; Improver/
+Counter-Improver challenge repository fit. Counter agents may return a
+substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result, which terminates
+that subgraph. DDAuthor never orchestrates other agents. Direct leaf dispatch is
+valid only for focused analysis outside a formal DD workflow.
 
-The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner in the adversarial pipeline. Counter-Ideator tests external/architectural assumptions and real-world evidence; Counter-Improver tests actual repository paths, ownership, lifecycle, runtime boundaries, and unnecessary mechanisms. Neither is required to discover a defect. Both may validate a proposal when credible examination finds no material applicable concern. Direct dispatch is rare.
+The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner only in a selected external or repository subgraph. Counter-Ideator tests external/architectural assumptions and real-world evidence; Counter-Improver tests actual repository paths, ownership, lifecycle, runtime boundaries, and unnecessary mechanisms. Neither is required to discover a defect. Both may validate a proposal when credible examination finds no material applicable concern. Direct dispatch is rare.
 
 ### QA Department
 
@@ -209,7 +206,7 @@ QA-RepoReviewManager is the separate whole-tree GitHub review entry point, disti
 | Check pattern coverage and consistency | [`support-patternenforcer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-patternenforcer.md) |
 | Deep codebase or external documentation research | [`support-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) |
 
-All support agents are dispatched directly — they have no internal orchestrator. Support-Librarian should run before any design or planning work in brownfield codebases.
+All support agents are dispatched directly — they have no internal orchestrator. Select Support-Librarian only when prior artifacts materially constrain the route; otherwise record the evidence-based skip. Independent Librarian and Researcher work may run concurrently.
 
 ## Cross-Cutting Concerns
 

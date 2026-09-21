@@ -5,7 +5,7 @@ Dispatch RnD-CounterIdeator to challenge externally supported design approaches 
 ## When to Dispatch
 
 **Dispatch when:**
-- RnD-Refiner delegates adversarial critique in the adversarial design flow (T2 and T4)
+- RnD-Refiner delegates adversarial critique in the selected external subgraph
 - You have proposed approaches and want them stress-tested against real-world failure data
 - You need evidence-grounded "why this might fail" analysis
 
@@ -18,9 +18,9 @@ Dispatch RnD-CounterIdeator to challenge externally supported design approaches 
 ## Dispatch Template
 
 ```
-Challenge the proposed approaches in [DD_PATH].
+Challenge the proposed approaches recorded in [LOG_PATH].
 
-Read the approach proposals. Search for documented failures, postmortems, and known pitfalls matching each approach. Rank concerns by context relevance and state why each candidate failure does or does not apply. If serious examination finds no material applicable concern, append a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result that records assumptions challenged, evidence/search rationale, candidate failure modes, and applicability instead of manufacturing an objection. Append the review to the DD.
+Read the approach proposals. Search for documented failures, postmortems, and known pitfalls matching each approach. Rank concerns by context relevance and state why each candidate failure does or does not apply. If serious examination finds no material applicable concern, append a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result that records assumptions challenged, evidence/search rationale, candidate failure modes, and applicability instead of manufacturing an objection. Append the review to the shared adversarial log.
 
 White-hat adversary — success is measured by improving or credibly validating the final design, not by how many problems are found. Read-only.
 ```
@@ -29,21 +29,21 @@ White-hat adversary — success is measured by improving or credibly validating 
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `[DD_PATH]` | Path to the shared design document with approach proposals | `artifacts/designs/pending/collab-editing.md` |
+| `[LOG_PATH]` | Path to the shared adversarial log with approach proposals | `artifacts/designs/pending/collab-editing/ADVERSARIAL.md` |
 
 ## Expected Output
 
-- Adversarial critique or a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` validation appended to the shared DD
+- Adversarial critique or a substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` validation appended to the shared adversarial log
 - Documented failures and postmortems matching proposed approaches when concerns exist
 - A meaningful falsification attempt; an objection is not required for a successful Counter turn
 - Assumptions challenged, evidence checked, and applicability rationale for validation results
 - Concrete risks with evidence citations when material concerns exist
 
-This agent is part of the `rnd-refiner` adversarial pipeline. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of existing proposals.
+This agent is part of the Manager-selected `rnd-refiner` external subgraph. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of existing proposals.
 
 ## How It Works
 
-RnD-CounterIdeator reads approach proposals from the shared DD, searches for documented failures and postmortems when needed, ranks applicable concerns by context relevance, and appends critique or good-enough validation. It is a white-hat adversary — success is measured by improving or credibly validating the final design, not by finding more problems.
+RnD-CounterIdeator reads approach proposals from the shared adversarial log and selected design context, searches for documented failures and postmortems when needed, ranks applicable concerns by context relevance, and appends critique or good-enough validation. It is a white-hat adversary — success is measured by improving or credibly validating the final design, not by finding more problems.
 
 ## GitHub Actions context (when relevant)
 

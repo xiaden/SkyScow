@@ -12,7 +12,7 @@ Dispatch RnD-Estimator to size implementation effort.
 
 **Do NOT dispatch when:**
 - The scope is trivial (single-file change, typo fix)
-- You need a full design document — use `rnd-manager` or `rnd-dd-author` instead
+- You need a full design document — use `rnd-manager`; DDAuthor is invoked only by Manager after selected evidence and resolved dispositions
 - You need implementation analysis — use `rnd-architect` instead
 - You need creative ideation — use `rnd-ideator` instead
 

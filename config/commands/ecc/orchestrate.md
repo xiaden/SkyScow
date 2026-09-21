@@ -10,9 +10,9 @@ Orchestrate multiple specialized agents for this complex task: $ARGUMENTS
 ## Your Task
 
 1. **Analyze task complexity** and break into subtasks
-2. **Identify optimal agents** for each subtask
-3. **Create execution plan** with dependencies
-4. **Coordinate execution** — parallel where possible
+2. **Identify the smallest sufficient capability graph** for each subtask
+3. **Record dependencies and static authority boundaries**
+4. **Coordinate execution** — parallel only for independent work
 5. **Synthesize results** into unified output
 
 ## Available Agents
@@ -25,7 +25,7 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 |-------|-----------|---------|
 | rnd-manager | R&D department head | Feature design dispatch, owns the "thinking" phase |
 | rnd-dd-author | Design lead | Creates/refines design documents from requirements |
-| rnd-refiner | Adversarial design orchestrator | 8-turn adversarial refinement across 4 persistent sessions |
+| rnd-refiner | Adversarial design executor | Runs a Manager-selected bounded external/repository subgraph |
 | rnd-ideator | Creative solution generator | Explores design space, ranked ideas with feasibility |
 | rnd-counter-ideator | Adversarial approach critic | Critiques proposed approaches, searches for failures/postmortems |
 | rnd-improver | Evidence-backed architecture adapter | Collapses a surviving approach into the smallest repository-native realization; reuses local behavior and adds only demonstrated mechanisms |
@@ -65,21 +65,22 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 ## Orchestration Patterns
 
-### Sequential Execution
+### Dependency-ordered execution
 ```
-rnd-dd-author → exec-planner → exec-manager → qa-reviewer
+rnd-manager → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → exec-planner → exec-manager → qa-reviewer
 ```
-Use when: Later tasks depend on earlier results
+Use when: Later tasks depend on earlier results. The Manager selects the smallest
+sufficient graph; independent Librarian/Researcher work may run concurrently.
 
 ### Parallel Execution
 ```
-            ┌→ qa-reviewer
-exec-manager →├→ qa-test-analyzer
-            └→ support-researcher
+             ┌→ support-librarian ─┐
+rnd-manager →├→ support-researcher ─┼→ dependent R&D node
+             └→ selected evaluator ┘
 ```
-Use when: Tasks are independent
+Use when: Tasks are independent and their evidence domains do not overlap.
 
-### Fan-Out/Fan-In
+### Bounded fan-out/fan-in
 ```
             ┌→ agent-1 ─┐
 exec-planner →├→ agent-2 ─┼→ synthesizer
@@ -87,31 +88,52 @@ exec-planner →├→ agent-2 ─┼→ synthesizer
 ```
 Use when: Multiple perspectives needed
 
-## Execution Plan Format
+## Capability Graph Format
 
-### Phase 1: [Name]
+### Node 1: [Capability]
 - Agent: [agent-name]
-- Task: [specific task]
-- Depends on: [none or previous phase]
+- Task: [specific bounded task]
+- Depends on: [none or named nodes]
+- Selected because: [short evidence-based rationale]
 
-### Phase 2: [Name] (parallel)
-- Agent A: [agent-name]
-  - Task: [specific task]
-- Agent B: [agent-name]
-  - Task: [specific task]
-- Depends on: Phase 1
+### Node 2: [Capability] (parallel when independent)
+- Agent: [agent-name]
+- Task: [specific bounded task]
+- Depends on: [none or named nodes]
+- Selected because: [short evidence-based rationale]
 
-### Phase 3: Synthesis
-- Combine results from Phase 2
-- Generate unified output
+### Terminal synthesis
+- Combine selected results only
+- Record material skips, evaluator result, dispositions, re-entry/resume, and terminal reason
+
+## Required routing cases
+
+The Manager records the observed condition, selected and skipped capabilities, dependency/concurrency shape, terminal reason, and DD eligibility in the routing trace. These cases are acceptance examples, not a new registry or state-machine DSL:
+
+- **A — Trivial local change:** a single well-understood module and no open external or architectural question. Select only route/sizing evidence needed for planning; skip Librarian, Researcher, Refiner, Architect, ComplexityAdvisor, and DDAuthor with evidence-based reasons. Terminal: `PLAN_ONLY`; no DD artifacts.
+- **B — Open Nomarr backend choice:** backend alternatives are consequential and repository integration facts are unknown. Select independent Librarian/Researcher work, then external and repository Refiner pairs; select Architect only if multiple survivors still require tradeoffs. Preserve Manager/user decision authority before authoring. Terminal: `DD_REQUIRED` only after dispositions and an accepted direction.
+- **C — Accepted architecture, unclear integration:** architecture is accepted but local runtime or ownership paths are unknown. Skip external Ideator/Counter-Ideator and Architect; select Researcher and, when repository adaptation is material, Improver/Counter-Improver. Terminal: selected evidence or Manager disposition; no redundant external exploration.
+- **D — Greenfield alternatives:** no accepted direction exists and multiple credible designs may survive. Select Architect for explicit tradeoffs and require Manager or user resolution at the decision boundary; an advisory agent never chooses.
+- **E — Evaluator is good enough:** a selected Counter returns credible `GOOD_ENOUGH` or `NO_MATERIAL_CONCERNS` with evidence, assumptions, failure modes, and applicability. Terminate that pair immediately; do not add a historical pass.
+- **F — Mitigation requires authority:** an evaluator returns a material finding. Pause and return it to RnD-Manager; only a Manager `MITIGATE` disposition authorizes a bounded correction and optional revalidation. Other dispositions do not authorize implementation.
+- **G — Generalized complexity:** the design introduces meaningful lifecycle/state machinery, new abstractions, dependency or compatibility management, registries, or broad scope. Select ComplexityAdvisor; keep its result advisory and preserve smallest-realization discipline.
+- **H — DD not required:** the request is research-only or plan-only, or an existing accepted DD is sufficient. Do not select DDAuthor or create partial DD artifacts; route only bounded research/planning work and record the terminal reason.
 
 ## Coordination Rules
 
-1. **Plan before execute** — Create full execution plan first
-2. **Minimize handoffs** — Reduce context switching
-3. **Parallelize when possible** — Independent tasks in parallel
-4. **Clear boundaries** — Each agent has specific scope
-5. **Single source of truth** — One agent owns each artifact
+1. **Compose locally** — Select the smallest sufficient capability graph from the
+   request, evidence, accepted architecture, and risk; do not run a mandatory
+   assembly line.
+2. **Preserve gates** — Static permissions, requirement provenance, authority,
+   security, DD acceptance, implementation authorization, and QA authority do not
+   change with topology.
+3. **Respect dependencies** — Keep dependent nodes ordered; parallelize only
+   independent evidence gathering.
+4. **Bound evaluators** — Stop on credible `GOOD_ENOUGH`/`NO_MATERIAL_CONCERNS`;
+   return findings to the owning Manager before any mitigation or resume.
+5. **Trace decisions** — Record selected/skipped rationale, outcome, evaluator
+   result, re-entry, dispositions, and terminal reason in existing Manager logs.
+6. **Single source of truth** — One agent owns each artifact and authority.
 
 ---
 

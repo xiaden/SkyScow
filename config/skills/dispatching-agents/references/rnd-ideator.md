@@ -12,7 +12,7 @@ Dispatch RnD-Ideator to generate creative solutions and explore the design space
 
 **Do NOT dispatch when:**
 - You need concrete implementation analysis — use `rnd-architect` instead
-- You need a full design document — use `rnd-manager` or `rnd-dd-author` instead
+- You need a full design document — use `rnd-manager`; DDAuthor is Manager-only after selected evidence and dispositions
 - The solution is obvious from existing patterns — implement directly
 - You need effort sizing — use `rnd-estimator` instead
 
@@ -53,10 +53,10 @@ This agent is **read-only** — it returns ideas, does not execute or implement.
 
 ### Adversarial Design Flow
 
-When spawned by `rnd-refiner` in the adversarial design flow, RnD-Ideator reads the shared DD file and appends approach proposals with mandatory web-cited evidence across two turns. In this mode, supply only the DD path:
+When spawned by `rnd-refiner` in the adversarial design flow, RnD-Ideator reads the shared adversarial log and performs only the Manager-selected bounded proposal or refinement. In this mode, supply the log path and selected node:
 
 ```
-Read [DD_PATH] and append approach proposals with web-cited evidence across two turns. Recommendations are observational: do not select an approach, create requirements, or authorize implementation; the RnD-Manager decides. Recommend, without deciding, the four outcomes where material concerns arise.
+Read [LOG_PATH] and perform the selected bounded proposal or Manager-authorized refinement with web-cited evidence. Recommendations are observational: do not select an approach, create requirements, or authorize implementation; the RnD-Manager decides. Recommend, without deciding, the four outcomes where material concerns arise.
 ```
 
 ## GitHub Actions context (when relevant)

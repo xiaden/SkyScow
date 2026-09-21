@@ -5,19 +5,19 @@ description: Gather prior ADR, ASR, log, and design-doc context before design, p
 
 # Artifact Context Gathering
 
-Before acting on any significant task, spawn `Support-Librarian` to search the artifact corpus for relevant constraints, warnings, and context. This skill templates the prompt.
+Before design, planning, or routing work, assess whether prior ADRs, ASRs, logs, DDs, or dead ends materially constrain the route. Select `Support-Librarian` when they do; otherwise record the evidence-based skip in the Manager-owned routing trace. This skill templates the prompt.
 
 ## When to Use
 
  | You're about to... | Use this skill |
  | -------------------- | --------------- |
-  | Design a feature (RnD-Manager) | Yes — before dispatching the DD workflow |
- | Create an implementation plan (Exec-Planner) | Yes — before creating the plan |
- | Route work to a department (Nyx, RnD-Manager) | Yes — before dispatching |
+  | Design a feature (RnD-Manager) | Conditional — select only when prior artifacts materially constrain the route |
+  | Create an implementation plan (Exec-Planner) | Conditional — select only when prior artifacts materially constrain the plan |
+  | Route work to a department (Nyx, RnD-Manager) | Conditional — select only when prior artifacts materially constrain routing |
  | Execute a plan phase (Exec-Worker) | No — the plan should already reflect artifact context |
  | Do a quick fact check | No — overhead not worth it |
 
-**Threshold:** If the task touches architecture, creates artifacts, or makes decisions that constrain future work — gather context first. If it's mechanical execution of an already-validated plan — skip.
+**Threshold:** If prior artifacts are relevant to the task's architecture, artifact ownership, or future constraints, gather them first. If no relevant artifacts exist, log the evidence-based skip. Mechanical execution of an already-validated plan skips this skill.
 
 ## How to Use
 
@@ -32,9 +32,9 @@ task:
   scope: "src/components/ml, src/workflows/processing"
 ```
 
-### Step 2: Spawn Support-Librarian
+### Step 2: Select Support-Librarian when warranted
 
-Use this prompt template, filling in the task details:
+When the Manager's route assessment finds materially relevant prior artifacts, use this prompt template, filling in the task details:
 
 ```
 Search the artifact corpus for everything relevant to this task:
@@ -71,13 +71,13 @@ For detailed walkthroughs of this skill in action, see [`references/examples.md`
 ## Formal DD ownership
 
 Gather context for and dispatch formal design work through RnD-Manager. It owns
-the complete DD workflow. RnD-DDAuthor is invoked by Manager only after the
-upstream research, full adversarial review, architecture, complexity, and
-estimation stages; do not dispatch DDAuthor directly for a new formal DD.
+the selected DD graph. RnD-DDAuthor is invoked by Manager only after
+sufficient selected evidence, resolved dispositions, and the required lifecycle
+gates; do not dispatch DDAuthor directly for a new formal DD.
 
 ## Anti-Patterns
 
-- **Don't skip this for "small" design decisions** — Small decisions that contradict ADRs cause big problems.
+- **Don't skip relevant artifact context** — If prior decisions materially constrain the route, select Support-Librarian regardless of task size; otherwise record why it was skipped.
 - **Don't re-search what the Librarian already found** — Trust the briefing. Read cited artifacts only if you need more detail.
 - **Don't ignore `no_relevant_artifacts`** — An empty briefing is signal: you're in uncharted territory. Log your decisions for future sessions.
 - **Don't spawn Librarian during mechanical execution** — If you're following a plan step-by-step, the plan author should have already gathered context.

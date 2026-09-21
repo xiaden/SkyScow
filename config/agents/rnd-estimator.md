@@ -1,5 +1,5 @@
 ---
-description: Effort estimator. Sizes tasks as TRIVIAL/SMALL/MEDIUM/LARGE/EPIC using weighted context scope (chars × cognitive weight). Tool-adjacent and minimal — answers the question and stops. Read-only. Invokable directly or via RnD-Manager/RnD-DDAuthor.
+description: Effort estimator. Sizes tasks as TRIVIAL/SMALL/MEDIUM/LARGE/EPIC using weighted context scope (chars × cognitive weight). Tool-adjacent and minimal — answers the question and stops. Read-only. Invokable directly or via RnD-Manager, or directly for standalone sizing.
 maintainer: "agent-team"
 mode: subagent
 model: omniroute/flash-combo
