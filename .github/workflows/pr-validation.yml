@@ -1,4 +1,4 @@
-name: SkyScow - PR Validation
+name: SkyScow - Validation
 
 on:
   pull_request:
