@@ -5,127 +5,96 @@ description: Create, edit, or validate task-plan Markdown and use plan lifecycle
 
 # Making & Using Task Plans
 
-**Purpose:** Produce valid, well-structured task plan markdown files and use the plan tooling system effectively.
+**Purpose:** Produce valid task plans whose steps, worker phases, manager plans, and plan-set dependencies have explicit ownership without confusing those boundaries with Git or release boundaries.
 
-This skill is the canonical plan-format and writing-guidance entry point. The body is a dispatch index; format rules and writing guidance live in reference files loaded on demand.
-
----
+This is the canonical plan-format entry point. Format rules and detailed guidance live in the references below.
 
 ## When to Use
 
 **Load this skill when:**
-- Creating a new task plan in `artifacts/plans/pending/`
-- Editing or validating an existing plan
-- Using plan tools (`plan_read`, `plan_complete_step`, `plan_archive`)
-- Splitting a large task into lettered parts
-- Reviewing a plan for completeness or cross-session continuity
+- Creating, editing, or validating a task plan in `artifacts/plans/`.
+- Using `plan_read`, `plan_complete_step`, `plan_annotate_step`, or `plan_archive`.
+- Reviewing plan ownership, dependency closure, phase packing, or cross-session continuity.
 
 **Do NOT use this skill when:**
-- Decomposing a design document into multiple plans — use `decomposing-design-documents`
-- Executing a multi-plan feature — use `feature-execution`
-- The task is trivial and won't need cross-session continuity
+- Decomposing a design document into multiple plans — use `decomposing-design-documents`.
+- Executing a multi-plan feature — use `feature-execution`.
+- The task is trivial and needs no cross-session plan.
 
----
+## Canonical boundaries
+
+- **Step:** one concrete, actionable, bounded implementation obligation owned by one package and verifiable against its own intent.
+- **Phase:** a worker context unit containing dependency-compatible steps that one Exec-Worker can safely understand and execute. It is not a commit, release, deployable checkpoint, independently buildable feature, or globally green milestone.
+- **Plan:** a manager review context unit containing phases that one Exec-Manager can validate against request/DD intent, contracts, worker results, changed surfaces, QA findings, and downstream ownership. It is not a commit, release, deployable state, or fully integrated feature.
+- **Plan set:** the decomposition that owns eventual whole-change integration. Its existing README/dependency metadata carries the actual graph.
+- **Commit:** an orthogonal Git/workflow boundary. No plan or phase state implies a commit.
+
+A phase or plan may finish while downstream integration is incomplete only when a present, schema-valid, non-superseded later owner is named in the plan-set graph. Unowned breakage is a current defect or `PLANNING_GAP`.
 
 ## Reference Dispatch
 
-This skill uses the **decision tree** pattern. The body is a dispatch index; load the reference matching your need:
-
-| You need... | Load | Contains |
-|-------------|------|----------|
-| Format rules, phase structure, `plan_read` parser constraints, step ID conventions, splitting rules | [Syntax Reference](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/syntax.md) | Template, format rules, parser rejection rules, step writing, splitting large tasks, validation |
-| Step annotations, best practices, cross-session continuity, common mistakes, tool integration details | [Writing Guide](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/writing-guide.md) | Step annotations, phase structure guidance, cross-session continuity, common mistakes |
-| Full annotated example plan with commentary | [Example Plan](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/example-plan.md) | Annotated example showing all structural elements in practice |
-| `plan_read`, `plan_complete_step`, `plan_archive` signatures and usage | [Tool Integration](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/tool-integration.md) | Tool signatures, parameter docs, usage patterns |
-
----
+| Need | Reference |
+|---|---|
+| Format, dependencies, phase/plan packing, parser rules | [`references/syntax.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/syntax.md) |
+| Writing steps, annotations, ownership, downstream state, archival | [`references/writing-guide.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/writing-guide.md) |
+| Annotated replacement-API example with valid intermediate state | [`references/example-plan.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/example-plan.md) |
+| Lifecycle tool signatures | [`references/tool-integration.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/tool-integration.md) |
 
 ## Quick Reference
-
-### Required Structure
 
 ```markdown
 # Task: <Brief Title>
 
 ## Problem Statement
-<What and why. Assume reader has zero context.>
+<What, why, scope, and constraints>
+
+## Dependencies
+- None, or explicit producer/consumer prerequisites from the feature README.
 
 ## Phases
 
-### Phase 1: <Outcome Name>
-- [ ] Step description
-- [ ] Step description
-
-### Phase 2: <Outcome Name>
-- [ ] Step description
+### Phase 1: <worker-context package>
+- [ ] Bounded, actionable, verifiable obligation
 
 ## Completion Criteria
-- Measurable success condition
+- Owned obligations complete and annotated.
+- Relevant local checks run where possible.
+- Any incomplete integration has a named downstream owner.
 ```
 
-### Format Rules
+Phase display numbers must be sequential for parser stability; actual execution order comes from explicit dependency metadata, not phase numbers or plan letters. Steps remain flat checkboxes. Run `plan_read(plan_name)` after creating or editing a plan.
 
-| Element | Pattern | Note |
-|---------|---------|------|
-| Title | `# Task: <title>` | Required |
-| Phase | `### Phase N: <title>` | N must be sequential integer (1, 2, 3...) |
-| Step | `- [ ] <text>` or `- [x] <text>` | **Must be flat — no indented checkboxes** |
-| Annotation | `**Notes:**`, `**Warning:**`, `**Blocked:**` | Phase-level or step-level |
+## Context-based sizing
 
-**Step IDs** auto-generate as `P{phase}-S{step}` (e.g., `P1-S1`, `P2-S3`).
+Use `config/agent-context-budgets.yaml` and the `context_tokens` / `context_budget` tools as the source of truth. Include the actual context carried by the worker or manager; do not copy numeric limits into plan prose or split on fixed step/phase counts. Split only when context overload, context switching, review diffusion, or a real dependency requires it.
 
-**Parser rejection rules:** Nested steps, non-sequential phases, and invalid phase formats all cause parse errors. See [Syntax Reference](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/syntax.md) for details.
+## Lifecycle and ownership
 
----
+Plans may be `pending`, `in-flight`, `complete-awaiting-QA`, or `archived`. A plan can be archived when its owned review package is complete and accepted. Archival is artifact bookkeeping: it does not assert a commit, release, deployment, globally green repository, complete feature, or sibling-plan completion. Whole plan-set archival remains a separate boundary after dependency closure.
 
-## Tool Integration
+## Validation checklist
 
-Three tools manage the plan lifecycle:
-
-| Tool | Purpose |
-|------|---------|
-| `plan_read(plan_name)` | Parse and validate a plan, returns structured JSON |
-| `plan_complete_step(plan_name, step_id, ...)` | Mark a step complete with optional annotation |
-| `plan_archive(plan_name)` | Archive completed plan from pending to completed |
-
-For detailed signatures and usage patterns, see [Tool Integration](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/tool-integration.md).
-
----
-
-## Validation Checklist
-
-Before declaring a plan complete:
-
-- [ ] Structure matches template
-- [ ] Phase numbers are sequential integers
-- [ ] Steps are flat (no nesting)
-- [ ] Problem Statement provides context for fresh sessions
-- [ ] Completion Criteria are measurable
-- [ ] Run `plan_read(plan_name)` — must parse without errors
-
----
+- [ ] Every implementation obligation has one owner.
+- [ ] Every dependency edge is a real prerequisite or producer-consumer relation.
+- [ ] Independent work remains independent.
+- [ ] Phases fit worker context and plans fit manager review context using canonical budget tools.
+- [ ] Expected incomplete integration has a valid downstream owner.
+- [ ] QA obligations are exposed as changed surfaces/explicit requirements, not manufactured as universal phase milestones.
+- [ ] No generic commit step is added because a phase or plan ends.
+- [ ] `plan_read` passes.
 
 ## References
 
-- [`references/syntax.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/syntax.md) — Format rules, template, parser constraints, splitting, validation
-- [`references/writing-guide.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/writing-guide.md) — Annotations, best practices, common mistakes, cross-session continuity
-- [`references/example-plan.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/example-plan.md) — Full annotated example plan with commentary
-- [`references/tool-integration.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/tool-integration.md) — Tool API reference with signatures and usage patterns
-- Related skills: `decomposing-design-documents` (multi-plan decomposition), `feature-execution` (execution pipeline)
-
+- [`references/syntax.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/syntax.md)
+- [`references/writing-guide.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/writing-guide.md)
+- [`references/example-plan.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/example-plan.md)
+- [`references/tool-integration.md`](file:///home/opencode/.config/opencode/skills/making-and-using-task-plans/references/tool-integration.md)
+- Related: `decomposing-design-documents`, `feature-execution`
 
 ## Request Context for Plan Authoring
 
-Plan CREATE and AMEND operations must carry a readable
-`request_context.path` to an `artifacts/requests/CTX_*.md` conversation snapshot.
-The planner must read it before authoring or editing and preserve its reference
-in the plan's source context. A summary or handoff goal cannot replace the
-capture; missing or unreadable context blocks plan authoring. REORDER operations
-must preserve the existing request-context reference when one is already
-required by the plan set.
+Plan CREATE and AMEND operations must carry a readable `request_context.path` to an `artifacts/requests/CTX_*.md` snapshot. The planner reads it before authoring and preserves its reference. Missing or unreadable context blocks plan authoring.
 
 ## Plan Lifecycle and Ownership Validation
 
-Plans have four lifecycle states: `pending`, `in-flight`, `complete-awaiting-QA`, and `archived` (in `completed/`). A plan with zero open steps is not still `in-flight`; archive it or mark it explicitly `complete-awaiting-QA`.
-
-During validation, require an `Ownership` section naming every caller file for each changed symbol signature, return type, or behavior. A handoff annotation alone never satisfies caller coverage. In the `plan_read`-adjacent startup workflow, warn when every step is checked but the plan remains in `pending/`; do not dispatch it as new work until its disposition is recorded.
+During validation, require an `Ownership` section naming callers and changed behavior where relevant. A handoff annotation alone does not establish caller coverage. A plan with zero open steps is not new work: archive it or record `complete-awaiting-QA` with its disposition.

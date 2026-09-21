@@ -56,20 +56,18 @@ _(Ensure every plan is authored correctly, ordered correctly, and scoped to a si
 _(Govern quality gates and the anti-drift ledger)_
 
 4. **Never skip the ledger update.** The contracts ledger is the only mechanism preventing cross-plan drift. Update it after every validated plan.
-5. **Never batch-validate.** Validate each plan immediately after creation. Errors found after all plans exist require multi-file fixes.
+5. **Validate at both boundaries.** Validate each plan structurally when it is created; after the complete plan set exists, run cross-plan validation as one graph-level check. Do not gate or cross-validate a knowingly incomplete future set.
 
 ### Session Rules
 _(Govern continuity across context boundaries)_
 
-6. **If context budget is exhausted, stop at the round boundary.** The ledger preserves all progress. A new session resumes cleanly.
+## Planning and quality boundaries
 
-### Quality Gate Integration
-_(Ensure plans account for the implementation workflow selected by the changed surface and the repository's actual capabilities)_
-
-7. **Every plan must state the verification steps selected by its changed surface and the repository's capabilities.** Do not assume a project test suite exists and do not default to generic commands (`npm test`, `npx tsc`); repository-defined commands take precedence. Select the verification burden from the observable surface and the repository's real capabilities, per `/home/opencode/.config/opencode/instructions/validation-mandate.md`. Coverage, when the repository supports it, is diagnostic or governed by the repository's own threshold — this doctrine prescribes no universal coverage percentage. A plan that omits the verification its surface requires is incomplete.
-8. **Every plan must account for the quality gates its surface requires: code review always; security review only where an observable security-sensitive surface changed.** The planner must not assume implementation is done after writing code — review precedes commit.
-9. **Plans that change an observable security-sensitive surface must include a security review step.** Select the checklist from `/home/opencode/.config/opencode/skills/security-review/SKILL.md`, which is the canonical owner; reference it, never restate or weaken it. Security-sensitive surfaces are observable facts: authentication/authorization, payments/financial logic, secrets/credentials, external or user input, persisted/sensitive data, deployment/security-header configuration, and agent/MCP/plugin/permission configuration. Plans without such a surface do not carry a mandatory security review step.
-
+1. Derive implementation obligations and real producer/consumer prerequisites before creating plan containers.
+2. Build the implementation DAG and close ownership before packing phases or plans.
+3. Use canonical QA applicability and repository validation policy downstream; do not manufacture universal quality or commit milestones inside every plan.
+4. A plan exposes changed surfaces, contracts, dependencies, downstream owners, and explicit quality obligations required by the request or accepted architecture.
+5. Code review, tests, security review, and documentation are selected by their canonical owners and observable triggers, not inserted as universal plan steps.
 ---
 
 ## Phase 0: Create Design Document (Optional)
@@ -123,50 +121,43 @@ task:
 **Input:** Design document (e.g., `artifacts/designs/pending/{feature}/DD.md`)
 **Output:** `artifacts/designs/pending/{feature}/README.md`
 
-Read the design doc. Identify natural part boundaries:
+Read the design doc and repository facts. Derive the work before creating plan containers:
 
- | Criterion | Rule |
- | --- | --- |
- | Layer boundaries | Parts touching different architectural layers → separate |
- | System boundaries | Backend vs plugin vs frontend → separate |
- | Dependency depth | No part depends on more than 2 others |
- | Session scope | Each part ≤ 12 plan steps (≤ 2 phases) |
- | Diamond avoidance | If parts A→C and B→C share most context → merge A+B |
- | Risk surface | Consult the canonical applicability classification in `/home/opencode/.config/opencode/instructions/qa-applicability.md`; for security applicability, use the canonical surfaces and triggers owned by `/home/opencode/.config/opencode/skills/security-review/SKILL.md`. When the security lens is matched, flag security review in the plan. High-risk parts should be planned first to surface issues early. |
- | Complexity | Estimate per part: TRIVIAL/SMALL/MEDIUM/LARGE/EPIC. Use for model routing and session budget planning. |
-
-Assign letters (A, B, C...) in topological order. Group into execution rounds.
+1. Enumerate concrete implementation obligations and their owning package.
+2. Identify only real prerequisite and producer/consumer edges: contracts, interfaces, generated artifacts, registrations, migrations, or required data/control flow.
+3. Build the implementation DAG and verify ownership closure. Do not derive edges from layers, alphabetical labels, commits, review order, or milestone aesthetics.
+4. Pack dependency-compatible DAG nodes into worker-context phases using the canonical context policy and budget tools.
+5. Pack phases into manager-review plans using request/DD/contract/annotation/changed-surface/QA/downstream review context.
+6. Preserve the explicit graph in README metadata; plan labels are stable identifiers only. Independent plans remain independent and may execute concurrently when safe.
 
 Create `artifacts/designs/pending/{feature}/README.md`:
 
 ```markdown
 # {Feature} — Implementation Parts
 
-## Parts
-
- | Part | Title | Depends On | Layers | 
- | --- | --- | --- | --- | 
- | A | {name} | None | persistence | 
- | B | {name} | A | workflow, service, interface | 
-...
+ | Plan | Title | Depends On | Owned surfaces |
+ | --- | --- | --- | --- |
+ | A | {name} | None | {surfaces} |
+ | B | {name} | A | {surfaces} |
+ ...
 
 ## Dependency Graph
-{ASCII art}
+{ASCII art or equivalent existing README graph metadata}
 
-## Execution Rounds
-Round 1: A, G (no deps)
-Round 2: B, D, E (depend on Round 1 outputs)
-Round 3: F (depends on Round 2 outputs)
+## Dependency-ready groups
+Group 1: A, G (no real prerequisites)
+Group 2: B, D, E (depend on named outputs from earlier groups)
+Group 3: F (depends on named outputs from Group 2)
 
 ## Per-Part Scope
 
 ### Part A: {title}
-{3-5 sentences: what this creates, files touched, contracts exposed downstream}
+{Concise scope: what this creates, files touched, contracts exposed downstream, and any explicitly owned incomplete integration}
 
 Detailed scope: See `PART-A-scope.md`
 ```
 
-**Per-part scope documents.** Each part gets a detailed scope document in `artifacts/designs/pending/{feature}/PART-{letter}-scope.md` containing file paths, contracts, integration details, and testing requirements. These specs absorb implementation detail that does not belong in the DD.
+**Per-part scope documents.** Each part gets a detailed scope document in `artifacts/designs/pending/{feature}/PART-{letter}-scope.md` containing file paths, contracts, integration details, downstream ownership, and applicable repository/QA context. These specs absorb implementation detail that does not belong in the DD.
 
 Present the README to the user for review before proceeding.
 
@@ -201,16 +192,16 @@ Initial content:
 
 ---
 
-## Phase 3: Plan in Rounds
+## Phase 3: Plan dependency-ready groups
 
 **Entry criteria:** Both `README.md` and `CONTRACTS.md` exist under `artifacts/designs/pending/{feature}/`.
-**Exit criteria:** All plans validated, `CONTRACTS.md` updated after each plan, all rounds complete.
+**Exit criteria:** All plans validated, `CONTRACTS.md` updated after each plan, and the complete plan-set graph is ready for cross-validation.
 
-For each execution round from the README:
+For each dependency-ready group from the explicit README graph:
 
 ### 3a. Dispatch Exec-Planner Agent
 
-For each part in the round, dispatch the Exec-Planner agent. See [references/subagent-protocol.md](file:///home/opencode/.config/opencode/skills/decomposing-design-documents/references/subagent-protocol.md) for the full dispatch protocol including prompt structure, critical rules, and common mistakes.
+For each owned package in the group, dispatch the Exec-Planner agent. See [references/subagent-protocol.md](file:///home/opencode/.config/opencode/skills/decomposing-design-documents/references/subagent-protocol.md) for the full dispatch protocol including prompt structure, critical rules, and common mistakes.
 
 ```yaml
 # Dispatch to Exec-Planner agent (see .opencode/agents/exec-planner.md)
@@ -223,12 +214,12 @@ contextFiles:
 task:
   type: CREATE
   feature: "{feature}"
-  part: "{letter}"
-  partScope: "{scope from README}"              # 3-5 sentence scope summary
+  part: "{stable-label}"
+  partScope: "{scope from README}"              # concise manager-review scope and owned obligations
   priorContracts: true                          # Ledger has upstream methods
 ```
 
-**Parallel dispatch** within a round is allowed — parts in the same round have no mutual dependencies. But only if token budget permits; otherwise dispatch sequentially within the round.
+**Parallel dispatch** within a dependency-ready group is allowed only when existing metadata proves no dependency, output/annotation dependency, write overlap, unsatisfied prerequisite, or order sensitivity. Otherwise dispatch sequentially. Use the canonical budget tools to choose safe concurrency.
 
 ### 3b. Validate Plan
 
@@ -241,7 +232,7 @@ After receiving subagent output:
    - **Missing implementation coordination** — dependencies, contracts, or authoritative requirements are absent. Do not require QA-owned tests, documentation, or evidence artifacts here.
    - **Coding standards violations** — mutation patterns, hardcoded values, missing error handling
    - **References to methods not in the contracts ledger or existing codebase**
-   - **Step count** (>12 steps → consider splitting)
+    - **Context fit** — use `context_tokens` / `context_budget` with `config/agent-context-budgets.yaml`; split only when worker or manager context is unsafe or review becomes diffuse
    - **Surface notes for QA** — record changed surfaces and explicit risks so QA can apply its canonical applicability rules after implementation; do not turn those notes into plan obligations
 
 Fix issues before proceeding. Re-run `plan_read` after fixes.
@@ -271,43 +262,24 @@ The next round's subagents receive the updated ledger. This is the anti-drift me
 
 After all plans exist and are individually valid:
 
-  | **Dependency completeness** | Every method/API called by a plan is defined in a prior plan's steps |
-  | **Contract consistency** | JSON shapes referenced by multiple plans match exactly |
-  | **Layer compliance** | No workflow receives a service. No component imports interfaces. Check against project architecture rules |
+   | **Dependency completeness** | Every producer/consumer edge is explicit, its producer and consumer owners exist, and prerequisites are ordered; a plan may leave downstream callers incomplete when those callers have valid later owners. PlanGate validates closure of the whole graph, not global integration after each plan |
+  | **Contract consistency** | JSON shapes, method signatures, migrations, registrations, and generated artifacts referenced across plans are compatible |
+  | **Graph safety** | The plan-set graph is acyclic, shared writes have an owner, migration ordering is safe, and independent plans do not gain artificial edges |
   | **Implementation ownership** | Every authoritative requirement, dependency, contract, and architectural invariant has one clear owner |
   | **Coverage** | Every authoritative design requirement maps to at least one plan |
-  | **Gaps** | Methods needed downstream but never created upstream |
-  | **Overlap** | Two plans creating the same artifact |
+  | **Gaps** | Methods or integration needed downstream but never created or owned |
+  | **Overlap** | Two plans creating the same artifact without an explicit handoff |
   | **QA handoff** | Changed surfaces and explicit user/architecture quality obligations are visible to QA; absence of a test/docs step is not a plan gap |
 
-Fix issues by editing plan files directly. Update CONTRACTS.md if fixes change any contracts.
-Fix issues by editing plan files directly. Update CONTRACTS.md if fixes change any contracts.
+Fix issues by editing plan files directly. Update CONTRACTS.md if fixes change any contracts. Do not fail a plan set merely because an earlier plan leaves callers unfinished when a present later plan owns those callers.
 
 Present the cross-validation results to the user with specific issues and fixes applied.
 
 ---
 
-## After Planning: Quality Handoff
+## Quality handoff
 
-**The planning pipeline produces validated plans. The implementation workflow takes over from here.**
-
-```
-Plans → Implementation (behavioral evidence where the change is behavioral) → Code Review → Security Review (only when a security-sensitive surface changed) → Verification → Commit
-```
-
-Each plan must account for this full pipeline — not just the coding steps:
-
- | Phase | Requirement | Plan Must Include |
- | --- | --- | --- |
- | **Behavioral Evidence** | Surface-dependent; RED → GREEN → REFACTOR where the repository supports it | Test-before-implementation steps with the behavioral evidence the changed surface requires; coverage thresholds are repository-defined |
- | **Code Review** | Mandatory after writing code | Explicit code review step; use code-reviewer agent |
- | **Security Review** | Conditional on an observable security-sensitive surface | Security review step only for plans whose changed surface is security-sensitive; checklist owned by `/home/opencode/.config/opencode/skills/security-review/SKILL.md` |
- | **Verification** | The verification steps the changed surface requires, using repository-defined commands; no universal coverage target (`/home/opencode/.config/opencode/instructions/validation-mandate.md`) | Verification step at end of each plan phase |
- | **Commit** | Conventional commits, no console.log | Cleanup and commit step |
-
-**Plans that skip these gates create rework.** The Exec-Planner agent should embed them as explicit steps, not rely on out-of-band processes. When reviewing plans during Phase 3b and Phase 4, treat missing quality gate steps the same as missing implementation steps — they are equally required.
-
-The `feature-execution` skill handles the execution side. If plans are produced without quality gate steps, the execution pipeline may need to inject them ad-hoc, which increases drift risk.
+The planning pipeline produces a validated implementation DAG, ownership closure, and plan set. Expose changed surfaces, explicit user/architecture obligations, contracts, downstream ownership, and repository-defined verification context to the existing execution and QA workflows. Do not manufacture universal test, build, security, review, or commit steps in every phase or plan; canonical QA applicability and repository validation policy remain authoritative. A commit may occur at any Git-approved boundary and is not implied by plan lifecycle.
 
 ---
 
@@ -317,12 +289,12 @@ Large features will exceed a single session. The skill is designed for this.
 
 **The contracts ledger IS the continuity artifact.** When resuming in a new session:
 
-1. Read `artifacts/designs/pending/{feature}/README.md` — execution rounds
+1. Read `artifacts/designs/pending/{feature}/README.md` — explicit dependency graph and dependency-ready groups
 2. Read `artifacts/designs/pending/{feature}/CONTRACTS.md` — all completed decisions
 3. Check which plans exist in `artifacts/plans/pending/TASK-{feature}-*.md`
-4. Resume at the next incomplete round
+4. Resume at the next dependency-ready incomplete group
 
-**Budget estimation:** Each Exec-Planner subagent dispatch consumes ~3-5k tokens of orchestrator context (prompt construction + result processing + ledger update). A 7-part feature needs ~25-35k tokens of orchestrator budget. Plan for 4-5 parts per session.
+**Budget policy:** Use `config/agent-context-budgets.yaml` as the sole policy source. Measure assembled subsections with `context_tokens` and use `context_budget` for project worker/phase/manager projections. Do not duplicate numeric ceilings or infer plan boundaries from dispatch counts.
 
 **If budget is tight within a round:**
 
@@ -336,17 +308,16 @@ Large features will exceed a single session. The skill is designed for this.
 
 Before declaring feature planning complete:
 
-- [ ] All parts have plans in `artifacts/plans/pending/TASK-{feature}-{A..Z}-*.md` **→ No gaps**
-- [ ] All plans parse via `plan_read` **→ Schema compliance**
-- [ ] CONTRACTS.md has entries for every method/API/DTO across all plans **→ Ledger complete**
-- [ ] Cross-validation found no unresolved issues **→ Coherence**
-- [ ] No plan references a method not defined in a prior plan **→ Dependency order correct**
-- [ ] User has reviewed README and CONTRACTS.md **→ Alignment**
-- [ ] Every plan records repository-defined checks relevant to its changed surface when those checks are part of implementation handoff; no assumed generic commands (`/home/opencode/.config/opencode/instructions/validation-mandate.md`) **→ Verification context**
-- [ ] Plans expose changed surfaces, dependencies, contracts, and explicit requested/architectural quality obligations to QA; QA owns test and documentation applicability **→ Quality handoff**
-- [ ] Plans whose changed surface is security-sensitive identify the observable surface for downstream security review; do not add a security-review deliverable unless the user or accepted architecture makes it part of implementation **→ Security context**
-- [ ] No plans contain hardcoded values, mutation patterns, or console.log references **→ Coding standards**
-- [ ] Plans for behavioral changes specify the observable behavior and contracts needed to implement it; no universal coverage target or test artifact is required **→ Behavioral scope**
+- [ ] All parts have plans in `artifacts/plans/pending/TASK-{feature}-{A..Z}-*.md` → no unowned obligations
+- [ ] All plans parse via `plan_read` → schema compliance
+- [ ] CONTRACTS.md has entries for every shared method/API/DTO across all plans → ledger complete
+- [ ] Cross-validation found no unresolved ownership, dependency, contract, cycle, or unsafe-write issues → coherent plan-set graph
+- [ ] No plan references a producer or consumer without an explicit real edge and owner
+- [ ] User has reviewed README and CONTRACTS.md → alignment
+- [ ] Plans expose changed surfaces, dependencies, contracts, and explicit requested/architectural quality obligations to QA; QA owns test and documentation applicability
+- [ ] Plans whose changed surface is security-sensitive identify the observable surface for downstream security review; do not add a security-review deliverable unless the user or accepted architecture makes it part of implementation
+- [ ] No plans contain hardcoded values, mutation patterns, or console.log references
+- [ ] Plans for behavioral changes specify observable behavior and contracts needed to implement it; no universal coverage target or test artifact is required
 ---
 
 ## References

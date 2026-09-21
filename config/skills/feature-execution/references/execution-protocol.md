@@ -48,7 +48,7 @@ These come from plan_complete_step annotations.
 If Phase 1, write: "This is the first phase. No prior work."}
 
 ## Constraints
-- Implement ONLY Phase {N} steps. Do not work on other phases.
+- Implement ONLY the assigned worker-context phase steps. Do not work on other phases.
 - Follow project architecture: layers, DI patterns, layer-appropriate data structures.
 - **Quality standards (ECC):** files 200–400 lines typical (800 max), functions <50 lines, nesting <4 levels.
 - **Immutability:** never mutate — return new objects/arrays. No `obj.prop = x`, no `list.append()`.
@@ -63,7 +63,7 @@ If Phase 1, write: "This is the first phase. No prior work."}
 ## Completion
 - Mark each step complete using plan_complete_step(plan_name="{plan_name}", step_id="{step_id}")
 - Add annotations for anything noteworthy: deviations from plan, decisions made, issues found
-- After completing all steps in the phase, lint affected paths
+- After completing the assigned worker-context obligations, run useful repository-defined checks for the changed surface where possible; classify failures by current-plan ownership, named downstream ownership, or no owner.
 - Report: which steps completed, which (if any) were blocked, and any deviations from plan
 ```
 
@@ -77,7 +77,7 @@ If Phase 1, write: "This is the first phase. No prior work."}
  | --- | --- | --- |
  | Target plan | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` | Phase boundaries, step descriptions, what NOT to implement yet |
  | Contracts ledger | `artifacts/designs/pending/{feature}/CONTRACTS.md` | Method signatures to call or create — prevents guessing |
- | Feature parts README | `artifacts/designs/pending/{feature}/README.md` | Execution rounds, dependency order, scope boundaries |
+ | Feature parts README | `artifacts/designs/pending/{feature}/README.md` | Explicit dependency graph, ownership boundaries, and dependency-ready groups |
  | This prompt template | `{execution_protocol_file}` | Reference for constructing the subagent prompt |
  | **Layer instructions — include ALL that apply to this phase:** | | |
  | Interfaces layer | `{interfaces_instructions_file}` | Route handlers, auth, data-validation-only rule |
@@ -88,7 +88,7 @@ If Phase 1, write: "This is the first phase. No prior work."}
  | Helpers layer | `{helpers_instructions_file}` | Pure utilities, DTOs, no business logic imports |
  | Frontend | `{frontend_instructions_file}` | UI conventions, framework patterns |
 
-Only include the layer docs for layers the phase actually touches. A frontend-only phase does not need persistence.instructions.md.
+Include the instruction and contract context for the actual worker scope. Do not split or combine phases merely by layer; a phase may span layers when the owned obligations and worker context fit, and may split a semantically unified area when context would overload.
 
 ### What to include conditionally
 
@@ -110,12 +110,12 @@ Only include the layer docs for layers the phase actually touches. A frontend-on
 
 ## Granularity: Phase, Not Plan
 
-**One phase per dispatch by default.** Reasons:
+**One worker context unit per dispatch by default.** A phase is a dependency-compatible package of implementation obligations sized for one worker's canonical context. Reasons:
 
-1. **Context focus** — A phase has 3-6 steps in one domain. The subagent stays in one area of the codebase.
-2. **Checkpoint safety** — If context runs out, you lose at most one phase, not the whole plan.
-3. **Annotation feedback** — Between phases, you can read annotations and adjust the next dispatch.
-4. **Review accuracy** — Smaller increments mean review catches issues closer to where they were introduced.
+1. **Context focus** — Keep related repository context together without requiring a semantic release milestone.
+2. **Checkpoint safety** — If context runs out, you lose at most one worker context unit, not the whole plan.
+3. **Annotation feedback** — Between worker context units, read annotations and adjust the next dispatch.
+4. **Review accuracy** — Bounded worker packages keep ownership and annotations close to the implementation obligations.
 
 **Safe independence exception:** A manager may dispatch independent phase work only when existing plan metadata proves no output or annotation dependency, no write overlap, all prerequisites are satisfied, and execution order is irrelevant. A phase with 1–2 trivial steps may still be combined with an adjacent phase. Do not introduce a phase DAG or new execution schema.
 

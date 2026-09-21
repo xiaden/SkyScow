@@ -174,13 +174,13 @@ After `plan_read(plan, phase=N)`, route based on step annotations:
   | Step annotated **Blocked** | **HARD STOP.** Do not proceed. Assess: MINOR blocker (fixable within existing scope) → resolve internally, re-dispatch the phase. MAJOR blocker (missing dependency, plan gap, architectural) → escalate immediately. |
   | Completion annotation reveals incomplete work (e.g., "wired but auth bypassed") | Call `plan_unmark_step(plan, step_id, agent="exec-manager", reason=...)`, then `plan_annotate_step(plan, step_id, op="add", marker="Reopened", text=...)`, then spawn Exec-Fixer for that step |
 
-**Repeat for every phase. One spawn per phase by default. Safe independent dispatch requires proven prerequisites, no output/annotation dependency, no write overlap, and order irrelevance. Never introduce a phase DAG or execution schema.**
+**Repeat for every phase. One worker context unit per dispatch by default. Safe independent dispatch requires proven prerequisites, no output/annotation dependency, no write overlap, and order irrelevance. Phase boundaries optimize worker context; they are not commits, releases, deployable checkpoints, or global-green milestones. Never introduce a phase DAG or execution schema.**
 
 **After implementation work is complete:** Run a single `plan_read` to verify all required steps are marked complete before dispatching QA-Reviewer. This is the only re-read needed — it confirms the accumulated state matches what workers reported.
 
 ### Incomplete Work During Execution and QA
 
-Every incomplete finding, whether implementation, test, documentation, or another review category, is classified against the current plan and validated ordered plan set. `CURRENT_PLAN` blocks work for this plan; `DOWNSTREAM_PLAN` is non-blocking only when it names a present, schema-valid, non-superseded later plan in that same ordered set and must be reported and carried forward; `PLANNING_GAP` blocks when no valid current or downstream owner exists.
+Every incomplete finding is classified against the current plan and validated plan-set graph. `CURRENT_PLAN` blocks because the plan owns the incomplete obligation. `DOWNSTREAM_PLAN` is non-blocking only when it names a present, schema-valid, non-superseded later plan that is actually dependent/relevant and owns the missing integration; report and carry it forward. `PLANNING_GAP` blocks when no valid owner exists. Do not require this plan to leave the repository globally green.
 
 ### Step 3: QA Review — MANDATORY HARD GATE
 
@@ -481,15 +481,15 @@ changed. A locally green plan or test suite does not override the request.
 
 ## Completion Gate
 
-1. [ ] All phases executed and steps marked complete
-2. [ ] QA gate satisfied — QA-Reviewer PASS with correctness confirmed and all required checks complete
-3. [ ] All required artifacts present and valid
+1. [ ] Every current-plan-owned phase and step is complete and annotated
+2. [ ] QA gate satisfied — QA-Reviewer PASS with correctness confirmed and all required checks complete for the current plan's changed surface
+3. [ ] All required artifacts and downstream ownership records are present and valid
 4. [ ] No unresolved escalations or blockers
 5. [ ] Status report includes all required fields (qaReview, reviewRounds, artifacts)
 6. [ ] Final acceptance was checked against the original user request and
        requirement ledger, not only the DD, plan, or QA report
 
-DONE means verified completion — not "workers were dispatched."
+DONE means the plan's owned review package is verified and accepted. It does not mean the feature is complete, the repository is globally green, or a commit exists.
 
 
 ## Lifecycle and Gate Enforcement

@@ -115,6 +115,7 @@ Build a requirement-to-plan matrix for authoritative implementation requirements
 - Each such requirement has a completion condition sufficient to tell whether implementation is done.
 - No requirement is orphaned, silently narrowed, or assigned conflicting owners.
 - Cross-cutting constraints and non-functional requirements appear in relevant plans only when they are explicit requirements or accepted architectural invariants.
+- A plan may leave an upstream producer's callers temporarily incomplete when a present, schema-valid, non-superseded downstream plan explicitly owns those callers; this is not a gate failure by itself.
 - Do not require plan-owned tests, documentation, or evidence artifacts unless the user request or accepted architecture explicitly makes them part of the deliverable; QA owns post-implementation applicability and generation.
 
 ### 3. Validate plan-set consistency
@@ -126,7 +127,7 @@ Check the plans collectively for:
 - Matching method signatures, types, schemas, migrations, public APIs, and assumptions.
 - Unique ownership of shared files, symbols, contracts, and structural hubs.
 - Safe parallelism; flag shared write scope that cannot be executed concurrently.
-- Missing prerequisites, stale plan references, duplicate work, and unowned outputs.
+- Missing prerequisites, stale plan references, duplicate work, and unowned outputs. Do not treat downstream-owned unfinished integration as an unowned output.
 - Contradictions between plans or between plans and the DD.
 
 Warnings may be reported for benign overlap, but unresolved ownership, contract, dependency, or ordering conflicts block `PASS`.

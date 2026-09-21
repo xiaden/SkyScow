@@ -1,81 +1,102 @@
 # Task Plan Writing Guide
 
-**Purpose:** Produce task plan files that maintain context across sessions — so a fresh session can read the plan and understand what's been done, what's next, and why.
+**Purpose:** Produce task plans that preserve ownership, dependencies, and review context across sessions.
 
----
+## Core model
 
-## Step Annotations
+A step is one bounded implementation obligation. A phase packages dependency-compatible steps for one worker context. A plan packages phases for one manager review context. The plan set owns whole-change integration. Git commits are independent of all four boundaries.
 
-Annotations preserve context for future sessions — decisions made, risks identified, blockers hit.
+## Step annotations
+
+Annotations preserve decisions, risks, downstream ownership, and blockers:
 
 ```markdown
-- [x] Implement auth middleware
-  **Notes:** Used JWT with HS256, stored in httpOnly cookie
-  **Warning:** Rate limiting not yet implemented
+- [x] Implement the replacement contract
+  **Notes:** Contract is consumed by Plan C; caller migration remains downstream-owned.
+  **Warning:** Repository integration is intentionally incomplete until Plan C.
 ```
 
-### Annotation Markers
+Use `**Notes:**`, `**Warning:**`, `**Blocked:**`, and `**Deviation:**`. Every completed step needs an annotation explaining what was done and any non-obvious state.
 
-- `**Notes:**` — Additional context, decisions made during implementation
-- `**Warning:**` — Risks, gotchas, things to watch for in future steps
-- `**Blocked:**` — Why this step couldn't be completed (external dependency, missing info)
-- `**Deviation:**` — How implementation differed from the plan
+## Build the dependency graph before containers
 
----
+Before naming phases or plans:
 
-## Best Practices
+1. Read the authoritative request/accepted DD and repository facts.
+2. Enumerate concrete obligations.
+3. Identify actual producer-consumer and prerequisite edges.
+4. Validate every obligation has an owner.
+5. Build the implementation DAG.
+6. Pack nodes into worker-efficient phases.
+7. Pack phases into manager-review-efficient plans.
 
-### Problem Statement
+Plan letters are identifiers. They do not create dependencies. Do not serialize work because it is called B, follows another package in a table, or looks like a later milestone.
 
-Include:
-- **What** needs to be done
-- **Why** it matters (business/technical value)
-- **Context** a fresh session needs (prior decisions, constraints)
-- **Scope** boundaries (what's in, what's out)
+## Phase packing
 
-### Phases
+A phase is the largest coherent dependency-compatible implementation package one worker can safely hold and execute. Optimize for:
 
-- Group related steps into semantic phases
-- Phase names should describe **outcomes**, not actions ("Core Auth Logic", not "Write Auth Code")
-- Keep phases small enough to complete in one session when possible
-- Order phases by dependency — what must come first?
+- canonical worker context budget;
+- context locality and related repository surface;
+- minimal worker context switching;
+- satisfied true prerequisites;
+- tractable source/contracts/constraints;
+- bounded worker annotations and return envelope.
 
-### Steps
+Crossing files, modules, layers, or backend/frontend boundaries is not itself a split criterion. Split when context or dependency facts require it. A phase need not be independently buildable, deployable, testable, releaseable, or user-visible.
 
-- Each step should be **atomic and verifiable**
-- Start with a verb (Create, Update, Delete, Verify, etc.)
-- Include file paths or module names when relevant
-- Mark steps complete with `- [x]` as you go
-- Add annotations for decisions, warnings, or blockers
+## Plan packing
 
-### Completion Criteria
+A plan is the largest coherent package one manager can validate confidently against:
 
-- List **measurable outcomes**, not aspirations
-- Include verification steps (lint, tests, manual checks)
-- Specify what "done" looks like unambiguously
+- request and accepted DD intent;
+- phases and owned steps;
+- contracts and annotations;
+- changed files and QA findings;
+- downstream ownership and graph coherence.
 
----
+Split for manager context overload or review diffusion, not for commits, milestones, layer changes, fixed counts, or the hope of a green intermediate repository.
 
-## Common Mistakes
+## Completion criteria
 
-| Mistake | Fix |
-|---------|-----|
-| Non-integer phase numbers (`### Phase 1.5:`) | Use integers only (`### Phase 1:`, `### Phase 2:`) |
-| Nested steps (`  - [ ] substep`) | Flatten to top-level or use annotations |
-| Missing problem statement | Always include context for fresh sessions |
-| Vague steps ("Fix the thing") | Be specific: file paths, module names, expected outcomes |
-| No completion criteria | List measurable outcomes and verification steps |
+Criteria describe owned acceptance, not whole-feature completion. Include:
 
----
+- owned obligations complete and annotated;
+- relevant local verification performed where possible;
+- contracts and changed surfaces identified;
+- every expected incomplete integration named with a valid downstream owner.
 
-## Cross-Session Continuity
+Do not manufacture full tests, full builds, security review, code review, or commits at every phase. QA independently selects review/analyzer work from observable changed surfaces and canonical applicability rules.
 
-When resuming work on a plan:
+## Downstream incomplete state
 
-1. Read the plan with `plan_read`
-2. Check which steps are complete (`- [x]`)
-3. Read annotations for context on decisions made
-4. Continue from the first incomplete step
-5. Update annotations as you make new decisions
+Use this distinction explicitly:
 
-The plan file is the source of truth. Annotations preserve the "why" behind decisions — they're what makes a stale plan recoverable months later.
+- `DOWNSTREAM_PLAN`: incomplete behavior is actually dependent/relevant, and the later plan is present, schema-valid, non-superseded, and owns the missing work. It is non-blocking for the current package and must be carried forward.
+- `CURRENT_PLAN`: the current package failed its own obligation. It blocks.
+- `PLANNING_GAP`: required work has no valid owner. It blocks and requires planning correction.
+
+Never hide arbitrary breakage behind a context boundary.
+
+## Lifecycle and archival
+
+A plan may be `complete`/archived when its owned review package is complete and accepted. Archival moves the artifact; it does not imply a commit, release, deployment, globally green repository, or sibling-plan completion. Whole feature/plan-set archival is a separate boundary after dependency closure and all required plan acceptance.
+
+## Cross-session continuity
+
+1. Read the plan with `plan_read`.
+2. Read annotations and the feature README dependency graph.
+3. Resume only owned incomplete steps whose prerequisites are satisfied.
+4. Preserve deviations and downstream carry-forward explicitly.
+5. Archive only after the plan's own acceptance state is established.
+
+## Common mistakes
+
+| Mistake | Correction |
+|---|---|
+| “A before B before C” because of letters | Put only real edges in dependency metadata |
+| Every phase must compile or deploy | Verify owned work; classify named downstream integration |
+| Fixed step/phase count | Use canonical context-budget machinery |
+| Commit at phase/plan completion | Follow caller/Git policy separately |
+| Plan completion means feature completion | Require plan-set dependency closure |
+| No owner for known broken integration | Add a valid downstream owner or report `PLANNING_GAP` |

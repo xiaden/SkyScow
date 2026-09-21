@@ -56,7 +56,7 @@
 
         "title": {
           "type": "string",
-          "description": "Semantic phase title. Describes an outcome, not an action list."
+          "description": "Worker-context package title. Describes the owned context package, not a commit, release, or global integration milestone."
         },
 
         "steps": {

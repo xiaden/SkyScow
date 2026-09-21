@@ -7,7 +7,7 @@ How to dispatch review subagents that catch drift, sloppy code, lazy patterns, a
 ## Prompt Structure
 
 ```
-1. TASK          — What was just implemented (plan name, all phases)
+1. TASK          — What was just implemented (plan name, manager-review package, assigned worker-context phases)
 2. PLAN          — Full plan content (so reviewer knows what was intended)
 3. CONTRACTS     — CONTRACTS.md entries this plan should have created/used
 4. REVIEW SCOPE  — Files and modules touched by this plan
@@ -20,7 +20,7 @@ How to dispatch review subagents that catch drift, sloppy code, lazy patterns, a
 ## Prompt Template
 
 ```
-Review the implementation of:
+Review the implementation of the plan's bounded manager-review package:
 
 ## Task
 Plan: {plan file path}
@@ -70,12 +70,12 @@ Example:
 
 ## Review Checklist
 
-Perform ALL of the following checks. Do not skip any category.
+Perform all applicable checks for the changed surface. Do not invent universal lint, test, build, security, or documentation gates; canonical QA applicability selects conditional QA work.
 
-### 1. Lint Verification
-- Run available linter on all affected paths
-- Run available frontend linter if frontend files were touched
-- ZERO errors is the only acceptable state
+### 1. Changed-Surface Verification
+- Run repository-defined checks applicable to the changed surface when available
+- Classify failures as current-plan-owned, downstream-owned with a named authoritative owner, or ownerless
+- Resolve current-plan-owned failures; carry forward only valid downstream-owned failures; block/escalate ownerless failures
 
 ### 2. Layer Compliance
 - Trace imports in every new/modified file using available code-reading tools
@@ -123,7 +123,7 @@ Perform ALL of the following checks. Do not skip any category.
 - No current-plan-owned method is empty or deferred
 - Intentional incomplete implementation work is classified `CURRENT_PLAN`, `DOWNSTREAM_PLAN`, or `PLANNING_GAP`
 - `CURRENT_PLAN` and `PLANNING_GAP` findings block this plan
-- `DOWNSTREAM_PLAN` is non-blocking only with a validated later-plan identifier in the same present set; report it and carry it forward
+- `DOWNSTREAM_PLAN` is non-blocking only with a validated later-plan identifier in the same present set that actually owns the dependent integration; report it and carry it forward
 - Do not treat absence of a test, documentation, or QA evidence step as a plan omission unless that artifact is explicitly required by the user request or accepted architecture
 - Migrations are created if this plan owns schema changes
 ### 7. Drift Detection
@@ -241,7 +241,7 @@ Fix the following issues found during review:
 
 ## Constraints
 - Fix only the reported issues — no scope creep
-- Run lint_project_{backend|frontend}() after fixing and confirm zero errors
+- Run the repository-defined checks applicable to the changed surface after fixing; classify any remaining failure as current-plan-owned, downstream-owned with a named owner, or ownerless
 ```
 
 After the fix subagent completes, dispatch a full re-review (Round N+1) using this same protocol. Do not skip to ledger update — re-review is the gate regardless of fix size.

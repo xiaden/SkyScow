@@ -26,7 +26,7 @@ You are a read-only blocking preflight. Validate every plan against the Design D
 Context files to read:
 - [DESIGN_DOC_PATH] — governing Design Document
 - [CONTRACTS_PATH] — contracts ledger
-- [README_PATH] — feature dependency graph and execution rounds
+- [README_PATH] — feature dependency graph, ownership closure, and dependency-ready groups
 - [PLAN_A_PATH] — complete plan group member
 - [PLAN_B_PATH] — complete plan group member
 - [ALL_OTHER_PLAN_PATHS] — every remaining group member

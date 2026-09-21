@@ -68,7 +68,7 @@ _(Govern how agents are invoked and when to stop)_
 
 1. **Never bypass Exec-Manager.** Dispatch one Exec-Manager per plan. Exec-Manager handles phases, review, and fix cycles internally. Don't dispatch Exec-Workers or Reviewers directly. *(Example: for Plan B, dispatch one Exec-Manager for Plan B — not separate Exec-Worker + Reviewer calls.)*
 2. **Never ignore Exec-Manager escalations.** If Exec-Manager returns `ESCALATE`, stop and address the blocker. These are real problems, not optional. *(Example: 3+ failed fix rounds → stop, present to user, do not retry.)*
-3. **Never execute out of dependency order.** Follow the execution rounds from the feature README. A plan that depends on Plan A's outputs cannot run before Plan A's Exec-Manager returns DONE. *(Example: if Plan B depends on Plan A, Plan B's Exec-Manager cannot be dispatched until Plan A is fully DONE.)*
+3. **Never execute out of dependency order.** Follow the explicit dependency graph in the feature README. A plan that consumes an output from Plan A cannot run before Plan A's current-plan-owned producer obligations are accepted and the required handoff is available. Plan B need not wait on unrelated plans.
 4. **Dispatch independent plans in parallel.** When two or more plans share the same completed dependency and neither depends on the other, dispatch their Exec-Managers concurrently. This maximizes throughput without violating dependency order. *(Example: Plans B and C both depend only on Plan A. Once Plan A is DONE, dispatch B and C in parallel — one `task` call each in the same message.)*
 
 ### Ledger & Session Rules
@@ -103,7 +103,7 @@ If any are missing, run `decomposing-design-documents` first.
 
 ## Phase 1: Prepare
 
-1. Read the parts README — get execution rounds and dependency order
+1. Read the parts README — get the explicit dependency graph and dependency-ready groups
 2. Read CONTRACTS.md — current state of implemented contracts
 3. Check which plans have all steps completed (via `plan_read` or checkbox inspection)
 4. Identify the next incomplete plan in dependency order
@@ -135,7 +135,7 @@ Fix cycles resolve current-plan-owned implementation issues before DONE. Valid d
 
 ### Coordinated-Plan QA Semantics
 
-Each plan is a bounded implementation slice in the dependency-ordered plan set. Exec-Manager and QA-Reviewer evaluate the current plan against its own steps, contracts, and deliverables, while receiving the validated ordered plan set for incomplete-work classification. `CURRENT_PLAN` findings block normally. `DOWNSTREAM_PLAN` findings must name a present, schema-valid, non-superseded later plan in the same set; they are reported and carried forward without blocking the current plan. `PLANNING_GAP` findings have no valid owner and remain blocking/escalatory. This rule applies identically to correctness, boundary, journey, domain-risk, test, and documentation findings. Feature completion and archival still require every plan to return DONE.
+Each plan is a manager review context unit in the implementation plan set. Exec-Manager and QA-Reviewer evaluate the current plan against its own steps, contracts, worker annotations, and changed surfaces, while receiving the validated plan-set graph for incomplete-work classification. `CURRENT_PLAN` findings block. `DOWNSTREAM_PLAN` findings must name a present, schema-valid, non-superseded later plan that is actually dependent/relevant and owns the missing integration; report and carry them forward without blocking the current plan. `PLANNING_GAP` findings have no valid owner and remain blocking/escalatory. A plan may be accepted while the repository is globally incomplete; feature completion and whole-set archival still require every plan to return DONE.
 
 ### 2b. Dispatch Exec-Manager
 
@@ -161,7 +161,7 @@ After all plans required for the coordinated group exist and are individually va
 
 **Exec-Manager handles internally:**
 
-- Dispatching Exec-Worker per phase by default, with safe independent dispatch only when plan metadata proves independence
+- Dispatching one worker context unit per phase by default, with safe independent dispatch only when plan metadata proves independence; phase completion is not a commit or integration milestone
 - Running mandatory independent QA before acceptance of the selected implementation/support graph
 - Dispatching Fixer if review finds issues
 - Fix cycles (up to 2 rounds, then escalates)
@@ -210,7 +210,7 @@ Proceed to the next plan in dependency order. Return to Phase 2.
 
 ## Phase 5: Archive Feature
 
-After every plan in the validated ordered set has returned DONE, its mandatory QA gate has passed, all downstream carry-forward findings are resolved, the ledger is updated, and the user is informed of deviations — archive the feature. Never archive while a later plan remains incomplete. DD completion is represented by the DD's `**Status:** Completed` metadata; a completed bundle may remain under `artifacts/designs/pending/{feature}/` if its move is pending or unsuccessful. No `COMPLETION.md` is generated or required.
+After every plan in the validated plan set has returned DONE for its current-plan-owned responsibilities, its mandatory QA gate has passed, all downstream carry-forward findings are resolved, the ledger is updated, and the user is informed of deviations — archive the complete plan set/feature. Individual plan archival remains package bookkeeping and does not imply a commit, release, globally green repository, or sibling-plan completion. Never archive while a later plan remains incomplete. DD completion is represented by the DD's `**Status:** Completed` metadata; a completed bundle may remain under `artifacts/designs/pending/{feature}/` if its move is pending or unsuccessful. No `COMPLETION.md` is generated or required.
 
 See [references/archival-protocol.md](file:///home/opencode/.config/opencode/skills/feature-execution/references/archival-protocol.md) for the DD bundle move protocol, verification steps, and standalone plan handling.
 
@@ -220,7 +220,7 @@ See [references/archival-protocol.md](file:///home/opencode/.config/opencode/ski
 
 When starting a new session mid-feature:
 
-1. Read `artifacts/designs/pending/{feature}/README.md` — execution rounds
+1. Read `artifacts/designs/pending/{feature}/README.md` — explicit dependency graph and ownership boundaries
 2. Read `artifacts/designs/pending/{feature}/CONTRACTS.md` — implemented contracts
 3. For each plan, run `plan_read` to check completion status
 4. Identify state:
@@ -237,15 +237,15 @@ When starting a new session mid-feature:
 
 Before declaring feature execution complete:
 
-- [ ] All Exec-Managers returned DONE **→ Each plan's bounded responsibilities and all quality gates passed; downstream-owned work was carried into later plans**
+- [ ] All Exec-Managers returned DONE **→ Each plan's current-plan-owned responsibilities and applicable quality gates passed; downstream-owned work was carried into later plans**
 - [ ] CONTRACTS.md reflects actual implementations **→ No plan-vs-code drift**
-- [ ] Available linter passes on full workspace **→ Zero errors**
+- [ ] Repository-defined checks required by each changed surface are evidenced; do not invent a universal full-workspace lint/build/test gate
 - [ ] Test coverage gate applies per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); repository-defined coverage policy honored where one exists, otherwise coverage reported as diagnostic (no universal percentage, see `/home/opencode/.config/opencode/instructions/validation-mandate.md`) **→ No coverage regression**
 - [ ] Security review applies per `/home/opencode/.config/opencode/instructions/qa-applicability.md` (canonical WHEN/trigger owner); surface list per `/home/opencode/.config/opencode/skills/security-review/SKILL.md` **→ Security-sensitive surfaces covered**
 - [ ] No orphaned fix plans with incomplete steps **→ Clean state**
 - [ ] User informed of any design deviations **→ Alignment**
 - [ ] DD status is `Completed`; no completion manifest is generated or required **→ Authoritative DD completion state**
-- [ ] All artifacts moved to `artifacts/plans/completed/` **→ Clean working directory**
+- [ ] Each accepted plan artifact is archived as bookkeeping; this does not assert commit, release, global integration, or sibling-plan completion
 - [ ] No feature plan files remain in `artifacts/plans/pending/`; standalone plan archival is complete **→ Verified plan cleanup**
 - [ ] If the DD bundle move succeeded, no feature files remain in `artifacts/designs/pending/{feature}/`; if the move is pending or unsuccessful, the completed DD may remain there for retry **→ Bundle cleanup is optional after authoritative completion status**
 
@@ -262,9 +262,7 @@ Before declaring feature execution complete:
 
 ### Coordinated Plan Preflight (Conditional Hard Gate)
 
-When observable coordination-risk triggers apply—cross-plan producer/consumer contracts, shared writes/schemas/migrations/registries, nontrivial ordering or reorder, multi-plan migration, DD amendments affecting multiple plans, generational supersession, or unresolved ownership closure—`Exec-PlanGate` is mandatory and fail-closed. No Exec-Manager dispatch is permitted without a recorded current `PASS`. A large independent group may skip; a small coupled group may require the gate. Plan count alone never selects or skips it. The gate checks dependency completeness, contract consistency, DD coverage, downstream gaps, overlap/parallel-write safety, and ownership closure. Exec-Manager verifies the result and never spawns the gate.
-
-If no observable trigger applies, record `NOT_REQUIRED` with the skip rationale. A missing or stale result is never equivalent to `NOT_REQUIRED`; a newly triggered risk requires a fresh gate `PASS`.
+After all plans required for the complete plan set exist and are individually valid, Exec-Planner evaluates observable coordination-risk triggers. Triggered groups require a current `Exec-PlanGate: PASS` before any Exec-Manager dispatch. Untriggered groups receive a Planner-owned `plan_gate: status: NOT_REQUIRED` record with observable rationale. Exec-Manager verifies the Planner record or actual gate result and does not recompute applicability or spawn the gate.
 
 ### Startup Lifecycle Sweep
 
@@ -272,7 +270,7 @@ Before starting a feature family, inspect every plan status. Fully checked plans
 
 ### Strengthened Rule 7: Archive the Whole Feature
 
-After all plans pass QA, archive every plan and update the DD status to `Completed`. Use the registered internal `dd_archive` tool to move the complete DD bundle to `artifacts/designs/completed/{feature}/` when possible. The status remains authoritative if the move is pending or unsuccessful; do not generate or require `COMPLETION.md`, and do not report standalone plan archival as DD completion.
+After all plans in the complete plan set pass their applicable QA gates, archive every plan as artifact bookkeeping and update the DD status to `Completed`. Use the registered internal `dd_archive` tool to move the complete DD bundle to `artifacts/designs/completed/{feature}/` when possible. The status remains authoritative if the move is pending or unsuccessful; do not generate or require `COMPLETION.md`, and do not report standalone plan archival as DD completion.
 ### CI Evidence Location
 
 CI-gating manifests and evidence must live in tracked repository paths, never under the gitignored `artifacts/` tree, and static YAML or manifest presence is never `CI_PASS`. The `LOCAL_PASS` / `LOCAL_UNAVAILABLE` / `CI_DEFERRED` / `CI_PASS` labels are owned by `/home/opencode/.config/opencode/skills/ci-lint-test-gates/SKILL.md`; this section references that canonical owner. Preserve the label recorded by the producing gate and never relabel local or deferred evidence as `CI_PASS`.

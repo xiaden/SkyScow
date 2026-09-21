@@ -154,6 +154,7 @@ or state-machine DSL:
 - **H — Historical artifacts:** select Support-Librarian when ADRs, DDs, logs, plans, or dead ends materially constrain routing; record an evidence-based skip when no relevant history exists.
 - **I — No history:** with no relevant artifact infrastructure or material history, skip Support-Librarian and record the reason; do not manufacture a briefing.
 - **J — Architectural contradiction:** stop the execution graph and return upstream to the DD/R&D owner or user; do not let Manager, Worker, Fixer, Debugger, or PlanGate invent a resolution.
+- **K — A/C with independent B:** if A produces a contract consumed by C while B has no real edge to either, preserve `A → C`, keep B independent, and dispatch B concurrently when its own prerequisites and write-safety permit; labels and review order do not create edges.
 
 ## References
 

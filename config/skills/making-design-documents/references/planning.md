@@ -1,160 +1,79 @@
 # Planning & Decomposition Methodology
 
-**Purpose:** Systematic approach to breaking features into actionable implementation plans. Use when converting requirements into phased steps with clear dependencies.
+**Purpose:** Derive the implementation dependency graph, then package it into worker phases and manager-review plans.
 
-## Table of Contents
+## Planning process
 
-- [Planning Process](#planning-process)
-- [Step Breakdown](#step-breakdown)
-- [Phase Grouping](#phase-grouping)
-- [Plan Format Template](#plan-format-template)
-- [Best Practices](#best-practices)
-- [Refactor Planning](#refactor-planning)
-- [Red Flags](#red-flags)
+1. Read the authoritative request, accepted DD, repository facts, and relevant contracts.
+2. Enumerate concrete, bounded implementation obligations.
+3. Identify true producer-consumer and prerequisite edges.
+4. Build and validate the implementation DAG and ownership closure.
+5. Pack dependency-compatible nodes into worker-context phases.
+6. Pack phases into manager-review-context plans.
+7. Preserve cross-plan edges in the existing feature README/dependency graph.
+8. Cross-validate requirements, contracts, ownership, ordering, and parallel-write safety.
 
----
+Do not start by inventing Plan A/B/C containers and deriving dependencies from their existence. Containers package work; they do not manufacture its dependency graph.
 
-## Planning Process
+## Step breakdown
 
-### 1. Requirements Analysis
+Each step names:
 
-- Understand the feature request completely — ask clarifying questions if needed
-- Identify success criteria, assumptions, and constraints
-- List functional and non-functional requirements explicitly
+- a clear, actionable obligation;
+- its owner and relevant files/symbols;
+- real prerequisites and produced/consumed contracts;
+- a bounded verification against its own intent;
+- risks and downstream ownership when integration is intentionally deferred.
 
-### 2. Architecture Review
+A step does not promise a repository-wide green state.
 
-- Analyze existing codebase structure and identify affected components
-- Review similar implementations in the codebase for reusable patterns
-- Consider what stays, what changes, and what's new
+## Phase packing: worker context
 
-### 3. Step Breakdown
+A phase is a worker context unit. Pack the largest coherent dependency-compatible set one worker can safely understand and execute. Optimize for the canonical worker budget in `config/agent-context-budgets.yaml` and the `context_tokens`/`context_budget` tools, including plan context, source context, contracts, expected edits, and return annotations.
 
-See [Step Breakdown](#step-breakdown) below.
+Use context locality, related repository surface, satisfied prerequisites, and bounded worker output as primary criteria. Do not split merely because work crosses files, modules, layers, backend/frontend boundaries, or a semantic milestone. Split when context overload, context switching, or a true dependency requires it.
 
-### 4. Phase Grouping
+A phase is not inherently independently testable, compilable, deployable, buildable, releaseable, architectural, or user-visible. Local checks useful for the assigned work remain appropriate. A phase may finish while downstream-owned integration is incomplete.
 
-See [Phase Grouping](#phase-grouping) below.
+## Plan packing: manager review context
 
-### 5. Implementation Order
+A plan is a manager review context unit. Pack the largest coherent set of phases one manager can validate against the request/DD, contracts, worker results, annotations, changed surfaces, QA findings, and downstream ownership. Split only when manager context would overload or review would become diffuse. Do not split for commits, releases, layer boundaries, fixed counts, or milestone aesthetics.
 
-- Prioritize by dependencies (foundation first, polish last)
-- Group related changes to reduce cognitive overhead
-- Enable incremental testing — every phase should be independently testable
+A plan is not inherently a commit, PR, release, deployable state, complete feature, or repository-green checkpoint.
 
----
+## Context policy
 
-## Step Breakdown
+`config/agent-context-budgets.yaml` is the sole shipped policy source. Planning prose must not duplicate numeric ceilings. Use the budget tools and include the actual context carried by the relevant role. Step count, phase count, dependency depth, and character-count shortcuts are not partition rules.
 
-Each step must include:
+## Plan format
 
-- **Clear, specific actions** — exact file paths, function names, variable names
-- **Dependencies** — what must be done before this step
-- **Estimated complexity** — Low / Medium / High
-- **Potential risks** — what could go wrong, and how to mitigate
+Use the existing task-plan format and parser. A plan contains a problem statement, explicit dependencies, phases, flat actionable steps, owned completion criteria, and references. Plan letters/names are stable identifiers only. The feature README carries the actual dependency graph; `A → B` is valid only when an explicit prerequisite exists.
 
----
+## Completion and downstream state
 
-## Phase Grouping
+Review a package for its own obligations, not whole-feature integration:
 
-Group steps into phases by dependency and cohesion. Two budgets constrain this:
+- `CURRENT_PLAN`: current-owned defect or incomplete obligation; blocks.
+- `DOWNSTREAM_PLAN`: incomplete work is named by a present, schema-valid, non-superseded dependent plan; report and carry forward without blocking.
+- `PLANNING_GAP`: required work has no valid owner; blocks and requires replanning.
 
-- **Worker budget (~30K weighted edit scope):** Each phase is dispatched to one worker. The phase must fit in a single reasoning pass — keep phases under ~30K weighted chars of edit scope. If a conceptual unit is too large for one phase, split it into multiple phases grouped by domain sub-area.
-- **Manager budget (~30K validation scope):** The full plan is dispatched to one manager. The manager validates all phases, contracts, worker output, and QA reports within its context window. If the plan's total validation scope exceeds ~30K weighted chars, split into letter-suffixed plans (A, B, C...).
+Every expected incomplete state must have an explicit downstream owner. Do not use context partitioning as an excuse for arbitrary brokenness.
 
-Grouping guidelines:
-- Each phase should produce a **verifiable outcome** (compiling code, passing tests, deployable state)
-- Order phases by dependency chain — no phase should depend on a later phase
-- Minimize context switching within a phase
+## Quality handoff
 
----
+Expose changed surfaces, dependencies, contracts, and explicit user/architecture quality obligations to QA. Do not manufacture universal tests, builds, security reviews, code reviews, verification milestones, or commits in every phase or plan. QA independently selects applicable review/analyzer work from canonical applicability rules; repository-defined checks remain the source of truth.
 
-## Plan Format Template
+## Example decomposition
 
-```markdown
-# Implementation Plan: [Feature Name]
+A replacement persistence API may be Plan A, consumer migration Plan B, and legacy removal/final wiring Plan C. Plan A can be accepted while callers still use the old API because Plans B/C explicitly own that integration. This is valid intermediate state, not a release checkpoint. If no later owner exists, the same failure is a planning gap.
 
-## Overview
-[2-3 sentence summary]
+## Validation checklist
 
-## Requirements
-- [Requirement 1]
-- [Requirement 2]
-
-## Architecture Changes
-- [Change 1: file path and description]
-- [Change 2: file path and description]
-
-## Implementation Steps
-
-### Phase 1: [Phase Name]
-1. **[Step Name]** (File: path/to/file.ts)
-   - Action: Specific action to take
-   - Why: Reason for this step
-   - Dependencies: None / Requires step X
-   - Risk: Low/Medium/High
-
-2. **[Step Name]** (File: path/to/file.ts)
-   ...
-
-### Phase 2: [Phase Name]
-...
-
-## Verification and quality context (optional)
-
-Record testing or documentation context only when it is part of the requested behavior or an accepted architectural constraint. Otherwise record the changed surface and relevant risks for downstream QA. QA independently determines test and documentation applicability, generation, and corrective work after implementation; phases need not carry universal test obligations.
-
-## Risks & Mitigations
-- **Risk**: [Description]
-  - Mitigation: [How to address]
-
-## Success Criteria
-- [ ] Criterion 1
-- [ ] Criterion 2
-```
-
----
-
-## Best Practices
-
-1. **Be specific** — use exact file paths, function names, variable names
-2. **Consider edge cases** — think about error scenarios, null values, empty states
-3. **Minimize changes** — prefer extending existing code over rewriting
-4. **Maintain patterns** — follow existing project conventions
-5. **Enable review** — make changed surfaces and contracts easy for downstream QA to inspect
-6. **Think incrementally** — each implementation step should be understandable and verifiable with repository-defined checks when relevant
-7. **Document decisions** — explain why, not just what; distinguish requirements from rationale
-8. **Budget by context, not counts** — Phase count and step count are proxies.
-
----
-
-## Refactor Planning
-
-When planning refactors specifically:
-
-1. Identify code smells and technical debt
-2. List specific improvements needed
-3. Preserve existing functionality
-4. Create backwards-compatible changes only at an explicitly identified external or persisted boundary, classified per `/home/opencode/.config/opencode/instructions/compatability.md` and `/home/opencode/.config/opencode/skills/code-migration/SKILL.md`; internal replacements get no compatibility shim
-5. Plan a bounded migration path only for such a boundary, with a defined removal condition
-
----
-
-## Red Flags
-
-Check the plan for these warning signs:
-
-- Large functions (>50 lines)
-- Deep nesting (>4 levels)
-- Duplicated code
-- Missing error handling
-- Hardcoded values
-- Missing tests
-- Performance bottlenecks
-
-A great plan is specific, actionable, and considers both the happy path and edge cases. The best plans enable confident, incremental implementation.
-
-
-## Coherent Budget Boundaries
-
-The ~30K worker and manager budgets are ceilings for a coherent plan, not mandates to split until every phase is trivial. Stop splitting when the work is represented by the dependency model. Any split must preserve whole-feature caller and ownership context, explicit contracts, and an executable topological representation. Do not manufacture remediation or generational families to satisfy a context estimate; a generational family requires an explicit predecessor → successor graph, bounded scope, supersession metadata/back-pointers, and a recorded Exec-PlanGate `PASS`.
+- Every obligation has one owner.
+- Every dependency edge is a real prerequisite or producer-consumer relation.
+- Independent work remains independent.
+- Phases fit worker context and plans fit manager review context using canonical tools.
+- Plan letters do not imply execution order.
+- Expected incomplete integration has a valid downstream owner.
+- Cross-plan contracts, ownership, cycles, and write overlap are validated after the complete plan set exists.
+- No generic commit step is introduced by decomposition.

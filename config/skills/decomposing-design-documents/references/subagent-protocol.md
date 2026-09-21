@@ -95,8 +95,8 @@ Never combine "Plan parts B and D since they're in the same round." Each subagen
 3. **Quick-scan for violations:**
    - Does any step pass a service to a workflow?
    - Does any step reference a method not in CONTRACTS or the existing codebase?
-   - Are the repository-defined, surface-selected verification steps required by `/home/opencode/.config/opencode/instructions/validation-mandate.md` present?
-   - Are required quality gates present (code review; security review only for observably security-sensitive surfaces per `/home/opencode/.config/opencode/skills/security-review/SKILL.md`)?
+    - Are the repository-defined, surface-selected verification commands and expected evidence required by `/home/opencode/.config/opencode/instructions/validation-mandate.md` exposed for execution? Do not turn them into universal final steps per phase.
+    - Are explicit user or accepted-architecture quality obligations visible? Do not add universal review, test, security, documentation, or commit steps; canonical QA applicability owns conditional QA work.
    - Are all steps flat (no nested checkboxes)?
 4. **Update CONTRACTS.md** — Extract new methods, APIs, DTOs, and decisions.
 
@@ -107,6 +107,6 @@ Never combine "Plan parts B and D since they're in the same round." Each subagen
  | Mistake | Cause | Fix |
  | --- | --- | --- |
  | Plan references method not yet created | Planned out of dependency order | Either: add method creation to this plan, or re-order execution |
- | Missing verification steps | Subagent omitted boilerplate | Add the repository-defined, surface-selected verification required by `/home/opencode/.config/opencode/instructions/validation-mandate.md` as final steps per phase |
- | Step count > 12 | Part scope too broad | Split into two plans: `{letter}` and `{letter}2` |
+  | Missing verification context | Subagent omitted changed-surface facts or repository commands | Expose the required verification context; do not manufacture a universal final step or commit |
+ | Worker or manager context is too large/diffuse | Context or review scope exceeds the canonical budget/tool evidence | Repack the implementation DAG into coherent phases/plans while preserving real edges and ownership |
  | TypedDict defined in wrong layer | Subagent put DTO in workflow file | Move to `src/helpers/dto/` per architecture rules |

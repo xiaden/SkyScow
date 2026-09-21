@@ -147,18 +147,19 @@ reduced behavior. Advisory findings and process evidence remain context.
 
 1. **Compose the local planning graph** — From observable scope, select only the capabilities needed for this plan: Support-Librarian when prior ADR/DD/history/log/plan artifacts materially constrain routing; Support-Researcher when repository, caller, API, or integration facts are unknown; Support-PatternEnforcer only for accepted impact-closure or migration scope; and Exec-PlanGate only when coordination-risk triggers are present. Record selected/skipped capability, short rationale, dependency, outcome, and terminal reason in the existing planning log/context; do not create a graph registry.
 2. **Run selected context work** — Independent Librarian and Researcher work may run concurrently; dependent work remains ordered. Treat findings as evidence, not authority.
-3. **Identify scope** — What files will be created/modified and which plan owns each output.
-4. **Define steps** — Actionable implementation steps (one semantic outcome per step), preserving conservative sequential phase order unless metadata proves independence, no output/annotation dependency, no write overlap, satisfied prerequisites, and order irrelevance.
-5. **Group into phases** — Group related steps by cohesion and dependency. Each phase must fit in one worker context; do not introduce a phase DAG, execution schema, or workflow DSL.
-6. **Size phases (worker budget)** — Verify each phase ≤ ~30K weighted edit scope using `context_tokens` when source exists.
-7. **Size plan (manager validation budget)** — Verify the full plan fits the manager's validation scope. Do not count optional QA-generated tests/docs as plan deliverables.
-8. **Document contracts** — Methods this plan creates and methods it calls; include a contract only when another implementation slice depends on it.
-9. **Complete the required plan group** — Write every plan required for the coordinated group and verify each plan is present, parseable, and individually valid before evaluating cross-plan coordination. Do not gate a knowingly incomplete future group.
-10. **Evaluate PlanGate applicability** — After the complete group exists, record either a Planner-owned `plan_gate: status: NOT_REQUIRED` with observable rationale, or invoke the read-only gate for observable coordination risk: cross-plan producer/consumer contracts, shared writes/schemas/migrations/registries, nontrivial ordering or reorder, multi-plan migration, DD amendments affecting multiple plans, generational supersession, or unresolved ownership closure. Count alone is never a trigger.
-11. **Write/update plan files** — Keep the complete group and planning-owner applicability record synchronized; valid markdown per the `making-and-using-task-plans` skill.
-11. **Update CONTRACTS.md** — Add new shared method signatures or contracts only when downstream coordination requires them.
-12. **Update README.md** — Add the plan to the dependency graph if needed.
-13. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, use PatternEnforcer evidence only after accepted migration intent; the owning planning layer records the disposition and scope.
+3. **Identify obligations and scope** — Enumerate concrete implementation obligations, changed surfaces, owners, produced/consumed contracts, and any explicitly downstream-owned integration.
+4. **Build the implementation DAG** — Record only true prerequisite and producer-consumer edges. Do not derive dependencies from plan letters, layer conventions, commits, review order, or milestone aesthetics. Preserve independent work.
+5. **Pack into phases** — Group the largest coherent dependency-compatible implementation packages one worker can safely hold. Optimize context locality, required source/contracts, and worker return envelope; a phase need not be independently buildable, deployable, testable, or globally green.
+6. **Pack into plans** — Group phases into the largest coherent manager-review package that fits canonical manager context and exposes request/DD intent, contracts, worker results, changed surfaces, QA findings, and downstream ownership. Preserve cross-plan edges explicitly. Do not introduce a phase DAG, execution schema, or workflow DSL.
+7. **Size phases (worker context)** — Use `context_tokens` / `context_budget` with `config/agent-context-budgets.yaml`, including plan context, source/contracts, expected edits, and worker annotations/return output.
+8. **Size plan (manager review context)** — Use the same canonical policy with request/DD intent, plan and phase content, contracts, expected worker results, changed surfaces, QA report, and repair context. Split for context overload or review diffusion, not fixed counts or milestones.
+9. **Document contracts** — Methods this plan creates and methods it calls; include a contract only when another implementation slice depends on it.
+10. **Complete the required plan group** — Write every plan required for the coordinated group and verify each plan is present, parseable, and individually valid before evaluating cross-plan coordination. Do not gate a knowingly incomplete future group.
+11. **Evaluate PlanGate applicability** — After the complete group exists, record either a Planner-owned `plan_gate: status: NOT_REQUIRED` with observable rationale, or invoke the read-only gate for observable coordination risk. Count alone is never a trigger.
+12. **Write/update plan files** — Keep the complete group and planning-owner applicability record synchronized; use valid markdown per the `making-and-using-task-plans` skill.
+13. **Update CONTRACTS.md** — Add shared signatures or contracts only when downstream coordination requires them.
+14. **Update README.md** — Add or update the existing dependency graph with actual edges if needed.
+15. **Check for legacy code** — If this plan introduces a replacement pattern, use PatternEnforcer evidence only after accepted migration intent; the owning planning layer records disposition and scope.
 
 ### For AMEND
 
@@ -171,14 +172,13 @@ reduced behavior. Advisory findings and process evidence remain context.
 
 ### For REORDER
 
-Triggered when a new plan must be inserted between existing plans, making letter order non-sequential.
+Triggered when the plan set's explicit dependency graph or ownership closure changes; labels remain stable identifiers and do not define execution order.
 
-1. **Read all existing plan files** for the feature to understand current dependency chain
-2. **Identify insertion point** — which plan the new plan follows
-3. **Rename displaced plans** — any plan whose letter must shift gets renamed to the next letter (e.g. old C → D, old D → E). Update all dependency references in README.
-4. **Assign the new plan** the letter that became free at the insertion point
-5. **Re-validate and repair each downstream plan** — for every plan after the insertion point, check whether its steps are broken by the new execution order (wrong contract signatures, missing prerequisites, stale dependency references). Fix what is broken. Do not redesign plans whose steps are still valid.
-6. Verify letter sequence is fully contiguous before reporting DONE
+1. Read all existing plan files and the README dependency metadata.
+2. Identify the real prerequisite, producer/consumer, or ownership change.
+3. Update only the affected plan scopes, contracts, and explicit dependency edges; do not rename plans merely to make labels contiguous.
+4. Repack worker phases or manager plans only when canonical context or review scope requires it.
+5. Re-validate the complete affected plan set and update downstream annotations without inventing milestone dependencies.
 
 ### For FIX_PLAN
 
@@ -191,9 +191,9 @@ Triggered when a new plan must be inserted between existing plans, making letter
 
 ```yaml
 status: DONE | BLOCKED
-summary: "Created TASK-{feature}-{letter}-{title}.md with {N} phases, {M} steps"
+summary: "Created TASK-{feature}-{label}-{title}.md with {N} worker-context phases and {M} owned obligations"
 artifacts:
-  - path: "artifacts/plans/pending/TASK-{feature}-{letter}-{title}.md"
+  - path: "artifacts/plans/pending/TASK-{feature}-{label}-{title}.md"
     action: created | modified
   - path: "artifacts/designs/pending/{feature}/CONTRACTS.md"
     action: modified
@@ -226,12 +226,12 @@ blockers:  # Only if BLOCKED
 
 ## Phases
 
-### Phase 1: {Semantic outcome}
+### Phase 1: {Worker-context package}
 - [ ] Step description (actionable, verifiable)
 - [ ] Another step
   **Notes:** Annotations go here after completion
 
-### Phase 2: {Next outcome}
+### Phase 2: {Next worker-context package}
 - [ ] More steps
 
 ## Completion Criteria
@@ -247,7 +247,7 @@ blockers:  # Only if BLOCKED
 5. **Dependencies explicit** — If Plan B needs Plan A, state it in README
 6. **Valid markdown** — Run plan_read to verify before reporting DONE
 7. **One plan per task** — CREATE and FIX_PLAN each produce exactly one plan file
-8. **Sequential letters always** — Plan letters must be contiguous in execution order. Non-sequential letters are a bug; use REORDER to fix them
+8. **Plan labels are identifiers** — Letters/names may be assigned in a convenient display order, but they do not create dependencies. Preserve actual edges in the feature README/dependency metadata.
 9. **Amendments stay narrow** — AMEND updates contract references and dependency links only, without redesigning plans. REORDER goes further: it re-validates and repairs steps in downstream plans that are broken because of the new execution order.
 
 ## Web Search and Fetch
@@ -294,7 +294,7 @@ Log your agent name as `exec-planner`.
 
 ### Pre-Task Checks
 
-- Gather artifact context via Support-Librarian before planning
+- Gather artifact context via Support-Librarian only when prior artifacts materially constrain planning; otherwise record the evidence-based skip
 - Research existing code patterns before defining steps
 - Check for prior ADRs relevant to the plan domain
 - Verify design doc exists and is current before creating a plan
