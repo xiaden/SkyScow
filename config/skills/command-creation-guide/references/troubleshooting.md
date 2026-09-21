@@ -4,7 +4,7 @@
 
 - For standalone files: check the file is in the correct `commands/` directory (`~/.config/opencode/commands/` or `.opencode/commands/`)
 - For inline JSON: check JSON syntax in opencode.json
-- Verify the command is under the `commands` key (JSON) or in a valid `.md` file
+- Verify the command is under the `command` key (JSON) or in a valid `.md` file
 - Restart OpenCode after adding commands
 
 ## Command Fails

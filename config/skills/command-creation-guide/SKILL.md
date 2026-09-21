@@ -1,6 +1,6 @@
 ---
 name: command-creation-guide
-description: Guidelines for creating effective OpenCode commands. Covers command definition in opencode.json, frontmatter fields, prompt structure, and best practices. Load when creating or updating commands.
+description: Guidelines for creating effective OpenCode commands. Covers JSON command templates, Markdown body templates, frontmatter fields, and best practices. Load when creating or updating commands.
 ---
 
 # Command Creation Guide for OpenCode
@@ -23,7 +23,7 @@ Key characteristics:
 - **Reusable**: Define once, use many times across sessions
 - **Consistent**: Ensure the same quality and approach every time
 - **Discoverable**: Appear in command palette with descriptions
-- **Configurable**: Can specify agent, model, and tool restrictions
+- **Configurable**: Can specify an agent and model
 
 ## Command Definition
 
@@ -43,7 +43,6 @@ Create `.md` files in a `commands/` directory. The filename becomes the command 
 description: What this command does
 agent: build
 model: anthropic/claude-sonnet-4-20250514
-argument-hint: "<arg1> <arg2>"
 ---
 
 The actual prompt text. Use $ARGUMENTS to reference the user's input.
@@ -54,7 +53,6 @@ The actual prompt text. Use $ARGUMENTS to reference the user's input.
 ---
 description: Review a pull request for code quality and best practices
 agent: build
-argument-hint: "<pr-number>"
 ---
 
 Review pull request #$ARGUMENTS:
@@ -71,25 +69,26 @@ Invoke with: `/review-pr 123`
 ```
 ~/.config/opencode/commands/
 ├── git/
-│   ├── commit.md      → /git:commit
-│   └── pr.md          → /git:pr
+│   ├── commit.md      → /git/commit
+│   └── pr.md          → /git/pr
 └── testing/
-    └── unit.md        → /testing:unit
+    └── unit.md        → /testing/unit
 ```
 
 ### 2. Inline in opencode.json
 
-Commands can also be defined inline under the `commands` key:
+Commands can also be defined inline under the `command` key. Every JSON command
+requires a `template`; `description` is optional metadata shown in command lists.
 
 ```json
 {
-  "commands": {
+  "command": {
     "command-name": {
       "description": "What this command does",
-      "prompt": "The actual prompt text...",
+      "template": "The prompt template sent to the agent...",
       "agent": "build",
       "model": "anthropic/claude-sonnet-4-20250514",
-      "tools": ["edit", "bash"]
+      "subtask": true
     }
   }
 }
@@ -99,22 +98,23 @@ Prefer standalone files — they're easier to version, share, and maintain.
 
 ## Command Fields
 
-### Required Fields
+Markdown frontmatter and JSON command entries share metadata fields, except that
+Markdown gets its required `template` from the trimmed body. Do not put a
+`template` key in Markdown frontmatter.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `description` | string | Brief description of what the command does (shown in command palette) |
-| `prompt` | string | The actual prompt text that guides the agent |
+| Field | Required | Where | Description |
+|-------|----------|-------|-------------|
+| `template` | JSON only | JSON entry or Markdown body | The prompt template sent to the agent |
+| `description` | No | Frontmatter or JSON entry | Optional text shown in command lists and discovery |
+| `agent` | No | Frontmatter or JSON entry | Agent selected when the command runs |
+| `model` | No | Frontmatter or JSON entry | Model override in `provider/model` format |
+| `variant` | No | Frontmatter or JSON entry | Model variant override |
+| `subtask` | No | Frontmatter or JSON entry | Whether to force execution as a subagent |
 
-### Optional Fields
+## Template Structure
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `agent` | string | current | Which agent to use (e.g., `build`, `plan`, custom agent name) |
-| `model` | string | current | Model override (e.g., `anthropic/claude-sonnet-4-20250514`) |
-| `tools` | array | all | Restrict which tools the command can use |
-
-## Prompt Structure
+The template is the prompt submitted when the command runs. Markdown uses its
+trimmed body as the template; JSON uses the required `template` string.
 
 ### Using Arguments
 
@@ -154,10 +154,6 @@ Choose the appropriate agent:
 - **plan**: For commands that analyze or plan without making changes
 - **Custom agents**: For specialized tasks (e.g., `security-auditor`, `test-generator`)
 
-### Tool Restrictions
-
-Limit tools to the minimum needed for the task. Use `"tools": ["read", "grep", "glob"]` for analysis-only commands.
-
 ### Model Selection
 
 Override the model only when the task genuinely benefits from a different capability tier. Use faster/cheaper models for simple summarization tasks, and more capable models for complex analysis.
@@ -173,11 +169,11 @@ Override the model only when the task genuinely benefits from a different capabi
 
 Before committing a command:
 
-- [ ] `description` clearly states purpose and use cases
-- [ ] `prompt` provides clear, step-by-step instructions
+- [ ] The Markdown body or JSON `template` provides clear, step-by-step instructions
+- [ ] `description` is included when command-list metadata is useful
 - [ ] `agent` is appropriate for the task
-- [ ] `tools` are restricted to minimum needed (if applicable)
 - [ ] `model` is overridden only when necessary
+- [ ] `subtask` is used only when background execution is intended
 - [ ] Arguments are used correctly (if applicable)
 - [ ] Command has been tested with representative inputs
 - [ ] Output location/format is specified
@@ -188,5 +184,5 @@ Before committing a command:
 - **This skill's references:**
   - [`references/patterns.md`](file:///home/opencode/.config/opencode/skills/command-creation-guide/references/patterns.md) — Full JSON examples for common patterns (basic, code generation, debugging, documentation, multi-step workflow, conditional logic)
   - [`references/troubleshooting.md`](file:///home/opencode/.config/opencode/skills/command-creation-guide/references/troubleshooting.md) — Command not appearing, command fails, command too slow
-- **Canonical source:** <https://opencode.ai/config.json> — JSON Schema for `commands` config
+- **Canonical source:** <https://github.com/anomalyco/opencode/blob/v1.18.31/packages/web/src/content/docs/commands.mdx> — the command format shipped by this repository's pinned OpenCode version
 - **Related skills:** `customize-opencode`, `making-editing-skills`
