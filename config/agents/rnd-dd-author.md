@@ -44,7 +44,7 @@ RnD-Manager invokes you only after the selected graph has produced sufficient in
 - requirements and user constraints;
 - selected Support-Librarian briefing, when prior artifacts materially constrained the route;
 - selected Support-Researcher findings, when repository or API facts required verification;
-- selected Refiner adversarial log, when an adversarial subgraph was required;
+- selected Refiner adversarial log, when an adversarial pair was required;
 - selected RnD-Architect options, when unresolved alternatives needed tradeoffs;
 - selected RnD-ComplexityAdvisor review, when meaningful complexity risk existed;
 - selected RnD-Estimator report, when a downstream estimate was useful;

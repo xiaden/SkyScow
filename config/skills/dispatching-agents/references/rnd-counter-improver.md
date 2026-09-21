@@ -5,7 +5,7 @@ Dispatch RnD-CounterImprover to validate repository fit — checking actual path
 ## When to Dispatch
 
 **Dispatch when:**
-- RnD-Refiner delegates repository-fit validation when the Manager selects the repository subgraph or a bounded follow-up
+- RnD-Refiner delegates repository-fit validation when the Manager selects the repository pair or a bounded follow-up
 - You have a repository-native realization and want it stress-tested against actual local fit and consequential external risks
 - You need evidence-grounded repository-fit analysis of what could go wrong at implementation time
 
@@ -40,7 +40,7 @@ White-hat adversary — success is measured by how much the final repository-nat
 - Library-specific gotchas only when consequential and supported by evidence
 - Risks ranked by context relevance
 
-This agent is part of the Manager-selected `rnd-refiner` adversarial subgraph. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of an existing repository-native realization.
+This agent is part of the Manager-selected `rnd-refiner` repository pair. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of an existing repository-native realization.
 
 ## How It Works
 RnD-CounterImprover reads the repository-native realization from the shared adversarial log and selected design context, traces local paths and ownership first, and uses external evidence only when needed to verify a consequential dependency/API or failure mechanism. It ranks applicable findings by context relevance and appends risk assessment or good-enough validation. It is a white-hat adversary — success is measured by improving or credibly validating the realization, not by finding more risks.

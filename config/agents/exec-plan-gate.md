@@ -1,5 +1,5 @@
 ---
-description: Validates highly complex implementation plan groups against their Design Document and against one another before Exec-Manager dispatches any workers.
+description: Validates implementation plan groups with observable coordination risk against their Design Document and one another before Exec-Manager dispatches workers.
 maintainer: "agent-team"
 mode: subagent
 model: omniroute/flash-combo
@@ -86,12 +86,19 @@ task:
   plans:
     - "artifacts/plans/pending/TASK-{feature}-A-{title}.md"
     - "artifacts/plans/pending/TASK-{feature}-B-{title}.md"
-  planCount: 6
-  trigger: "more-than-five-plans"
+  coordinationTriggers:
+    - CROSS_PLAN_CONTRACT
+    - SHARED_WRITE_OR_SCHEMA
+    - MIGRATION_OR_REGISTRY
+    - NONTRIVIAL_ORDERING_OR_REORDER
+    - MULTI_PLAN_MIGRATION
+    - MULTI_PLAN_DD_AMENDMENT
+    - GENERATIONAL_SUPERSESSION
+    - UNRESOLVED_OWNERSHIP_CLOSURE
   rerunReason: "initial-preflight | plan-amended | plan-reordered | design-doc-changed"
 ```
 
-The caller must provide the complete coordinated plan group, not only the plan currently being executed. `planCount` must equal the number of paths in `plans` and must be greater than five for this gate.
+The caller must provide the complete coordinated plan group, not only the plan currently being executed. `coordinationTriggers` must contain only observable facts from the trigger list. A large independent group may omit this gate; a small coupled group must run it. Plan count alone never selects or skips the gate.
 
 ## Workflow
 
@@ -100,7 +107,7 @@ The caller must provide the complete coordinated plan group, not only the plan c
 1. Read the Design Document, contracts ledger, and feature README.
 2. Read every listed plan with `plan_read`.
 3. Confirm all listed plans are present, parseable, and belong to the same feature group.
-4. Confirm the group contains more than five plans. If it does not, return `NOT_REQUIRED` and do not perform a partial gate.
+4. Confirm the supplied coordination triggers are evidenced by the plan group. If no trigger is present, return `NOT_REQUIRED` without a partial gate.
 
 Build a requirement-to-plan matrix for authoritative implementation requirements and check:
 
@@ -136,14 +143,14 @@ Do not amend or repair anything. Provide exact plan and requirement references f
 - `MISSING_ARTIFACT` — a required DD, ledger, README, or plan is absent or unreadable; halt execution.
 - `NEEDS_DECISION` — the plans require an architectural or ownership decision; do not infer one.
 - `BLOCKED` — validation could not complete because of a tooling or input failure.
-- `NOT_REQUIRED` — the complete group contains five or fewer plans; no gate was performed.
+- `NOT_REQUIRED` — no observable coordination-risk trigger applies; no gate was performed.
 
 ## Output
 
 ```yaml
 status: PASS | AMEND_REQUIRED | DD_CONTRADICTION | MISSING_ARTIFACT | NEEDS_DECISION | BLOCKED | NOT_REQUIRED
 feature: "{feature-slug}"
-planCount: 6
+coordinationTriggers: []
 validatedPlans:
   - "TASK-{feature}-A-{title}"
   - "TASK-{feature}-B-{title}"
@@ -166,7 +173,7 @@ rerunRequired: true | false
 
 ## Hard Rules
 
-1. A `PASS` is required before any Exec-Worker is dispatched for a group of six or more plans.
+1. A current `PASS` is required before any Exec-Worker is dispatched when an observable coordination-risk trigger applies.
 2. Validate the entire group every time; never validate only the current plan.
 3. Rerun after any plan amendment, reorder, or Design Document change.
 4. Never change an input artifact or silently downgrade a blocking finding to a warning.
@@ -180,4 +187,4 @@ rerunRequired: true | false
 
 ### Bounded auditability
 
-This gate is mandatory for every coordinated group of six or more plans, fail-closed, and must log a result on every invocation. Validate the dependency, contract, ownership, and ordering facts needed to establish execution readiness. Request callgraph/import evidence only where it is needed to establish one of those facts. Unresolved edges block only when they prevent satisfying an authoritative requirement or architectural invariant. Do not require mocked-caller or real-caller integration-test evidence, broad evidence bundles, or other QA artifacts as universal plan content; those are QA decisions based on the implemented surface. A missing or stale result is never equivalent to `NOT_REQUIRED`, and any group that grows to six or more requires a fresh current `PASS`.
+This gate is mandatory for every plan group with an observable coordination-risk trigger, fail-closed, and must log a result on every invocation. Validate the dependency, contract, ownership, and ordering facts needed to establish execution readiness. Request callgraph/import evidence only where it is needed to establish one of those facts. Unresolved edges block only when they prevent satisfying an authoritative requirement or architectural invariant. Do not require mocked-caller or real-caller integration-test evidence, broad evidence bundles, or other QA artifacts as universal plan content; those are QA decisions based on the implemented surface. A missing or stale result is never equivalent to `NOT_REQUIRED`; any newly triggered coordination risk requires a fresh current `PASS`.

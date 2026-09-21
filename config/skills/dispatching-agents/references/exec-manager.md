@@ -19,11 +19,12 @@ Dispatch Exec-Manager to execute an implementation plan.
 ```text
 Execute plan [PLAN_PATH].
 
-**Your job is to spawn your workers:**
-- Spawn Exec-Worker for EACH phase in order (one spawn per phase, never bundle)
-- Spawn QA-Reviewer after ALL phases complete, with the current plan and validated ordered plan set
-- Spawn Exec-Fixer for MINOR `CURRENT_PLAN` issues found by QA-Reviewer
-- Spawn Exec-Planner for `PLANNING_GAP` or ordering issues, and Support-Debugger only when execution failures require diagnosis
+**Your job is to compose and execute the smallest sufficient support graph:**
+- Spawn Exec-Worker for each incomplete phase in order by default; safe independent dispatch requires proven prerequisites, no output/annotation dependency, no write overlap, and order irrelevance
+- Observe each worker result and select only the needed Exec-Fixer, Support-Debugger, Exec-Planner, or PatternEnforcer capability
+- Known bounded defects use Exec-Fixer without Debugger; unclear failures use Support-Debugger (`SIMPLE` → Fixer, `NEEDS_PLAN` → Planner AMEND/re-execute, `INCONCLUSIVE` → escalation)
+- Spawn QA-Reviewer as the mandatory independent authority before acceptance of the selected implementation/support graph; consume canonical `qa-applicability.md` and rerun QA after any repair or amendment
+- Spawn Exec-Planner for `PLANNING_GAP`, ordering gaps, or architectural contradictions returning upstream
 - Never spawn QA-TestAnalyzer, QA-DocsAnalyzer, QA-TestGenerator, or QA-DocsGenerator; QA-Reviewer and the analyzers own those dispatches
 Do NOT implement code yourself.
 
@@ -57,7 +58,7 @@ every mandatory requirement, not only with the plan or QA report.
 | `startPhase` | Phase to start from (usually 1) | `1` |
 | `reviewRequired` | Enforce QA gate — must be `true` | `true` |
 
-The bolded worker-spawn instructions are **required** — they remind Exec-Manager that it dispatches workers, not implements code itself.
+The routing and worker instructions are **required** — they preserve manager ownership without turning support capabilities into a fixed assembly line.
 
 ## Expected Output
 
@@ -78,11 +79,11 @@ Support-PatternEnforcer is a read-only impact analyst. Its findings are evidence
 
 ## QA Gate Enforcement
 
-The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after all implementation phases complete and must not return `DONE` until QA-Reviewer reports `PASS`. The review is of the current plan's bounded slice, using the validated ordered plan set to classify incomplete work. Exec-Manager consumes the QA-Reviewer report and does not substitute its own review.
+The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after the selected implementation/support graph reaches an acceptance boundary and must not return `DONE` until QA-Reviewer reports `PASS`. The review is of the current plan's bounded slice, using the validated ordered plan set to classify incomplete work. Exec-Manager consumes the QA-Reviewer report and does not substitute its own review.
 
 **Enforcement rules:**
 
-1. **QA-Reviewer must run after ALL phases complete.** Partial reviews are not a substitute.
+1. **QA-Reviewer must run before acceptance.** It may not be bypassed for small, documentation-only, test-only, or unchanged work; the manager may run it after the selected implementation/support graph reaches a reviewable boundary.
 2. **Only `PASS` unlocks `DONE`.** Any other status (`MINOR`, `MAJOR`, `FAIL`) must trigger a fix cycle or escalation.
 3. **Exec-Fixer handles MINOR issues.** After fixes, re-run QA-Reviewer.
 4. **MAJOR issues require escalation.** Architectural problems, missing functionality, or systemic bugs cannot be handled by Exec-Fixer alone.
@@ -111,4 +112,4 @@ Test findings are reviewed under the same correctness contract as other implemen
 
 ### Lifecycle Preflight
 
-Before dispatching workers, sweep for plans with no open steps still pending, duplicate basenames across lifecycle directories, stray backups, and superseded executable artifacts. For six or more coordinated plans, require a current recorded `Exec-PlanGate: PASS`; missing or non-PASS blocks dispatch. For five or fewer plans, the gate is not required; if invoked, it must record `NOT_REQUIRED`, and a missing or stale result is never treated as that verdict. Exec-Manager verifies the result and never spawns the gate. The QA dispatch must include the current plan plus the present, schema-valid, non-superseded ordered plan set. Never report feature completion or archive while any later plan in that set remains incomplete. Include archival and `COMPLETION.md` requirements in the completion handoff.
+Before dispatching workers, sweep for plans with no open steps still pending, duplicate basenames across lifecycle directories, stray backups, and superseded executable artifacts. When observable coordination-risk triggers apply, require a current recorded `Exec-PlanGate: PASS`; when none apply, require explicit `NOT_REQUIRED` with its skip rationale. Exec-Manager verifies the result and never spawns the gate. The QA dispatch must include the current plan plus the present, schema-valid, non-superseded ordered plan set. Never report feature completion or archive while any later plan in that set remains incomplete. Preserve the complete-set archival handoff.

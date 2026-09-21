@@ -20,7 +20,7 @@ permission:
   list: allow
   todowrite: allow
   write: deny
-  edit: allow
+  edit: deny
   webfetch: allow
   websearch: allow
   research_papers: allow

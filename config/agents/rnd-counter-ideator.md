@@ -7,7 +7,7 @@ variant: high
 permission:
   read: allow
   write: deny
-  edit: allow
+  edit: deny
   glob: allow
   grep: allow
   log_read: allow

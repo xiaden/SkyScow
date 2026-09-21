@@ -334,4 +334,4 @@ The final report is the completion signal; QA-Reviewer does not claim generator 
 
 ## Lifecycle Review Checks
 
-Review DD and plan lifecycle state as part of every applicable gate: detect fully checked plans still in `pending/`, duplicate basenames across lifecycle directories, stray backups, superseded executable artifacts, missing `Exec-PlanGate` PASS for six-or-more-plan families, and ownership closure for changed symbol contracts. A handoff annotation alone is not ownership. Report lifecycle failures as blocking planning findings and classify ledger mismatches as `REQUIREMENT_DRIFT`.
+Review DD and plan lifecycle state as part of every applicable gate: detect fully checked plans still in `pending/`, duplicate basenames across lifecycle directories, stray backups, superseded executable artifacts, missing `Exec-PlanGate` PASS when observable coordination-risk triggers apply, and ownership closure for changed symbol contracts. A handoff annotation alone is not ownership. Report lifecycle failures as blocking planning findings and classify ledger mismatches as `REQUIREMENT_DRIFT`.

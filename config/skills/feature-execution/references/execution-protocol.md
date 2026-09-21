@@ -110,14 +110,14 @@ Only include the layer docs for layers the phase actually touches. A frontend-on
 
 ## Granularity: Phase, Not Plan
 
-**One phase per dispatch.** Reasons:
+**One phase per dispatch by default.** Reasons:
 
 1. **Context focus** — A phase has 3-6 steps in one domain. The subagent stays in one area of the codebase.
 2. **Checkpoint safety** — If context runs out, you lose at most one phase, not the whole plan.
 3. **Annotation feedback** — Between phases, you can read annotations and adjust the next dispatch.
 4. **Review accuracy** — Smaller increments mean review catches issues closer to where they were introduced.
 
-**Exception:** If a phase has only 1-2 trivial steps (e.g., "verify lint passes"), you may combine it with the adjacent phase. Use judgment.
+**Safe independence exception:** A manager may dispatch independent phase work only when existing plan metadata proves no output or annotation dependency, no write overlap, all prerequisites are satisfied, and execution order is irrelevant. A phase with 1–2 trivial steps may still be combined with an adjacent phase. Do not introduce a phase DAG or new execution schema.
 
 ---
 

@@ -1,13 +1,12 @@
 # Support-Librarian
 
-Dispatch Support-Librarian to gather artifact context (ADRs, logs, design docs) before R&D or Planning work.
+Dispatch Support-Librarian when materially relevant artifact context (ADRs, ASRs, logs, design docs, plans, or dead ends) may constrain R&D or Planning routing; record an evidence-based skip when it does not.
 
 ## When to Dispatch
 
 **Use when:**
- - Before dispatching RnD-Manager (formal DD work is Manager-owned and needs prior decisions)
-- Before dispatching Exec-Planner (implementation needs architectural context)
-- Entering an unfamiliar module or subsystem
+ - Before dispatching RnD-Manager or Exec-Planner when prior artifacts materially constrain the route
+ - Entering an unfamiliar module or subsystem where artifact history is relevant
 - You need to avoid contradicting prior architectural decisions
 
 **Do NOT dispatch when:**

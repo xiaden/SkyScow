@@ -5,7 +5,7 @@ Dispatch RnD-CounterIdeator to challenge externally supported design approaches 
 ## When to Dispatch
 
 **Dispatch when:**
-- RnD-Refiner delegates adversarial critique in the selected external subgraph
+- RnD-Refiner delegates adversarial critique in the selected external pair
 - You have proposed approaches and want them stress-tested against real-world failure data
 - You need evidence-grounded "why this might fail" analysis
 
@@ -39,7 +39,7 @@ White-hat adversary — success is measured by improving or credibly validating 
 - Assumptions challenged, evidence checked, and applicability rationale for validation results
 - Concrete risks with evidence citations when material concerns exist
 
-This agent is part of the Manager-selected `rnd-refiner` external subgraph. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of existing proposals.
+This agent is part of the Manager-selected `rnd-refiner` external pair. It is typically spawned by RnD-Refiner, not dispatched directly. Direct dispatch is rare and only for standalone adversarial review of existing proposals.
 
 ## How It Works
 

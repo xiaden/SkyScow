@@ -25,7 +25,7 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 |-------|-----------|---------|
 | rnd-manager | R&D department head | Feature design dispatch, owns the "thinking" phase |
 | rnd-dd-author | Design lead | Creates/refines design documents from requirements |
-| rnd-refiner | Adversarial design executor | Runs a Manager-selected bounded external/repository subgraph |
+| rnd-refiner | Adversarial design executor | Runs one Manager-selected bounded external or repository pair |
 | rnd-ideator | Creative solution generator | Explores design space, ranked ideas with feasibility |
 | rnd-counter-ideator | Adversarial approach critic | Critiques proposed approaches, searches for failures/postmortems |
 | rnd-improver | Evidence-backed architecture adapter | Collapses a surviving approach into the smallest repository-native realization; reuses local behavior and adds only demonstrated mechanisms |
@@ -39,8 +39,8 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 | Agent | Specialty | Use For |
 |-------|-----------|---------|
 | exec-manager | Plan execution lifecycle owner | Runs implementation plans, spawns workers, handles fix cycles |
-| exec-plan-gate | Large plan-group preflight | Validates groups of more than five plans during planning; spawned by Exec-Planner |
-| exec-planner | Implementation plan author and gate owner | Creates/amends plan files and spawns Exec-PlanGate for groups of more than five |
+| exec-plan-gate | Conditional plan-group preflight | Validates observable coordination risk during planning; spawned by Exec-Planner |
+| exec-planner | Local planning-graph composer | Creates/amends plans and selects Librarian, Researcher, PatternEnforcer, or PlanGate only from observable need |
 | exec-worker | Scoped phase implementer | Implements a phase or range of steps from a plan |
 | exec-fixer | Targeted build repair | Fixes MINOR severity review issues, runs lint, reports completion |
 
@@ -136,6 +136,24 @@ The Manager records the observed condition, selected and skipped capabilities, d
 6. **Single source of truth** — One agent owns each artifact and authority.
 
 ---
+
+## Execution routing cases A–J
+
+The Exec-Manager records the observed condition, selected and skipped capabilities,
+dependencies/concurrency, outcome, re-entry, and terminal reason in its existing
+execution trace. These examples preserve static authority; they are not a registry
+or state-machine DSL:
+
+- **A — Straightforward plan:** dispatch the default Worker capability; skip Librarian, PlanGate, Debugger, and PatternEnforcer when no material trigger exists. Require independent QA before acceptance.
+- **B — Seven independent plans:** do not select PlanGate from count alone; run independent plan managers only when README metadata proves no dependency or write overlap, then preserve complete-set QA and archival.
+- **C — Two coupled plans:** select PlanGate for a cross-plan producer/consumer or shared-write trigger, require `PASS`, then dispatch managers in dependency order.
+- **D — Obvious worker defect:** select Exec-Fixer directly with the listed bounded issue; do not invoke Support-Debugger.
+- **E — Unclear worker failure:** select Support-Debugger; route `SIMPLE` to Fixer, `NEEDS_PLAN` to Planner `AMEND` and re-execute affected work, and `INCONCLUSIVE` to escalation.
+- **F — QA `PLANNING_GAP`:** return to Exec-Planner for an amendment, re-execute affected phases, and run independent QA again; never treat the gap as a Fixer issue.
+- **G — Accepted migration:** select PatternEnforcer for accepted impact closure or migration scope and PlanGate when migration/registry/shared-write triggers are evidenced; findings remain advisory and do not authorize implementation.
+- **H — Historical artifacts:** select Support-Librarian when ADRs, DDs, logs, plans, or dead ends materially constrain routing; record an evidence-based skip when no relevant history exists.
+- **I — No history:** with no relevant artifact infrastructure or material history, skip Support-Librarian and record the reason; do not manufacture a briefing.
+- **J — Architectural contradiction:** stop the execution graph and return upstream to the DD/R&D owner or user; do not let Manager, Worker, Fixer, Debugger, or PlanGate invent a resolution.
 
 ## References
 

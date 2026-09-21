@@ -25,7 +25,7 @@ Review the implementation of:
 ## Task
 Plan: {plan file path}
 Round: {N}  ← Orchestrator fills this in. Round 1 = first review of this plan. Round 2 = after a fix cycle. Round 3+ = auto-flag DISCUSS regardless of issue severity.
-All phases of this plan are complete. Review this plan's bounded implementation slice for quality, correctness, and architectural compliance. Use the present validated ordered plan set to distinguish work owned by this plan from work explicitly owned by a later plan; the feature may remain incomplete only when that later owner is present, schema-valid, and non-superseded.
+The selected implementation/support graph for this plan has reached a reviewable boundary. Review this plan's bounded implementation slice for quality, correctness, and architectural compliance. Use the present validated ordered plan set to distinguish work owned by this plan from work explicitly owned by a later plan; the feature may remain incomplete only when that later owner is present, schema-valid, and non-superseded.
 
 ## Layer Docs
 {Include ALL that apply to layers touched by this plan. Copy the relevant rows from the table below.}

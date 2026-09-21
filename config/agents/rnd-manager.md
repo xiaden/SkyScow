@@ -91,7 +91,7 @@ Manager-owned log/review context.
   facts are unknown or need verification. Skip when authoritative evidence is
   already present.
 - **Ideator + Counter-Ideator**: external technology or approach space is open
-  and consequential. Use `rnd-refiner` with `subgraph: external`; a credible
+  and consequential. Use `rnd-refiner` with `subgraph: external` for one bounded adversarial pair; a credible
   `GOOD_ENOUGH`/`NO_MATERIAL_CONCERNS` result terminates that pair.
 - **Architect**: multiple credible survivors still need concrete implementation
   tradeoffs. Do not generate alternatives merely because the agent exists.
@@ -109,9 +109,11 @@ Manager-owned log/review context.
 
 The graph is dependency-ordered. Fan out genuinely independent Librarian and
 Researcher work, but do not parallelize a node whose inputs depend on another.
-Use `rnd-refiner` only for the selected bounded adversarial subgraph (`external`,
-`repository`, or `both`) with an explicit iteration cap. It does not choose the
-whole R&D graph and does not decide dispositions.
+Use one `rnd-refiner` invocation for each selected bounded adversarial pair
+(`external` or `repository`) with an explicit `max_cycles_per_pair`. The Manager
+evaluates the external result before selecting any repository pair; a repository
+pair never receives multiple external survivors. Refiner does not choose the whole
+R&D graph and does not decide dispositions.
 
 When an evaluator finds a material issue, control returns here. Record exactly one
 `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER` disposition with
@@ -186,7 +188,7 @@ phase: EXPLORATION | DESIGN | READY_FOR_PLANNING
 routing_trace: []
 artifacts: []
 adversarial_continuation:
-  subgraph: external | repository | both | null
+  subgraph: external | repository | null
   phase: COMPLETE | PAUSED_FOR_MANAGER | NOT_SELECTED
   log_path: null
   sessions: []

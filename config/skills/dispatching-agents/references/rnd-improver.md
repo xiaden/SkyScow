@@ -55,7 +55,7 @@ This agent is **read-only** — it returns suggestions, does not modify code.
 
 ### Repository-Native Adaptation for Chosen Approach
 
-When RnD-Refiner delegates repository-native adaptation after the Manager selects the repository subgraph:
+When RnD-Refiner delegates repository-native adaptation after the Manager selects the repository pair:
 
 ```
 Adapt the chosen production-backed approach using the shared adversarial log at [LOG_PATH] and the selected design context.

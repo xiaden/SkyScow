@@ -10,7 +10,7 @@ Dispatch QA-Reviewer as the quality gate after implementation completes.
 - After Exec-Fixer completes repairs on QA-flagged issues
 
 **Do NOT dispatch when:**
-- Implementation is still in progress — QA runs after ALL phases, not partial
+- Implementation is still in progress — QA runs before acceptance of the selected implementation/support graph, not as an implementation substitute
 - You need targeted fixes — use `exec-fixer` instead
 - You need test coverage analysis only — use `qa-test-analyzer` instead
 - You need documentation analysis only — use `qa-docs-analyzer` instead

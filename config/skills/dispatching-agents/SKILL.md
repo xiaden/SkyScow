@@ -151,7 +151,7 @@ Exec-Manager spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direc
 | Task | Reference |
 |------|-----------|
 | R&D graph composition and DD authoring | [`rnd-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) |
-| Bounded adversarial subgraph (only from RnD-Manager) | [`rnd-refiner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) |
+| Bounded adversarial pair (only from RnD-Manager) | [`rnd-refiner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) |
 | Create or refine a design document (only from RnD-Manager) | [`rnd-dd-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-dd-author.md) |
 | Implementation options + tradeoffs | [`rnd-architect`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-architect.md) |
 | Creative solution generation | [`rnd-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-ideator.md) |
@@ -163,14 +163,14 @@ RnD-Manager is the sole orchestrator for a formal DD. It composes the smallest
 sufficient graph from Librarian, Researcher, Refiner, Architect,
 ComplexityAdvisor, Estimator, DDAuthor, and PatternEnforcer capabilities. It may
 fan out independent work and must preserve dependency order and static authority.
-RnD-Refiner executes only a Manager-selected bounded external/repository
-subgraph. Ideator/Counter-Ideator challenge external assumptions; Improver/
+RnD-Refiner executes only one Manager-selected bounded external or repository
+pair per invocation. Ideator/Counter-Ideator challenge external assumptions; Improver/
 Counter-Improver challenge repository fit. Counter agents may return a
 substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result, which terminates
-that subgraph. DDAuthor never orchestrates other agents. Direct leaf dispatch is
+that pair. DDAuthor never orchestrates other agents. Direct leaf dispatch is
 valid only for focused analysis outside a formal DD workflow.
 
-The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner only in a selected external or repository subgraph. Counter-Ideator tests external/architectural assumptions and real-world evidence; Counter-Improver tests actual repository paths, ownership, lifecycle, runtime boundaries, and unnecessary mechanisms. Neither is required to discover a defect. Both may validate a proposal when credible examination finds no material applicable concern. Direct dispatch is rare.
+The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner only in a selected external or repository pair. Counter-Ideator tests external/architectural assumptions and real-world evidence; Counter-Improver tests actual repository paths, ownership, lifecycle, runtime boundaries, and unnecessary mechanisms. Neither is required to discover a defect. Both may validate a proposal when credible examination finds no material applicable concern. Direct dispatch is rare.
 
 ### QA Department
 

@@ -145,24 +145,25 @@ reduced behavior. Advisory findings and process evidence remain context.
 
 ### For CREATE
 
-1. **Gather artifact context** — Spawn Support-Librarian with the feature scope. Use constraints and warnings as context, not as new requirements.
-2. **Research** — Use available code-reading tools to understand existing code and establish only dependencies/contracts needed by the requested implementation.
-3. **Identify scope** — What files will be created/modified.
-4. **Define steps** — Actionable implementation steps (one semantic outcome per step).
-5. **Group into phases** — Group related steps by cohesion and dependency. Each phase must fit in one worker context.
+1. **Compose the local planning graph** — From observable scope, select only the capabilities needed for this plan: Support-Librarian when prior ADR/DD/history/log/plan artifacts materially constrain routing; Support-Researcher when repository, caller, API, or integration facts are unknown; Support-PatternEnforcer only for accepted impact-closure or migration scope; and Exec-PlanGate only when coordination-risk triggers are present. Record selected/skipped capability, short rationale, dependency, outcome, and terminal reason in the existing planning log/context; do not create a graph registry.
+2. **Run selected context work** — Independent Librarian and Researcher work may run concurrently; dependent work remains ordered. Treat findings as evidence, not authority.
+3. **Identify scope** — What files will be created/modified and which plan owns each output.
+4. **Define steps** — Actionable implementation steps (one semantic outcome per step), preserving conservative sequential phase order unless metadata proves independence, no output/annotation dependency, no write overlap, satisfied prerequisites, and order irrelevance.
+5. **Group into phases** — Group related steps by cohesion and dependency. Each phase must fit in one worker context; do not introduce a phase DAG, execution schema, or workflow DSL.
 6. **Size phases (worker budget)** — Verify each phase ≤ ~30K weighted edit scope using `context_tokens` when source exists.
 7. **Size plan (manager validation budget)** — Verify the full plan fits the manager's validation scope. Do not count optional QA-generated tests/docs as plan deliverables.
 8. **Document contracts** — Methods this plan creates and methods it calls; include a contract only when another implementation slice depends on it.
-9. **Write plan file** — Valid markdown per the `making-and-using-task-plans` skill.
-10. **Update CONTRACTS.md** — Add new shared method signatures or contracts only when downstream coordination requires them.
-11. **Update README.md** — Add the plan to the dependency graph if needed.
-12. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, identify migration candidates; add migration work only when required by the requested implementation or accepted architecture. PatternEnforcer discovery is evidence for this review, not migration scope or automatic plan amendment; preserve the owning planning layer's explicit disposition.
+9. **Select and run PlanGate when warranted** — Require the read-only gate for observable coordination risk: cross-plan producer/consumer contracts, shared writes/schemas/migrations/registries, nontrivial ordering or reorder, multi-plan migration, DD amendments affecting multiple plans, generational supersession, or unresolved ownership closure. A large independent group may skip; a small coupled group may require it. Count alone is never a trigger.
+10. **Write plan file** — Valid markdown per the `making-and-using-task-plans` skill.
+11. **Update CONTRACTS.md** — Add new shared method signatures or contracts only when downstream coordination requires them.
+12. **Update README.md** — Add the plan to the dependency graph if needed.
+13. **Check for legacy code** — If this plan introduces a new pattern that replaces an existing one, use PatternEnforcer evidence only after accepted migration intent; the owning planning layer records the disposition and scope.
 
 ### For AMEND
 
 1. **Read existing plan** — Understand current structure
 2. **Read the amendment reason** — What is missing or wrong (review report, gap description, or caller's note)
-3. **Gather artifact context** — Spawn Support-Librarian with the feature scope. Incorporate constraints and warnings into the plan.
+3. **Gather artifact context conditionally** — Select Support-Librarian only when prior artifacts materially constrain the amendment; otherwise record the evidence-based skip. Select Researcher, PatternEnforcer, or PlanGate only when their observable triggers apply.
 4. **Add new phase or steps** — Insert at appropriate point
 5. **Update contracts** — New methods if any
 6. **Preserve annotations** — Don't lose completed step notes

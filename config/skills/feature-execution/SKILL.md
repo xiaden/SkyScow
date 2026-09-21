@@ -5,14 +5,15 @@ description: Execute a complete set of dependency-ordered implementation plans f
 
 # Feature Execution
 
-Pipeline for implementing a set of feature plans produced by `decomposing-design-documents`. Uses hierarchical agent dispatch: Nyx → Exec-Manager → Exec-Worker/Reviewer/Fixer.
+Pipeline for implementing a set of feature plans produced by `decomposing-design-documents`. Uses a manager-owned capability graph: Nyx → Exec-Manager → selected Worker/support capabilities → independent QA → bounded revalidation.
 
 ```
-Plans + Ledger → Dispatch Exec-Manager → [internal: phases/review/fix] → Update Ledger → Next Plan → Archive
-                         ↓                              ↓                      ↓                         ↓
-                  One per plan              Exec-Manager handles           Nyx updates         DD status + plan archival
-                                            execution lifecycle            CONTRACTS.md          → completed bins
+Plans + Ledger → compose local execution graph → selected implementation/support nodes → mandatory QA → bounded revalidation → Update Ledger → Archive
+                                      ↓                                      ↓                                      ↓
+                         dependencies and safe concurrency             Manager routes findings          complete-set lifecycle
 ```
+
+The graph is observability and routing guidance, not a new registry, phase DAG, or DSL. Static authority remains unchanged: plans own scope/dependencies, workers implement, support agents advise or diagnose, QA owns independent correctness, and Exec-Manager owns lifecycle without implementing.
 
 ### Execution Decision Flowchart
 
@@ -37,22 +38,18 @@ Plans + Ledger → Dispatch Exec-Manager → [internal: phases/review/fix] → U
 
 ---
 
-## Agent Hierarchy
+## Capability Graph and Static Gates
 
-Nyx (the top-level orchestrator executing this skill) dispatches **Exec-Manager** agents. Each Exec-Manager owns its plan's full lifecycle:
+Nyx dispatches one Exec-Manager per plan. Each manager composes only the capabilities needed by observed execution results:
 
-```
-Nyx (top-level orchestrator)
-├── Exec-Manager A
-│   ├── Exec-Worker (per phase)
-│   ├── Reviewer (after all phases)
-│   └── Fixer (if review finds issues)
-├── Exec-Manager B
-│   └── ... same structure
-└── Handles: escalations, ledger updates, archival
-```
+- Exec-Worker for assigned implementation scope, conservatively one sequential phase at a time.
+- Exec-Fixer for known bounded defects with explicit issue lists.
+- Support-Debugger only when the cause is unclear; it routes `SIMPLE` to Fixer, `NEEDS_PLAN` to Planner AMEND, and `INCONCLUSIVE` to escalation.
+- Exec-Planner for `PLANNING_GAP`, architectural contradiction, or debugger-authorized amendment; affected work is re-executed.
+- Support-PatternEnforcer only for accepted impact closure or migration scope.
+- QA-Reviewer remains mandatory and independent before acceptance; it consumes canonical `qa-applicability.md`.
 
-**Key principle:** Exec-Managers own execution details. Nyx receives `DONE | BLOCKED | ESCALATE` — not phase-by-phase progress.
+Independent plans may run concurrently only when README metadata proves no dependency or write overlap. Within a plan, phases remain sequential unless prerequisites, outputs/annotations, write scopes, and order irrelevance prove safe independence. Exec-Manager owns routing, ledger actuals, carry-forward, and archival; Nyx receives `DONE | BLOCKED | ESCALATE`.
 
 See [.opencode/agents/](.opencode/agents/) for agent specifications.
 
@@ -160,12 +157,12 @@ task:
   orderedPlanSetValidation: "present, schema-valid, non-superseded, dependency-ordered"
 ```
 
-For a coordinated group of six or more plans, Exec-Planner must complete the Exec-PlanGate preflight and return `PASS` with the plan group before any Exec-Manager is dispatched. Exec-Manager verifies that result; it does not spawn the gate.
+When observable coordination-risk triggers apply—cross-plan contracts, shared writes/schemas/migrations/registries, nontrivial ordering/reorder, multi-plan migration, multi-plan DD amendments, generational supersession, or unresolved ownership closure—Exec-Planner must complete the read-only Exec-PlanGate preflight and return `PASS` before any Exec-Manager is dispatched. Large independent groups may skip; small coupled groups may require it. Exec-Manager verifies the current result; it does not spawn the gate.
 
 **Exec-Manager handles internally:**
 
-- Dispatching Exec-Worker per phase
-- Running Reviewer after all phases complete
+- Dispatching Exec-Worker per phase by default, with safe independent dispatch only when plan metadata proves independence
+- Running mandatory independent QA before acceptance of the selected implementation/support graph
 - Dispatching Fixer if review finds issues
 - Fix cycles (up to 2 rounds, then escalates)
 
@@ -263,11 +260,11 @@ Before declaring feature execution complete:
 
 ## Lifecycle Enforcement Gates
 
-### Coordinated Plan Preflight (Hard Gate)
+### Coordinated Plan Preflight (Conditional Hard Gate)
 
-For six or more coordinated plans, `Exec-PlanGate` is mandatory and fail-closed. No `Exec-Manager` dispatch is permitted without a recorded current `PASS`. The gate checks dependency completeness, contract consistency, layer compliance, DD coverage, downstream gaps (symbols needed but never created upstream), overlap/parallel-write safety, and ownership closure. Ownership closure requires every caller file for each changed symbol signature, return type, or behavior; handoff annotations do not satisfy it. Exec-Manager verifies the gate result and never spawns the gate.
+When observable coordination-risk triggers apply—cross-plan producer/consumer contracts, shared writes/schemas/migrations/registries, nontrivial ordering or reorder, multi-plan migration, DD amendments affecting multiple plans, generational supersession, or unresolved ownership closure—`Exec-PlanGate` is mandatory and fail-closed. No Exec-Manager dispatch is permitted without a recorded current `PASS`. A large independent group may skip; a small coupled group may require the gate. Plan count alone never selects or skips it. The gate checks dependency completeness, contract consistency, DD coverage, downstream gaps, overlap/parallel-write safety, and ownership closure. Exec-Manager verifies the result and never spawns the gate.
 
-For a coordinated group of **five or fewer** plans, the gate is **not required**. Invoking the gate is still allowed for a smaller group, but every invocation must record a `NOT_REQUIRED` verdict (or an equivalent explicitly-labeled result) so no result is ambiguous. A recorded `NOT_REQUIRED` is not a stale or missing `PASS`: dispatch proceeds on `NOT_REQUIRED`, never on an absent result, and a later plan-count increase to six or more invalidates any prior `NOT_REQUIRED` and requires a fresh gate `PASS`.
+If no observable trigger applies, record `NOT_REQUIRED` with the skip rationale. A missing or stale result is never equivalent to `NOT_REQUIRED`; a newly triggered risk requires a fresh gate `PASS`.
 
 ### Startup Lifecycle Sweep
 

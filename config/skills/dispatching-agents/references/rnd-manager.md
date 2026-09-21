@@ -70,7 +70,7 @@ implementation authorization, blockers, and requirement conformance:
 ```yaml
 routing_trace: []
 adversarial_continuation:
-  subgraph: external | repository | both | null
+  subgraph: external | repository | null
   phase: COMPLETE | PAUSED_FOR_MANAGER | NOT_SELECTED
   log_path: null
   sessions: []
