@@ -81,9 +81,9 @@ The pull-request workflow in `.github/workflows/validation.yml` currently provid
 
 ## Artifacts, design, and planning
 
-- `artifacts/requests/` contains captured conversation context used as primary request evidence for downstream DD or plan authoring.
+- `artifacts/requests/` contains captured conversation context used as primary request evidence for graph creation or downstream DD authoring.
 - `artifacts/designs/pending/` and `artifacts/designs/completed/` contain design-document bundles; the DD and any root-level adversarial record are authoritative for design decisions and status.
-- `artifacts/plans/` contains implementation plans and their lifecycle state; plan files are authoritative for execution steps, ownership, and completion criteria.
+- `artifacts/implementation/` contains authoritative new-work `GRAPH.json` artifacts; graph nodes own requirements, contracts, dependencies, claims, evidence, and completion. `artifacts/plans/` remains readable historical compatibility only and is not a second authority for new work.
 - `artifacts/logs/` contains durable observations, discoveries, decisions, blockers, and QA records. Logs preserve context but do not outrank current source, tests, accepted DDs, or explicit requirements.
 - Use the artifact tools and matching skills rather than inventing new formats or writing process artifacts into source directories. The `artifacts/` tree is not a substitute for repository tests or CI evidence.
 

@@ -1,112 +1,54 @@
-# Subagent Dispatch Protocol
+# Historical Subagent Protocol (LEGACY)
 
-How to construct and dispatch Exec-Planner subagent calls that produce correct, drift-free plans.
+> This reference is retained only to read or migrate historical plan artifacts. New work must use the persistent implementation graph through `exec-planner`; do not invoke this protocol to create plans, parts, rounds, or `CONTRACTS.md`.
 
----
+## Legacy input
 
-## Prompt Structure
+Historical callers may provide:
 
-Every Exec-Planner subagent call must include these sections in this order:
+1. a legacy task/part description;
+2. repository and request context;
+3. historical contract or ledger text;
+4. any existing plan path that must be migrated or inspected.
 
-```
-1. TASK          — What to plan (part scope from README)
-2. DESIGN REF    — Where to find full context (design doc path)
-3. CONTRACTS     — Full CONTRACTS.md content
-4. OUTPUT        — Plan file path and naming
-5. CONSTRAINTS   — Anything the subagent must NOT do
-```
+The caller must label every supplied artifact `LEGACY` and must not treat it as active graph authority.
 
----
+## Migration behavior
 
-## Prompt Template
+When a historical plan is encountered:
 
-```
-Create an implementation plan for:
+1. read it without mutating it;
+2. recover requirements, obligations, owners, contracts, dependencies, acceptance, and provenance;
+3. compare those facts with the active `GRAPH.json`, if one exists;
+4. report missing, contradictory, superseded, or ownerless facts to `exec-planner` as a bounded graph amendment request;
+5. never create a replacement `TASK-*` file, plan group, execution round, README part index, or second contracts authority.
 
-## Task
-{Part title}: {3-5 sentence scope from README}
+A historical plan may inform a graph amendment, but it cannot authorize claims, worker packets, completion, QA, or archival.
 
-## Design Document
-Read the full design context from: `artifacts/designs/pending/{feature}/DD.md`
-Focus on sections relevant to this part.
+## Graph-native handoff
 
-## Contracts from Prior Plans
-{Paste full CONTRACTS.md content here — not a file reference, the actual content.
-If this is the first plan, paste the initialized ledger with just architectural rules.}
+The active handoff contains:
 
-## Output
-Create the plan at: `artifacts/plans/pending/TASK-{feature}-{letter}-{descriptor}.md`
-Follow the plan format in `making-and-using-task-plans` and its `references/syntax.md` and `references/writing-guide.md`.
+- graph ID and current structure/state revisions;
+- source request or accepted DD;
+- normalized requirements and requirement ownership;
+- bounded implementation obligations and node IDs;
+- real prerequisite and producer/consumer edges;
+- canonical contracts and declared producers/consumers;
+- acceptance conditions, changed surfaces, provenance, and context hints;
+- explicit graph gaps or architecture contradictions.
 
-## Constraints
-- Workflow functions take `db: Database`, never services — check CONTRACTS for confirmed patterns
-- Every plan must include the verification its changed surface requires, selected from `/home/opencode/.config/opencode/instructions/validation-mandate.md` (repository-defined, surface-selected commands; no universal type-check + lint + test + coverage + build sequence). A "lint verification" step alone is insufficient
-- Reference concrete method signatures from CONTRACTS when calling upstream APIs
-- Do NOT create methods that duplicate what CONTRACTS already defines
-- If you need a method that doesn't exist in CONTRACTS or the codebase, create it in your plan and note it clearly for the ledger
-```
+Runtime packet assembly belongs to `exec-manager`. This reference does not define worker phases, manager plans, execution rounds, or persisted packets.
 
----
+## Verification boundary
 
-## Critical Rules
+Expose repository-defined, changed-surface verification commands and evidence when known. Do not manufacture universal test, lint, build, security, documentation, review, or commit steps. QA applicability remains owned by `config/instructions/qa-applicability.md`; applicable analyzers/generators run before final normal QA synthesis.
 
-### Always inline the ledger content
+## Prohibited legacy behavior for new work
 
-The subagent cannot read files by path in its prompt. Paste the full CONTRACTS.md text. This is the single most important context injection.
-
-### Never ask the subagent to "research the architecture"
-
-The subagent has tools and will research automatically. Telling it to "research" wastes prompt tokens. Instead, give it concrete starting points:
-
-```
-# ❌ Bad
-Research the existing patterns for persistence operations.
-
-# ✅ Good
-Follow the pattern in `src/persistence/constructor/builder.py`.
-```
-
-### Include scope boundaries
-
-Tell the subagent what is NOT in scope to prevent over-planning:
-
-```
-# ✅ Good
-Out of scope for this part:
-- Genre playlist type (deferred to v1.5)
-- Frontend UI (covered by Plan G)
-- Plugin-side scheduling (covered by Plan C)
-```
-
-### One part per dispatch
-
-Never combine "Plan parts B and D since they're in the same round." Each subagent call produces one plan file. Combining causes:
-
-- Bloated context (two parts' worth of research)
-- Interleaved steps from different domains
-- Plans that are too large for plan_read
-
----
-
-## After Receiving Subagent Output
-
-1. **Save the plan file** — The subagent may return the plan inline rather than saving it. Always verify the file exists; create it if needed.
-2. **Run `plan_read`** — Non-negotiable. If it fails, the plan has structural issues.
-3. **Quick-scan for violations:**
-   - Does any step pass a service to a workflow?
-   - Does any step reference a method not in CONTRACTS or the existing codebase?
-    - Are the repository-defined, surface-selected verification commands and expected evidence required by `/home/opencode/.config/opencode/instructions/validation-mandate.md` exposed for execution? Do not turn them into universal final steps per phase.
-    - Are explicit user or accepted-architecture quality obligations visible? Do not add universal review, test, security, documentation, or commit steps; canonical QA applicability owns conditional QA work.
-   - Are all steps flat (no nested checkboxes)?
-4. **Update CONTRACTS.md** — Extract new methods, APIs, DTOs, and decisions.
-
----
-
-## Common Subagent Mistakes and Fixes
-
- | Mistake | Cause | Fix |
- | --- | --- | --- |
- | Plan references method not yet created | Planned out of dependency order | Either: add method creation to this plan, or re-order execution |
-  | Missing verification context | Subagent omitted changed-surface facts or repository commands | Expose the required verification context; do not manufacture a universal final step or commit |
- | Worker or manager context is too large/diffuse | Context or review scope exceeds the canonical budget/tool evidence | Repack the implementation DAG into coherent phases/plans while preserving real edges and ownership |
- | TypedDict defined in wrong layer | Subagent put DTO in workflow file | Move to `src/helpers/dto/` per architecture rules |
+- creating `artifacts/plans/pending/TASK-*.md`;
+- deriving dependency edges from letters, layers, file order, or review order;
+- treating `CONTRACTS.md` or a README as active authority;
+- requiring a plan or phase to be globally runnable before downstream-owned work exists;
+- persisting worker/manager packets;
+- using a legacy plan as a claim, completion, QA, or archive boundary.

@@ -38,7 +38,7 @@ permission:
 
 - Fix only listed issues — no scope hunting
 - Follow suggested fixes from Reviewer
-- Lint after each implementation batch — zero errors before continuing
+- Run applicable changed-surface checks after each repair batch and classify failures by node ownership
 - Report unfixable issues that require broader changes
 **Constraints:**
 - Does not spawn children

@@ -343,7 +343,7 @@ Log with `agent="qa-test-generator"`.
 
 Before reporting DONE:
 1. [ ] All assigned checks/gaps addressed
-2. [ ] Lint passes with zero errors
+2. [ ] Applicable changed-surface checks pass, or failures are classified by ownership
 3. [ ] All generated artifacts verified (tests run, docs accurate)
 4. [ ] Report includes all required fields
 5. [ ] No remaining unaddressed gaps
@@ -355,4 +355,4 @@ DONE means verified — every test was run, every docstring matches the implemen
 
 - Assistant prose is permitted only when returning your completed result — the generated and removed tests and their verification (run status and lint errors), plus any partial/failed test signal with your read on cause — to the caller, or when a required clarification genuinely cannot be represented another way.
 - Before the report is delivered, the terminal decision has been written durably via `qa_record_write`; a failed or missing write is a failed invocation, not a success.
-- The report is delivered only after every generated test has actually been run and lint shows zero errors; tests that failed are reported with their error, never silently dropped.
+- The report is delivered only after every generated test has actually been run and applicable changed-surface checks are evidenced; failures are reported and classified, never silently dropped.

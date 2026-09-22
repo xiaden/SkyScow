@@ -13,7 +13,7 @@ Dispatch Exec-Fixer to perform targeted repairs for review issues.
 - Issues require topology or contract changes — use `exec-planner` (graph amendment) instead
 - The issue list includes GRAPH_GAP issues — Exec-Fixer cannot handle these
 - Fixes are trivial (typos, missing imports) — fix them yourself
-- You're executing an implementation plan — use `exec-manager` instead
+- You're executing a persistent implementation graph — use `exec-manager` instead
 
 ## Dispatch Template
 

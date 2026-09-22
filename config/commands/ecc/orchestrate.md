@@ -38,11 +38,11 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 | Agent | Specialty | Use For |
 |-------|-----------|---------|
-| exec-manager | Plan execution lifecycle owner | Runs implementation plans, spawns workers, handles fix cycles |
-| exec-plan-gate | Conditional plan-group preflight | Validates observable coordination risk during planning; spawned by Exec-Planner |
-| exec-planner | Local planning-graph composer | Creates/amends plans and selects Librarian, Researcher, PatternEnforcer, or PlanGate only from observable need |
-| exec-worker | Scoped phase implementer | Implements a phase or range of steps from a plan |
-| exec-fixer | Targeted build repair | Fixes MINOR severity review issues, runs lint, reports completion |
+| exec-manager | Fresh bounded graph frontier scheduler | Claims ready nodes, packages ephemeral workers, accepts evidence, routes support, and hands off terminal QA |
+| exec-plan-gate | Conditional implementation-graph gate | Validates a complete graph only when observable coordination risk exists |
+| exec-planner | Persistent graph creator/amender | Derives obligations, contracts, ownership, and real dependency edges in `GRAPH.json` |
+| exec-worker | Ephemeral claimed-node implementer | Implements only claimed graph obligations and returns per-node evidence |
+| exec-fixer | Bounded node-defect repair | Repairs listed MINOR graph-node defects with applicable verification evidence |
 
 ### QA Department
 
@@ -137,28 +137,29 @@ The Manager records the observed condition, selected and skipped capabilities, d
 
 ---
 
-## Execution routing cases A–J
+## Graph execution routing cases
 
 The Exec-Manager records the observed condition, selected and skipped capabilities,
 dependencies/concurrency, outcome, re-entry, and terminal reason in its existing
 execution trace. These examples preserve static authority; they are not a registry
 or state-machine DSL:
 
-- **A — Straightforward plan:** dispatch the default Worker capability; skip Librarian, PlanGate, Debugger, and PatternEnforcer when no material trigger exists. Require independent QA before acceptance.
-- **B — Seven independent plans:** do not select PlanGate from count alone; run independent plan managers only when README metadata proves no dependency or write overlap, then preserve complete-set QA and archival.
-- **C — Two coupled plans:** select PlanGate for a cross-plan producer/consumer or shared-write trigger, require `PASS`, then dispatch managers in dependency order.
-- **D — Obvious worker defect:** select Exec-Fixer directly with the listed bounded issue; do not invoke Support-Debugger.
-- **E — Unclear worker failure:** select Support-Debugger; route `SIMPLE` to Fixer, `NEEDS_PLAN` to Planner `AMEND` and re-execute affected work, and `INCONCLUSIVE` to escalation.
-- **F — QA `GRAPH_GAP`:** return to Exec-Planner for a graph amendment, re-claim affected nodes, and run independent QA again; never treat a graph gap as a Fixer issue.
-- **G — Accepted migration:** select PatternEnforcer for accepted impact closure or migration scope and PlanGate when migration/registry/shared-write triggers are evidenced; findings remain advisory and do not authorize implementation.
-- **H — Historical artifacts:** select Support-Librarian when ADRs, DDs, logs, plans, or dead ends materially constrain routing; record an evidence-based skip when no relevant history exists.
-- **I — No history:** with no relevant artifact infrastructure or material history, skip Support-Librarian and record the reason; do not manufacture a briefing.
-- **J — Architectural contradiction:** stop the execution graph and return upstream to the DD/R&D owner or user; do not let Manager, Worker, Fixer, Debugger, or PlanGate invent a resolution.
-- **K — A/C with independent B:** if A produces a contract consumed by C while B has no real edge to either, preserve `A → C`, keep B independent, and dispatch B concurrently when its own prerequisites and write-safety permit; labels and review order do not create edges.
+- **A — Straightforward graph:** create/validate `GRAPH.json`, derive its ready frontier, and dispatch a fresh bounded Manager; skip graph gate and support capabilities without observable triggers. Require normal QA before terminal acceptance.
+- **B — Independent branches:** seven independent graph nodes do not trigger a gate by count; claim compatible packets concurrently only when prerequisites and write scopes are safe.
+- **C — Coupled producer/consumer:** select the graph gate for a real cross-node contract, shared write, migration, or registration trigger; require `PASS` before Manager claims the affected frontier.
+- **D — Obvious node defect:** select Exec-Fixer directly for the listed bounded subject-node issue; do not invoke Debugger.
+- **E — Unclear node failure:** select Support-Debugger; route `SIMPLE` to Fixer, `NEEDS_PLAN` to Exec-Planner graph amendment and re-execution, and `INCONCLUSIVE` to escalation.
+- **F — QA `GRAPH_GAP`:** return to Exec-Planner for a bounded graph amendment, re-derive readiness, re-claim affected nodes, and run normal QA again; never route a graph gap to Fixer.
+- **G — Accepted migration:** select PatternEnforcer only for accepted impact closure or migration scope; findings remain advisory and scope changes return to Exec-Planner.
+- **H — Historical artifacts:** select Support-Librarian only when ADRs, DDs, logs, or dead ends materially constrain graph creation/routing; record a skip otherwise.
+- **I — No history:** with no relevant artifact infrastructure, skip Support-Librarian and do not manufacture a briefing.
+- **J — Architectural contradiction:** stop execution and return upstream to the accepted DD/request owner; no graph agent invents a resolution.
+- **K — A/C with independent B:** if A produces a contract consumed by C while B has no real edge, preserve `A → C`, keep B independent, and claim B concurrently when its prerequisites and packet scope permit.
 
 ## References
 
 - **`dispatching-agents` skill** — Canonical dispatch templates, agent selection decision tree, native `task` fan-out guidance, and per-agent reference files. Load this before dispatching any agent.
-- **`making-and-using-task-plans` skill** — Formal plan Markdown schema and writing guidance; see `references/syntax.md` and `references/writing-guide.md`.
+- **`implementation graph schema/tools`** — `GRAPH.json` is authoritative for new work; use `exec-planner` and graph tools rather than creating plans.
+- **Legacy task-plan skill** — Historical compatibility only; do not create new plan artifacts for graph-native work.
 
 **NOTE**: Complex tasks benefit from multi-agent orchestration. Simple tasks should use single agents directly. When in doubt, consult the `dispatching-agents` skill's decision tree.

@@ -43,7 +43,6 @@ def impl_graph_claim(
         def apply(graph):
             nodes = node_map(graph)
             ready = {node["id"] for node in derived_ready(graph)}
-            requested_scopes: list[set[str] | None] = []
             for node_id in node_ids:
                 node = nodes.get(node_id)
                 if node is None:
@@ -52,26 +51,30 @@ def impl_graph_claim(
                     raise ValueError(f"node is not ready: {node_id}")
                 if node.get("claim") is not None:
                     raise ValueError(f"node already claimed: {node_id}")
-                # Manager-established scopes are authoritative for every claimed node.
-                requested_scopes.append(requested_scope)
-            for index, left in enumerate(requested_scopes):
-                for right in requested_scopes[index + 1 :]:
-                    if _overlap(left, right):
-                        raise ValueError("unknown or overlapping write scope inside claim")
+
+            # write_scopes describe the one worker packet, not each node in it.
+            # Nodes in one packet are intentionally allowed to share the packet scope.
+            seen_claims: set[str] = set()
             for node in nodes.values():
                 claim = node.get("claim")
-                if node.get("status") == "ACTIVE" and claim is not None:
-                    active_scope = _scope_set(claim.get("write_scopes"))
-                    if any(_overlap(scope, active_scope) for scope in requested_scopes):
-                        raise ValueError(f"known or unknown write overlap with active claim: {claim.get('id')}")
-            for node_id, scope in zip(node_ids, requested_scopes):
+                if node.get("status") != "ACTIVE" or not isinstance(claim, dict):
+                    continue
+                existing_id = claim.get("id")
+                if existing_id in seen_claims:
+                    continue
+                seen_claims.add(existing_id)
+                active_scope = _scope_set(claim.get("write_scopes"))
+                if _overlap(requested_scope, active_scope):
+                    raise ValueError(f"known or unknown write overlap with active claim: {existing_id}")
+
+            for node_id in node_ids:
                 node = nodes[node_id]
                 node["status"] = "ACTIVE"
                 node["claim"] = {
                     "id": claim_id,
                     "worker": worker,
                     "manager_session": manager_session,
-                    "write_scopes": sorted(scope) if scope is not None else None,
+                    "write_scopes": sorted(requested_scope),
                     "changed_files": sorted(_scope_set(changed_files) or set()),
                 }
 

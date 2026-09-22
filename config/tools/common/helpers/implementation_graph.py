@@ -331,6 +331,20 @@ _IMPLEMENTATION_STATE_EXCLUDES = (
 )
 
 
+def _fallback_workspace_entries(workspace_root: Path) -> list[Path]:
+    entries: list[Path] = []
+    for root, directories, files in os.walk(workspace_root, topdown=True, followlinks=False):
+        root_path = Path(root)
+        directories[:] = [name for name in directories if name != ".git" and not (root_path / name).is_relative_to(workspace_root / "artifacts/implementation")]
+        for name in files:
+            entries.append(root_path / name)
+        for name in directories:
+            path = root_path / name
+            if path.is_symlink():
+                entries.append(path)
+    return sorted(entries, key=lambda path: path.relative_to(workspace_root).as_posix())
+
+
 def workspace_fingerprint(workspace_root: Path) -> str:
     """Hash HEAD, non-ignored worktree state, and relevant untracked content.
 
@@ -347,14 +361,23 @@ def workspace_fingerprint(workspace_root: Path) -> str:
         )
     )
     raw_paths = _run_git(workspace_root, "ls-files", "--others", "--exclude-standard", "-z", *pathspec)
-    for raw_path in sorted(path for path in raw_paths.split(b"\0") if path):
-        path = (workspace_root / raw_path.decode("utf-8", "surrogateescape")).resolve()
+    if raw_paths:
+        candidate_paths = [workspace_root / raw_path.decode("utf-8", "surrogateescape") for raw_path in raw_paths.split(b"\0") if raw_path]
+    else:
+        candidate_paths = _fallback_workspace_entries(workspace_root)
+    for path in sorted(candidate_paths, key=lambda item: item.relative_to(workspace_root).as_posix()):
+        raw_path = path.relative_to(workspace_root).as_posix().encode("utf-8", "surrogateescape")
         parts.append(raw_path + b"\0")
         try:
+            # Inspect link identity before any resolution: a symlink and a regular file
+            # with identical target/content must fingerprint differently.
             if path.is_symlink():
                 parts.append(b"SYMLINK\0" + os.readlink(path).encode("utf-8", "surrogateescape"))
             elif path.is_file():
-                parts.append(path.read_bytes())
+                parts.append(b"REGULAR\0" + path.read_bytes())
+            else:
+                # Preserve identity for dangling symlinks and other non-regular entries.
+                parts.append(b"MISSING_OR_SPECIAL\0")
         except OSError:
             parts.append(b"UNREADABLE\0")
     digest = hashlib.sha256()

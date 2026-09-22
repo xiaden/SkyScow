@@ -187,8 +187,8 @@ The reviewer accepts this JSON input shape:
     "diff": { "type": "string" },
     "repository_instructions": { "type": "string" },
     "task_context": { "type": "string" },
-    "currentPlan": { "type": "string" },
-    "orderedPlanSet": { "type": "array" },
+    "graphId": { "type": "string" },
+    "subjectNodeIds": { "type": "array", "items": { "type": "string" } },
     "deterministic_validation": { "type": "string" },
     "review_root": { "type": "string" }
   },

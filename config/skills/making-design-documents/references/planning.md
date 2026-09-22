@@ -1,79 +1,72 @@
 # Planning & Decomposition Methodology
 
-**Purpose:** Derive the implementation dependency graph, then package it into worker phases and manager-review plans.
+## Boundary
 
-## Planning process
+Design planning transforms requirements into semantic implementation obligations and a persistent implementation graph. It does not pre-pack worker packets or Manager frontiers.
 
-1. Read the authoritative request, accepted DD, repository facts, and relevant contracts.
-2. Enumerate concrete, bounded implementation obligations.
-3. Identify true producer-consumer and prerequisite edges.
-4. Build and validate the implementation DAG and ownership closure.
-5. Pack dependency-compatible nodes into worker-context phases.
-6. Pack phases into manager-review-context plans.
-7. Preserve cross-plan edges in the existing feature README/dependency graph.
-8. Cross-validate requirements, contracts, ownership, ordering, and parallel-write safety.
+```text
+requirements / accepted DD
+        ↓
+semantic implementation obligations
+        ↓
+real prerequisite and producer-consumer relationships
+        ↓
+persistent GRAPH.json
+```
 
-Do not start by inventing Plan A/B/C containers and deriving dependencies from their existence. Containers package work; they do not manufacture its dependency graph.
+`exec-manager` performs runtime scheduling after graph creation. Worker packets and Manager frontiers are ephemeral execution decisions, not design artifacts.
 
-## Step breakdown
+## Method
 
-Each step names:
+1. Read the authoritative request, accepted DD when present, repository facts, and relevant existing contracts.
+2. Normalize requirements and preserve their provenance.
+3. Derive bounded obligations at the smallest meaningful repository-work level. Do not turn files, commits, phases, plans, or arbitrary edits into obligations.
+4. Assign one owner, acceptance condition, changed surface, and useful context hint to each obligation.
+5. Model only real edges: prerequisites, producer/consumer contracts, migrations, registrations, generated artifacts, and required control/data flow.
+6. Define contracts with one declared producer and explicit consumers. Record materialized actuals only after producer-owned implementation is accepted.
+7. Validate requirement ownership, dependency closure, cycles, producer ancestry, contract compatibility, safe writes, and graph gaps.
+8. Persist the graph through `exec-planner`; invoke the read-only semantic gate only when observable coordination risk exists and the complete graph is present.
 
-- a clear, actionable obligation;
-- its owner and relevant files/symbols;
-- real prerequisites and produced/consumed contracts;
-- a bounded verification against its own intent;
-- risks and downstream ownership when integration is intentionally deferred.
+## Least-commitment modeling
 
-A step does not promise a repository-wide green state.
+- Independent obligations remain independent.
+- Do not add edges for layers, labels, alphabetical order, review order, commit order, or milestone aesthetics.
+- Do not infer a dependency from likely future work; add the missing owner or report `GRAPH_GAP`.
+- A context hint may guide later packet assembly but never defines a packet, phase, plan, model, or execution order.
+- A downstream consumer may remain incomplete only during execution when its graph node is explicit and owns that integration.
 
-## Phase packing: worker context
+## Graph authority
 
-A phase is a worker context unit. Pack the largest coherent dependency-compatible set one worker can safely understand and execute. Optimize for the canonical worker budget in `config/agent-context-budgets.yaml` and the `context_tokens`/`context_budget` tools, including plan context, source context, contracts, expected edits, and return annotations.
+`GRAPH.json` owns requirements, obligations, dependencies, contracts, producer/consumer ownership, acceptance, provenance, and context hints for new work. Feature READMEs, `CONTRACTS.md`, plan files, and task letters are not second authorities. Historical artifacts remain readable under explicit legacy compatibility rules.
 
-Use context locality, related repository surface, satisfied prerequisites, and bounded worker output as primary criteria. Do not split merely because work crosses files, modules, layers, backend/frontend boundaries, or a semantic milestone. Split when context overload, context switching, or a true dependency requires it.
+## Design and execution separation
 
-A phase is not inherently independently testable, compilable, deployable, buildable, releaseable, architectural, or user-visible. Local checks useful for the assigned work remain appropriate. A phase may finish while downstream-owned integration is incomplete.
+Design/planning stops after graph creation or bounded graph amendment and deterministic validation. Runtime execution then:
 
-## Plan packing: manager review context
+1. derives the ready frontier;
+2. claims compatible nodes with one packet-level write scope;
+3. assembles ephemeral worker packets;
+4. accepts per-node evidence and materialized contracts through the Manager;
+5. repeats until terminal closure or a graph gap/blocker is surfaced;
+6. hands the completed graph to canonical QA.
 
-A plan is a manager review context unit. Pack the largest coherent set of phases one manager can validate against the request/DD, contracts, worker results, annotations, changed surfaces, QA findings, and downstream ownership. Split only when manager context would overload or review would become diffuse. Do not split for commits, releases, layer boundaries, fixed counts, or milestone aesthetics.
+No packet, scheduler queue, execution round, plan, or phase artifact is persisted.
 
-A plan is not inherently a commit, PR, release, deployable state, complete feature, or repository-green checkpoint.
+## DD and request provenance
 
-## Context policy
+An accepted request may produce a request-only graph. An accepted DD may produce a DD-backed graph whose `source.design_doc` identifies the DD bundle. Requirement mappings must preserve the request/DD source. Architectural contradictions route upstream; they are not resolved by the graph gate or scheduler.
 
-`config/agent-context-budgets.yaml` is the sole shipped policy source. Planning prose must not duplicate numeric ceilings. Use the budget tools and include the actual context carried by the relevant role. Step count, phase count, dependency depth, and character-count shortcuts are not partition rules.
+## Quality and Git boundaries
 
-## Plan format
-
-Use the existing task-plan format and parser. A plan contains a problem statement, explicit dependencies, phases, flat actionable steps, owned completion criteria, and references. Plan letters/names are stable identifiers only. The feature README carries the actual dependency graph; `A → B` is valid only when an explicit prerequisite exists.
-
-## Completion and downstream state
-
-Review a package for its own obligations, not whole-feature integration:
-
-- `CURRENT_PLAN`: current-owned defect or incomplete obligation; blocks.
-- `DOWNSTREAM_PLAN`: incomplete work is named by a present, schema-valid, non-superseded dependent plan; report and carry forward without blocking.
-- `PLANNING_GAP`: required work has no valid owner; blocks and requires replanning.
-
-Every expected incomplete state must have an explicit downstream owner. Do not use context partitioning as an excuse for arbitrary brokenness.
-
-## Quality handoff
-
-Expose changed surfaces, dependencies, contracts, and explicit user/architecture quality obligations to QA. Do not manufacture universal tests, builds, security reviews, code reviews, verification milestones, or commits in every phase or plan. QA independently selects applicable review/analyzer work from canonical applicability rules; repository-defined checks remain the source of truth.
-
-## Example decomposition
-
-A replacement persistence API may be Plan A, consumer migration Plan B, and legacy removal/final wiring Plan C. Plan A can be accepted while callers still use the old API because Plans B/C explicitly own that integration. This is valid intermediate state, not a release checkpoint. If no later owner exists, the same failure is a planning gap.
+Canonical QA applicability owns test, documentation, boundary, journey, domain-risk, and security selection. Do not insert universal tests, builds, security reviews, code reviews, or commits into decomposition. Git commits remain independent workflow boundaries and never define graph nodes, dependencies, readiness, completion, or archive state.
 
 ## Validation checklist
 
-- Every obligation has one owner.
-- Every dependency edge is a real prerequisite or producer-consumer relation.
-- Independent work remains independent.
-- Phases fit worker context and plans fit manager review context using canonical tools.
-- Plan letters do not imply execution order.
-- Expected incomplete integration has a valid downstream owner.
-- Cross-plan contracts, ownership, cycles, and write overlap are validated after the complete plan set exists.
-- No generic commit step is introduced by decomposition.
+- Every requirement has an owner.
+- Every obligation is bounded and verifiable.
+- Every edge is a real prerequisite or producer/consumer relation.
+- Producer/consumer contracts agree and have valid ancestry.
+- The graph is acyclic and free of unowned gaps.
+- Runtime packetization is deferred until execution.
+- Graph-backed DD archival depends on completed linked graphs and terminal QA, not plan-file absence.
+- Legacy plan terminology appears only in explicitly historical compatibility material.

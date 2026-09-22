@@ -30,7 +30,7 @@ Send this back to Exec-Manager:
 QA review is mandatory. Re-run with QA-Reviewer before reporting DONE.
 
 Your report MUST include:
-- QA-Reviewer verdict and all applicable checks (changed-surface verification, contracts, quality, completeness)
+- QA-Reviewer verdict and all applicable checks (deterministic checks, contracts, completeness, and applicable test/documentation evidence)
 - the complete QA-Reviewer findings and ownership classification
 - no unresolved subject-node defects or unowned graph gaps
 
@@ -38,11 +38,11 @@ Your report MUST include:
 
 Exec-Manager's report must include all of these before accepting DONE:
 
-- [ ] `checks.lint: PASS` (when applicable; include changed-surface evidence)
-- [ ] `checks.layerCompliance: PASS` (when applicable)
+- [ ] `checks.deterministic: PASS` (applicable changed-surface evidence)
 - [ ] `checks.contracts: PASS`
-- [ ] `checks.codeQuality: PASS`
 - [ ] `checks.completeness: PASS` (subject-node obligations)
+- [ ] `checks.testCoverage: PASS` or evidence-based `NOT_APPLICABLE`
+- [ ] `checks.documentation: PASS` or evidence-based `NOT_APPLICABLE`
 
 If any mandatory check is missing, malformed, or not `PASS`, re-dispatch QA-Reviewer. Exec-Manager must
 wait for a complete QA-Reviewer report before reporting DONE again.

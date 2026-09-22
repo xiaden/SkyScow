@@ -372,7 +372,7 @@ const tools = {
   }),
   impl_graph_amend: tool({
     description: "Amend pending implementation graph topology.",
-    args: { graph_id: requiredString("Graph ID"), nodes: tool.schema.array(tool.schema.object({})).optional(), remove_node_ids: optionalStringArray("Node IDs to remove"), requirements: tool.schema.array(tool.schema.object({})).optional(), contracts: tool.schema.array(tool.schema.object({})).optional(), actor: requiredString("Planner actor"), reason: requiredString("Amendment reason") },
+    args: { graph_id: requiredString("Graph ID"), operations: tool.schema.array(tool.schema.object({})).optional().describe("Bounded amendment operations"), nodes: tool.schema.array(tool.schema.object({})).optional(), remove_node_ids: optionalStringArray("Node IDs to remove"), requirements: tool.schema.array(tool.schema.object({})).optional(), contracts: tool.schema.array(tool.schema.object({})).optional(), actor: requiredString("Planner actor"), reason: requiredString("Amendment reason") },
     async execute(args, context) { return runPythonTool("common.tools.impl_graph_amend", args, context) },
   }),
   impl_graph_claim: tool({

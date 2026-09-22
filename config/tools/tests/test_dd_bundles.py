@@ -280,3 +280,15 @@ def test_archive_retries_after_completed_bundle_collision_is_cleared(workspace):
     assert not pending_bundle.exists()
     assert "**Status:** Completed" in destination.joinpath("DD.md").read_text(encoding="utf-8")
     assert not pending_document.exists()
+
+
+def test_graph_backed_dd_requires_archived_graph(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    bundle = workspace / "artifacts/designs/pending/graph-dd"
+    bundle.mkdir(parents=True)
+    (bundle / "DD.md").write_text(
+        "# Graph DD — Design Document\n\n**Status:** Approved\n**Author:** test\n**Created:** 2026-01-01\n\n---\n\n## Implementation Graph\n\ngraph_id: `missing-graph`\n",
+        encoding="utf-8",
+    )
+    result = dd_archive("graph-dd", workspace_root=workspace)
+    assert result["error"] == "linked_graphs_incomplete"

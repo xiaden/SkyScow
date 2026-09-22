@@ -86,3 +86,130 @@ def test_terminal_qa_and_archive_require_fresh_evidence(tmp_path: Path):
     assert "error" not in impl_graph_record_qa("test-graph", "PASS", {"checks": ["ok"]}, workspace_root=workspace)
     assert "error" not in impl_graph_archive("test-graph", workspace_root=workspace)
     assert (workspace / "artifacts/implementation/completed/test-graph/GRAPH.json").is_file()
+
+
+def _frontier_graph(request_context: str, node_ids: list[str]) -> dict:
+    return {
+        "graph_id": "frontier-graph",
+        "title": "Frontier graph",
+        "source": {"request_context": request_context, "design_doc": None},
+        "requirements": [{"id": "R1", "text": "frontier", "source": "request"}],
+        "contracts": [],
+        "nodes": [
+            {"id": node_id, "title": node_id, "obligation": f"Implement {node_id}",
+             "depends_on": [], "satisfies": ["R1"] if index == 0 else [],
+             "acceptance": ["evidence"], "status": "PENDING"}
+            for index, node_id in enumerate(node_ids)
+        ],
+        "final_qa": {"status": "PENDING"},
+    }
+
+
+def test_multi_node_claim_uses_one_packet_scope_and_releases_on_completion(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    request = workspace / "artifacts/requests/CTX_test.md"
+    request.parent.mkdir(parents=True)
+    request.write_text("request", encoding="utf-8")
+    assert "error" not in impl_graph_create(_frontier_graph("artifacts/requests/CTX_test.md", ["I001", "I002"]), workspace_root=workspace)
+
+    claimed = impl_graph_claim(
+        "frontier-graph", ["I001", "I002"], "packet-1", worker="worker",
+        manager_session="session-1", write_scopes=["src/shared/**"], workspace_root=workspace,
+    )
+    assert unwrap(claimed)["claimed"] == ["I001", "I002"]
+    assert "error" in impl_graph_claim(
+        "frontier-graph", ["I001"], "packet-2", manager_session="session-2",
+        write_scopes=["src/shared/**"], workspace_root=workspace,
+    )
+    assert "error" not in impl_graph_release("frontier-graph", ["I001", "I002"], "packet-1", workspace_root=workspace)
+
+    assert "error" not in impl_graph_claim(
+        "frontier-graph", ["I001"], "packet-3", manager_session="session-3",
+        write_scopes=["src/one/**"], workspace_root=workspace,
+    )
+    assert "error" not in impl_graph_claim(
+        "frontier-graph", ["I002"], "packet-4", manager_session="session-4",
+        write_scopes=["src/two/**"], workspace_root=workspace,
+    )
+    assert "error" in impl_graph_claim(
+        "frontier-graph", ["I001"], "packet-5", manager_session="session-5",
+        write_scopes=["src/one/**"], workspace_root=workspace,
+    )
+    assert "error" not in impl_graph_complete(
+        "frontier-graph", ["I001"], "packet-3",
+        results=[{"node_id": "I001", "evidence": ["done"]}], workspace_root=workspace,
+    )
+    assert "error" not in impl_graph_release("frontier-graph", ["I002"], "packet-4", workspace_root=workspace)
+    assert "error" not in impl_graph_claim(
+        "frontier-graph", ["I002"], "packet-6", manager_session="session-6",
+        write_scopes=["src/one/**"], workspace_root=workspace,
+    )
+
+
+def test_claim_rejects_duplicate_node_ids(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    request = workspace / "artifacts/requests/CTX_test.md"
+    request.parent.mkdir(parents=True)
+    request.write_text("request", encoding="utf-8")
+    assert "error" not in impl_graph_create(_frontier_graph("artifacts/requests/CTX_test.md", ["I001"]), workspace_root=workspace)
+    result = impl_graph_claim(
+        "frontier-graph", ["I001", "I001"], "packet", manager_session="session",
+        write_scopes=["src/**"], workspace_root=workspace,
+    )
+    assert result["error"] == "invalid_claim"
+
+
+def test_bounded_amendment_operations_and_guards(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    request = workspace / "artifacts/requests/CTX_test.md"
+    request.parent.mkdir(parents=True)
+    request.write_text("request", encoding="utf-8")
+    candidate = _frontier_graph("artifacts/requests/CTX_test.md", ["I001"])
+    assert "error" not in impl_graph_create(candidate, workspace_root=workspace)
+    result = impl_graph_amend(
+        "frontier-graph",
+        operations=[
+            {"op": "add_node", "node": {"id": "I002", "title": "second", "obligation": "second"}},
+            {"op": "add_dependency", "node_id": "I002", "depends_on": "I001"},
+            {"op": "update_pending_node", "node_id": "I002", "patch": {"acceptance": ["contract"]}},
+            {"op": "map_requirement", "node_id": "I002", "requirement_id": "R1"},
+        ], actor="planner", reason="add bounded downstream obligation", workspace_root=workspace,
+    )
+    assert "error" not in result
+    graph_path = workspace / "artifacts/implementation/pending/frontier-graph/GRAPH.json"
+    graph_state = json.loads(graph_path.read_text())
+    assert graph_state["structure_revision"] == 2
+    assert graph_state["nodes"][1]["depends_on"] == ["I001"]
+    assert "error" in impl_graph_amend(
+        "frontier-graph", operations=[{"op": "add_dependency", "node_id": "I001", "depends_on": "I002"}],
+        actor="planner", reason="cycle", workspace_root=workspace,
+    )
+    assert "error" not in impl_graph_amend(
+        "frontier-graph", operations=[{"op": "remove_dependency", "node_id": "I002", "depends_on": "I001"}],
+        actor="planner", reason="remove edge", workspace_root=workspace,
+    )
+
+    claimed = impl_graph_claim("frontier-graph", ["I001"], "claim", manager_session="session", write_scopes=["src/**"], workspace_root=workspace)
+    assert "error" not in claimed
+    blocked = impl_graph_amend(
+        "frontier-graph", operations=[{"op": "update_pending_node", "node_id": "I002", "patch": {"title": "later"}}],
+        actor="planner", reason="blocked amendment", workspace_root=workspace,
+    )
+    assert blocked["error"] == "amend_failed"
+
+
+def test_workspace_fingerprint_distinguishes_symlink_from_regular_file(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    regular = workspace / "target.txt"
+    regular.write_text("same", encoding="utf-8")
+    first = workspace / "first.txt"
+    first.write_text("same", encoding="utf-8")
+    regular_fingerprint = workspace_fingerprint(workspace)
+    first.unlink()
+    first.symlink_to("target.txt")
+    symlink_fingerprint = workspace_fingerprint(workspace)
+    assert symlink_fingerprint != regular_fingerprint

@@ -139,12 +139,12 @@ Task at hand
 
 | Task | Reference |
 |------|-----------|
-| Execute an implementation plan | [`exec-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-manager.md) |
-| Create, amend, or reorder plans | [`exec-planner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) |
-| Targeted repairs for MINOR review issues | [`exec-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-fixer.md) |
-| Implement a scoped plan phase | [`exec-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-worker.md) |
+| Schedule a persistent implementation graph frontier | [`exec-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-manager.md) |
+| Create or amend `GRAPH.json` topology | [`exec-planner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) |
+| Targeted repairs for MINOR graph-node defects | [`exec-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-fixer.md) |
+| Implement claimed graph obligations | [`exec-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-worker.md) |
 
-Exec-Manager spawns Exec-Worker per phase and Exec-Fixer for MINOR issues. Direct dispatch of Exec-Worker or Exec-Fixer is rare — prefer routing through Exec-Manager.
+Exec-Manager starts a fresh bounded frontier invocation, claims compatible nodes, and dispatches ephemeral worker packets. Direct worker or fixer dispatch is rare — prefer routing through Exec-Manager.
 
 ### R&D Department
 
@@ -259,10 +259,10 @@ Spawning a manager (Exec-Manager, RnD-Manager)?
 
 - **This skill's references:** — self-contained dispatch guides, one per agent type, organized by department:
 
-  **Exec:** [`exec-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-manager.md) — Plan execution lifecycle, QA gate enforcement, fix cycles.
-  [`exec-planner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) — Plan creation, amendment, reordering.
-  [`exec-fixer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-fixer.md) — Targeted MINOR issue repairs.
-  [`exec-worker.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-worker.md) — Scoped plan phase implementation.
+  **Exec:** [`exec-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-manager.md) — Persistent graph frontier scheduling, QA gate enforcement, and bounded support routing.
+  [`exec-planner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-planner.md) — Graph creation, amendment, and topology validation.
+  [`exec-fixer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-fixer.md) — Targeted MINOR graph-node defect repairs.
+  [`exec-worker.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/exec-worker.md) — Ephemeral claimed-node implementation.
 
   **R&D:** [`rnd-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) — Feature design, R&D, tradeoff analysis (orchestrator).
   [`rnd-refiner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) — Adversarial design refinement pipeline.

@@ -1,89 +1,80 @@
 # QA-Reviewer
 
-Dispatch QA-Reviewer as the quality gate after implementation completes.
+Dispatch QA-Reviewer as the normal graph-QA composer after required graph nodes are implemented and before terminal acceptance.
 
-## When to Dispatch
+## Dispatch boundary
 
-**Dispatch when:**
-- Exec-Manager accepts required graph nodes and needs a quality gate before terminal acceptance
-- You need a full, one-pass review of changed code
-- After Exec-Fixer completes repairs on QA-flagged issues
+Dispatch with:
 
-**Do NOT dispatch when:**
-- Implementation is still in progress — QA runs before acceptance of the selected implementation/support graph, not as an implementation substitute
-- You need targeted fixes — use `exec-fixer` instead
-- You need test coverage analysis only — use `qa-test-analyzer` instead
-- You need documentation analysis only — use `qa-docs-analyzer` instead
+- `graph_id`, graph revision/state digest, and `GRAPH.json` path;
+- subject node IDs and any related node IDs;
+- changed files and provenance;
+- request or accepted DD;
+- graph requirements, contracts, acceptance, and ownership context;
+- mode: `GRAPH_WORKSPACE` or `IMMUTABLE_CANDIDATE`.
 
-## Dispatch Template
+Publication QA remains owned by `qa-push-manager` and `qa-repo-review-manager`; do not route publication candidates through this normal graph-QA contract.
 
-```
-Review graph [GRAPH_ID] at revision [GRAPH_REVISION] for subject nodes [NODE_IDS].
+## Composition order
 
-Context files to read:
-- [GRAPH_PATH] — authoritative GRAPH.json
-- [DESIGN_DOC_PATH] — accepted design document, if applicable
-- [AUTHORITATIVE_REQUEST] — verbatim original user request and requirement ledger
-- The validated graph dependency/ownership context and subject node evidence
+QA-Reviewer owns one normal composition pass:
 
-task:
-  graphId: "[graph identifier]"
-  graphRevision: [graph revision]
-  subjectNodeIds: ["I001"]
-  graphPath: "[GRAPH.json path]"
-  designDoc: "[design doc path or N/A]"
-  changedFiles: ["..."]
-```
+1. evaluate applicability once using `config/instructions/qa-applicability.md`;
+2. run deterministic changed-surface checks;
+3. dispatch applicable `qa-test-analyzer` and/or `qa-docs-analyzer`;
+4. wait for analyzer and permitted generator results;
+5. stabilize the post-generation subject files and workspace fingerprint;
+6. dispatch immutable-candidate, read-only specialist reviewers for every applicable lens:
+   - `qa-reviewer-correctness`
+   - `qa-reviewer-boundary`
+   - `qa-reviewer-journey`
+   - `qa-reviewer-domainrisk` (one assigned lens per invocation; canonical concurrency batching only);
+7. synthesize findings and bind terminal PASS to the stabilized post-generation state.
 
-## Analyzer boundary
+The explicit task allow-list is limited to `qa-test-analyzer`, `qa-docs-analyzer`, `qa-reviewer-correctness`, `qa-reviewer-boundary`, `qa-reviewer-journey`, and `qa-reviewer-domainrisk`. No other QA or implementation agent is dispatched from this contract.
 
-QA-Reviewer reviews the actual subject changed by the plan. It dispatches QA-TestAnalyzer and/or
-QA-DocsAnalyzer only when the canonical applicability classification requires them. Those analyzers
-inspect only their own domains, may dispatch their permitted generators, and return exactly
-`PASS`, `GENERATED`, or `FAIL`.
+Analyzer results are exactly `PASS`, `GENERATED`, or `FAIL`. Missing applicable analyzers, failed analyzers, malformed generator results, or generated changes without changed files block terminal PASS. Generator mutation occurs before specialist fan-out and before final evidence/fingerprint capture.
 
-QA-Reviewer waits for applicable analyzer results before running affected tests/checks, so generated
-changes are included. It does not independently re-verify generator work. A missing analyzer, unrecognized
-status, `GENERATED` without changed files, or `FAIL` without a reason is incomplete.
+## Applicability and findings
 
-## Output
+Applicability is never selected by tier, numeric risk, depth score, or subjective change size. Correctness is always required for meaningful implementation, runtime, configuration, or policy behavior. Boundary, journey, domain-risk, test, and documentation lenses run only when canonical observable triggers match. `NOT_APPLICABLE` requires evidence.
 
-The review report includes the direct correctness review plus, when applicable, each analyzer's status,
-summary, generator changed files, and failure reason. Analyzer gaps use only `description`, `files`, and
-`reason`; no severity, plan ownership, durable record, or reconciliation fields are required.
+Every finding retains all related node IDs and uses one classification:
 
-- [ ] `checks.completeness` — all subject node obligations and current-node responsibilities delivered; classify remaining work by graph ownership
-- [ ] Applicable analyzer reports are present and structurally complete, including generator outcome and changed files when a repair is claimed
+- `NODE_DEFECT` — subject-node implementation/evidence defect;
+- `GRAPH_GAP` — missing requirement, owner, dependency, contract, or graph obligation;
+- `ARCHITECTURE_CONTRADICTION` — conflict with accepted request/DD authority.
 
-QA must not report a graph node incomplete solely because it omitted an inapplicable test or documentation obligation. Those
-outputs are derived from the implemented surface and are owned by the applicable analyzer/generator unless
-explicitly required by the user request or accepted architecture.
+Downstream ownership is valid only for an explicit present, non-superseded graph node. Historical plans, likely future work, annotations, and README text are not ownership evidence.
 
-`checks.testCoverage` and `checks.documentation` are applicability-conditional; all other checks must run.
+## Immutable candidate mode
 
-### Output Structure
+`IMMUTABLE_CANDIDATE` reviews a supplied candidate snapshot without mutating it. `GRAPH_WORKSPACE` reviews the current graph workspace after generation and stabilization. Both modes are read-only for QA-Reviewer and specialist reviewers; repairs route separately to Exec-Fixer or Exec-Planner.
 
-```
+## Required output
+
+```yaml
 qaReview:
   status: PASS | MINOR | MAJOR | FAIL
+  graph_id: "..."
+  graph_revision: 0
+  subjectNodeIds: []
+  mode: GRAPH_WORKSPACE | IMMUTABLE_CANDIDATE
+  workspace_fingerprint: "..."
   checks:
-    lint: PASS | FAIL
-    layerCompliance: PASS | FAIL
+    deterministic: PASS | FAIL
     contracts: PASS | FAIL
-    codeQuality: PASS | FAIL
     completeness: PASS | FAIL
-  testCoverage: PASS | FAIL | NOT_APPLICABLE
-  documentation: PASS | FAIL | NOT_APPLICABLE
-  requirementConformance: PASS | FAIL
-    issues: [list of issues with file, line, severity, description, classification, relatedNodeIds, downstreamNodeIds when applicable, blocksSubjectNodes; classification is NODE_DEFECT | GRAPH_GAP | ARCHITECTURE_CONTRADICTION]
-  testAnalyzerReport: { ... }
-  docsAnalyzerReport: { ... }
+    testCoverage: PASS | FAIL | NOT_APPLICABLE
+    documentation: PASS | FAIL | NOT_APPLICABLE
+  analyzerEvidence: []
+  specialistEvidence: []
+  findings:
+    - classification: NODE_DEFECT | GRAPH_GAP | ARCHITECTURE_CONTRADICTION
+      relatedNodeIds: []
+      files: []
+      description: "..."
+      blocksTerminalPass: true
 ```
 
-## QA Gate Enforcement
-
-The QA gate is **mandatory**. Exec-Manager must not report DONE without `qaReview.status: PASS`. The `qa-reassertion` reference covers pushback when this gate is skipped.
-
-## Incomplete Work Handling
-
-Test or documentation status does not create an exception to ownership classification. A spec-first or otherwise incomplete finding is `NODE_DEFECT` when owned by a subject node, `GRAPH_GAP` when required ownership/dependency is absent, and `ARCHITECTURE_CONTRADICTION` when it conflicts with accepted authority. The latter two classifications retain their defined carry-forward or blocking behavior; no annotation-only or likely-future ownership is accepted.
+Normal graph QA is mandatory before Exec-Manager reports terminal acceptance. QA-PushManager and QA-RepoReviewManager retain their existing publication behavior.
