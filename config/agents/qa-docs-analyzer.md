@@ -113,13 +113,8 @@ contextFiles:        # READ THESE FIRST
   - {contracts_file} # Public API signatures
 
 task:
-  plan: "TASK-{feature}-{letter}-{title}"
-  currentPlan: "TASK-{feature}-{letter}-{title}"
-  orderedPlanSet:    # present, schema-valid, dependency-ordered, non-superseded plans
-    - id: "TASK-{feature}-{letter}-{title}"
-      status: present
-      schemaValid: true
-      superseded: false
+  graph_id: "{graph-id}"
+  subjectNodeIds: ["I001"]
   changedFiles:      # Implementation files to analyze
     - "src/persistence/constructor/builder.py"
     - "src/workflows/bar_wf.py"

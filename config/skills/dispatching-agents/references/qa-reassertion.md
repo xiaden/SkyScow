@@ -19,7 +19,7 @@ Reassert until the QA gate is complete. Reject a manager report that:
 
 - is missing the QA-Reviewer report or final verdict;
 - omits required core QA checks or contains malformed QA output;
-- claims completion while QA-Reviewer reports unresolved current-plan or unowned blocking findings;
+- claims completion while QA-Reviewer reports unresolved NODE_DEFECT, GRAPH_GAP, or ARCHITECTURE_CONTRADICTION blocking findings;
 - accepts fixer claims beyond the repairs the fixer actually performed.
 
 Exec-Manager consumes the QA-Reviewer report as a whole and does not reconstruct or reinterpret internal QA details.
@@ -30,19 +30,19 @@ Send this back to Exec-Manager:
 QA review is mandatory. Re-run with QA-Reviewer before reporting DONE.
 
 Your report MUST include:
-- QA-Reviewer verdict and all required checks (lint, layers, contracts, quality, completeness)
+- QA-Reviewer verdict and all applicable checks (changed-surface verification, contracts, quality, completeness)
 - the complete QA-Reviewer findings and ownership classification
-- no unresolved current-plan or unowned blocking findings
+- no unresolved subject-node defects or unowned graph gaps
 
 ## Required Checks
 
 Exec-Manager's report must include all of these before accepting DONE:
 
-- [ ] `checks.lint: PASS`
-- [ ] `checks.layerCompliance: PASS`
+- [ ] `checks.lint: PASS` (when applicable; include changed-surface evidence)
+- [ ] `checks.layerCompliance: PASS` (when applicable)
 - [ ] `checks.contracts: PASS`
 - [ ] `checks.codeQuality: PASS`
-- [ ] `checks.completeness: PASS`
+- [ ] `checks.completeness: PASS` (subject-node obligations)
 
 If any mandatory check is missing, malformed, or not `PASS`, re-dispatch QA-Reviewer. Exec-Manager must
 wait for a complete QA-Reviewer report before reporting DONE again.
@@ -66,4 +66,4 @@ QA-Reviewer must classify test failures:
 Your report MUST include:
 - QA-Reviewer verdict with failure classification
 - the complete QA-Reviewer checks and findings
-- no unresolved current-plan or unowned blocking findings
+- no unresolved subject-node defects or unowned graph gaps

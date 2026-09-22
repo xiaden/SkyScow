@@ -2,7 +2,7 @@
 
 Field contract for a terminal QA round record:
 
-- ``task_family``: existing task-family identity (never minted here).
+- ``graph_id``: graph-native identity for graph work; legacy ``task_family`` remains accepted for publication/compatibility.
 - ``round``: positive integer QA round number.
 - ``writer``: one of ``qa-test-generator``, ``qa-docs-generator``, ``exec-fixer``.
 - ``agent``: non-empty valid agent name that produced the record.
@@ -21,8 +21,8 @@ Field contract for a terminal QA round record:
   is a non-empty stable finding/issue reference.
 - ``repair``: required repair text for ``exec-fixer`` records.
 
-Stable record identity is ``(task_family, round, writer, stable subject
-identity)``. A repeated identity is rejected fail-closed on read and on write,
+Stable record identity is ``(canonical family identity, round, writer, stable subject
+identity)``; graph-native ``graph_id`` is normalized to the canonical family identity. A repeated identity is rejected fail-closed on read and on write,
 while distinct findings, distinct writers, and independent writer concurrency
 remain allowed. Missing history is empty history. Progress, chain-of-thought,
 speculation, and analyzer-never-produced findings are rejected.
@@ -319,7 +319,6 @@ def validate_record(record: dict[str, Any]) -> dict[str, Any]:
     if FORBIDDEN_KEYS.intersection(record):
         raise ValueError("progress, speculation, and chain-of-thought are not record data")
     required = {
-        "task_family",
         "round",
         "writer",
         "agent",
@@ -335,7 +334,13 @@ def validate_record(record: dict[str, Any]) -> dict[str, Any]:
     missing = required - record.keys()
     if missing:
         raise ValueError(f"missing required fields: {', '.join(sorted(missing))}")
-    family = safe_key(record["task_family"], "task family")
+    supplied_family = record.get("task_family")
+    supplied_graph = record.get("graph_id")
+    if not isinstance(supplied_family, str) and not isinstance(supplied_graph, str):
+        raise ValueError("missing required fields: graph_id or task_family")
+    if isinstance(supplied_family, str) and isinstance(supplied_graph, str) and supplied_family.strip() != supplied_graph.strip():
+        raise ValueError("graph_id and task_family must identify the same family")
+    family = safe_key(supplied_graph if isinstance(supplied_graph, str) else supplied_family, "graph identity" if isinstance(supplied_graph, str) else "task family")
     writer = safe_key(record["writer"], "writer")
     if writer not in WRITERS:
         raise ValueError("unsupported writer")
@@ -394,6 +399,8 @@ def validate_record(record: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("fixer records require repair performed")
     result = dict(record)
     result["task_family"] = family
+    if "graph_id" in result:
+        result["graph_id"] = family
     result["writer"] = writer
     return result
 

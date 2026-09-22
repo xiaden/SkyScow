@@ -21,7 +21,8 @@ Context files to read:
 - [files that need documentation]
 - [reference docs for style/format guidance]
 
-task_family: "[existing task family]"
+graph_id: "[existing graph identity]"
+subjectNodeIds: ["I001"]
 round: [positive QA round number]
 
 gaps:
@@ -50,7 +51,7 @@ children.
 | `missing` | Functions/classes/modules needing docs | `DELETE /users/:id`, `UserService.deleteUser()` |
 | `type` | Documentation type | `docstring`, `API doc`, `user doc`, `README` |
 | `reason` | Why docs are needed | "Public API endpoint — no documentation for DELETE behavior" |
-| `task_family` | Existing task family for the durable record | `TASK-api-A-endpoints` |
+  | `graph_id` | Persistent graph identity for the durable record | `api-graph` |
 | `round` | Positive QA round number | `1` |
 
 ## Terminal Contract
@@ -67,7 +68,7 @@ Every invocation ends in **exactly one** verified terminal decision, written via
   authoritative source, no filler would be honest).
 - `ESCALATED` — a systemic documentation or contract problem outside the generator's remit was found.
 
-The record requires `writer`/`agent` = `qa-docs-generator`, the task family and positive round, a stable
+The record requires `writer`/`agent` = `qa-docs-generator`, the graph ID (or legacy task family for publication records) and positive round, a stable
 `subject` (kind plus at least one identifying key), `decision`, `evidence`, `verification`,
 `changed_files`/`changed_symbols` (empty only for a no-change outcome; `REPAIRED` needs at least one),
 and `source_kind: "analyzer-finding"` plus `source_ref`. A failed or missing write is a failed

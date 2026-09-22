@@ -21,7 +21,8 @@ Context files to read:
 - [files that need tests]
 - [reference tests for pattern/style guidance]
 
-task_family: "[existing task family]"
+graph_id: "[existing graph identity]"
+subjectNodeIds: ["I001"]
 round: [positive QA round number]
 
 gaps:
@@ -34,8 +35,7 @@ gaps:
 
 Follow project test conventions. Every invocation ends in exactly one verified terminal decision
 (REPAIRED, UNNECESSARY, BLOCKED, or ESCALATED) written durably via qa_record_write BEFORE you return.
-Keep a meaningful behavioral oracle, exercise real callers where possible, run every test, lint to zero
-errors, and avoid excessive mocking. Leaf agent — no children.
+Keep a meaningful behavioral oracle, exercise real callers where possible, run the repository-defined checks applicable to the changed surface, classify failures by ownership, and avoid excessive mocking. Leaf agent — no children.
 ```
 
 ## Required Fields
@@ -47,7 +47,7 @@ errors, and avoid excessive mocking. Leaf agent — no children.
 | `file` | Path to source file needing tests | `src/auth/service.ts` |
 | `missing` | Functions/classes/paths needing tests | `validateToken()`, `refreshSession()` |
 | `reason` | Why tests are needed | "Core auth logic — validateToken has no test coverage" |
-| `task_family` | Existing task family for the durable record | `TASK-auth-A-login` |
+  | `graph_id` | Persistent graph identity for the durable record | `auth-graph` |
 | `round` | Positive QA round number | `1` |
 
 ## Terminal Contract
@@ -62,7 +62,7 @@ Every invocation ends in **exactly one** verified terminal decision, written via
 - `BLOCKED` — the gap cannot be completed now.
 - `ESCALATED` — an implementation defect or out-of-remit decision was found.
 
-The record requires `writer`/`agent` = `qa-test-generator`, the task family and positive round, a stable
+The record requires `writer`/`agent` = `qa-test-generator`, the graph ID (or legacy task family for publication records) and positive round, a stable
 `subject` (kind plus at least one identifying key), `decision`, `evidence`, `verification`,
 `changed_files`/`changed_symbols` (empty only for a no-change outcome; `REPAIRED` needs at least one),
 and `source_kind: "analyzer-finding"` plus `source_ref`. A failed or missing write is a failed

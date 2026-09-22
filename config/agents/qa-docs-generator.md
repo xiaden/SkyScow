@@ -93,7 +93,7 @@ Generated documentation must be verified against authoritative code, config, and
 
 ## Terminal decisions and durable record (required before return)
 
-Every invocation ends in **exactly one** verified terminal decision, and you write its durable Plan A
+Every invocation ends in **exactly one** verified terminal decision, and you write its durable graph-native
 record via the `qa_record_write` tool **before you return**. Do not report to the caller without a
 successful write; a failed write is a failed invocation. The record is the durable evidence the
 analyzer, reviewer, and manager use to reconcile later rounds.
@@ -115,7 +115,7 @@ Terminal decisions:
 Required record fields:
 
 - `writer: "qa-docs-generator"` and `agent: "qa-docs-generator"`
-- `task_family`: the run's existing family identity (never minted) and a positive `round`
+- `graph_id`: the graph-native identity and positive `round` for graph work; retain legacy `task_family` only for publication records
 - `subject`: stable identity — an object with `kind` plus at least one of
   `file`/`module`/`symbol`/`contract`/`behavior`/`interface`
 - `decision`: exactly one of `REPAIRED`, `UNNECESSARY`, `BLOCKED`, `ESCALATED`

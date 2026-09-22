@@ -149,7 +149,7 @@ or state-machine DSL:
 - **C — Two coupled plans:** select PlanGate for a cross-plan producer/consumer or shared-write trigger, require `PASS`, then dispatch managers in dependency order.
 - **D — Obvious worker defect:** select Exec-Fixer directly with the listed bounded issue; do not invoke Support-Debugger.
 - **E — Unclear worker failure:** select Support-Debugger; route `SIMPLE` to Fixer, `NEEDS_PLAN` to Planner `AMEND` and re-execute affected work, and `INCONCLUSIVE` to escalation.
-- **F — QA `PLANNING_GAP`:** return to Exec-Planner for an amendment, re-execute affected phases, and run independent QA again; never treat the gap as a Fixer issue.
+- **F — QA `GRAPH_GAP`:** return to Exec-Planner for a graph amendment, re-claim affected nodes, and run independent QA again; never treat a graph gap as a Fixer issue.
 - **G — Accepted migration:** select PatternEnforcer for accepted impact closure or migration scope and PlanGate when migration/registry/shared-write triggers are evidenced; findings remain advisory and do not authorize implementation.
 - **H — Historical artifacts:** select Support-Librarian when ADRs, DDs, logs, plans, or dead ends materially constrain routing; record an evidence-based skip when no relevant history exists.
 - **I — No history:** with no relevant artifact infrastructure or material history, skip Support-Librarian and record the reason; do not manufacture a briefing.

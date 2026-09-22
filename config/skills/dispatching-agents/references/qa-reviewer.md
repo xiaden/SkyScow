@@ -75,7 +75,7 @@ qaReview:
   testCoverage: PASS | FAIL | NOT_APPLICABLE
   documentation: PASS | FAIL | NOT_APPLICABLE
   requirementConformance: PASS | FAIL
-    issues: [list of issues with file, line, severity, description, ownership, downstreamPlan when applicable, blocksCurrentPlan; ownership is CURRENT_PLAN | DOWNSTREAM_PLAN | PLANNING_GAP]
+    issues: [list of issues with file, line, severity, description, classification, relatedNodeIds, downstreamNodeIds when applicable, blocksSubjectNodes; classification is NODE_DEFECT | GRAPH_GAP | ARCHITECTURE_CONTRADICTION]
   testAnalyzerReport: { ... }
   docsAnalyzerReport: { ... }
 ```
@@ -86,4 +86,4 @@ The QA gate is **mandatory**. Exec-Manager must not report DONE without `qaRevie
 
 ## Incomplete Work Handling
 
-Test or documentation status does not create an exception to ownership classification. A spec-first or otherwise incomplete finding is `CURRENT_PLAN` when owned here, `DOWNSTREAM_PLAN` only with a validated later owner in the supplied plan set, and `PLANNING_GAP` otherwise. The latter two classifications retain their defined carry-forward or blocking behavior; no annotation-only or likely-future ownership is accepted.
+Test or documentation status does not create an exception to ownership classification. A spec-first or otherwise incomplete finding is `NODE_DEFECT` when owned by a subject node, `GRAPH_GAP` when required ownership/dependency is absent, and `ARCHITECTURE_CONTRADICTION` when it conflicts with accepted authority. The latter two classifications retain their defined carry-forward or blocking behavior; no annotation-only or likely-future ownership is accepted.

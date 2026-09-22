@@ -372,12 +372,12 @@ const tools = {
   }),
   impl_graph_amend: tool({
     description: "Amend pending implementation graph topology.",
-    args: { graph_id: requiredString("Graph ID"), nodes: tool.schema.array(tool.schema.object({})).optional(), remove_node_ids: optionalStringArray("Node IDs to remove"), requirements: tool.schema.array(tool.schema.object({})).optional(), contracts: tool.schema.array(tool.schema.object({})).optional(), actor: optionalString("Planner actor") },
+    args: { graph_id: requiredString("Graph ID"), nodes: tool.schema.array(tool.schema.object({})).optional(), remove_node_ids: optionalStringArray("Node IDs to remove"), requirements: tool.schema.array(tool.schema.object({})).optional(), contracts: tool.schema.array(tool.schema.object({})).optional(), actor: requiredString("Planner actor"), reason: requiredString("Amendment reason") },
     async execute(args, context) { return runPythonTool("common.tools.impl_graph_amend", args, context) },
   }),
   impl_graph_claim: tool({
     description: "Claim derived-ready implementation nodes.",
-    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), worker: optionalString("Worker identity"), changed_files: optionalStringArray("Known changed files") },
+    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), worker: optionalString("Worker identity"), manager_session: requiredString("Manager frontier session"), changed_files: optionalStringArray("Known changed files"), write_scopes: stringArray("Manager-established write scopes") },
     async execute(args, context) { return runPythonTool("common.tools.impl_graph_claim", args, context) },
   }),
   impl_graph_release: tool({
@@ -387,7 +387,7 @@ const tools = {
   }),
   impl_graph_complete: tool({
     description: "Accept claimed implementation nodes.",
-    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), evidence: tool.schema.array(tool.schema.unknown()).optional(), changed_files: optionalStringArray("Changed files"), provenance: tool.schema.array(tool.schema.unknown()).optional(), deviations: optionalStringArray("Deviations"), actual_contracts: tool.schema.array(tool.schema.unknown()).optional() },
+    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), results: tool.schema.array(tool.schema.object({})).describe("Exactly one distinct result per claimed node") },
     async execute(args, context) { return runPythonTool("common.tools.impl_graph_complete", args, context) },
   }),
   impl_graph_block: tool({
@@ -397,12 +397,12 @@ const tools = {
   }),
   impl_graph_record_qa: tool({
     description: "Record terminal graph QA.",
-    args: { graph_id: requiredString("Graph ID"), status: requiredString("PASS or FAIL"), evidence: tool.schema.unknown(), graph_revision: requiredNumber("Graph revision"), graph_digest: requiredString("Graph digest"), workspace_fingerprint: requiredString("Workspace fingerprint") },
+    args: { graph_id: requiredString("Graph ID"), status: requiredString("PASS or FAIL"), evidence: tool.schema.unknown() },
     async execute(args, context) { return runPythonTool("common.tools.impl_graph_record_qa", args, context) },
   }),
   impl_graph_archive: tool({
     description: "Archive a complete implementation graph after terminal QA.",
-    args: { graph_id: requiredString("Graph ID"), graph_revision: requiredNumber("Graph revision"), graph_digest: requiredString("Graph digest"), workspace_fingerprint: requiredString("Workspace fingerprint") },
+    args: { graph_id: requiredString("Graph ID") },
     async execute(args, context) { return runPythonTool("common.tools.impl_graph_archive", args, context) },
   }),
 
@@ -423,7 +423,7 @@ const tools = {
     description:
       "Measure generic file context plus optional implementation-graph worker-node and manager-review packets using the shipped orchestration policy (config/agent-context-budgets.yaml). Legacy plan parsing is retained only for historical compatibility.",
     args: {
-      files: tool.schema.array(fileRangeSchema).describe("Files or line ranges to measure"),
+      files: tool.schema.array(fileRangeSchema).optional().describe("Files or line ranges to measure; omit when using an ephemeral graph packet"),
       graph_packet: tool.schema.object({}).optional().describe("Ephemeral worker-node or manager-review packet"),
     },
     async execute(args: ToolArgs, context: ToolContext) {
@@ -479,7 +479,7 @@ const tools = {
 
   qa_record_write: tool({
     description:
-      "Write a validated terminal QA round record under artifacts/logs/qa-rounds. Records are writer-isolated for qa-test-generator, qa-docs-generator, or exec-fixer; generator decisions are REPAIRED, UNNECESSARY, BLOCKED, or ESCALATED, while exec-fixer may write only REPAIRED. A repeated stable record identity (task_family, round, writer, subject) is rejected fail-closed.",
+      "Write a validated terminal QA round record under artifacts/logs/qa-rounds. Records are writer-isolated for qa-test-generator, qa-docs-generator, or exec-fixer; generator decisions are REPAIRED, UNNECESSARY, BLOCKED, or ESCALATED, while exec-fixer may write only REPAIRED. A repeated stable record identity (graph_id or legacy task_family, round, writer, subject) is rejected fail-closed.",
     args: {
       record: tool.schema
         .object({})
@@ -494,9 +494,10 @@ const tools = {
 
   qa_record_read: tool({
     description:
-      "Read validated terminal QA round records for a required task family, optionally filtered by round, writer, subject substring, decision, or provenance (source_kind exact, source_ref substring). Missing history is empty; malformed or cross-family history fails closed.",
+      "Read validated terminal QA round records for an existing graph_id or legacy task_family, optionally filtered by round, writer, subject substring, decision, or provenance. Missing history is empty; malformed or cross-family history fails closed.",
     args: {
-      task_family: requiredString("Existing task-family identity"),
+      task_family: optionalString("Legacy existing task-family identity (publication/compatibility records)"),
+      graph_id: optionalString("Graph-native identity for graph execution records"),
       round: optionalNumber("Positive QA round number"),
       writer: optionalString("Writer: qa-test-generator, qa-docs-generator, or exec-fixer"),
       subject: optionalString("Subject substring filter"),

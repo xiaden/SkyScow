@@ -68,7 +68,8 @@ def _indexed_records(
 def qa_record_read(
     *,
     workspace_root: Path,
-    task_family: str,
+    task_family: str = "",
+    graph_id: str = "",
     round: int | None = None,
     writer: str = "",
     subject: str = "",
@@ -83,7 +84,9 @@ def qa_record_read(
     strict validation and fail-closed corruption handling.
     """
     try:
-        family = safe_key(task_family, "task family")
+        if task_family and graph_id and task_family.strip() != graph_id.strip():
+            raise ValueError("graph_id and task_family must identify the same family")
+        family = safe_key(graph_id or task_family, "graph identity" if graph_id else "task family")
         writers = [writer] if writer else sorted(WRITERS)
         for item in writers:
             if item not in WRITERS:
@@ -116,7 +119,7 @@ def qa_record_read(
             )
         return {
             "output": json.dumps(
-                {"task_family": family, "records": records, "total": len(records)}
+                {"task_family": family, "graph_id": family, "records": records, "total": len(records)}
             ),
             "title": "Read QA Round Records",
             "metadata": {"count": len(records)},
@@ -131,7 +134,8 @@ if __name__ == "__main__":
         json.dumps(
             qa_record_read(
                 workspace_root=Path(args["workspace_root"]),
-                task_family=args["task_family"],
+                task_family=args.get("task_family", ""),
+                graph_id=args.get("graph_id", ""),
                 round=args.get("round"),
                 writer=args.get("writer", ""),
                 subject=args.get("subject", ""),

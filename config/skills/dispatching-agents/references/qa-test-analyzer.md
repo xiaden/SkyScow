@@ -24,11 +24,12 @@ owns only HOW test analysis is performed.
 Analyze test coverage and quality for the changed files.
 
 Context files to read:
-- [PLAN_PATH]
-- [list changed files covered by the plan]
+- [GRAPH_PATH]
+- [list changed files covered by the subject nodes]
 
 scope: "[files/modules to analyze]"
-plan: "[plan identifier]"
+graph_id: "[graph identifier]"
+subjectNodeIds: ["I001"]
 changedFiles: ["..."]
 
 Inspect the current surface and report concrete test gaps. If a repairable gap exists, dispatch
@@ -42,7 +43,7 @@ Generator history.
 | Field | Description | Example |
 |-------|-------------|---------|
 | `scope` | Files/modules to analyze | `src/auth/, src/auth/__tests__/` |
-| `plan` | Plan identifier for context | `TASK-auth-A-login` |
+| `graph_id` | Persistent graph identity for context | `auth-graph` |
 | `changedFiles` | Changed surface | `["src/auth/service.py"]` |
 
 ## Expected Output

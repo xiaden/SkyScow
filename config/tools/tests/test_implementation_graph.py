@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from common.helpers.implementation_graph import graph_digest, workspace_fingerprint
+from common.helpers.implementation_graph import implementation_state_digest, workspace_fingerprint
 from common.tools.impl_graph_amend import impl_graph_amend
 from common.tools.impl_graph_archive import impl_graph_archive
 from common.tools.impl_graph_block import impl_graph_block
@@ -42,15 +42,15 @@ def test_graph_lifecycle_and_qa_invalidation(tmp_path: Path):
     workspace = request.parents[2]
     assert "error" not in impl_graph_create(graph(), workspace_root=workspace)
     assert unwrap(impl_graph_read("test-graph", "ready", workspace_root=workspace))["nodes"][0]["id"] == "I001"
-    claimed = unwrap(impl_graph_claim("test-graph", ["I001"], "claim-1", worker="worker", workspace_root=workspace))
+    claimed = unwrap(impl_graph_claim("test-graph", ["I001"], "claim-1", worker="worker", manager_session="session-1", write_scopes=["src/**"], workspace_root=workspace))
     assert claimed["claimed"] == ["I001"]
-    assert "error" in impl_graph_claim("test-graph", ["I002"], "claim-2", workspace_root=workspace)
-    complete = unwrap(impl_graph_complete("test-graph", ["I001"], "claim-1", evidence=["ok"], workspace_root=workspace))
+    assert "error" in impl_graph_claim("test-graph", ["I002"], "claim-2", manager_session="session-1", write_scopes=["src/**"], workspace_root=workspace)
+    complete = unwrap(impl_graph_complete("test-graph", ["I001"], "claim-1", results=[{"node_id": "I001", "evidence": ["ok"]}], workspace_root=workspace))
     assert complete["completed"] == ["I001"]
     assert unwrap(impl_graph_read("test-graph", "ready", workspace_root=workspace))["nodes"][0]["id"] == "I002"
-    assert "error" not in impl_graph_amend("test-graph", nodes=[{"id": "I003", "title": "third", "obligation": "third", "depends_on": ["I002"], "status": "PENDING"}], workspace_root=workspace)
+    assert "error" not in impl_graph_amend("test-graph", nodes=[{"id": "I003", "title": "third", "obligation": "third", "depends_on": ["I002"], "status": "PENDING"}], actor="planner", reason="add downstream obligation", workspace_root=workspace)
     assert unwrap(impl_graph_validate("test-graph", workspace_root=workspace))["valid"]
-    claimed = unwrap(impl_graph_claim("test-graph", ["I002"], "claim-2", worker="worker", workspace_root=workspace))
+    claimed = unwrap(impl_graph_claim("test-graph", ["I002"], "claim-2", worker="worker", manager_session="session-1", write_scopes=["src/**"], workspace_root=workspace))
     assert claimed["claimed"] == ["I002"]
     assert "error" in impl_graph_release("test-graph", ["I002"], "missing", workspace_root=workspace)
     released = unwrap(impl_graph_release("test-graph", ["I002"], "claim-2", workspace_root=workspace))
@@ -80,10 +80,9 @@ def test_terminal_qa_and_archive_require_fresh_evidence(tmp_path: Path):
     request.write_text("request", encoding="utf-8")
     candidate = graph(); candidate["nodes"] = [candidate["nodes"][0]]
     assert "error" not in impl_graph_create(candidate, workspace_root=workspace)
-    claim = unwrap(impl_graph_claim("test-graph", ["I001"], "claim", workspace_root=workspace))
-    impl_graph_complete("test-graph", ["I001"], "claim", workspace_root=workspace)
+    claim = unwrap(impl_graph_claim("test-graph", ["I001"], "claim", manager_session="session-1", write_scopes=["src/**"], workspace_root=workspace))
+    impl_graph_complete("test-graph", ["I001"], "claim", results=[{"node_id": "I001", "evidence": ["ok"]}], workspace_root=workspace)
     current = json.loads((workspace / "artifacts/implementation/pending/test-graph/GRAPH.json").read_text())
-    digest = graph_digest(current); fingerprint = workspace_fingerprint(workspace)
-    assert "error" not in impl_graph_record_qa("test-graph", "PASS", {"checks": ["ok"]}, current["revision"], digest, fingerprint, workspace_root=workspace)
-    assert "error" not in impl_graph_archive("test-graph", current["revision"], graph_digest(json.loads((workspace / "artifacts/implementation/pending/test-graph/GRAPH.json").read_text())), fingerprint, workspace_root=workspace)
+    assert "error" not in impl_graph_record_qa("test-graph", "PASS", {"checks": ["ok"]}, workspace_root=workspace)
+    assert "error" not in impl_graph_archive("test-graph", workspace_root=workspace)
     assert (workspace / "artifacts/implementation/completed/test-graph/GRAPH.json").is_file()

@@ -15,7 +15,7 @@ def impl_graph_release(graph_id: str, node_ids: list[str], claim_id: str, *, wor
             for node_id in node_ids:
                 nodes[node_id]["status"] = "PENDING"; nodes[node_id]["claim"] = None
         graph, _, _ = mutate_graph(workspace_root, graph_id, apply)
-        return output({"graph_id": graph_id, "released": node_ids, "revision": graph["revision"]}, "Release Implementation Nodes")
+        return output({"graph_id": graph_id, "released": node_ids, "state_revision": graph["state_revision"], "structure_revision": graph["structure_revision"]}, "Release Implementation Nodes")
     except (ValueError, OSError) as exc: return {"error": "release_failed", "message": str(exc)}
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import fcntl
 from pathlib import Path
 from typing import Any
 
@@ -27,13 +28,17 @@ def impl_graph_create(graph: dict[str, Any], *, workspace_root: Path) -> dict[st
         path = graph_path(workspace_root, candidate["graph_id"])
     except ValueError as exc:
         return {"error": "invalid_graph_id", "message": str(exc)}
-    if path.exists():
-        return {"error": "already_exists", "message": f"graph already exists: {candidate['graph_id']}"}
+    lock_path = path.parent.parent / f".{candidate['graph_id']}.create.lock"
     try:
-        atomic_write(path, candidate)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(lock_path, "a", encoding="utf-8") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            if path.exists() or graph_path(workspace_root, candidate["graph_id"], completed=True).exists():
+                return {"error": "already_exists", "message": f"graph already exists: {candidate['graph_id']}"}
+            atomic_write(path, candidate)
     except OSError as exc:
         return {"error": "write_failed", "message": str(exc)}
-    return output({"graph_id": candidate["graph_id"], "revision": candidate["revision"], "path": str(path.relative_to(workspace_root))}, "Create Implementation Graph")
+    return output({"graph_id": candidate["graph_id"], "structure_revision": candidate["structure_revision"], "state_revision": candidate["state_revision"], "revision": candidate["revision"], "path": str(path.relative_to(workspace_root))}, "Create Implementation Graph")
 
 
 if __name__ == "__main__":

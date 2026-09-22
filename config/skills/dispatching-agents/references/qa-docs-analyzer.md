@@ -24,12 +24,13 @@ owns only HOW documentation analysis is performed.
 Analyze documentation coverage and accuracy for the changed files.
 
 Context files to read:
-- [PLAN_PATH]
-- [list changed files covered by the plan]
+- [GRAPH_PATH]
+- [list changed files covered by the subject nodes]
 - [existing docs or READMEs for context]
 
 scope: "[files/modules to analyze]"
-plan: "[plan identifier]"
+graph_id: "[graph identifier]"
+subjectNodeIds: ["I001"]
 changedFiles: ["..."]
 
 Inspect the current surface and report concrete documentation gaps. If a repairable gap exists, dispatch
@@ -43,7 +44,7 @@ reconstruct Generator history.
 | Field | Description | Example |
 |-------|-------------|---------|
 | `scope` | Files/modules to analyze | `src/api/routes/, docs/api/` |
-| `plan` | Plan identifier for context | `TASK-api-A-endpoints` |
+| `graph_id` | Persistent graph identity for context | `api-graph` |
 | `changedFiles` | Changed surface | `["src/api/routes.py"]` |
 
 ## Expected Output

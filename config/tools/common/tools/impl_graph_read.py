@@ -10,7 +10,7 @@ from ..helpers.implementation_graph import output, read_graph
 
 def _ready(graph: dict[str, Any]) -> list[dict[str, Any]]:
     nodes = {node["id"]: node for node in graph["nodes"]}
-    return [node for node in graph["nodes"] if node.get("status") == "PENDING" and all(nodes.get(dep, {}).get("status") in {"COMPLETE", "SUPERSEDED"} for dep in node.get("depends_on", []))]
+    return [node for node in graph["nodes"] if node.get("status") == "PENDING" and all(nodes.get(dep, {}).get("status") == "COMPLETE" for dep in node.get("depends_on", []))]
 
 
 def _summary(graph: dict[str, Any]) -> dict[str, Any]:
@@ -19,7 +19,7 @@ def _summary(graph: dict[str, Any]) -> dict[str, Any]:
         status = node.get("status", "PENDING")
         counts[status] = counts.get(status, 0) + 1
     ready = _ready(graph)
-    return {"graph_id": graph["graph_id"], "title": graph["title"], "revision": graph.get("revision", 1), "counts": counts, "ready": [node["id"] for node in ready], "final_qa": graph["final_qa"]}
+    return {"graph_id": graph["graph_id"], "title": graph["title"], "structure_revision": graph.get("structure_revision", 1), "state_revision": graph.get("state_revision", graph.get("revision", 1)), "revision": graph.get("revision", 1), "counts": counts, "ready": [node["id"] for node in ready], "final_qa": graph["final_qa"]}
 
 
 def impl_graph_read(graph_id: str, view: str = "summary", node_ids: list[str] | None = None, requirement_id: str | None = None, contract_id: str | None = None, limit: int = 20, *, workspace_root: Path) -> dict[str, Any]:

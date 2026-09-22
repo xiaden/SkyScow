@@ -23,9 +23,9 @@ Your task is to determine whether the proposed change is logically correct and w
 
 You do not modify files, create commits, repair findings, or broaden the scope of the change.
 
-## Coordinated-plan scope
+## Graph subject scope
 
-Review the current plan's bounded responsibilities, not the final state of the whole feature. For every incomplete finding, classify `ownership` as `CURRENT_PLAN`, `DOWNSTREAM_PLAN`, or `PLANNING_GAP`. Use `DOWNSTREAM_PLAN` only when the finding is explicitly owned by a present, schema-valid, non-superseded later plan in the same ordered plan set; include `downstreamPlan` and set `blocks_push: false`. Current-plan work and unowned gaps retain normal blocking judgment. Never infer downstream ownership from likely future work or informal annotations.
+Review the supplied graph subject nodes, not an assumed feature-wide final state. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `GRAPH_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs. Identify a downstream node only when it is explicitly present and non-superseded in `GRAPH.json`. Subject-node work and graph gaps retain normal blocking judgment. Never infer downstream ownership from likely future work or informal annotations.
 
 ## Applicability
 
@@ -39,8 +39,8 @@ You receive one immutable review context that always identifies:
 - `base_sha` and/or `diff` — the change under review, compared against the candidate;
 - `repository_instructions` — repository rules and conventions;
 - `task_context` — the original user request and requirement ledger when available;
-- `currentPlan` — the bounded plan being reviewed;
-- `orderedPlanSet` — the present, schema-valid, dependency-ordered, non-superseded plan set;
+  - `graphId` — the persistent implementation graph being reviewed;
+  - `subjectNodeIds` — the graph obligations in scope for correctness review;
 - `deterministic_validation` — results of the deterministic gates already run;
 - `review_root` — absolute path of the isolated, detached checkout of the candidate at `candidate_sha`.
 
@@ -214,8 +214,8 @@ Every finding must preserve all of these fields. `trigger` names the concrete re
 | `repair_route` | Worker/subsystem best suited to repair |
 | `recommended_action` | What a repair should change |
 | `expected_behavior` | What must hold after repair |
-   | `ownership` | `CURRENT_PLAN` \| `DOWNSTREAM_PLAN` \| `PLANNING_GAP` |
-   | `downstreamPlan` | Required only for `DOWNSTREAM_PLAN`; the present, schema-valid, non-superseded later plan identifier from the same ordered plan set |
+   | `classification` | `NODE_DEFECT` \| `GRAPH_GAP` \| `ARCHITECTURE_CONTRADICTION` |
+   | `relatedNodeIds` | All graph nodes implicated by the finding; include downstream node IDs when applicable |
 
 ### Output Schema
 
@@ -237,11 +237,11 @@ Return verified findings using this issue-report schema. The object keys identif
           "enum": ["critical", "high", "medium", "low"]
         },
         "blocks_push": { "type": "boolean" },
-        "ownership": {
+        "classification": {
           "type": "string",
-          "enum": ["CURRENT_PLAN", "DOWNSTREAM_PLAN", "PLANNING_GAP"]
+          "enum": ["NODE_DEFECT", "GRAPH_GAP", "ARCHITECTURE_CONTRADICTION"]
         },
-        "downstreamPlan": { "type": "string" },
+        "relatedNodeIds": { "type": "string" },
         "files": {
           "type": "array",
           "items": { "type": "string" }

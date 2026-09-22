@@ -123,20 +123,15 @@ reports whether generation succeeded and does not re-run or re-audit it.
 
 ```yaml
 contextFiles:        # READ THESE FIRST
-  - {plan_file}      # What was implemented
-  - {contracts_file} # Method signatures to verify
+  - {graph_file}     # Graph obligations and accepted implementation
+  - {contracts_file} # Materialized contract records
   - {testing_instructions_backend}
   - {testing_instructions_frontend}  # If frontend changes
   - {testing_instructions_e2e}       # If e2e relevant
 
 task:
-  plan: "TASK-{feature}-{letter}-{title}"
-  currentPlan: "TASK-{feature}-{letter}-{title}"
-  orderedPlanSet:    # present, schema-valid, dependency-ordered, non-superseded plans
-    - id: "TASK-{feature}-{letter}-{title}"
-      status: present
-      schemaValid: true
-      superseded: false
+  graph_id: "{graph-id}"
+  subjectNodeIds: ["I001"]
   changedFiles:      # Implementation files to analyze
     - "src/persistence/constructor/builder.py"
     - "src/workflows/bar_wf.py"

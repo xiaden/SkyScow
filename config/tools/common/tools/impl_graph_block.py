@@ -17,7 +17,7 @@ def impl_graph_block(graph_id: str, node_ids: list[str], reason: str, claim_id: 
             for node_id in node_ids:
                 node = nodes[node_id]; node["status"] = "BLOCKED"; node["claim"] = None; node["blocker"] = reason
         graph, _, _ = mutate_graph(workspace_root, graph_id, apply)
-        return output({"graph_id": graph_id, "blocked": node_ids, "revision": graph["revision"]}, "Block Implementation Nodes")
+        return output({"graph_id": graph_id, "blocked": node_ids, "state_revision": graph["state_revision"], "structure_revision": graph["structure_revision"]}, "Block Implementation Nodes")
     except (ValueError, OSError) as exc: return {"error": "block_failed", "message": str(exc)}
 
 if __name__ == "__main__":
