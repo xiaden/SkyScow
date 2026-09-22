@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from common.helpers.implementation_graph import implementation_state_digest, workspace_fingerprint
+from common.helpers.implementation_graph import graph_structure_digest, implementation_state_digest, workspace_fingerprint
 from common.tools.impl_graph_amend import impl_graph_amend
 from common.tools.impl_graph_archive import impl_graph_archive
 from common.tools.impl_graph_block import impl_graph_block
@@ -161,6 +161,32 @@ def test_claim_rejects_duplicate_node_ids(tmp_path: Path):
     assert result["error"] == "invalid_claim"
 
 
+def test_claim_requires_current_structure_view_and_accepts_matching_revision(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    request = workspace / "artifacts/requests/CTX_test.md"
+    request.parent.mkdir(parents=True)
+    request.write_text("request", encoding="utf-8")
+    assert "error" not in impl_graph_create(_frontier_graph("artifacts/requests/CTX_test.md", ["I001"]), workspace_root=workspace)
+    current = json.loads((workspace / "artifacts/implementation/pending/frontier-graph/GRAPH.json").read_text())
+    assert "error" not in impl_graph_amend(
+        "frontier-graph", operations=[{"op": "update_pending_node", "node_id": "I001", "patch": {"title": "updated"}}],
+        actor="planner", reason="structural race", workspace_root=workspace,
+    )
+    stale = impl_graph_claim(
+        "frontier-graph", ["I001"], "stale", manager_session="session", write_scopes=["src/**"],
+        expected_structure_revision=current["structure_revision"], workspace_root=workspace,
+    )
+    assert stale["error"] == "stale_graph_view"
+    current = json.loads((workspace / "artifacts/implementation/pending/frontier-graph/GRAPH.json").read_text())
+    matching = impl_graph_claim(
+        "frontier-graph", ["I001"], "current", manager_session="session", write_scopes=["src/**"],
+        expected_structure_revision=current["structure_revision"], expected_structure_digest=graph_structure_digest(current),
+        workspace_root=workspace,
+    )
+    assert "error" not in matching
+
+
 def test_bounded_amendment_operations_and_guards(tmp_path: Path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -199,6 +225,95 @@ def test_bounded_amendment_operations_and_guards(tmp_path: Path):
         actor="planner", reason="blocked amendment", workspace_root=workspace,
     )
     assert blocked["error"] == "amend_failed"
+
+
+def test_state_progress_does_not_stale_structural_claim_view(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    request = workspace / "artifacts/requests/CTX_test.md"
+    request.parent.mkdir(parents=True)
+    request.write_text("request", encoding="utf-8")
+    assert "error" not in impl_graph_create(_frontier_graph("artifacts/requests/CTX_test.md", ["I001", "I002"]), workspace_root=workspace)
+    state = json.loads((workspace / "artifacts/implementation/pending/frontier-graph/GRAPH.json").read_text())
+    structure_revision = state["structure_revision"]
+    structure_digest = graph_structure_digest(state)
+    assert "error" not in impl_graph_claim(
+        "frontier-graph", ["I002"], "packet-1", manager_session="session-1", write_scopes=["src/two/**"],
+        expected_structure_revision=structure_revision, expected_structure_digest=structure_digest, workspace_root=workspace,
+    )
+    assert "error" not in impl_graph_claim(
+        "frontier-graph", ["I001"], "packet-2", manager_session="session-2", write_scopes=["src/one/**"],
+        expected_structure_revision=structure_revision, expected_structure_digest=structure_digest, workspace_root=workspace,
+    )
+
+
+def test_supersede_blocked_node_rewires_dependents(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    request = workspace / "artifacts/requests/CTX_test.md"
+    request.parent.mkdir(parents=True)
+    request.write_text("request", encoding="utf-8")
+    assert "error" not in impl_graph_create(graph(), workspace_root=workspace)
+    assert "error" not in impl_graph_claim(
+        "test-graph", ["I001"], "packet", manager_session="session", write_scopes=["src/**"], workspace_root=workspace,
+    )
+    assert "error" not in impl_graph_block("test-graph", ["I001"], "blocked", claim_id="packet", workspace_root=workspace)
+    amended = impl_graph_amend(
+        "test-graph", operations=[{
+            "op": "supersede_blocked_node", "blocked_node_id": "I001",
+            "replacement_node": {"id": "I003", "title": "replacement", "obligation": "Implement replacement", "depends_on": [], "satisfies": ["R1"], "acceptance": ["evidence"], "consumes": [], "produces": [], "context_hints": {}},
+            "rewire_dependents": ["I002"], "rewire_contracts": [], "rewire_requirements": ["R1"],
+        }], actor="planner", reason="recover blocked producer", workspace_root=workspace,
+    )
+    assert "error" not in amended
+    state = json.loads((workspace / "artifacts/implementation/pending/test-graph/GRAPH.json").read_text())
+    nodes = {node["id"]: node for node in state["nodes"]}
+    assert nodes["I001"]["status"] == "SUPERSEDED"
+    assert nodes["I002"]["depends_on"] == ["I003"]
+    assert nodes["I003"]["status"] == "PENDING"
+    assert unwrap(impl_graph_read("test-graph", "ready", workspace_root=workspace))["nodes"][0]["id"] == "I003"
+
+
+def test_supersede_rejects_active_or_complete_targets(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    request = workspace / "artifacts/requests/CTX_test.md"
+    request.parent.mkdir(parents=True)
+    request.write_text("request", encoding="utf-8")
+    assert "error" not in impl_graph_create(_frontier_graph("artifacts/requests/CTX_test.md", ["I001"]), workspace_root=workspace)
+    assert "error" not in impl_graph_claim("frontier-graph", ["I001"], "active", manager_session="session", write_scopes=["src/**"], workspace_root=workspace)
+    active = impl_graph_amend("frontier-graph", operations=[{"op": "supersede_blocked_node", "blocked_node_id": "I001", "replacement_node": {"id": "I002", "obligation": "replacement"}, "rewire_dependents": [], "rewire_contracts": [], "rewire_requirements": []}], actor="planner", reason="invalid active", workspace_root=workspace)
+    assert active["error"] == "amend_failed"
+
+
+def test_add_node_preserves_semantic_fields_and_resets_runtime_fields(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    request = workspace / "artifacts/requests/CTX_test.md"
+    request.parent.mkdir(parents=True)
+    request.write_text("request", encoding="utf-8")
+    assert "error" not in impl_graph_create(_frontier_graph("artifacts/requests/CTX_test.md", ["I001"]), workspace_root=workspace)
+    semantic = {
+        "id": "I002", "title": "Preserve title", "obligation": "Preserve obligation",
+        "depends_on": ["I001"], "satisfies": ["R1"], "acceptance": ["contract"],
+        "consumes": [], "produces": [], "context_hints": {"files": ["src/a.py"]},
+        "status": "COMPLETE", "claim": {"id": "old"}, "evidence": ["old"],
+        "provenance": ["old"], "changed_files": ["old.py"], "deviations": ["old"],
+        "blocker": "old", "completion_result": {"old": True},
+    }
+    assert "error" not in impl_graph_amend(
+        "frontier-graph", operations=[{"op": "add_node", "node": semantic}],
+        actor="planner", reason="add semantic node", workspace_root=workspace,
+    )
+    state = json.loads((workspace / "artifacts/implementation/pending/frontier-graph/GRAPH.json").read_text())
+    node = next(item for item in state["nodes"] if item["id"] == "I002")
+    assert node["title"] == "Preserve title"
+    assert node["obligation"] == "Preserve obligation"
+    assert node["depends_on"] == ["I001"]
+    assert node["context_hints"] == {"files": ["src/a.py"]}
+    assert node["status"] == "PENDING" and node["claim"] is None
+    assert node["evidence"] == [] and node["provenance"] == [] and node["changed_files"] == []
+    assert node["deviations"] == [] and node["blocker"] is None and "completion_result" not in node
 
 
 def test_workspace_fingerprint_distinguishes_symlink_from_regular_file(tmp_path: Path):

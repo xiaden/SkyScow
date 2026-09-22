@@ -15,7 +15,7 @@ Dispatch Exec-Manager to schedule a persistent implementation graph.
 ## Dispatch Template
 
 ```text
-Execute graph [GRAPH_ID] at revision [GRAPH_REVISION].
+Execute graph [GRAPH_ID] at structure revision [STRUCTURE_REVISION] and structural digest [STRUCTURE_DIGEST].
 
 Context:
 - [REQUEST_OR_DD_PATH]
@@ -27,7 +27,7 @@ The manager must:
 - Read the graph summary and derived-ready nodes.
 - Claim compatible nodes atomically before any worker dispatch.
 - Pack only obligations/contracts/source context that fit the ephemeral worker packet.
-- Dispatch Exec-Worker with graph ID, revision, node IDs, and claim ID.
+- Dispatch Exec-Worker with graph ID, current structure/state revisions, structural digest, node IDs, and claim ID.
 - Accept only evidence-backed node completion; release or block claims explicitly.
 - Route observed defects, unclear failures, graph gaps, and architectural contradictions only to the appropriate bounded capability.
 - Run mandatory independent terminal QA after all required nodes are complete.
@@ -37,7 +37,9 @@ Do not edit production code, amend topology, create plans, persist packets, bypa
 
 task:
   graph_id: "[GRAPH_ID]"
-  graph_revision: [GRAPH_REVISION]
+  structure_revision: [STRUCTURE_REVISION]
+  structure_digest: [STRUCTURE_DIGEST]
+  state_revision: [STATE_REVISION]
   terminal_review_required: true
 ```
 
@@ -46,7 +48,9 @@ task:
 | Field | Description |
 | --- | --- |
 | `[GRAPH_ID]` | Persistent implementation graph identity |
-| `[GRAPH_REVISION]` | Revision read before claiming nodes |
+| `[STRUCTURE_REVISION]` | Structural revision read before claiming nodes |
+| `[STRUCTURE_DIGEST]` | Structural digest read before claiming nodes |
+| `[STATE_REVISION]` | Current runtime state revision used for packet provenance |
 | request/DD context | Requirement provenance and accepted architecture |
 | graph context | Requirements, contracts, nodes, statuses, blockers |
 | source context | Bounded files and repository facts for packet assembly |
@@ -73,7 +77,8 @@ A graph amendment, accepted implementation mutation, or repair invalidates termi
 status: DONE | BLOCKED | ESCALATE
 summary: "..."
 graph_id: "[GRAPH_ID]"
-revision: 3
+structure_revision: 3
+state_revision: 5
 selected_nodes: ["I001"]
 completed_nodes: ["I001"]
 blocked_nodes: []
@@ -82,7 +87,7 @@ execution_trace:
   skipped: []
   outcomes: []
   terminal_reason: "..."
-qa: {status: PASS | FAIL | NOT_RUN, graph_revision: 3}
+qa: {status: PASS | FAIL | NOT_RUN, state_revision: 5, implementation_state_digest: "...", workspace_fingerprint: "..."}
 archive: {status: ARCHIVED | PENDING}
 blockers: []
 ```

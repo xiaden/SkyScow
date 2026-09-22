@@ -377,7 +377,7 @@ const tools = {
   }),
   impl_graph_claim: tool({
     description: "Claim derived-ready implementation nodes.",
-    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), worker: optionalString("Worker identity"), manager_session: requiredString("Manager frontier session"), changed_files: optionalStringArray("Known changed files"), write_scopes: stringArray("Manager-established write scopes") },
+    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), worker: optionalString("Worker identity"), manager_session: requiredString("Manager frontier session"), expected_structure_revision: requiredNumber("Expected structural revision"), expected_structure_digest: optionalString("Expected structural digest"), changed_files: optionalStringArray("Known changed files"), write_scopes: stringArray("Manager-established write scopes") },
     async execute(args, context) { return runPythonTool("common.tools.impl_graph_claim", args, context) },
   }),
   impl_graph_release: tool({

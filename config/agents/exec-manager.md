@@ -84,15 +84,15 @@ terminal_review_required: true
 
 1. Read the request or accepted/amended DD and graph contract context.
 2. Read `impl_graph_read(graph_id, view="summary")`, `ready`, `active`, and `blocked` as needed.
-3. Require the supplied graph revision to be current and the graph to validate. Never read or create a new plan artifact for graph-native work.
+3. Require the supplied structure revision and structural digest to be current and the graph to validate. If `impl_graph_claim` returns `stale_graph_view`, reread the graph, rebuild the packet, and retry; never dispatch a packet built from stale topology. Never read or create a new plan artifact for graph-native work.
 4. Use `context_budget`/`context_tokens` to assemble an ephemeral packet; do not persist the packet.
 
 ### 2. Schedule ready obligations
 
 1. Select only `PENDING` nodes whose dependencies are `COMPLETE`; superseded predecessors require an explicit Planner amendment before readiness.
 2. Pack nodes together only when their contracts, source context, acceptance, and return envelope fit; reject known write overlap. No known overlap is not proof of safe concurrency.
-3. Call `impl_graph_claim` with a fresh claim identity, graph revision, worker identity, and known changed files.
-4. Dispatch Exec-Worker with graph ID, revision, claimed node IDs, claim ID, contracts, acceptance, and bounded source context.
+3. Call `impl_graph_claim` with a fresh claim identity, expected structure revision/digest, worker identity, and known changed files.
+4. Dispatch Exec-Worker with graph ID, current structure/state revisions, structural digest, claimed node IDs, claim ID, contracts, acceptance, and bounded source context.
 5. Independent ready branches may run concurrently. A blocked branch does not block unrelated ready work.
 
 ### 3. Route worker results

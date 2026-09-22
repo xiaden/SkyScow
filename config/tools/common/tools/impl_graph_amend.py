@@ -37,23 +37,106 @@ def _apply_operation(graph: dict[str, Any], operation: dict[str, Any], affected:
     requirements = {item["id"]: item for item in graph["requirements"]}
 
     if op == "add_node":
-        node = operation.get("node")
-        if not isinstance(node, dict):
+        supplied = operation.get("node")
+        if not isinstance(supplied, dict):
             raise ValueError("add_node requires node")
-        node = dict(node)
+        node = dict(supplied)
         node_id = _require_id(node.get("id"), "node id")
         if node_id in nodes:
             raise ValueError(f"node already exists: {node_id}")
+        node.setdefault("depends_on", [])
+        node.setdefault("satisfies", [])
+        node.setdefault("acceptance", [])
+        node.setdefault("consumes", [])
+        node.setdefault("produces", [])
+        node.setdefault("context_hints", {})
         node.update({
-            "status": "PENDING", "depends_on": [], "satisfies": [],
-            "acceptance": [], "consumes": [], "produces": [],
-            "context_hints": {}, "claim": None, "evidence": [],
-            "provenance": [], "blocker": None, "changed_files": [], "deviations": [],
+            "status": "PENDING",
+            "claim": None,
+            "evidence": [],
+            "provenance": [],
+            "blocker": None,
+            "changed_files": [],
+            "deviations": [],
         })
+        node.pop("completion_result", None)
+        node.pop("actual_contracts", None)
         if not isinstance(node.get("obligation"), str) or not node["obligation"].strip():
             raise ValueError("add_node requires a non-empty obligation")
         graph["nodes"].append(node)
         affected.add(node_id)
+        return
+
+    if op == "supersede_blocked_node":
+        blocked_id = _require_id(operation.get("blocked_node_id"), "blocked_node_id")
+        blocked = nodes.get(blocked_id)
+        if blocked is None or blocked.get("status") != "BLOCKED":
+            raise ValueError("blocked_node_id must identify a BLOCKED node")
+        replacement = operation.get("replacement_node")
+        if not isinstance(replacement, dict):
+            raise ValueError("replacement_node is required")
+        replacement = dict(replacement)
+        replacement_id = _require_id(replacement.get("id"), "replacement node id")
+        if replacement_id in nodes:
+            raise ValueError(f"replacement node already exists: {replacement_id}")
+        replacement.setdefault("depends_on", [])
+        replacement.setdefault("satisfies", [])
+        replacement.setdefault("acceptance", [])
+        replacement.setdefault("consumes", [])
+        replacement.setdefault("produces", [])
+        replacement.setdefault("context_hints", {})
+        replacement.setdefault("write_scopes", [])
+        replacement.update({"status": "PENDING", "claim": None, "evidence": [], "provenance": [], "blocker": None, "changed_files": [], "deviations": []})
+        replacement.pop("completion_result", None)
+        replacement.pop("actual_contracts", None)
+        if not isinstance(replacement.get("obligation"), str) or not replacement["obligation"].strip():
+            raise ValueError("replacement_node requires a non-empty obligation")
+        graph["nodes"].append(replacement)
+        rewired = operation.get("rewire_dependents")
+        if not isinstance(rewired, list) or len(set(rewired)) != len(rewired):
+            raise ValueError("supersede_blocked_node requires an explicit unique rewire_dependents array")
+        actual_dependents = {node["id"] for node in graph["nodes"] if blocked_id in node.get("depends_on", [])}
+        if set(rewired) != actual_dependents:
+            raise ValueError("rewire_dependents must name every direct dependent exactly")
+        for dependent_id in rewired:
+            dependent = nodes.get(dependent_id)
+            if dependent is None or blocked_id not in dependent.get("depends_on", []):
+                raise ValueError(f"dependent is not wired to blocked node: {dependent_id}")
+            dependent["depends_on"] = [replacement_id if dep == blocked_id else dep for dep in dependent["depends_on"]]
+            affected.add(dependent_id)
+        contract_ids = operation.get("rewire_contracts", [])
+        requirement_ids = operation.get("rewire_requirements", [])
+        if not isinstance(contract_ids, list) or len(set(contract_ids)) != len(contract_ids):
+            raise ValueError("rewire_contracts must be a unique array")
+        if not isinstance(requirement_ids, list) or len(set(requirement_ids)) != len(requirement_ids):
+            raise ValueError("rewire_requirements must be a unique array")
+        for contract_id in contract_ids:
+            contract = contracts.get(contract_id)
+            if contract is None:
+                raise ValueError(f"unknown contract: {contract_id}")
+            if contract.get("producer") == blocked_id:
+                contract["producer"] = replacement_id
+            for node in graph["nodes"]:
+                if contract_id in node.get("consumes", []) and node["id"] == blocked_id:
+                    node["consumes"] = [contract_id if ref == contract_id else ref for ref in node.get("consumes", [])]
+                if contract_id in node.get("produces", []) and node["id"] == blocked_id:
+                    node["produces"] = [contract_id if ref == contract_id else ref for ref in node.get("produces", [])]
+            if contract_id in blocked.get("consumes", []) and contract_id not in replacement.setdefault("consumes", []):
+                replacement["consumes"].append(contract_id)
+            if contract_id in blocked.get("produces", []) and contract_id not in replacement.setdefault("produces", []):
+                replacement["produces"].append(contract_id)
+            affected.add(contract_id)
+        for requirement_id in requirement_ids:
+            if requirement_id not in requirements:
+                raise ValueError(f"unknown requirement: {requirement_id}")
+            if requirement_id not in blocked.get("satisfies", []):
+                raise ValueError(f"blocked node does not satisfy requirement: {requirement_id}")
+            if requirement_id not in replacement.setdefault("satisfies", []):
+                replacement["satisfies"].append(requirement_id)
+            affected.add(requirement_id)
+        blocked["status"] = "SUPERSEDED"
+        blocked["claim"] = None
+        affected.update({blocked_id, replacement_id})
         return
 
     if op in {"update_pending_node", "remove_pending_node", "add_dependency", "remove_dependency", "map_requirement", "unmap_requirement"}:
@@ -64,7 +147,6 @@ def _apply_operation(graph: dict[str, Any], operation: dict[str, Any], affected:
         if node.get("status") != "PENDING":
             raise ValueError(f"only pending nodes may be amended: {node_id}")
         affected.add(node_id)
-
         if op == "update_pending_node":
             patch = operation.get("patch")
             if not isinstance(patch, dict) or not patch:

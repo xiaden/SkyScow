@@ -5,7 +5,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..helpers.implementation_graph import derived_ready, mutate_graph, node_map, output
+from ..helpers.implementation_graph import derived_ready, graph_structure_digest, mutate_graph, node_map, output
+
+
+class StaleGraphViewError(ValueError):
+    """The manager packet was built from an obsolete structural graph view."""
 
 
 def _scope_set(values: list[str] | None) -> set[str] | None:
@@ -27,6 +31,8 @@ def impl_graph_claim(
     changed_files: list[str] | None = None,
     write_scopes: list[str] | None = None,
     manager_session: str | None = None,
+    expected_structure_revision: int | None = None,
+    expected_structure_digest: str | None = None,
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
@@ -41,6 +47,13 @@ def impl_graph_claim(
     requested_scope = _scope_set(write_scopes)
     try:
         def apply(graph):
+            if expected_structure_revision is not None and graph.get("structure_revision") != expected_structure_revision:
+                raise StaleGraphViewError(
+                    f"stale_graph_view: expected structure_revision {expected_structure_revision}, "
+                    f"current is {graph.get('structure_revision')}"
+                )
+            if expected_structure_digest is not None and graph_structure_digest(graph) != expected_structure_digest:
+                raise StaleGraphViewError("stale_graph_view: expected structure digest does not match current graph")
             nodes = node_map(graph)
             ready = {node["id"] for node in derived_ready(graph)}
             for node_id in node_ids:
@@ -80,6 +93,8 @@ def impl_graph_claim(
 
         graph, _, _ = mutate_graph(workspace_root, graph_id, apply)
         return output({"graph_id": graph_id, "claim_id": claim_id, "claimed": node_ids, "state_revision": graph["state_revision"]}, "Claim Implementation Nodes")
+    except StaleGraphViewError as exc:
+        return {"error": "stale_graph_view", "message": str(exc)}
     except (ValueError, OSError) as exc:
         return {"error": "claim_failed", "message": str(exc)}
 
@@ -89,5 +104,5 @@ if __name__ == "__main__":
     print(json.dumps(impl_graph_claim(
         args["graph_id"], args["node_ids"], args["claim_id"], args.get("worker"),
         args.get("changed_files"), args.get("write_scopes"), args.get("manager_session"),
-        workspace_root=Path(args["workspace_root"]),
+        args.get("expected_structure_revision"), args.get("expected_structure_digest"), workspace_root=Path(args["workspace_root"]),
     )))
