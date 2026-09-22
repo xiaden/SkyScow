@@ -1,145 +1,59 @@
-# Execution Subagent Dispatch Protocol
+# Graph Execution Protocol
 
-How to construct subagent prompts that produce correct, focused implementations one phase at a time.
+This protocol constructs ephemeral worker packets from the authoritative implementation graph. It does not create or execute Markdown plans.
 
----
+## Packet structure
 
-## Prompt Structure
+Every worker dispatch includes:
 
-Every execution subagent call includes these sections:
+1. **TASK** — graph ID, current revision, claim ID, and claimed node IDs.
+2. **GRAPH CONTEXT** — obligations, dependencies, requirements, contracts, acceptance, provenance, and blockers relevant to the claimed nodes.
+3. **SOURCE CONTEXT** — bounded repository files and patterns required by those obligations.
+4. **CONSTRAINTS** — assigned nodes only, no topology/status mutation, no persisted packet.
+5. **RETURN** — per-node evidence, changed files, actual contracts, deviations, downstream-owned gaps, and ownerless blockers.
 
-```
-1. TASK          — Which plan, which phase, what to implement
-2. PLAN          — Full plan content (for orientation across all phases)
-3. CONTRACTS     — Relevant CONTRACTS.md entries (methods to call or create)
-4. PRIOR WORK    — Annotations from completed phases (if resuming mid-plan)
-5. CONSTRAINTS   — Architecture rules, what NOT to touch
-6. COMPLETION    — How to signal done (plan_complete_step per step)
-```
+## Packet template
 
----
-
-## Prompt Template
-
-```
-Execute implementation for:
+```text
+Implement claimed graph nodes:
 
 ## Task
-Plan: {plan file path}
-Phase: {phase number} — {phase title}
-Implement all steps in this phase. Mark each step complete using plan_complete_step as you finish it.
+graph_id: {graph_id}
+graph_revision: {graph_revision}
+claim_id: {claim_id}
+node_ids: [{node_ids}]
 
-## Full Plan
-{Paste full plan file content — the subagent needs all phases for orientation,
-but ONLY implements the target phase.}
+## Graph context
+{obligations, requirements, contracts, acceptance, dependency state, and provenance}
 
-## Contracts from Prior Plans
-{Paste relevant CONTRACTS.md sections. Include:
-- Methods this phase CALLS (from upstream plans)
-- Methods this phase CREATES (so downstream is aware)
-- DTOs referenced in this phase
-- Relevant architectural decisions
-
-If the ledger is small, paste the whole thing. If large, extract relevant sections.}
-
-## Prior Phase Work
-{If this is Phase 2+ of the same plan, paste annotations from prior phases.
-These come from plan_complete_step annotations.
-If Phase 1, write: "This is the first phase. No prior work."}
+## Source context
+{bounded files and relevant repository patterns}
 
 ## Constraints
-- Implement ONLY the assigned worker-context phase steps. Do not work on other phases.
-- Follow project architecture: layers, DI patterns, layer-appropriate data structures.
-- **Quality standards (ECC):** files 200–400 lines typical (800 max), functions <50 lines, nesting <4 levels.
-- **Immutability:** never mutate — return new objects/arrays. No `obj.prop = x`, no `list.append()`.
-- **No console.log/print()** — use the project's logging facility. Remove any debugging output before completing.
-- Lint after completing each step that modifies files.
-- Verify the changed surface with repository-defined checks; do not assume a test suite exists and do not target a universal coverage percentage (see `/home/opencode/.config/opencode/instructions/validation-mandate.md`).
-- If a step cannot be completed as written, annotate it with what blocked you and move on.
-  Do NOT silently skip or half-implement steps.
-- Use existing patterns from the codebase. Before creating a new module, check if a similar
-  one exists using available code-reading tools.
+- Implement only claimed nodes.
+- Do not claim, release, complete, block, or amend graph state.
+- Do not write this packet to disk.
+- Preserve real contracts and report deviations.
 
-## Completion
-- Mark each step complete using plan_complete_step(plan_name="{plan_name}", step_id="{step_id}")
-- Add annotations for anything noteworthy: deviations from plan, decisions made, issues found
-- After completing the assigned worker-context obligations, run useful repository-defined checks for the changed surface where possible; classify failures by current-plan ownership, named downstream ownership, or no owner.
-- Report: which steps completed, which (if any) were blocked, and any deviations from plan
+## Return
+For each node: evidence, changed files, actual contracts, verification, downstream owner if incomplete, or ownerless blocker.
 ```
 
----
+## Context assembly
 
-## Context Injection Rules
+Use `context_tokens` for generic file ranges and `context_budget` with `graph_packet.kind: worker_node` for packet sizing. Include only source, contracts, acceptance, and request/DD context needed by the claimed nodes. Do not split or combine nodes merely by layer; combine only when obligations and context fit, and split semantically unified work when canonical context policy overloads.
 
-### What to always include
+## Scheduling and safety
 
- | Context | Source | Purpose |
- | --- | --- | --- |
- | Target plan | `artifacts/plans/pending/TASK-{feature}-{letter}-*.md` | Phase boundaries, step descriptions, what NOT to implement yet |
- | Contracts ledger | `artifacts/designs/pending/{feature}/CONTRACTS.md` | Method signatures to call or create — prevents guessing |
- | Feature parts README | `artifacts/designs/pending/{feature}/README.md` | Explicit dependency graph, ownership boundaries, and dependency-ready groups |
- | This prompt template | `{execution_protocol_file}` | Reference for constructing the subagent prompt |
- | **Layer instructions — include ALL that apply to this phase:** | | |
- | Interfaces layer | `{interfaces_instructions_file}` | Route handlers, auth, data-validation-only rule |
- | Services layer | `{services_instructions_file}` | DI wiring, thinness, no business logic |
- | Workflows layer | `{workflows_instructions_file}` | Use-case orchestration, one public function per file |
- | Components layer | `{components_instructions_file}` | Domain logic, stateless functions, ML isolation |
- | Persistence layer | `{persistence_instructions_file}` | Query patterns, db.module.method() access pattern |
- | Helpers layer | `{helpers_instructions_file}` | Pure utilities, DTOs, no business logic imports |
- | Frontend | `{frontend_instructions_file}` | UI conventions, framework patterns |
+Exec-Manager derives readiness and atomically claims nodes before dispatch. Independent ready nodes may share a packet or run concurrently only when existing graph metadata proves no dependency, no required output dependency, no known write overlap, satisfied prerequisites, and order irrelevance. A lack of known overlap is not proof of safety. Do not introduce a phase DAG, workflow schema, queue, or persisted packet store.
 
-Include the instruction and contract context for the actual worker scope. Do not split or combine phases merely by layer; a phase may span layers when the owned obligations and worker context fit, and may split a semantically unified area when context would overload.
+## Failure handling
 
-### What to include conditionally
+Classify each failure as:
 
- | Context | When |
- | --- | --- |
- | Prior phase annotations | Phase 2+ of same plan |
- | Specific codebase patterns | When the plan references "follow pattern in X" |
- | Design doc sections | When plan steps reference design decisions |
+- **Node-owned:** current obligation or implementation defect; fix or block it.
+- **Downstream-owned:** incomplete integration is explicitly owned by a present, non-superseded graph node; report that owner.
+- **Graph gap:** missing caller, contract, dependency, or impossible acceptance; return to Exec-Planner.
+- **Ownerless:** block/escalate; never hide it as downstream work.
 
-### What to never include
-
- | Context | Why |
- | --- | --- |
- | Other plans' full content | Bloats context, causes cross-plan confusion |
- | Entire CONTRACTS.md for early plans | If only 2 entries exist, paste them; don't paste the boilerplate |
- | General coding instructions | The subagent inherits project context already |
-
----
-
-## Granularity: Phase, Not Plan
-
-**One worker context unit per dispatch by default.** A phase is a dependency-compatible package of implementation obligations sized for one worker's canonical context. Reasons:
-
-1. **Context focus** — Keep related repository context together without requiring a semantic release milestone.
-2. **Checkpoint safety** — If context runs out, you lose at most one worker context unit, not the whole plan.
-3. **Annotation feedback** — Between worker context units, read annotations and adjust the next dispatch.
-4. **Review accuracy** — Bounded worker packages keep ownership and annotations close to the implementation obligations.
-
-**Safe independence exception:** A manager may dispatch independent phase work only when existing plan metadata proves no output or annotation dependency, no write overlap, all prerequisites are satisfied, and execution order is irrelevant. A phase with 1–2 trivial steps may still be combined with an adjacent phase. Do not introduce a phase DAG or new execution schema.
-
----
-
-## Handling Subagent Failures
-
- | Situation | Action |
- | --- | --- |
- | Subagent completes all steps | Proceed to next phase |
- | Subagent completes some steps, blocks on others | Read annotations. Fix blockers yourself or adjust plan, then re-dispatch for remaining steps |
- | Subagent reports a plan error (wrong method signature, missing dependency) | Update the plan. Do NOT ask the subagent to improvise around plan errors |
- | Subagent runs out of context mid-phase | Check which steps completed via plan_read. Re-dispatch for remaining steps in the phase |
- | Subagent produces code that doesn't lint | This should be caught by the subagent's own lint step. If it wasn't, note it for review |
-
----
-
-## Step Tracking
-
-The subagent uses `plan_complete_step` to mark each step as it finishes. The orchestrator (you) verifies after the subagent returns:
-
-1. Run `plan_read` on the plan
-2. Check that all steps in the target phase are complete
-3. Read annotations for deviations or concerns
-4. If steps are missing completion marks, investigate — don't assume they were done
-
-**Annotations are first-class output.** They feed into the review phase and the next execution dispatch. Encourage subagents to annotate liberally.
+A blocked branch does not block independent branches. A no-ready incomplete graph must surface as a gap/deadlock.

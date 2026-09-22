@@ -55,6 +55,29 @@ def _measure(workspace, files, policy_file=None, monkeypatch=None):
 
 
 # ---------------------------------------------------------------------------
+# Graph packet input
+# ---------------------------------------------------------------------------
+
+
+def test_worker_packet_without_files_is_ephemeral(workspace):
+    result = context_budget.context_budget(
+        files=None,
+        graph_packet={
+            "kind": "worker_node",
+            "graph_id": "graph-test",
+            "node_ids": ["I001"],
+            "request_context": "obligation context",
+            "contracts": [{"id": "C1", "actual": "contract"}],
+            "acceptance": ["done"],
+        },
+        workspace_root=workspace,
+    )
+    assert "error" not in result
+    assert result["packet"]["ephemeral"] is True
+    assert result["packet"]["kind"] == "worker_node"
+
+
+# ---------------------------------------------------------------------------
 # Files-only input validation
 # ---------------------------------------------------------------------------
 

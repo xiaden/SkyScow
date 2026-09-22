@@ -4,22 +4,19 @@ Production-hardened entry point for the ``context_budget`` MCP tool.
 
 Contracts
 ---------
-- **Files-only input.** ``files`` is a non-empty list of
-  ``{path, start_line, end_line}`` objects. Unknown top-level keys, non-string
-  paths, non-positive or inverted line ranges, traversal attempts, and
-  unreadable files are rejected with stable compact errors. No other input
-  shape is accepted; there is no policy or metadata injection channel.
+- **Generic file input.** ``files`` is a non-empty list of
+  ``{path, start_line, end_line}`` objects. Optional ``graph_packet`` measures an
+  ephemeral worker-node or manager-review packet assembled from graph node
+  context; graph packets are never persisted. Unknown keys, invalid ranges,
+  traversal attempts, and unreadable files are rejected.
 - **Model metadata from frontmatter only.** Agent markdown files (path
   contains an ``agents`` segment and ends in ``.md``) contribute their
   frontmatter ``model:`` value through ``budget_policy.frontmatter_model``.
   Model selection is allowlisted with a deterministic ``DS_V4_F_0731``
   fallback (see ``budget_policy.select_tokenizer_model``).
-- **Structured plan parsing.** Files whose path contains a ``plans`` segment
-  and end in ``.md`` are parsed with ``plan_md.parse_plan`` over their full
-  content (the requested range is ignored for parsing). Explicit phases must
-  be sequentially numbered starting at 1 and each contain at least one usable
-  flat step; violations yield ``plan_validation`` errors. A plan with no
-  explicit phases falls back to worker-limit phase estimation.
+- **Historical plan compatibility.** Files whose path contains a ``plans``
+  segment and end in ``.md`` may still be parsed with ``plan_md.parse_plan`` for
+  legacy callers. Graph-native packets do not parse plans or require phases.
 - **Fixed policy.** All limits come from the shipped
   ``config/agent-context-budgets.yaml`` via ``budget_policy.load_policy``.
   Agent frontmatter is never consulted for policy.
@@ -46,6 +43,7 @@ from ..helpers.tokenizer_helpers import (
 )
 
 _ALLOWED_ENTRY_KEYS = frozenset({"path", "start_line", "end_line"})
+_ALLOWED_PACKET_KEYS = frozenset({"kind", "graph_id", "node_ids", "files", "request_context", "contracts", "acceptance", "worker_return_tokens", "qa_return_tokens"})
 _MESSAGE_LIMIT = 300
 _TITLE_LIMIT = 120
 
@@ -208,7 +206,29 @@ def _build_planning(
     }
 
 
-def context_budget(files: list[dict[str, Any]], workspace_root: Path) -> dict[str, Any]:
+def _packet_sections(packet: dict[str, Any], workspace_root: Path) -> list[str] | dict[str, str]:
+    if set(packet) - _ALLOWED_PACKET_KEYS:
+        return _error("invalid_graph_packet", "graph_packet has unsupported keys")
+    if packet.get("kind") not in {"worker_node", "manager_review"}:
+        return _error("invalid_graph_packet", "kind must be worker_node or manager_review")
+    sections = [json.dumps({key: packet.get(key) for key in ("graph_id", "node_ids", "contracts", "acceptance") if key in packet}, sort_keys=True)]
+    for entry in packet.get("files", []):
+        if not isinstance(entry, dict):
+            return _error("invalid_graph_packet", "packet files must be objects")
+        path = entry.get("path"); start = _integer(entry.get("start_line")); end = _integer(entry.get("end_line"))
+        if not isinstance(path, str) or start is None or end is None or end < start:
+            return _error("invalid_graph_packet", "packet file ranges are invalid")
+        resolved = resolve_file_path(path, workspace_root)
+        if isinstance(resolved, dict):
+            return _error("invalid_graph_packet", resolved.get("error", "invalid packet path"))
+        try:
+            sections.append(read_subsection(resolved, start, end))
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            return _error("invalid_graph_packet", str(exc))
+    return sections
+
+
+def context_budget(files: list[dict[str, Any]] | None, workspace_root: Path, graph_packet: dict[str, Any] | None = None) -> dict[str, Any]:
     """Measure supplied files and project worker/manager context budgets.
 
     Args:
@@ -219,10 +239,17 @@ def context_budget(files: list[dict[str, Any]], workspace_root: Path) -> dict[st
         A compact JSON-serializable result, or a stable ``{error, message}``
         object.
     """
-    if not isinstance(files, list) or not files:
-        return _error("invalid_files", "files must be a non-empty array")
+    if files is None:
+        files = []
+    if not isinstance(files, list) or (not files and graph_packet is None):
+        return _error("invalid_files", "files must be a non-empty array unless graph_packet is supplied")
 
     workspace_root = workspace_root.resolve()
+    packet_sections = None
+    if graph_packet is not None:
+        packet_sections = _packet_sections(graph_packet, workspace_root)
+        if isinstance(packet_sections, dict):
+            return packet_sections
     policy, policy_diagnostics = load_policy(workspace_root)
 
     sections: list[str] = []
@@ -278,6 +305,10 @@ def context_budget(files: list[dict[str, Any]], workspace_root: Path) -> dict[st
             except (OSError, UnicodeDecodeError):
                 agent_models.append(None)
 
+    if packet_sections:
+        sections.extend(packet_sections)
+    if not sections:
+        return _error("invalid_graph_packet", "graph_packet must contain measurable context")
     source = assemble_sections(sections)
     model = select_tokenizer_model(agent_models)
 
@@ -313,7 +344,7 @@ def context_budget(files: list[dict[str, Any]], workspace_root: Path) -> dict[st
         policy, weighted, phases, explicit_phases, phases_detail
     )
 
-    return {
+    result = {
         "model": model,
         "measured": {
             "source_tokens": source_tokens,
@@ -332,6 +363,14 @@ def context_budget(files: list[dict[str, Any]], workspace_root: Path) -> dict[st
             "correction_multiplier": policy["correction_multiplier"],
         },
     }
+    if graph_packet is not None:
+        result["packet"] = {
+            "kind": graph_packet.get("kind"),
+            "graph_id": graph_packet.get("graph_id"),
+            "node_ids": graph_packet.get("node_ids", []),
+            "ephemeral": True,
+        }
+    return result
 
 
 if __name__ == "__main__":
@@ -339,5 +378,6 @@ if __name__ == "__main__":
     result = context_budget(
         files=arguments.get("files"),
         workspace_root=Path(arguments["workspace_root"]),
+        graph_packet=arguments.get("graph_packet"),
     )
     print(json.dumps(result, separators=(",", ":")))

@@ -1,278 +1,44 @@
-# Review Subagent Protocol
+# Graph Review Protocol
 
-How to dispatch review subagents that catch drift, sloppy code, lazy patterns, and architectural violations. The review agent is the quality gate — it must be thorough.
+QA reviews the implemented graph after all required nodes are accepted. Early review may provide feedback but is not terminal acceptance.
 
----
+## Review input
 
-## Prompt Structure
-
-```
-1. TASK          — What was just implemented (plan name, manager-review package, assigned worker-context phases)
-2. PLAN          — Full plan content (so reviewer knows what was intended)
-3. CONTRACTS     — CONTRACTS.md entries this plan should have created/used
-4. REVIEW SCOPE  — Files and modules touched by this plan
-5. CHECKLIST     — Explicit review categories (below)
-6. OUTPUT FORMAT — Structured verdict
-```
-
----
-
-## Prompt Template
-
-```
-Review the implementation of the plan's bounded manager-review package:
-
-## Task
-Plan: {plan file path}
-Round: {N}  ← Orchestrator fills this in. Round 1 = first review of this plan. Round 2 = after a fix cycle. Round 3+ = auto-flag DISCUSS regardless of issue severity.
-The selected implementation/support graph for this plan has reached a reviewable boundary. Review this plan's bounded implementation slice for quality, correctness, and architectural compliance. Use the present validated ordered plan set to distinguish work owned by this plan from work explicitly owned by a later plan; the feature may remain incomplete only when that later owner is present, schema-valid, and non-superseded.
-
-## Layer Docs
-{Include ALL that apply to layers touched by this plan. Copy the relevant rows from the table below.}
-
- | Layer | File | Purpose | 
- | --- | --- | --- | 
- | Interfaces | `{interfaces_instructions_file}` | Route handlers, auth, data-validation-only rule | 
- | Services | `{services_instructions_file}` | DI wiring, thinness, no business logic | 
- | Workflows | `{workflows_instructions_file}` | Use-case orchestration, one public function per file | 
- | Components | `{components_instructions_file}` | Domain logic, stateless functions, ML isolation | 
- | Persistence | `{persistence_instructions_file}` | Query patterns, db.module.method() access pattern | 
- | Helpers | `{helpers_instructions_file}` | Pure utilities, DTOs, no business logic imports | 
- | Frontend | `{frontend_instructions_file}` | UI conventions, framework patterns, no `any` | 
-
-Also include:
-- The current plan plus the validated ordered plan set and dependency order. Validate any downstream owner as present, schema-valid, non-superseded, and later in the same set; do not treat valid later-plan responsibilities as current-plan omissions.
-- Target plan: `artifacts/plans/pending/TASK-{feature}-{letter}-*.md`
-- Contracts ledger: `artifacts/designs/pending/{feature}/CONTRACTS.md`
-- Feature parts README: `artifacts/designs/pending/{feature}/README.md`
-- This review protocol file
-
-## Plan Content
-{Paste the full plan file. The reviewer needs to verify that what was implemented
-matches what was planned — not just that the code compiles.}
-
-## Expected Contracts
-{Paste CONTRACTS.md entries relevant to this plan:
-- Methods this plan was supposed to CREATE
-- Methods this plan CALLS from upstream plans
-- DTOs defined or consumed
-- API endpoints added}
-
-## Files Changed
-{List the files and modules touched by this plan. The reviewer should focus here.
-Use git diff or plan step annotations to identify these.
-Example:
-- src/persistence/constructor/builder.py (modified)
-- src/workflows/example/generate_report_wf.py (modified)
-- src/services/domain/example_svc.py (modified)
-- src/interfaces/api/v1/example_v1_if.py (modified)
-- src/helpers/dto/example_dto.py (modified)}
-
-## Review Checklist
-
-Perform all applicable checks for the changed surface. Do not invent universal lint, test, build, security, or documentation gates; canonical QA applicability selects conditional QA work.
-
-### 1. Changed-Surface Verification
-- Run repository-defined checks applicable to the changed surface when available
-- Classify failures as current-plan-owned, downstream-owned with a named authoritative owner, or ownerless
-- Resolve current-plan-owned failures; carry forward only valid downstream-owned failures; block/escalate ownerless failures
-
-### 2. Layer Compliance
-- Trace imports in every new/modified file using available code-reading tools
-- Verify: no upward imports (persistence→components→workflows→services→interfaces)
-- Verify: workflows take db: Database, never services
-- Verify: no Pydantic models outside interfaces layer
-- Verify: persistence accessed via db.module.method(), not direct imports
-
-### 3. Contract Adherence
-- For each method in CONTRACTS.md that this plan creates:
-  - Read the source to get the actual signature
-  - Compare against CONTRACTS.md entry
-  - Flag any differences (parameter names, types, return types)
-- For each method this plan calls from upstream:
-  - Verify the call site matches the contract signature
-  - Check error handling around the call
-
-### 4. Code Quality
-- No # type: ignore or # noqa without inline justification
-- No bare except clauses
-- No print() or console.log statements (use logging)
-- No time.time() or datetime.now() (use now_ms() / now_s())
-- No global mutable state — **all updates must return new objects, never mutate in place**
-- No config/env reads at module level
-- Proper error handling — no swallowed exceptions
-- No TODO, FIXME, HACK, or XXX comments left behind
-- No placeholder/stub implementations ("pass" in non-abstract methods)
-- No duplicated logic that should be extracted
-- **File size:** files should be 200–400 lines typical, 800 lines absolute max — flag anything over 800
-- **Function size:** functions should be under 50 lines — flag functions over 50 for extraction
-- **Nesting depth:** no more than 4 levels of nesting — flag deeply nested blocks for extraction
-- **Immutability:** verify no mutation patterns — `obj.prop = x` should be `return { ...obj, prop: x }`; list.append() should be `[...list, item]`
-
-### 5. Architecture Patterns
-- TypedDicts or dataclasses for DTOs (in helpers/dto/), not Pydantic
-- Dependency injection for db, config — not module-level singletons
-- Functions fully type-annotated (params + return)
-- Proper use of LibraryPath where file paths are involved
-- _id and _key never renamed in ArangoDB documents
-- Essentia imports only in ml_audio_comp.py / ml_preprocess_comp.py
-
-### 6. Completeness
-- Every current-plan step has a corresponding implementation (not just a checkbox)
-- Every current-plan-owned method, contract, and implementation deliverable is implemented
-- No current-plan-owned method is empty or deferred
-- Intentional incomplete implementation work is classified `CURRENT_PLAN`, `DOWNSTREAM_PLAN`, or `PLANNING_GAP`
-- `CURRENT_PLAN` and `PLANNING_GAP` findings block this plan
-- `DOWNSTREAM_PLAN` is non-blocking only with a validated later-plan identifier in the same present set that actually owns the dependent integration; report it and carry it forward
-- Do not treat absence of a test, documentation, or QA evidence step as a plan omission unless that artifact is explicitly required by the user request or accepted architecture
-- Migrations are created if this plan owns schema changes
-### 7. Drift Detection
-- Does the implementation match the DESIGN INTENT, not just the plan letter?
-- If the subagent deviated from the plan (check annotations), was the deviation justified?
-- Are there any methods or files created that weren't in the plan? (scope creep)
-- Are current-plan methods missing? (current-plan incomplete)
-- Is missing work explicitly owned by a valid downstream plan, or is it an unowned planning gap?
-
-### 8. Coverage (Repository-Defined)
-- Whether test or documentation analysis applies is owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; this protocol owns review of the resulting implementation and consumes analyzer outcomes without re-reviewing generator work
-- Coverage is a diagnostic unless the repository defines its own coverage threshold or verification policy; honor repository policy when present and never apply a universal percentage
-- Discover and run repository checks relevant to the changed surface; do not assume generic commands
-- If no coverage policy exists, report coverage as unavailable/diagnostic rather than inventing a threshold
-- Flag a regression against the repository's own policy or baseline, not absence of a universal percentage
-- QA-owned test/documentation generation is not retroactively added to the plan
-
-### 9. Security Review (Conditional)
-- Whether this lens applies and its observable trigger are owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md`; the canonical security-sensitive surface list is owned by the `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`); neither list is restated here
-- When triggered, run the canonical `security-review` skill (`/home/opencode/.config/opencode/skills/security-review/SKILL.md`) for its checklist and findings; this protocol references it and must not restate or weaken its checks
-- When no such surface changed, security review is not applicable — record that explicitly rather than reporting a security pass
-- A critical or high security finding routes to DISCUSS
-- Documentation-only, comment-only, and non-executable-static-metadata changes receive the same strict review and ownership classification; if a canonical security trigger fires, security review remains REQUIRED
-
-## Output Format
-
-Return your review in this exact structure:
-
-### Verdict: {PASS | ISSUES_FOUND}
-
-### Scope Classification: {NO_PLAN_NEEDED | PLAN_NEEDED | DISCUSS}
-
-For every incomplete finding, include `ownership: CURRENT_PLAN | DOWNSTREAM_PLAN | PLANNING_GAP`, `downstreamPlan` when applicable, `blocksCurrentPlan: true | false`, and the validation basis for the owner. `CURRENT_PLAN` and `PLANNING_GAP` block; a valid downstream owner is reported as carry-forward and does not block this plan. Never infer ownership from annotations or a likely future plan.
-
-**Rationale:** {1-2 sentences. Example:
-- NO_PLAN_NEEDED: "Two minor issues in one file — a stale comment and an unused import. Single subagent fix."
-- PLAN_NEEDED: "Contract drift across 3 layers and a missing migration require coordinated multi-step fix."
-- DISCUSS: "Persistence schema change is incompatible with migration baseline. User must decide approach first."}
-
-**Classification guide:**
-- **NO_PLAN_NEEDED** — All issues are in already-identified files, no architectural decisions needed, a single subagent with file pointers can resolve them in one pass.
-- **PLAN_NEEDED** — Issues span multiple sections/layers, require coordinated changes across
-  locations whose weighted context exceeds ~32K chars, involve architectural decisions
-  (schema, contract drift, layer violations), or coverage regresses against the
-  repository-defined coverage threshold or its own policy/baseline.
-- **DISCUSS** — Fundamental problem: design is wrong, damage scope is unknown, requirements unclear, 3rd fix round, or security critical/high finding that requires user decision.
-
-### Summary
-{2-3 sentence overview of implementation quality}
-
-### Issues (if any)
-
-For each issue:
-
-#### Issue {N}: {short title}
-- **Severity:** {critical | major | minor}
-- **Category:** {lint | layer | contract | quality | architecture | completeness | drift | coverage | security}
-- **Location:** {file path + line or symbol name}
-- **Description:** {what's wrong}
-- **Expected:** {what should be there instead}
-
-### Contract Drift (if any)
-
- | Method/DTO | Planned Signature | Actual Signature | Difference | 
- | --- | --- | --- | --- | 
-
-### Files Reviewed
-{List every file you actually inspected}
-
-## Constraints
-- Do NOT fix issues yourself. Report them. The orchestrator handles fixes.
-- Do NOT skip categories because "the code looks fine." Run the actual checks.
-- Be specific. "Code quality could be better" is not a finding. "bare except on line 47 of generate_playlists_wf.py swallows ConnectionError" is.
-- Severity guide:
-  - critical: Breaks architecture rules, layer violation, missing implementation
-  - major: Contract drift, missing error handling, type safety holes
-  - minor: Style issues, suboptimal patterns, missing docstrings on public APIs
+```yaml
+graph_id: "{graph-id}"
+graph_revision: 3
+graph_digest: "..."
+subject_node_ids: ["I001", "I002"]
+request_or_dd: "..."
+requirements: []
+contracts: []
+changed_files: []
+provenance: []
 ```
 
----
+The review package is ephemeral. `GRAPH.json` remains the authority for obligations, ownership, dependencies, claims, evidence, and actual contracts. Do not create a plan, phase, packet artifact, or second contract authority.
 
-## Review Scope Discovery
+## Review checks
 
-The orchestrator must tell the review agent which files to inspect. Methods to determine scope:
+- Verify the subject nodes’ accepted obligations, changed files, evidence, deviations, and actual contracts.
+- Run repository-defined checks applicable to the changed surface when available; do not invent universal lint, test, build, security, or documentation gates.
+- Classify findings as `NODE_DEFECT` (repairable implementation issue), `GRAPH_GAP` (missing obligation/edge/contract/owner), or `ARCHITECTURE_CONTRADICTION` (request/DD conflict), retaining every related node ID.
+- A downstream-owned incomplete handoff is non-blocking only when the graph contains a present, non-superseded owner; otherwise report `GRAPH_GAP`.
+- QA owns applicability and independent correctness. Exec-Manager consumes the verdict and does not reinterpret or replace it.
 
-1. **Plan step annotations** — Completed steps often mention files created/modified
-2. **Plan content** — Steps reference specific modules and file paths
-3. **Git diff** — `git diff --name-only HEAD~N` if commits were made during execution
-4. **Module tracing** — trace imports manually or use `Grep` to find the full call chain from new entry points
+## Finding output
 
-**Provide the file list explicitly.** Don't ask the review agent to "find what changed" — that wastes its context on discovery instead of review.
-
----
-
-## Interpreting Review Results
-
-The review agent outputs a **Scope Classification** alongside its verdict. Route on it directly — no additional judgment needed.
-
-### PASS
-
-Proceed to ledger update (Phase 5 of main workflow).
-
-### ISSUES_FOUND + NO_PLAN_NEEDED
-
-Dispatch a single subagent. No research required — the review report is the full brief:
-
-```
-Fix the following issues found during review:
-
-## Issues
-{Paste the issues section verbatim from the review report}
-
-## Files to Edit
-{List the file paths from "Location" fields above}
-
-## Constraints
-- Fix only the reported issues — no scope creep
-- Run the repository-defined checks applicable to the changed surface after fixing; classify any remaining failure as current-plan-owned, downstream-owned with a named owner, or ownerless
+```yaml
+status: PASS | MINOR | MAJOR | FAIL
+findings:
+  - classification: NODE_DEFECT | GRAPH_GAP | ARCHITECTURE_CONTRADICTION
+    node_ids: ["I001"]
+    severity: MINOR | MAJOR | BLOCKING
+    detail: "..."
+    route: EXEC_FIXER | EXEC_PLANNER | DD_OWNER | USER
+verification:
+  checks: []
+  ownership: CURRENT_NODE | DOWNSTREAM_NODE | OWNERLESS
 ```
 
-After the fix subagent completes, dispatch a full re-review (Round N+1) using this same protocol. Do not skip to ledger update — re-review is the gate regardless of fix size.
-
-### ISSUES_FOUND + PLAN_NEEDED
-
-Dispatch the Exec-Planner subagent with the full review report as input. Execute and re-review per the fix cycle protocol below.
-
-### ISSUES_FOUND + DISCUSS
-
-Stop. Surface the review findings directly to the user. Do not generate a fix plan. The user must make a decision before work continues.
-
-After the fix plan is created and validated (PLAN_NEEDED path), execute it using the standard execution protocol, then re-review.
-
----
-
-## Fix Cycle Limits
-
- | Round | Action |
- | --- | --- |
- | Review 1 → Issues found | Generate fix plan, execute, review again |
- | Review 2 → Issues found | Generate fix-2 plan, execute, review again |
- | Review 3 → Still issues | **STOP.** Escalate to user. Something systemic is wrong. |
-
-More than 2 fix rounds means the original plan or the architecture understanding is flawed. The orchestrator should present all remaining issues to the user and discuss before continuing.
-
----
-
-## What the Review Agent Must NOT Do
-
-- **Do not fix code.** The review agent reports. The fix cycle handles corrections.
-- **Do not suggest alternative architectures.** Review against the existing rules, not hypothetical improvements.
-- **Do not skip checks because they seem redundant.** Lint, layer tracing, and contract verification are mandatory every time; coverage follows the repository's defined policy and security review applicability is owned by `/home/opencode/.config/opencode/instructions/qa-applicability.md` (see sections 8-9).
-- **Do not approve with caveats.** Either PASS or ISSUES_FOUND. "PASS but you should probably fix X" is ISSUES_FOUND.
+Any accepted repair or graph amendment invalidates terminal QA and requires a fresh review against the new revision.

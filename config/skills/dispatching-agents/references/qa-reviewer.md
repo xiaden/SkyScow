@@ -5,7 +5,7 @@ Dispatch QA-Reviewer as the quality gate after implementation completes.
 ## When to Dispatch
 
 **Dispatch when:**
-- Exec-Manager completes all implementation phases and needs a quality gate before reporting DONE
+- Exec-Manager accepts required graph nodes and needs a quality gate before terminal acceptance
 - You need a full, one-pass review of changed code
 - After Exec-Fixer completes repairs on QA-flagged issues
 
@@ -18,21 +18,20 @@ Dispatch QA-Reviewer as the quality gate after implementation completes.
 ## Dispatch Template
 
 ```
-Review the implementation for plan [PLAN_PATH].
+Review graph [GRAPH_ID] at revision [GRAPH_REVISION] for subject nodes [NODE_IDS].
 
 Context files to read:
-- [PLAN_PATH] — the plan
-- [DESIGN_DOC_PATH] — design document, if applicable
-- [CONTRACTS_PATH] — contracts ledger, if applicable
+- [GRAPH_PATH] — authoritative GRAPH.json
+- [DESIGN_DOC_PATH] — accepted design document, if applicable
 - [AUTHORITATIVE_REQUEST] — verbatim original user request and requirement ledger
-- The validated ordered plan set and dependency/ownership context for the current plan
+- The validated graph dependency/ownership context and subject node evidence
 
 task:
-  plan: "[plan identifier]"
-  currentPlan: "[plan identifier]"
-  orderedPlanSet: "[present, schema-valid, dependency-ordered, non-superseded plan set]"
+  graphId: "[graph identifier]"
+  graphRevision: [graph revision]
+  subjectNodeIds: ["I001"]
+  graphPath: "[GRAPH.json path]"
   designDoc: "[design doc path or N/A]"
-  contractsPath: "[contracts path or N/A]"
   changedFiles: ["..."]
 ```
 
@@ -53,10 +52,10 @@ The review report includes the direct correctness review plus, when applicable, 
 summary, generator changed files, and failure reason. Analyzer gaps use only `description`, `files`, and
 `reason`; no severity, plan ownership, durable record, or reconciliation fields are required.
 
-- [ ] `checks.completeness` — all current-plan implementation steps and current-plan-owned responsibilities delivered; classify remaining implementation work by validated plan-set ownership
+- [ ] `checks.completeness` — all subject node obligations and current-node responsibilities delivered; classify remaining work by graph ownership
 - [ ] Applicable analyzer reports are present and structurally complete, including generator outcome and changed files when a repair is claimed
 
-QA must not report a plan incomplete solely because the plan omitted a test or documentation step. Those
+QA must not report a graph node incomplete solely because it omitted an inapplicable test or documentation obligation. Those
 outputs are derived from the implemented surface and are owned by the applicable analyzer/generator unless
 explicitly required by the user request or accepted architecture.
 

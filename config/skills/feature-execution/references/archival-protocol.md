@@ -1,75 +1,28 @@
-````markdown
-# Feature Archival Protocol
+# Implementation Graph Archival Protocol
 
-How to close out a completed feature execution: archive completed plan files and, when a DD bundle is in use, move the completed bundle to its completed design bin. DD completion is represented by the DD's `**Status:** Completed` metadata; no completion manifest is generated or required.
+Graph-native work is archived through `impl_graph_archive` after all required non-superseded nodes are complete, no active claims or blocking gaps remain, and terminal QA PASS is current for the graph revision and workspace fingerprint. The tool moves `artifacts/implementation/pending/{graph_id}/GRAPH.json` to `artifacts/implementation/completed/{graph_id}/GRAPH.json` atomically at the artifact boundary.
 
----
+## Graph Completion Record
 
-## Completion Record
+`GRAPH.json` is the authoritative completion record for new work. It contains node evidence, changed files, actual contracts, provenance, graph revision, terminal QA evidence, graph digest, and workspace fingerprint. No worker or manager packet is persisted, and archival does not imply a commit, release, deployment, or global repository state beyond the recorded evidence.
 
-No completion manifest is generated or required. Use the DD's `**Status:** Completed` metadata, the bundle contents, and completed plan files as the audit trail. The DD status remains authoritative even when moving the bundle is pending or unsuccessful, so a bundle may temporarily remain under `artifacts/designs/pending/{feature}/` for a retry.
+## Graph Archive Gate
 
----
+Before calling `impl_graph_archive`, Exec-Manager verifies:
 
-## Internal DD Tool Usage
+1. Every required node is `COMPLETE` or explicitly `SUPERSEDED`.
+2. No node retains an active claim.
+3. No blocking gap remains.
+4. `final_qa.status` is `PASS`.
+5. The supplied graph revision and digest match the pending graph.
+6. The supplied workspace fingerprint matches the workspace used for terminal QA.
 
-DD operations are performed by internal agents through the registered OpenCode plugin tools `dd_create`, `dd_read`, and `dd_archive`. `dd_create` writes `artifacts/designs/pending/{slug}/DD.md`; `dd_read` prefers the pending bundle before the completed bundle; and `dd_archive` validates linked plans, sets the DD status to `Completed`, and moves the bundle when possible. Direct `python3 -m common.tools.<module>` invocation is only the focused test boundary. These tools do not provide generic artifact writes, arbitrary artifact filesystem access, or a user-facing CLI.
+The archive tool fails closed for stale revision, stale digest, stale workspace, incomplete nodes, active claims, missing QA, or a completed destination collision.
 
-## Move Protocol
+## Legacy Compatibility
 
-Move plan files from active directories to `artifacts/plans/completed/` using the plan archival tool. When a DD bundle is being archived, use the internal agentic `dd_archive` tool; do not use generic file moves for DD operations.
+Historical Markdown plans and DD bundles remain readable and may be archived by their existing `plan_archive` and `dd_archive` tools. They are not new-work authority and are not prerequisites for graph archival. Do not create a plan artifact merely to archive a graph.
 
-### Artifacts to Move
+## Auditability
 
-| Source | Destination | Notes |
-| --- | --- | --- |
-| `artifacts/plans/pending/TASK-{feature}-*.md` | `artifacts/plans/completed/TASK-{feature}-*.md` | All plan files — includes fix plans |
-| `artifacts/designs/pending/{feature}/` | `artifacts/designs/completed/{feature}/` | Entire DD bundle: DD.md, README.md, CONTRACTS.md, part scopes, and root ADVERSARIAL.md; no COMPLETION.md |
-
-### Move Order
-
-1. **Plans first** — move all `TASK-{feature}-*.md` files, leaving them under `artifacts/plans/completed/`
-2. **DD bundle** — use the internal agentic `dd_archive` tool to move the entire `artifacts/designs/pending/{feature}/` directory to `artifacts/designs/completed/{feature}/` (including root DD.md, README.md, CONTRACTS.md, part scopes, and ADVERSARIAL.md). No `COMPLETION.md` is generated or required.
-
-The complete bundle is moved as one unit after `DD.md` has `**Status:** Completed`. If the move cannot complete, retain the completed DD in its pending bundle location and retry; the status itself is authoritative.
-
-### Verification
-
-After moving, confirm clean state:
-
-```
-# These should return no results:
-artifacts/plans/pending/TASK-{feature}-*.md          → none remain
-artifacts/designs/pending/{feature}/                   → directory gone
-artifacts/designs/pending/{feature}/DD.md              → file gone
-
-# These should exist:
-artifacts/plans/completed/TASK-{feature}-*.md              → all plans present
-artifacts/designs/completed/{feature}/DD.md                → design doc exists with `**Status:** Completed`
-artifacts/designs/completed/{feature}/CONTRACTS.md         → ledger preserved
-artifacts/designs/completed/{feature}/README.md            → decomposition preserved  
-artifacts/designs/completed/{feature}/DD.md                → design doc preserved
-```
-
----
-
-## Standalone Plan Archival
-
-Not all plans are part of multi-part features. Single plans (`artifacts/plans/pending/TASK-{name}.md` without letter suffixes) also need archival.
-
-**For standalone plans:**
-1. No completion manifest is generated or required — the plan's own checkboxes and annotations are the audit trail
-2. Move: `artifacts/plans/pending/TASK-{name}.md` → `artifacts/plans/completed/TASK-{name}.md`
-3. No parts directory or design doc to move
-
----
-
-## Auditability Guide
-
-When revisiting a completed feature, read artifacts in this order:
-
-1. **`artifacts/designs/completed/{feature}/DD.md`** — Original intent and authoritative completion status
-3. **`artifacts/designs/completed/{feature}/README.md`** — How it was decomposed
-4. **`artifacts/designs/completed/{feature}/CONTRACTS.md`** — What was actually built (signatures, schemas)
-5. **Individual `artifacts/plans/completed/TASK-*.md` plans** — Step-by-step implementation details with annotations
-````
+Read a completed graph from `artifacts/implementation/completed/{graph_id}/GRAPH.json`. Use its `requirements`, `contracts`, `nodes`, per-node evidence, and `final_qa` fields to reconstruct ownership and outcome. Git commits and release operations remain orthogonal and are governed by their applicable Git/GitHub skills.

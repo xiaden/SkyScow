@@ -1,115 +1,88 @@
 # Exec-Manager
 
-Dispatch Exec-Manager to execute an implementation plan.
+Dispatch Exec-Manager to schedule a persistent implementation graph.
 
 ## When to Dispatch
 
-- When a plan is ready for implementation
-- After Exec-Planner has created the plan
-- After RnD-Manager has produced a design document and Exec-Planner has planned it
+- A validated `GRAPH.json` exists and ready implementation nodes need claims and worker packets.
+- A graph node result needs manager acceptance, release, blocking, bounded repair, or terminal QA routing.
 
 **Do NOT dispatch when:**
-- The plan hasn't been created yet — use `exec-planner` instead
-- You're doing R&D or design work — use `rnd-manager` instead
-- You're debugging a failure — use `support-debugger` instead
-- Executing a single-step task with no formal plan
+- Graph topology is missing or wrong — use Exec-Planner.
+- Production implementation is the task — use Exec-Worker only through Exec-Manager.
+- Diagnosis is the task — use Support-Debugger.
 
 ## Dispatch Template
 
 ```text
-Execute plan [PLAN_PATH].
+Execute graph [GRAPH_ID] at revision [GRAPH_REVISION].
 
-**Your job is to compose and execute the smallest sufficient support graph:**
-- Spawn Exec-Worker for each incomplete phase in order by default; safe independent dispatch requires proven prerequisites, no output/annotation dependency, no write overlap, and order irrelevance
-- Observe each worker result and select only the needed Exec-Fixer, Support-Debugger, Exec-Planner, or PatternEnforcer capability
-- Known bounded defects use Exec-Fixer without Debugger; unclear failures use Support-Debugger (`SIMPLE` → Fixer, `NEEDS_PLAN` → Planner AMEND/re-execute, `INCONCLUSIVE` → escalation)
-- Spawn QA-Reviewer as the mandatory independent authority before acceptance of the selected implementation/support graph; consume canonical `qa-applicability.md` and rerun QA after any repair or amendment
-- Spawn Exec-Planner for `PLANNING_GAP`, ordering gaps, or architectural contradictions returning upstream
-- Never spawn QA-TestAnalyzer, QA-DocsAnalyzer, QA-TestGenerator, or QA-DocsGenerator; QA-Reviewer and the analyzers own those dispatches
-Do NOT implement code yourself.
+Context:
+- [REQUEST_OR_DD_PATH]
+- [GRAPH_CONTEXT]
+- [CONTRACT_CONTEXT]
+- [SOURCE_CONTEXT]
 
-Context files to read:
-- [PLAN_PATH]  — the plan
-- [CONTRACTS_PATH]  — contracts ledger (omit if not a multi-part feature)
-- [DESIGN_DOC_PATH]  — design document
-- [AUTHORITATIVE_REQUEST] — verbatim original user request and requirement ledger
+The manager must:
+- Read the graph summary and derived-ready nodes.
+- Claim compatible nodes atomically before any worker dispatch.
+- Pack only obligations/contracts/source context that fit the ephemeral worker packet.
+- Dispatch Exec-Worker with graph ID, revision, node IDs, and claim ID.
+- Accept only evidence-backed node completion; release or block claims explicitly.
+- Route observed defects, unclear failures, graph gaps, and architectural contradictions only to the appropriate bounded capability.
+- Run mandatory independent terminal QA after all required nodes are complete.
+- Archive only through `impl_graph_archive` with fresh graph/workspace evidence.
+
+Do not edit production code, amend topology, create plans, persist packets, bypass QA, or claim global-green/release/commit completion.
 
 task:
-  plan: "TASK-{feature}-{letter}-{title}"
-  startPhase: 1
-  reviewRequired: true
-  currentPlan: "TASK-{feature}-{letter}-{title}"
-  orderedPlanSet: ["TASK-{feature}-A-{title}", "TASK-{feature}-B-{title}"]
-  orderedPlanSetValidation: "present, schema-valid, non-superseded, dependency-ordered"
+  graph_id: "[GRAPH_ID]"
+  graph_revision: [GRAPH_REVISION]
+  terminal_review_required: true
 ```
-
-Use precedence authoritative user request > DD > plan/contracts >
-implementation > tests. Final acceptance must compare the implementation with
-every mandatory requirement, not only with the plan or QA report.
 
 ## Required Fields
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `[PLAN_PATH]` | Path to the plan file | `artifacts/plans/pending/TASK-feature-A-scope.md` |
-| `[CONTRACTS_PATH]` | Path to contracts ledger | Omit if not a multi-part feature |
-| `[DESIGN_DOC_PATH]` | Path to the design document | `artifacts/designs/pending/feature-design.md` |
-| `plan` | Plan identifier | `TASK-feature-A-scope` |
-| `startPhase` | Phase to start from (usually 1) | `1` |
-| `reviewRequired` | Enforce QA gate — must be `true` | `true` |
+| Field | Description |
+| --- | --- |
+| `[GRAPH_ID]` | Persistent implementation graph identity |
+| `[GRAPH_REVISION]` | Revision read before claiming nodes |
+| request/DD context | Requirement provenance and accepted architecture |
+| graph context | Requirements, contracts, nodes, statuses, blockers |
+| source context | Bounded files and repository facts for packet assembly |
 
-The routing and worker instructions are **required** — they preserve manager ownership without turning support capabilities into a fixed assembly line.
+## Routing Rules
+
+- Ready nodes are derived from `PENDING` status plus complete non-superseded dependencies.
+- Known bounded node defects go directly to Exec-Fixer.
+- Unclear causes go to Support-Debugger: `SIMPLE` → Fixer, `NEEDS_PLAN` → Exec-Planner amendment, `INCONCLUSIVE` → escalation.
+- Missing callers, contracts, ownership, or impossible acceptance conditions go to Exec-Planner; do not silently amend topology.
+- PatternEnforcer is advisory only for concrete impact closure; scope changes go to Exec-Planner.
+- Independent ready branches may run concurrently only when graph metadata proves no dependency, required output dependency, known write overlap, unsatisfied prerequisite, or order sensitivity.
+- A blocked branch does not block unrelated ready branches. No-ready incomplete state is a graph gap/deadlock and must surface.
+
+## QA and Archive
+
+QA receives graph identity/revision/digest, subject node IDs, changed files/provenance, requirements/contracts, and request/DD context. QA applicability remains canonical and is not duplicated here. Findings retain all related node IDs and use `NODE_DEFECT`, `GRAPH_GAP`, or `ARCHITECTURE_CONTRADICTION`.
+
+A graph amendment, accepted implementation mutation, or repair invalidates terminal QA. Archive requires all required nodes complete or superseded, no active claims/blocking gaps, current terminal QA PASS, and matching revision/digest/workspace fingerprint.
 
 ## Expected Output
 
-| Status | Meaning |
-|--------|---------|
-| `Complete (accepted)` | Accepted DD prerequisite held in `pending/` only with disposition, responsible owner, and transition condition |
-| `Approved` | Accepted DD prerequisite held in `pending/` only with disposition, responsible owner, and transition condition |
-| `Completed` | Terminal DD status; archive/move semantics apply |
-| `DONE` | All phases complete, QA-Reviewer passed |
-| `BLOCKED` | A blocker cannot be resolved internally |
-| `ESCALATE` | Nyx input is needed |
-
-The output includes artifacts created/modified/deleted, annotations from each phase, and the QA-Reviewer verdict (mandatory for DONE).
-
-### PatternEnforcer finding disposition
-
-Support-PatternEnforcer is a read-only impact analyst. Its findings are evidence for the owning manager/planner, not migration scope or implementation authorization. Route `ownership_required` or demonstrated `coverage_required` findings to an explicit owner/planner disposition against the current plan, a separately authorized downstream plan, or no change/accepted divergence; keep `consistency_risk` advisory. Confidence, similarity, `BLOCKING`, closure, and routing ownership do not create or amend a migration phase automatically. The owning planning layer may act only after an accepted bounded migration scope is already established.
-
-## QA Gate Enforcement
-
-The QA gate is a hard enforcement point. Exec-Manager must spawn QA-Reviewer after the selected implementation/support graph reaches an acceptance boundary and must not return `DONE` until QA-Reviewer reports `PASS`. The review is of the current plan's bounded slice, using the validated ordered plan set to classify incomplete work. Exec-Manager consumes the QA-Reviewer report and does not substitute its own review.
-
-**Enforcement rules:**
-
-1. **QA-Reviewer must run before acceptance.** It may not be bypassed for small, documentation-only, test-only, or unchanged work; the manager may run it after the selected implementation/support graph reaches a reviewable boundary.
-2. **Only `PASS` unlocks `DONE`.** Any other status (`MINOR`, `MAJOR`, `FAIL`) must trigger a fix cycle or escalation.
-3. **Exec-Fixer handles MINOR issues.** After fixes, re-run QA-Reviewer.
-4. **MAJOR issues require escalation.** Architectural problems, missing functionality, or systemic bugs cannot be handled by Exec-Fixer alone.
-5. **QA-Reviewer owns quality review.** Exec-Manager does not perform a substitute review or reinterpret the QA report.
-
-**Fix cycle flow:** QA-Reviewer reports a blocking issue → Spawn Exec-Fixer with the issue list → Re-run QA-Reviewer → Repeat until PASS or escalation. `PLANNING_GAP` is blocking and routes to Exec-Planner; a valid `DOWNSTREAM_PLAN` issue is reported and carried forward without blocking this plan. Each fix cycle requires a full QA-Reviewer re-run; a targeted re-check is never a substitute for the full re-run.
-
-**Edge cases:**
-
-- **QA-Reviewer fails to spawn:** Retry once. If second attempt fails, escalate with spawn error.
-- **QA-Reviewer returns ambiguous results:** Re-spawn with clarification request — do not interpret output yourself.
-- **Manager receives a QA report:** Consume the QA-Reviewer verdict as a whole; do not reinterpret it.
-- **Documentation or test-only work:** No QA bypass applies. QA-Reviewer decides the applicable review depth.
-- **No changes to review:** QA-Reviewer still runs and will return `PASS` for an empty diff. Do not skip the gate.
-## Test Findings During Execution
-
-Test findings are reviewed under the same correctness contract as other implemented behavior. A spec-first failure is not automatically a blocker or an exemption: classify it against the current implementation slice and validated ordered plan set. `CURRENT_PLAN` and unowned implementation gaps block; valid downstream implementation work is reported and carried forward. QA-derived test work remains QA-owned and does not become a planning gap merely because it was absent from the plan.
-
-| Symptom | Likely cause | Action |
-|---------|-------------|--------|
-| Test references a function that doesn't exist yet | Spec-first — implementation incomplete | Continue implementation |
-| Test references a function that was removed | Stale test — spec changed | Escalate for plan amendment |
-| Test fails with wrong output for existing function | Implementation bug | Fix implementation |
-| Test setup fails (import error, missing mock) | Test is buggy | Escalate — test needs fixing |
-
-
-### Lifecycle Preflight
-
-Before dispatching workers, sweep for plans with no open steps still pending, duplicate basenames across lifecycle directories, stray backups, and superseded executable artifacts. When observable coordination-risk triggers apply, require a current recorded `Exec-PlanGate: PASS`; when none apply, require explicit `NOT_REQUIRED` with its skip rationale. Exec-Manager verifies the result and never spawns the gate. The QA dispatch must include the current plan plus the present, schema-valid, non-superseded ordered plan set. Never report feature completion or archive while any later plan in that set remains incomplete. Preserve the complete-set archival handoff.
+```yaml
+status: DONE | BLOCKED | ESCALATE
+summary: "..."
+graph_id: "[GRAPH_ID]"
+revision: 3
+selected_nodes: ["I001"]
+completed_nodes: ["I001"]
+blocked_nodes: []
+execution_trace:
+  selected: []
+  skipped: []
+  outcomes: []
+  terminal_reason: "..."
+qa: {status: PASS | FAIL | NOT_RUN, graph_revision: 3}
+archive: {status: ARCHIVED | PENDING}
+blockers: []
+```

@@ -1,81 +1,55 @@
 # Exec-PlanGate
 
-Dispatch Exec-PlanGate from Exec-Planner as the conditional read-only preflight for a coordinated group with observable coordination risk.
+Dispatch Exec-PlanGate from Exec-Planner as the conditional read-only preflight for a complete persistent implementation graph with observable coordination risk.
 
 ## When to Dispatch
 
-- Exec-Planner has created or updated a complete group with cross-plan contracts, shared writes/schemas/migrations/registries, nontrivial ordering/reorder, multi-plan migration, multi-plan DD amendment, generational supersession, or unresolved ownership closure
-- A previously gated group has a plan amended or reordered; Exec-Planner must rerun the gate before handoff
-- The governing Design Document changes after the group was gated; Exec-Planner must rerun the gate before handoff
+- Exec-Planner has created or amended a complete `GRAPH.json` with cross-node contracts, shared writes/schemas/migrations/registries, nontrivial ordering, migration scope, generational supersession, or unresolved ownership closure.
+- A gated graph is amended or its accepted DD/source changes; Exec-Planner reruns the gate before claims.
 
 **Do NOT dispatch when:**
-
-- The complete group has no observable coordination-risk trigger (the planning owner records `NOT_REQUIRED`; do not dispatch this gate)
-- A single plan needs execution — use Exec-Manager
-- Plans need to be created, amended, or reordered — use Exec-Planner
-- Completed implementation needs review — use QA-Reviewer
-- Exec-Manager needs to perform the gate — Exec-Planner owns the planning preflight
+- The complete graph has no observable coordination trigger; Exec-Planner records `NOT_REQUIRED` with rationale.
+- The graph is incomplete or source context is missing.
+- Execution or implementation is needed; use Exec-Manager/Exec-Worker.
+- Completed nodes need quality review; use QA-Reviewer.
 
 ## Dispatch Template
 
 ```text
-Validate the complete implementation plan group before execution.
+Validate the complete persistent implementation graph before execution.
 
-You are a read-only blocking preflight. Validate every plan against the Design Document and validate all plans against one another. Do not edit plans, contracts, the Design Document, or source code. Do not dispatch workers.
-
-Context files to read:
-- [DESIGN_DOC_PATH] — governing Design Document
-- [CONTRACTS_PATH] — contracts ledger
-- [README_PATH] — feature dependency graph, ownership closure, and dependency-ready groups
-- [PLAN_A_PATH] — complete plan group member
-- [PLAN_B_PATH] — complete plan group member
-- [ALL_OTHER_PLAN_PATHS] — every remaining group member
+Context:
+- [GRAPH_PATH]
+- [REQUEST_OR_DD_PATH]
+- [GRAPH_CONTRACT_CONTEXT]
 
 task:
-  feature: "[FEATURE_SLUG]"
-  designDoc: "[DESIGN_DOC_PATH]"
-  contracts: "[CONTRACTS_PATH]"
-  readme: "[README_PATH]"
-  plans:
-    - "[PLAN_A_PATH]"
-    - "[PLAN_B_PATH]"
-    - "[ALL_OTHER_PLAN_PATHS]"
-  coordinationTriggers: [CROSS_PLAN_CONTRACT | SHARED_WRITE_OR_SCHEMA | MIGRATION_OR_REGISTRY | NONTRIVIAL_ORDERING_OR_REORDER | MULTI_PLAN_MIGRATION | MULTI_PLAN_DD_AMENDMENT | GENERATIONAL_SUPERSESSION | UNRESOLVED_OWNERSHIP_CLOSURE]
-  rerunReason: "[initial-preflight|plan-amended|plan-reordered|design-doc-changed]"
+  graph_id: "[GRAPH_ID]"
+  graph_revision: [GRAPH_REVISION]
+  coordinationTriggers: [CROSS_NODE_CONTRACT | SHARED_WRITE_OR_SCHEMA | MIGRATION_OR_REGISTRY | NONTRIVIAL_ORDERING | UNRESOLVED_OWNERSHIP_CLOSURE]
+  rerunReason: "initial | graph-amended | source-changed"
 ```
-
-## Request-context prerequisite
-
-The gate input must include a readable `request_context.path` pointing to an
-`artifacts/requests/CTX_*.md` conversation snapshot. Verify that the plan set
-retains this source reference. Missing or unreadable context is a blocking input
-failure; a summary or handoff goal cannot replace it.
 
 ## Required Checks
 
-1. The request-context capture is present and readable, and the plan set preserves its reference.
-2. All listed plans are present and schema-valid.
-3. Every DD requirement maps to plan ownership, actionable steps, and verification.
-4. Dependencies are explicit, acyclic, and executable in the README's order.
-5. Cross-plan contracts, signatures, schemas, migrations, APIs, and assumptions agree.
-6. Shared ownership and parallel write overlap are safe or explicitly serialized.
-7. No contradictions, missing prerequisites, duplicate ownership, or unowned outputs exist.
+1. Source request or accepted/amended DD is readable and retained in graph provenance.
+2. Complete `GRAPH.json` exists at the supplied revision and passes schema validation.
+3. Every requirement maps to actionable owned node(s) with acceptance conditions.
+4. Dependencies are real, explicit, acyclic, and producer/consumer compatible.
+5. Contracts have declared producers, consumers, and materialized actuals where required.
+6. Shared ownership, writes, schemas, migrations, and registrations are safe or explicitly ordered.
+7. Missing prerequisites, duplicate ownership, contradictions, and unowned gaps are surfaced.
+8. Downstream-owned intermediate incompleteness is allowed when a present non-superseded node owns the later integration.
 
 ## Routing
 
 | Verdict | Next action |
-|---------|-------------|
-| `PASS` | Exec-Planner may hand the group to Exec-Manager; Exec-Manager verifies the current report |
-| `AMEND_REQUIRED` | Exec-Planner amends/reorders; rerun Exec-PlanGate before handoff |
+|---|---|
+| `PASS` | Exec-Planner hands the graph to Exec-Manager; claims may begin |
+| `AMEND_REQUIRED` | Exec-Planner amends the graph and reruns the gate |
 | `DD_CONTRADICTION` | Escalate to DD/R&D owner or user |
-| `MISSING_ARTIFACT` | Halt until required input is restored |
+| `MISSING_ARTIFACT` | Halt until source/graph context is restored |
 | `NEEDS_DECISION` | Halt and ask for an explicit decision |
 | `BLOCKED` | Halt and report the input/tooling failure |
 
-## Expected Output
-
-Return the Exec-PlanGate agent's complete YAML output, including coverage, dependency graph, contract compatibility, ownership/overlap, findings, routes, and whether rerunning is required. `PASS` means all blocking checks passed; it does not mean the implementation is complete.
-
-
-### Additional Blocking Checks
-The gate is dispatched only after the complete plan group exists and whenever an observable coordination-risk trigger applies. A no-trigger group is not dispatched here; Exec-Planner owns the explicit `plan_gate: status: NOT_REQUIRED` record and observable rationale. A missing or stale result is never equivalent to that record, and a newly triggered risk requires a fresh `PASS`. Add blocking checks only for authoritative requirement coverage, implementation ownership, dependency/contract closure, ordering, and architectural invariants. Request callgraph/import evidence only where it establishes one of those facts; unresolved edges block only when they prevent satisfying an authoritative requirement or invariant. Do not require mocked/real caller tests, documentation, or other QA artifacts as universal plan content. Exec-Manager only verifies the recorded result and never spawns this gate.
+`NOT_REQUIRED` is never a gate verdict. The planning owner records it before dispatch when no trigger applies. Exec-Manager only verifies the Planner-owned record or current gate result and never recomputes applicability.

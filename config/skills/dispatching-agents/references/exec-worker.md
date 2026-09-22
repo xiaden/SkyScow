@@ -1,76 +1,77 @@
 # Exec-Worker
 
-Dispatch Exec-Worker to implement a scoped portion of an implementation plan — a single phase or range of steps.
+Dispatch Exec-Worker to implement a bounded packet of compatible claimed implementation-graph nodes.
 
 ## When to Dispatch
 
 **Dispatch when:**
-- Exec-Manager delegates per-phase implementation work
-- You need a focused, scoped implementation of a plan phase
+- Exec-Manager has atomically claimed compatible ready graph nodes.
+- The manager has an ephemeral packet with obligations, contracts, acceptance, context hints, graph revision, and claim identity.
 
 **Do NOT dispatch when:**
-- You're executing a full plan — use `exec-manager` instead (it spawns this agent per phase)
-- You need planning — use `exec-planner` instead
-- You need research — use `support-researcher` instead
-- The work is a single trivial edit — do it yourself
+- The graph topology needs creation or amendment — use `exec-planner`.
+- Nodes need claiming, completion, blocking, or release — use `exec-manager`.
+- You need QA review — use `qa-reviewer`.
 
 ## Dispatch Template
 
 ```
-Implement phase [PHASE_NUMBER] of plan [PLAN_IDENTIFIER].
+Implement the claimed graph packet `[GRAPH_ID]` containing node IDs `[NODE_IDS]`.
 
-Your scope: steps [STEP_RANGE] only.
-
-Use plan_read("[PLAN_IDENTIFIER]") to discover the plan and your steps.
+Your scope: claimed nodes only. Read the ephemeral packet supplied by Exec-Manager; it is not a persisted plan.
 
 Context:
-- [CONTRACTS_PATH]  — contracts ledger (if multi-part feature)
-- [DESIGN_DOC_PATH]  — design document
+- [REQUEST_OR_DD_PATH] — authoritative request or accepted design context
+- [CONTRACT_CONTEXT] — consumed/produced contracts and acceptance
+- [SOURCE_CONTEXT] — files and repository patterns required by the packet
 
 task:
-  plan: "[PLAN_IDENTIFIER]"
-  phase: [PHASE_NUMBER]
-  steps: "[STEP_RANGE]"
+  graph_id: "[GRAPH_ID]"
+  graph_revision: [GRAPH_REVISION]
+  node_ids: ["I001", "I002"]
+  claim_id: "[CLAIM_ID]"
 
-For each step: implement, lint, mark complete with plan_complete_step and an annotation.
-Report DONE when all steps in scope are complete.
+For each node: implement, return evidence, changed files, deviations, and actual contracts. Do not mutate graph state.
+Report DONE when all claimed nodes have evidence and dependency-permitted verification.
 ```
 
 ## Required Fields
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `[PLAN_IDENTIFIER]` | Plan name for plan_read | `TASK-feature-A-scope` |
-| `plan` | Plan identifier | `TASK-feature-A-scope` |
-| `phase` | Phase number to implement | `1` |
-| `steps` | Step range to implement | `P1-S1 through P1-S4` |
+| `[GRAPH_ID]` | Persistent implementation graph identity | `feature-change` |
+| `graph_revision` | Revision claimed by the manager | `3` |
+| `node_ids` | Claimed node identifiers | `I001, I002` |
+| `claim_id` | Atomic claim identity | `worker-claim-1` |
 
 ## Expected Output
 
 | Status | Meaning |
 |--------|---------|
-| `DONE` | All steps in range completed with annotations |
-| `BLOCKED` | A step cannot be completed — reason provided |
-| `ESCALATE` | Issue requires manager intervention |
+| `DONE` | All claimed nodes have evidence and permitted verification |
+| `BLOCKED` | A claimed node cannot be completed — reason provided |
+| `ESCALATE` | Issue requires manager or planner intervention |
 
 Output includes:
-- Steps completed with annotations
+- Per-node evidence and acceptance result
 - Files created/modified/deleted
-- Any blockers with specific details
+- Actual contracts and deviations
+- Downstream-owned gaps with named graph owners
+- Ownerless blockers with specific details
 
-## Step Annotation Rules
+## Node Evidence Rules
 
-After completing each step, annotate in the plan:
-- What was done (concrete, not "implemented feature")
-- Files changed
-- Any observations or warnings
+After completing each node, return:
+- What was done and acceptance evidence
+- Files changed and actual contracts
+- Any deviations, downstream owner, or warning
 
-**Never** modify the plan structure. Annotations only. Steps must be marked complete in order — no skipping, no partial completion.
+**Never** modify graph structure or status, write worker/manager packets to disk, or silently choose a new obligation. The manager alone accepts completion and the planner alone amends topology.
 
 ## Spec-First Testing
 
-When spec tests exist for the phase:
-- Read the spec tests first to understand expected behavior
-- Implement toward making spec tests pass
-- Do NOT modify spec tests — change implementation instead
-- Report spec test status at phase completion (passing / expected failures / unexpected failures)
+When spec tests exist for a claimed node:
+- Read the spec tests first to understand expected behavior.
+- Implement toward the graph obligation and contract.
+- Do not modify spec tests unless the manager/planner explicitly amends the graph.
+- Report passing, expected, or unexpected failures with ownership classification.

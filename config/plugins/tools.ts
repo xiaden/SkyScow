@@ -355,6 +355,57 @@ const tools = {
     },
   }),
 
+  impl_graph_create: tool({
+    description: "Create a validated persistent implementation graph.",
+    args: { graph: tool.schema.object({}) },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_create", args, context) },
+  }),
+  impl_graph_read: tool({
+    description: "Read a bounded implementation graph view.",
+    args: { graph_id: requiredString("Graph ID"), view: optionalString("View"), node_ids: optionalStringArray("Node IDs"), requirement_id: optionalString("Requirement ID"), contract_id: optionalString("Contract ID"), limit: optionalNumber("Result limit") },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_read", args, context) },
+  }),
+  impl_graph_validate: tool({
+    description: "Validate an implementation graph.",
+    args: { graph_id: requiredString("Graph ID") },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_validate", args, context) },
+  }),
+  impl_graph_amend: tool({
+    description: "Amend pending implementation graph topology.",
+    args: { graph_id: requiredString("Graph ID"), nodes: tool.schema.array(tool.schema.object({})).optional(), remove_node_ids: optionalStringArray("Node IDs to remove"), requirements: tool.schema.array(tool.schema.object({})).optional(), contracts: tool.schema.array(tool.schema.object({})).optional(), actor: optionalString("Planner actor") },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_amend", args, context) },
+  }),
+  impl_graph_claim: tool({
+    description: "Claim derived-ready implementation nodes.",
+    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), worker: optionalString("Worker identity"), changed_files: optionalStringArray("Known changed files") },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_claim", args, context) },
+  }),
+  impl_graph_release: tool({
+    description: "Release claimed implementation nodes.",
+    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity") },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_release", args, context) },
+  }),
+  impl_graph_complete: tool({
+    description: "Accept claimed implementation nodes.",
+    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), evidence: tool.schema.array(tool.schema.unknown()).optional(), changed_files: optionalStringArray("Changed files"), provenance: tool.schema.array(tool.schema.unknown()).optional(), deviations: optionalStringArray("Deviations"), actual_contracts: tool.schema.array(tool.schema.unknown()).optional() },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_complete", args, context) },
+  }),
+  impl_graph_block: tool({
+    description: "Block implementation nodes.",
+    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), reason: requiredString("Block reason"), claim_id: optionalString("Claim identity") },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_block", args, context) },
+  }),
+  impl_graph_record_qa: tool({
+    description: "Record terminal graph QA.",
+    args: { graph_id: requiredString("Graph ID"), status: requiredString("PASS or FAIL"), evidence: tool.schema.unknown(), graph_revision: requiredNumber("Graph revision"), graph_digest: requiredString("Graph digest"), workspace_fingerprint: requiredString("Workspace fingerprint") },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_record_qa", args, context) },
+  }),
+  impl_graph_archive: tool({
+    description: "Archive a complete implementation graph after terminal QA.",
+    args: { graph_id: requiredString("Graph ID"), graph_revision: requiredNumber("Graph revision"), graph_digest: requiredString("Graph digest"), workspace_fingerprint: requiredString("Workspace fingerprint") },
+    async execute(args, context) { return runPythonTool("common.tools.impl_graph_archive", args, context) },
+  }),
+
   context_tokens: tool({
     description:
       "Count o200k and DeepSeek V4 Flash 0731 tokens for workspace file subsections, including weighted context estimates.",
@@ -370,9 +421,10 @@ const tools = {
 
   context_budget: tool({
     description:
-      "Measure supplied files and project worker phases and manager plans: frontmatter-only agent model selection with DS_V4_F_0731 fallback, structured plan parsing with sequential-phase validation, per-phase worker-limit checks, and normal/worst-case projections from the shipped orchestration policy (config/agent-context-budgets.yaml).",
+      "Measure generic file context plus optional implementation-graph worker-node and manager-review packets using the shipped orchestration policy (config/agent-context-budgets.yaml). Legacy plan parsing is retained only for historical compatibility.",
     args: {
       files: tool.schema.array(fileRangeSchema).describe("Files or line ranges to measure"),
+      graph_packet: tool.schema.object({}).optional().describe("Ephemeral worker-node or manager-review packet"),
     },
     async execute(args: ToolArgs, context: ToolContext) {
       return runPythonTool("common.tools.context_budget", args, context)
