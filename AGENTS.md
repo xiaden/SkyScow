@@ -65,7 +65,7 @@ Required or canonical focused checks:
 - Any change to `config/chromium-seccomp.json`: `python3 scripts/validate_chromium_seccomp.py`.
 - Any change to shipped skill frontmatter: `python3 scripts/validate_skills.py`.
 - Python tool/helper changes: `pytest config/tools/tests` (the suite is configured by `config/tools/tests/conftest.py`).
-- Native TypeScript request-context plugin changes: `npx --yes bun test tests/capture_request_context.test.ts` when the `.opencode` plugin dependencies are available.
+- Native TypeScript request-context plugin changes: when the `.opencode` plugin dependencies are available, expose them at the repository root for Bun resolution and run `test -e node_modules || ln -s .opencode/node_modules node_modules; trap 'if [ -L node_modules ]; then rm node_modules; fi' EXIT; npx --yes bun test tests/capture_request_context.test.ts`.
 - Shell changes: run `shellcheck` on the changed shell scripts where available.
 - Dockerfile, compose, startup, service, or other runtime changes: `docker build -t skyscow-pr-test .` followed by `docker run --rm skyscow-pr-test opencode --version`; exercise container startup/service health when the environment supports it.
 - Every change: review `git diff --check` and the final diff for unintended files or scope creep.
