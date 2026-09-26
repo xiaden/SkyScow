@@ -14,13 +14,14 @@ accepted request / accepted DD
         ↓
 bounded live-repository discovery
         ↓
-change-dag-author
+change-dag-author (constructs, lowers, reconciles, previews, validates)
         ↓
-artifacts/change-dags/pending/{slug}/DAG.json
-        ↓
-change-dag-reviewer (read-only semantic/work gate)
-        ↓
-change-dag-runner: dag_start / dag_status
+observable independent-review trigger?
+   ├─ no → change-dag-runner: dag_start / dag_status
+   └─ yes → change-dag-reviewer (bounded external evidence)
+                    ↓
+                 PASS → change-dag-runner
+                 AMEND_REQUIRED → author correction → revalidate
         ↓
 independent post-change QA (separate lifecycle, not a DAG phase)
 ```
@@ -56,15 +57,17 @@ independent post-change QA (separate lifecycle, not a DAG phase)
 - A `run` node verifies or satisfies the change (tests, builds, type checks, schema checks). Publication/lifecycle commands — commit, push, PR, release, deploy — never belong in a `run` node and are excluded by the canonical argv policy.
 - `anchor_commit` is a creation-time drift/provenance marker only; a dirty tree and `HEAD != anchor_commit` do not invalidate the DAG.
 
-## Reviewer handoff
+## Optional independent review
 
-Dispatch `change-dag-author` to create or amend the Change DAG. The author uses authoring tools only and never mutates source.
+Dispatch `change-dag-author` to create or amend the Change DAG. The author owns bounded discovery, semantic decomposition, exact-work lowering, convergence/reconciliation, `dag_preview`, `dag_validate`, and mutable correction/recovery. The author uses authoring tools only and never mutates source.
 
-A `change-dag-reviewer` invocation is read-only (`dag_show`, `dag_preview`, `dag_validate`) and checks semantic sufficiency and minimality, ordering, grounding against repository reality, exact-work validity and applicability, run-barrier legality, conflict handling, and DD consistency. A reviewer verdict is an external review result consumed by the runner; it is not stored in Change DAG execution state.
+The orchestrator/controller selects `change-dag-reviewer` only when observable conditions justify independent judgment: shared semantic convergence, incompatible cross-branch proposals, nontrivial behavior-changing ordering, producer/consumer or interface migration, shared schema/registry/persistence/migration work, request/DD decomposition ambiguity, DD authority ambiguity, materially useful recovery amendment, or an explicit user request. Do not invoke it for node count, node types, ordinary run barriers, mechanically independent branches, or ordinary author-correctable mechanical errors.
+
+Reviewer input includes the DAG slug, relevant node IDs/bounded scope, source context, a concrete review question, the observable trigger, and `review_kind` (`SEMANTIC`, `EXACT_WORK`, `DD_CONSISTENCY`, or `COMBINED`). The reviewer is read-only (`dag_show`, `dag_preview`, `dag_validate`). `PASS` means only that the requested scope found no material issue; it is not persisted DAG state, execution authorization, or a mandatory lifecycle transition. `AMEND_REQUIRED` returns a bounded finding to the mutable author; `DD_CONTRADICTION` and `NEEDS_DECISION` route upstream.
 
 ## Runner and lifecycle boundary
 
-Decomposition ends at DAG creation/amendment and review. Execution belongs to `change-dag-runner`:
+Authoring ends at a validated DAG; optional independent review is a controller-selected evidence step. Execution belongs to `change-dag-runner`:
 
 - `dag_start(slug, retry?)` launches or queues whole-DAG execution and returns `running` or `queued`.
 - `dag_status(slug?)` is the canonical completion poll until the DAG is `root_satisfied` or idle/not active. There is no durable `quiescent` state; a stopped DAG with failed/unresolved blockers is reported descriptively.

@@ -37,9 +37,9 @@ unresolved / not-yet-executed structure      mutable
 
 Prior Work Log evidence is never rewritten.
 
-## Reviewer handoff
+## Optional independent review
 
-A `change-dag-reviewer` invocation is read-only (`dag_show`, `dag_preview`, `dag_validate`). Review checks:
+The orchestrator/controller may select a bounded `change-dag-reviewer` invocation only when observable coordination or authority conditions justify independent judgment. Review is read-only (`dag_show`, `dag_preview`, `dag_validate`) and is not a mandatory handoff:
 
 ```text
 SUFFICIENCY  would satisfying every semantic leaf satisfy the root requirement?
@@ -50,7 +50,7 @@ COVERAGE     are caller, migration, verification, documentation, and cross-cutti
 WORK         is exact work valid against live source plus applicable lower patches; is overlap compatible?
 ```
 
-A reviewer verdict is an external review result consumed by the runner; it is not stored in Change DAG execution state. Because a running DAG is immutable, accepted work mutation happens while the DAG is stopped/not active and requires fresh review as appropriate.
+A reviewer verdict is external evidence consumed by the controller. `PASS` means only that the requested scope found no material issue; it is not persisted DAG state, execution authorization, or a mandatory lifecycle transition. `AMEND_REQUIRED` returns a bounded finding to Change-DAG-Author while the DAG is stopped/not active. Because a running DAG is immutable, accepted work mutation happens while the DAG is stopped/not active; any later review is selected again from observable conditions.
 
 ## Execution handoff
 

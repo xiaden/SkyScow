@@ -160,7 +160,7 @@ Decompose into the five REprompt components. Each component is independently aud
 - RnD-Manager: Design and research (owns the "thinking" phase)
 - Change-DAG-Author: Creates Change DAGs (does not execute)
 - Change-DAG-Runner: Runs and archives Change DAGs
-- Change-DAG-Reviewer: Read-only semantic/work review
+- Change-DAG-Reviewer: Dynamically selected bounded independent review
 - QA-Reviewer: Quality gate (post-implementation review)
 - Support-Debugger: Root cause analysis (diagnostic, not execution)
 - Support-Researcher: Deep codebase exploration (read-only)

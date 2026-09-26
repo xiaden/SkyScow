@@ -99,7 +99,7 @@ Task at hand
 │  └─ Cause is unclear → Dispatch Support-Debugger
 ├─ Requires executing an authored Change DAG? → Dispatch Change-DAG-Runner
 ├─ Requires creating/amending a Change DAG? → Dispatch Change-DAG-Author
-├─ Requires read-only semantic/work review of a Change DAG? → Dispatch Change-DAG-Reviewer
+├─ Requires an independently justified bounded review of a Change DAG? → Dispatch Change-DAG-Reviewer
 ├─ Requires designing a feature or formal DD? → Dispatch RnD-Manager
 │  └─ RnD-Manager composes the selected DD graph and dispatches RnD-Refiner when needed
 ├─ Requires focused R&D analysis (not full design)?
@@ -141,10 +141,10 @@ Task at hand
 | Task | Reference |
 |------|-----------|
 | Create or amend Change DAG semantic and exact-work structure | [`change-dag-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) |
-| Read-only semantic/work review of a complete Change DAG | [`change-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) |
+| Dynamically selected bounded independent review of a Change DAG | [`change-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) |
 | Run, steward, and archive a validated Change DAG | [`change-dag-runner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-runner.md) |
 
-The Change DAG is the single implementation-work authority. Change-DAG-Author authors structure and exact work without mutating source; Change-DAG-Reviewer is read-only; Change-DAG-Runner owns execution admission and artifact lifecycle and does not dispatch or record QA.
+The Change DAG is the single implementation-work authority. Change-DAG-Author owns bounded discovery, semantic structure, exact work, convergence/reconciliation, preview, validation, and mutable correction without mutating source; Change-DAG-Reviewer is a dynamically selected read-only capability for a bounded independent question; Change-DAG-Runner owns mechanical execution admission and artifact lifecycle and does not dispatch or record QA. Reviewer evidence is never persisted DAG state and does not authorize execution.
 
 ### R&D Department
 
@@ -304,4 +304,4 @@ Spawning a manager (Change-DAG-Runner, RnD-Manager)?
 
 Every design, decomposition, or execution dispatch must validate DD status and requirement conformance before handing work downstream. Accept a DD only with a recognized accepted status (`Complete (accepted)`, `Approved`, or `Completed`), normalizing repository wording `Complete (accepted)` as accepted; an accepted DD intentionally held in `pending/` must name the prerequisite disposition, responsible owner, and transition condition. Reject `Draft`, `Rejected`, stale/invalid pending DDs, and any execution or archival of an unaccepted DD.
 
-For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings are evidence for owner disposition only; `BLOCKING`, confidence, closure, and routing ownership do not authorize implementation.
+For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Change-DAG-Author owns construction end-to-end; the orchestrator/controller selects Change-DAG-Reviewer only for observable coordination or authority triggers. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings and reviewer verdicts are evidence for owner/controller disposition only; `BLOCKING`, confidence, closure, PASS, and routing ownership do not authorize implementation.

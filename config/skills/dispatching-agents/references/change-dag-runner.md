@@ -9,7 +9,7 @@ Dispatch Change-DAG-Runner to run and archive a validated Change DAG.
 
 **Do NOT dispatch when:**
 - DAG topology is missing or wrong — use Change-DAG-Author.
-- Review of semantic/work validity is the task — use Change-DAG-Reviewer.
+- A bounded independent review is needed for an observable coordination or authority trigger — use Change-DAG-Reviewer before dispatching the Runner.
 - Diagnosis is the task — use Support-Debugger.
 
 ## Dispatch Template

@@ -125,10 +125,12 @@ Before reading files, writing code, or executing any command:
 
 ### Delegation Checklist (check top-to-bottom, stop at first match)
 
+For Change DAG authoring, Change-DAG-Author owns construction end-to-end. Select Change-DAG-Reviewer only for observable triggers such as shared semantic convergence, incompatible cross-branch proposals, nontrivial behavior-changing ordering, producer/consumer or interface migration, shared schema/registry/persistence/migration work, request/DD decomposition or authority ambiguity, materially useful recovery amendment, or an explicit user request. Do not select it for node count, node types, ordinary run barriers, mechanically independent branches, or ordinary author-correctable mechanical errors. Reviewer input must include the slug, bounded node/scope IDs, source context, concrete review question, trigger, and `review_kind`; PASS is external evidence only and does not authorize execution.
+
 | If... | Then... |
 |-------|---------|
 | You need to design or explore an idea | → RnD-Manager |
-| Implementation spans 3+ phases across layers | → Change-DAG-Author, then Change-DAG-Reviewer, then Change-DAG-Runner |
+| Implementation spans 3+ phases across layers | → Change-DAG-Author (fresh bounded invocation per construction frontier), then optionally Change-DAG-Reviewer when observable coordination or authority risk justifies independent judgment, then Change-DAG-Runner |
 | A DAG needs independent structural/work review | → Change-DAG-Reviewer |
 | Implementation is done, needs review | → QA-Reviewer |
 | 3+ fix attempts failed, root cause unclear | → Support-Debugger |
@@ -167,7 +169,7 @@ Where:
 | Weighted chars | Action |
 |---------------|--------|
 | < 32K (TRIVIAL or SMALL) | Edit directly. A change DAG at this scope adds more noise than signal. |
-| ≥ 32K (MEDIUM) | Spawn Change-DAG-Author. The model can't hold all edit locations in one reasoning pass. |
+| ≥ 32K (MEDIUM) | Spawn Change-DAG-Author to author a Change DAG. When the full edit context exceeds one agent session, the author decomposes the semantic structure and lowers exact work from the deepest construction frontier upward using **one fresh bounded Change-DAG-Author invocation per frontier** — never a single author session reasoning over the whole repository. |
 | ≥ 80K (LARGE) or architecturally novel or requirements unclear | Route to RnD-Manager for Design Document (DD). |
 
 ---

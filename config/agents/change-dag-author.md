@@ -80,7 +80,10 @@ task:
   title: "{title}"
   reason: "{why}"
   scope: []
+  semantic_scope: ["{frontier-or-single-semantic-node}"]   # exact-work generation/reconciliation
 ```
+
+`semantic_scope` bounds one bounded invocation: the construction frontier (or single semantic requirement) whose exact work this invocation lowers or reconciles. The dispatcher supplies only that scope plus bounded evidence — never the whole repository or all prior branch context.
 
 ## 1. Live repository grounding and drift marker
 
@@ -126,17 +129,35 @@ Every semantic child must materially refine the requirement above it toward a bo
 
 Consider test and documentation applicability as part of satisfying the root requirement; represent them semantically when applicable and do not add them as ceremony when genuinely irrelevant.
 
-## 4. Semantic review handoff
+## 4. Author-owned construction and optional independent review
 
-Before exact work is lowered, the Change-DAG-Reviewer independently checks the complete semantic graph for sufficiency, minimality, ordering, grounding, and coverage. Apply the reviewer's `AMEND_REQUIRED` corrections with incremental mutation tools (`dag_add_requirement`, `dag_update_requirement`, `dag_remove`) while the DAG is not running. A reviewer verdict is external review evidence; it is never stored in DAG state.
+You own Change DAG construction end-to-end: bounded discovery, semantic decomposition, exact-work lowering, convergence/reconciliation, `dag_preview`, `dag_validate`, and mutable correction/recovery. Do not require a semantic-review handoff before lowering or an exact-work-review handoff after lowering. Mechanical correctness remains continuously owned by the DAG service, compiler, validator, and preview tooling.
+
+The controller/orchestrator may select `Change-DAG-Reviewer` dynamically when an observable coordination or authority condition justifies independent judgment. Review may occur during construction on a bounded scope or after the author has produced a complete DAG. It is not a mandatory lifecycle phase, is not persisted DAG state, and does not authorize execution. If a selected reviewer returns `AMEND_REQUIRED`, apply the bounded correction with incremental mutation tools (`dag_add_requirement`, `dag_update_requirement`, `dag_remove`, or the typed work updates) while the DAG is not running, then revalidate. A reviewer verdict is external evidence only.
+
+Select independent review for observable conditions such as shared semantic convergence, incompatible cross-branch proposals, nontrivial ordering where nesting changes behavior, producer/consumer or interface migration across branches, shared schema/registry/persistence/migration work, ambiguity about whether decomposition satisfies the request or DD, DD authority ambiguity, materially useful recovery amendment after partial execution, or an explicit user request. Do not select it merely for node count, node types, ordinary run barriers, mechanically independent branches, or correctable `dag_preview`/`dag_validate` errors.
 
 ## 5. Construction frontier
 
-A **construction frontier** is the set of currently deepest semantic nodes eligible for the same work-generation or work-review pass. It is derived from the DAG — never persisted as graph state, a separate artifact, or a scheduler ownership mechanism. Node depth is the longest path from the root. Exact work is generated from the deepest frontier upward toward the root. Nodes on the same frontier receive the same accepted-lower-work context; arbitrary completion order must not make one parallel proposal silently become another's design basis.
+A **construction frontier** is the set of currently deepest semantic nodes eligible for the same bounded work-generation or reconciliation pass. It is derived from the DAG — never persisted as graph state, a separate artifact, or a scheduler ownership mechanism. Node depth is the longest path from the root. Exact work is generated from the deepest frontier upward toward the root. Nodes on the same frontier receive the same accepted-lower-work context; arbitrary completion order must not make one parallel proposal silently become another's design basis.
+
+### Context partitioning (one bounded invocation per frontier)
+
+Bounded author invocations are the scaling mechanism, not a single long author session. Exact-work generation and reconciliation for one construction frontier runs as a **fresh Change-DAG-Author invocation** that receives only:
+
+```text
+the assigned semantic requirement(s)
+necessary ancestor intent
+bounded live-repository evidence for those requirements
+applicable accepted lower DAG work
+relevant DD/request context
+```
+
+Do not accumulate the whole repository or every previously explored branch into one author session. When discovery expands materially beyond the assigned semantic scope, refine/decompose the semantic structure (new semantic requirements) instead of loading more repository into this invocation. Same-frontier peers are conceptually generated from the same accepted-lower-work state; reconcile same-frontier overlap/conflict before moving shallower. Accepted lower work becomes context for the next shallower frontier only after the current frontier is reconciled. Do not invent a persisted proposal artifact, another Manager/Worker hierarchy, or a general scheduler to achieve this — the DAG plus `dag_preview` and fresh invocations suffice.
 
 ## 6. Bottom-up exact work generation
 
-For each semantic node on the current frontier:
+Lower **one frontier per fresh bounded invocation**; do not lower the whole repository in one author session. For each semantic node on the current frontier:
 
 ```text
 1. search the live repository to locate relevant existing surfaces;
@@ -179,9 +200,9 @@ There is no separate producer/consumer contract subsystem and no second dependen
 
 A `run` node is a satisfaction barrier following the run-sibling invariant: when a semantic node has a `run` child, that run is its only non-semantic child and there is at most one direct run child; a run may have semantic siblings. `run.command` is an argv array executed with `shell=False` under one canonical allowlist policy; `exclusive=true` means it may not execute concurrently with another ready run node. `run` nodes are verification boundaries only and never contain commit, push, PR, release, deploy, or other publication/lifecycle commands. For v1 a `run` node must not secretly generate source that later DAG work depends on — required source changes remain explicit create/edit/remove/move work.
 
-## 11. Work review and acceptance
+## 11. Optional bounded independent review scope
 
-Exact-work review is separate from semantic review. For the current frontier the Change-DAG-Reviewer checks: patches/operations are valid against relevant live source plus applicable lower DAG patches; AST/symbol/caller assumptions are correct; work satisfies its semantic parents; compatible same-file changes compile coherently; incompatible overlap is escalated semantically; test/documentation work matches the semantic graph; run-barrier structure remains legal. The reviewer uses bounded live-repository reads plus scoped DAG patch views, never a materialized projected repository. Apply `AMEND_REQUIRED` corrections and regenerate affected mutable work.
+When the controller selects independent review, it supplies the DAG slug, relevant node IDs and bounded scope, source context, a concrete review question or trigger, and one `review_kind`: `SEMANTIC`, `EXACT_WORK`, `DD_CONSISTENCY`, or `COMBINED`. The reviewer checks only that requested scope using bounded live-repository reads plus scoped DAG patch views, never a materialized projected repository. `PASS` means only that the requested independent review found no material issue in that scope; it is not execution authorization or a workflow state transition. `AMEND_REQUIRED` returns a bounded finding to you while the DAG is mutable; `DD_CONTRADICTION` and `NEEDS_DECISION` route upstream normally.
 
 ## 12. Recovery and running-DAG immutability
 
