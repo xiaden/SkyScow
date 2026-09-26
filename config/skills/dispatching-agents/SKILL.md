@@ -260,7 +260,7 @@ Spawning a manager (Change-DAG-Runner, RnD-Manager)?
 - **This skill's references:** — self-contained dispatch guides, one per agent type, organized by department:
 
   **Exec:** [`change-dag-author.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) — Change DAG creation, amendment, and exact-work authoring.
-  [`change-dag-reviewer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) — Read-only semantic/work review of a complete Change DAG.
+  [`change-dag-reviewer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) — Dynamically selected bounded independent review of a Change DAG scope.
   [`change-dag-runner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-runner.md) — Execution admission, status stewardship, and archive.
 
   **R&D:** [`rnd-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) — Feature design, R&D, tradeoff analysis (orchestrator).
