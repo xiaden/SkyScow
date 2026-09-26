@@ -115,7 +115,7 @@ Terminal decisions:
 Required record fields:
 
 - `writer: "qa-docs-generator"` and `agent: "qa-docs-generator"`
-- `graph_id`: the graph-native identity and positive `round` for graph work; retain legacy `task_family` only for publication records
+- `dag_slug`: the DAG-native identity and positive `round` for Change DAG work; retain legacy `task_family` only for publication records
 - `subject`: stable identity — an object with `kind` plus at least one of
   `file`/`module`/`symbol`/`contract`/`behavior`/`interface`
 - `decision`: exactly one of `REPAIRED`, `UNNECESSARY`, `BLOCKED`, `ESCALATED`

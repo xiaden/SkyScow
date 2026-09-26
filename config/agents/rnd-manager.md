@@ -70,12 +70,12 @@ Never silently weaken, defer, disable, invert, or reinterpret user semantics.
 For a new design request, run `rnd-estimator` first unless the user explicitly
 asks for a DD. It may return:
 
-- `PLAN_ONLY`: send the work to Exec-Planner; do not create a DD.
+- `DAG_ONLY`: send the work to Change-DAG-Author; do not create a DD.
 - `DD_REQUIRED`: compose a DD graph; this route is not a fixed worker list.
 - `RESEARCH_ONLY`: dispatch only bounded research and stop without a partial DD.
 
 An explicit DD request establishes `DD_REQUIRED`; later estimation is useful only
-when it informs downstream planning or a user decision.
+when it informs downstream Change DAG authoring or a user decision.
 
 ## Local graph composition
 
@@ -178,10 +178,10 @@ These routes do not create partial DD artifacts.
 pre_flight:
   estimator_run: yes | no | n/a
   librarian_run: yes | no | n/a
-  route: PLAN_ONLY | DD_REQUIRED | RESEARCH_ONLY
+  route: DAG_ONLY | DD_REQUIRED | RESEARCH_ONLY
 status: DONE | BLOCKED | NEEDS_DECISION
 summary: "One-line outcome"
-phase: EXPLORATION | DESIGN | READY_FOR_PLANNING
+phase: EXPLORATION | DESIGN | READY_FOR_AUTHORING
 routing_trace: []
 artifacts: []
 adversarial_continuation:

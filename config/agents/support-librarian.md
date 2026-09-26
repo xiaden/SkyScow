@@ -84,7 +84,7 @@ You receive a task briefing from the caller:
 
 ```yaml
 task:
-  action: "design | plan | execute | review | debug"
+  action: "design | author | execute | review | debug"
   subject: "What the caller is about to do"
   scope: "Modules, layers, or features involved"
   specific_questions:  # Optional — caller may have specific concerns
@@ -136,7 +136,7 @@ Search logs for prior experience:
 Filter by agent when scope is clear:
 
 - `log_read(agent="rnd-dd-author")` for design history
-- `log_read(agent="exec-worker")` for implementation history
+- `log_read(agent="change-dag-author")` for implementation history
 - `log_read(agent="support-debugger")` for prior diagnoses
 
 ### 4. Design Doc Search
@@ -174,7 +174,7 @@ constraints:
 
 warnings:
   # Dead ends, failed approaches, known gotchas
-  - source: "exec-worker log 2026-03-15"
+  - source: "change-dag-author log 2026-03-15"
     summary: "Monkey-patching essentia loader fails silently — use wrapper instead"
     relevance: HIGH
     
@@ -228,7 +228,7 @@ Your observations about the corpus are the record that keeps the corpus healthy.
  | A search returned nothing useful — explicit nil result | `observation` |
  | Found an artifact that directly answers the caller's question | `discovery` |
 
-**Plan tag:** If invoked during plan execution, include the plan title as a tag (e.g., `tags=["TASK-myfeature-B-build-query-layer"]`). This is how reviewers know your corpus search was part of this plan's lifecycle.
+**DAG tag:** If invoked during Change DAG execution, include the DAG slug as a tag (e.g., `tags=["TASK-myfeature-B-build-query-layer"]`). This is how reviewers know your corpus search was part of this DAG.an's lifecycle.
 
 Log your agent name as `support-librarian`.
 
@@ -267,4 +267,4 @@ DONE means verified findings with cited sources — never "probably" or "likely.
 
 ## Dispatch Validation Brief
 
-When briefing DD, plan, or execution work, explicitly report DD status/location, requirement-ledger conformance to the verbatim request, superseded artifacts and back-pointers, and any ownership-closure gaps. Do not recommend dispatch when an accepted DD remains improperly pending, a superseded plan remains executable, or caller ownership is only a handoff annotation.
+When briefing DD, Change DAG, or execution work, explicitly report DD status/location, requirement-ledger conformance to the verbatim request, superseded artifacts and back-pointers, and any ownership-closure gaps. Do not recommend dispatch when an accepted DD remains improperly pending, a superseded plan remains executable, or caller ownership is only a handoff annotation.

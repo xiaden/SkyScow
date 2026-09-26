@@ -24,12 +24,12 @@ owns only HOW documentation analysis is performed.
 Analyze documentation coverage and accuracy for the changed files.
 
 Context files to read:
-- [GRAPH_PATH]
+- [DAG_PATH]
 - [list changed files covered by the subject nodes]
 - [existing docs or READMEs for context]
 
 scope: "[files/modules to analyze]"
-graph_id: "[graph identifier]"
+slug: "[change dag slug]"
 subjectNodeIds: ["I001"]
 changedFiles: ["..."]
 
@@ -44,7 +44,7 @@ reconstruct Generator history.
 | Field | Description | Example |
 |-------|-------------|---------|
 | `scope` | Files/modules to analyze | `src/api/routes/, docs/api/` |
-| `graph_id` | Persistent graph identity for context | `api-graph` |
+| `slug` | Change DAG identity for context | `api-change` |
 | `changedFiles` | Changed surface | `["src/api/routes.py"]` |
 
 ## Expected Output

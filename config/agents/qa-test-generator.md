@@ -60,7 +60,7 @@ whose appropriate evidence is a build, smoke, or runtime check.
 
 ## Terminal decisions and durable record (required before return)
 
-Every invocation ends in **exactly one** verified terminal decision, and you write its durable graph-native
+Every invocation ends in **exactly one** verified terminal decision, and you write its durable DAG-native
 record via the `qa_record_write` tool **before you return**. Do not report to the caller without a
 successful write; a failed write is a failed invocation. The record is the durable evidence the
 analyzer, reviewer, and manager use to reconcile later rounds.
@@ -79,7 +79,7 @@ Terminal decisions:
 Required record fields:
 
 - `writer: "qa-test-generator"` and `agent: "qa-test-generator"`
-      - `graph_id`: the graph-native family identity and a positive `round` for graph work; retain `task_family` only for publication/legacy records
+      - `dag_slug`: the DAG-native family identity and a positive `round` for Change DAG work; retain `task_family` only for publication/legacy records
 - `subject`: stable identity — an object with `kind` plus at least one of
   `file`/`module`/`symbol`/`contract`/`behavior`/`interface`
 - `decision`: exactly one of `REPAIRED`, `UNNECESSARY`, `BLOCKED`, `ESCALATED`

@@ -1,12 +1,13 @@
 # QA Reassertion
 
-Push back when Exec-Manager reports completion without running QA review.
+Push back when a publication candidate reaches the publication gate without running QA review.
 
 ## When to Use
 
-- Exec-Manager reports `status: DONE` but the report is missing `qaReview` section
-- Exec-Manager attempts to skip QA review entirely
-- Exec-Manager accepts DONE without a complete QA-Reviewer report or final `PASS` verdict
+- A candidate is presented for publication without a `qaReview` report
+- A publication path attempts to skip QA review entirely
+- A candidate is accepted without a complete QA-Reviewer report or final `PASS` verdict
+
 ## Do NOT Use
 
 - For general QA issues or review feedback — that's QA-Reviewer's domain
@@ -15,55 +16,57 @@ Push back when Exec-Manager reports completion without running QA review.
 
 ## Evidence Enforcement Rejections
 
-Reassert until the QA gate is complete. Reject a manager report that:
+Reassert until QA is complete before publication. Reject a report that:
 
 - is missing the QA-Reviewer report or final verdict;
 - omits required core QA checks or contains malformed QA output;
-- claims completion while QA-Reviewer reports unresolved NODE_DEFECT, GRAPH_GAP, or ARCHITECTURE_CONTRADICTION blocking findings;
-- accepts fixer claims beyond the repairs the fixer actually performed.
+- claims publication readiness while QA-Reviewer reports unresolved `WORK_DEFECT`, `COVERAGE_GAP`, or `ARCHITECTURE_CONTRADICTION` blocking findings;
+- accepts repair claims beyond the repairs actually performed.
 
-Exec-Manager consumes the QA-Reviewer report as a whole and does not reconstruct or reinterpret internal QA details.
+QA-Reviewer results are consumed as a whole and are not reconstructed or reinterpreted internally. QA is independent of Change DAG execution and archival; `dag_archive` does not depend on QA. QA is enforced separately at the publication gate.
+
 ## Reassertion Template
 
-Send this back to Exec-Manager:
+Send this back to the publication path (`qa-push-manager`) before publishing:
 
-QA review is mandatory. Re-run with QA-Reviewer before reporting DONE.
+QA review is mandatory before publication. Run QA-Reviewer before publishing.
 
 Your report MUST include:
 - QA-Reviewer verdict and all applicable checks (deterministic checks, contracts, completeness, and applicable test/documentation evidence)
-- the complete QA-Reviewer findings and ownership classification
-- no unresolved subject-node defects or unowned graph gaps
+- the complete QA-Reviewer findings and classification
+- no unresolved work defects or unowned coverage gaps
 
 ## Required Checks
 
-Exec-Manager's report must include all of these before accepting DONE:
+The publication report must include all of these before publishing:
 
 - [ ] `checks.deterministic: PASS` (applicable changed-surface evidence)
 - [ ] `checks.contracts: PASS`
-- [ ] `checks.completeness: PASS` (subject-node obligations)
+- [ ] `checks.completeness: PASS` (executed Change DAG obligations)
 - [ ] `checks.testCoverage: PASS` or evidence-based `NOT_APPLICABLE`
 - [ ] `checks.documentation: PASS` or evidence-based `NOT_APPLICABLE`
 
-If any mandatory check is missing, malformed, or not `PASS`, re-dispatch QA-Reviewer. Exec-Manager must
-wait for a complete QA-Reviewer report before reporting DONE again.
+If any mandatory check is missing, malformed, or not `PASS`, re-dispatch QA-Reviewer and wait for a complete report before publishing again.
+
 A reassertion in this context should verify that:
 1. QA-Reviewer **ran** (not skipped)
 2. QA-Reviewer **classified failures correctly** — distinguishing intentional "not yet implemented" failures from actual regressions
 
 **What NOT to do:**
 - Do not demand that every spec test passes prematurely
-- Do not accept a DONE report that skipped QA entirely because "spec tests are expected to fail"
+- Do not accept a publication report that skipped QA entirely because "spec tests are expected to fail"
 
 ### Correct reassertion message (spec-first variant)
 
 ```
-QA review is mandatory even with spec-first tests. Re-run with QA-Reviewer before reporting DONE.
+QA review is mandatory even with spec-first tests. Run QA-Reviewer before publishing.
 
 QA-Reviewer must classify test failures:
 - Spec-first failures (expected — not yet implemented) → note in report
-- Actual failures (regressions, bugs) → must be fixed before DONE
+- Actual failures (regressions, bugs) → must be fixed before publication
 
 Your report MUST include:
 - QA-Reviewer verdict with failure classification
 - the complete QA-Reviewer checks and findings
-- no unresolved subject-node defects or unowned graph gaps
+- no unresolved work defects or unowned coverage gaps
+```

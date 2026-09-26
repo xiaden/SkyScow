@@ -113,7 +113,7 @@ contextFiles:        # READ THESE FIRST
   - {contracts_file} # Public API signatures
 
 task:
-  graph_id: "{graph-id}"
+  dag_slug: "{dag-slug}"
   subjectNodeIds: ["I001"]
   changedFiles:      # Implementation files to analyze
     - "src/persistence/constructor/builder.py"
@@ -132,7 +132,7 @@ and handoff; QA-DocsGenerator owns documentation edits and relevant verification
 
 ### Current-state inspection
 
-- Read the assigned plan and changed files.
+- Read the DAG context and changed files.
 - Check public-symbol docstrings, user documentation, and API documentation relevant to the changed surface.
 - Identify missing, stale, or inaccurate documentation and distinguish systemic documentation problems.
 - Do not use prior QA records to suppress or replace current inspection.

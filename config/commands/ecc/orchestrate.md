@@ -38,11 +38,9 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 | Agent | Specialty | Use For |
 |-------|-----------|---------|
-| exec-manager | Fresh bounded graph frontier scheduler | Claims ready nodes, packages ephemeral workers, accepts evidence, routes support, and hands off terminal QA |
-| exec-plan-gate | Conditional implementation-graph gate | Validates a complete graph only when observable coordination risk exists |
-| exec-planner | Persistent graph creator/amender | Derives obligations, contracts, ownership, and real dependency edges in `GRAPH.json` |
-| exec-worker | Ephemeral claimed-node implementer | Implements only claimed graph obligations and returns per-node evidence |
-| exec-fixer | Bounded node-defect repair | Repairs listed MINOR graph-node defects with applicable verification evidence |
+| change-dag-author | Change DAG author | Creates/amends one Change DAG — semantic decomposition, exact work, patch visibility; never writes source |
+| change-dag-reviewer | Independent read-only reviewer | Semantic/work/conflict/run-barrier/DD-consistency review; verdict consumed by the controller, stored nowhere in DAG state |
+| change-dag-runner | Change DAG execution control | Starts/stops/monitors execution, reconciles queue/marker/lock, checkpoints a successful completion, and archives a completed DAG |
 
 ### QA Department
 
@@ -67,7 +65,7 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 ### Dependency-ordered execution
 ```
-rnd-manager → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → exec-planner → exec-manager → qa-reviewer
+rnd-manager → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → change-dag-author → change-dag-reviewer → change-dag-runner → independent QA (qa-reviewer)
 ```
 Use when: Later tasks depend on earlier results. The Manager selects the smallest
 sufficient graph; independent Librarian/Researcher work may run concurrently.
@@ -83,7 +81,7 @@ Use when: Tasks are independent and their evidence domains do not overlap.
 ### Bounded fan-out/fan-in
 ```
             ┌→ agent-1 ─┐
-exec-planner →├→ agent-2 ─┼→ synthesizer
+nyx →├→ agent-2 ─┼→ synthesizer
             └→ agent-3 ─┘
 ```
 Use when: Multiple perspectives needed
@@ -110,14 +108,14 @@ Use when: Multiple perspectives needed
 
 The Manager records the observed condition, selected and skipped capabilities, dependency/concurrency shape, terminal reason, and DD eligibility in the routing trace. These cases are acceptance examples, not a new registry or state-machine DSL:
 
-- **A — Trivial local change:** a single well-understood module and no open external or architectural question. Select only route/sizing evidence needed for planning; skip Librarian, Researcher, Refiner, Architect, ComplexityAdvisor, and DDAuthor with evidence-based reasons. Terminal: `PLAN_ONLY`; no DD artifacts.
+- **A — Trivial local change:** a single well-understood module and no open external or architectural question. Select only route/sizing evidence needed for authoring; skip Librarian, Researcher, Refiner, Architect, ComplexityAdvisor, and DDAuthor with evidence-based reasons. Terminal: `DAG_ONLY`; no DD artifacts.
 - **B — Open Nomarr backend choice:** backend alternatives are consequential and repository integration facts are unknown. Select independent Librarian/Researcher work, then external and repository Refiner pairs; select Architect only if multiple survivors still require tradeoffs. Preserve Manager/user decision authority before authoring. Terminal: `DD_REQUIRED` only after dispositions and an accepted direction.
 - **C — Accepted architecture, unclear integration:** architecture is accepted but local runtime or ownership paths are unknown. Skip external Ideator/Counter-Ideator and Architect; select Researcher and, when repository adaptation is material, Improver/Counter-Improver. Terminal: selected evidence or Manager disposition; no redundant external exploration.
 - **D — Greenfield alternatives:** no accepted direction exists and multiple credible designs may survive. Select Architect for explicit tradeoffs and require Manager or user resolution at the decision boundary; an advisory agent never chooses.
 - **E — Evaluator is good enough:** a selected Counter returns credible `GOOD_ENOUGH` or `NO_MATERIAL_CONCERNS` with evidence, assumptions, failure modes, and applicability. Terminate that pair immediately; do not add a historical pass.
 - **F — Mitigation requires authority:** an evaluator returns a material finding. Pause and return it to RnD-Manager; only a Manager `MITIGATE` disposition authorizes a bounded correction and optional revalidation. Other dispositions do not authorize implementation.
 - **G — Generalized complexity:** the design introduces meaningful lifecycle/state machinery, new abstractions, dependency or compatibility management, registries, or broad scope. Select ComplexityAdvisor; keep its result advisory and preserve smallest-realization discipline.
-- **H — DD not required:** the request is research-only or plan-only, or an existing accepted DD is sufficient. Do not select DDAuthor or create partial DD artifacts; route only bounded research/planning work and record the terminal reason.
+- **H — DD not required:** the request is research-only or dag-only, or an existing accepted DD is sufficient. Do not select DDAuthor or create partial DD artifacts; route only bounded research/authoring work and record the terminal reason.
 
 ## Coordination Rules
 
@@ -137,29 +135,29 @@ The Manager records the observed condition, selected and skipped capabilities, d
 
 ---
 
-## Graph execution routing cases
+## Change DAG execution routing cases
 
-The Exec-Manager records the observed condition, selected and skipped capabilities,
+The Change-DAG-Runner records the observed condition, selected and skipped capabilities,
 dependencies/concurrency, outcome, re-entry, and terminal reason in its existing
 execution trace. These examples preserve static authority; they are not a registry
 or state-machine DSL:
 
-- **A — Straightforward graph:** create/validate `GRAPH.json`, derive its ready frontier, and dispatch a fresh bounded Manager; skip graph gate and support capabilities without observable triggers. Require normal QA before terminal acceptance.
-- **B — Independent branches:** seven independent graph nodes do not trigger a gate by count; claim compatible packets concurrently only when prerequisites and write scopes are safe.
-- **C — Coupled producer/consumer:** select the graph gate for a real cross-node contract, shared write, migration, or registration trigger; require `PASS` before Manager claims the affected frontier.
-- **D — Obvious node defect:** select Exec-Fixer directly for the listed bounded subject-node issue; do not invoke Debugger.
-- **E — Unclear node failure:** select Support-Debugger; route `SIMPLE` to Fixer, `NEEDS_PLAN` to Exec-Planner graph amendment and re-execution, and `INCONCLUSIVE` to escalation.
-- **F — QA `GRAPH_GAP`:** return to Exec-Planner for a bounded graph amendment, re-derive readiness, re-claim affected nodes, and run normal QA again; never route a graph gap to Fixer.
-- **G — Accepted migration:** select PatternEnforcer only for accepted impact closure or migration scope; findings remain advisory and scope changes return to Exec-Planner.
-- **H — Historical artifacts:** select Support-Librarian only when ADRs, DDs, logs, or dead ends materially constrain graph creation/routing; record a skip otherwise.
+- **A — Straightforward DAG:** author/validate `DAG.json` and start execution; skip reviewer and support capabilities without observable triggers. Require normal independent QA before terminal acceptance.
+- **B — Independent branches:** multiple independent DAG nodes do not trigger a gate by count; execution is serialized by the single-DAG lock and runs in dependency order.
+- **C — Coupled producer/consumer:** select the change-dag-reviewer for a real cross-node contract, shared write, migration, or registration trigger; require `PASS` before execution starts.
+- **D — Obvious node defect:** apply a bounded raw edit directly, or author a remediation DAG when the defect is substantial; do not invoke Debugger.
+- **E — Unclear node failure:** select Support-Debugger; route `SIMPLE` to a bounded raw edit, `NEEDS_DAG` to Change-DAG-Author for a DAG amendment and re-execution, and `INCONCLUSIVE` to escalation.
+- **F — QA `DAG_GAP`:** return to Change-DAG-Author for a bounded DAG amendment, re-run, and run normal QA again; never route a DAG gap to a raw edit.
+- **G — Accepted migration:** select PatternEnforcer only for accepted impact closure or migration scope; findings remain advisory and scope changes return to Change-DAG-Author.
+- **H — Historical artifacts:** select Support-Librarian only when ADRs, DDs, logs, or dead ends materially constrain DAG creation/routing; record a skip otherwise.
 - **I — No history:** with no relevant artifact infrastructure, skip Support-Librarian and do not manufacture a briefing.
-- **J — Architectural contradiction:** stop execution and return upstream to the accepted DD/request owner; no graph agent invents a resolution.
-- **K — A/C with independent B:** if A produces a contract consumed by C while B has no real edge, preserve `A → C`, keep B independent, and claim B concurrently when its prerequisites and packet scope permit.
+- **J — Architectural contradiction:** stop execution and return upstream to the accepted DD/request owner; no DAG agent invents a resolution.
+- **K — A/C with independent B:** if A produces a contract consumed by C while B has no real edge, preserve `A → C`, keep B independent, and execution remains dependency-ordered.
 
 ## References
 
 - **`dispatching-agents` skill** — Canonical dispatch templates, agent selection decision tree, native `task` fan-out guidance, and per-agent reference files. Load this before dispatching any agent.
-- **`implementation graph schema/tools`** — `GRAPH.json` is authoritative for new work; use `exec-planner` and graph tools rather than creating plans.
-- **Legacy task-plan skill** — Historical compatibility only; do not create new plan artifacts for graph-native work.
+- **`Change DAG schema/tools`** — `artifacts/change-dags/{pending|completed}/{slug}/DAG.json` is authoritative for new work; use `change-dag-author` and the `dag_*` tools rather than creating plans or graphs.
+- **Legacy task-plan and implementation-graph artifacts** — Historical compatibility only; do not create new plan or legacy implementation-graph artifacts for Change DAG work.
 
 **NOTE**: Complex tasks benefit from multi-agent orchestration. Simple tasks should use single agents directly. When in doubt, consult the `dispatching-agents` skill's decision tree.

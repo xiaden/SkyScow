@@ -1,11 +1,11 @@
 # Support-Librarian
 
-Dispatch Support-Librarian when materially relevant artifact context (ADRs, ASRs, logs, design docs, plans, or dead ends) may constrain R&D or Planning routing; record an evidence-based skip when it does not.
+Dispatch Support-Librarian when materially relevant artifact context (ADRs, ASRs, logs, design docs, Change DAG bundles, or dead ends) may constrain R&D or decomposition routing; record an evidence-based skip when it does not.
 
 ## When to Dispatch
 
 **Use when:**
- - Before dispatching RnD-Manager or Exec-Planner when prior artifacts materially constrain the route
+ - Before dispatching RnD-Manager or Change-DAG-Author when prior artifacts materially constrain the route
  - Entering an unfamiliar module or subsystem where artifact history is relevant
 - You need to avoid contradicting prior architectural decisions
 
@@ -46,7 +46,7 @@ Support-Librarian returns a structured briefing with:
 
 ## After Receiving Briefing
 
-1. **Pass the briefing downstream.** Include it in dispatch prompts to RnD-Manager, Exec-Planner, or other agents.
+1. **Pass the briefing downstream.** Include it in dispatch prompts to RnD-Manager, Change-DAG-Author, or other agents.
 2. **Reference specific ADRs.** When making architectural choices, cite the ADR by name.
 3. **Respect dead-ends.** Don't retry approaches that were documented as failures.
 
@@ -110,4 +110,4 @@ Return a structured briefing: relevant decisions, prior observations, dead-ends 
 
 ### Required Lifecycle Checks
 
-The briefing must include DD status/location and ledger-vs-verbatim-request conformance, superseded artifacts/back-pointers, and ownership-closure gaps. A handoff annotation is not caller ownership. Flag improperly pending accepted DDs and executable superseded plans before downstream dispatch.
+The briefing must include DD status/location and ledger-vs-verbatim-request conformance, superseded artifacts/back-pointers, and ownership-closure gaps. A handoff annotation is not caller ownership. Flag improperly pending accepted DDs and executable superseded Change DAGs before downstream dispatch.

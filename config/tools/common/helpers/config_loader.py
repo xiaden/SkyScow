@@ -389,7 +389,7 @@ def resolve_module_path(module_name: str, workspace_root: Path | None = None) ->
         config = load_config(workspace_root)
         for search_path in get_python_search_paths(config, workspace_root):
             # For paths like tools/src/my_tools, add the parent
-            # so we can resolve my_tools.helpers.plan_md
+            # so we can resolve my_tools.helpers.<module>
             if search_path.name == parts[0]:
                 search_bases.append(search_path.parent)
             else:

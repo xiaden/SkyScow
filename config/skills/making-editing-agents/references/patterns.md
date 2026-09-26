@@ -49,7 +49,7 @@ This agent's first decision is always delegation: does a specialist exist for th
 ## Pattern 2: Conditional Section Loading
 
 ### The Problem
-Monolithic agent files load all instructions into every session. Delegation rules, plan syntax, error ownership, troubleshooting, and layer conventions all sit in context regardless of whether the task is a one-line fix or a multi-phase feature.
+Monolithic agent files load all instructions into every session. Delegation rules, DAG syntax, error ownership, troubleshooting, and layer conventions all sit in context regardless of whether the task is a one-line fix or a multi-step feature.
 
 ### The Fix
 Decompose into sections with condition predicates. Always-on: identity + delegation matrix. Conditional: everything else.
@@ -73,7 +73,7 @@ Decompose into sections with condition predicates. Always-on: identity + delegat
 
 | Section | Condition Predicate | When Loaded |
 |---------|-------------------|--------------|
-| Plan Syntax Rules | Task involves `artifacts/plans/` or multi-phase work | Agent needs to create/edit plan files |
+| Change DAG Syntax Rules | Task involves authoring a Change DAG | Agent needs to create/amend a DAG |
 | Layer Conventions | Editing files in a governed directory | Auto-injected based on file path |
 | Troubleshooting Procedure | 3+ consecutive failed attempts or explicit debug request | Diagnostic mode |
 | ADR/Logging Rules | Task involves architectural decisions or multi-session work | Decision-tracking mode |
@@ -102,8 +102,8 @@ Before executing any task, check this matrix. If the task matches a row, delegat
 | Task Category | Subagent | Trigger Condition | Autonomy | Completion Evidence |
 |--------------|----------|-------------------|----------|-------------------|
 | Feature design, R&D | RnD-Manager | User asks "design," "explore," "think about" | Open-ended: agent decides approach | Design doc in artifacts/designs/ |
-| Implementation plan creation | Exec-Planner | Multi-phase feature, 4+ coordinated edits | Read-only plan generation | Plan file in artifacts/plans/ |
-| Plan execution | Exec-Manager | Existing plan file needs execution | Orchestrate workers | All plan steps marked complete |
+| Change DAG creation | Change-DAG-Author | Multi-step feature, shared writes or coordinated edits | Read-only DAG authoring | `DAG.json` under `artifacts/change-dags/pending/` |
+| Change DAG execution | Change-DAG-Runner | Authored DAG needs execution | Run and archive | Root satisfied; DAG archived |
 | QA review | QA-Reviewer | Implementation complete, before merge | Full review, no edits | Review report with tiered status |
 | Root cause analysis | Support-Debugger | 3+ failed fix attempts, unexplained failure | Read-only diagnosis | Diagnosis with suggested fix |
 | Deep codebase research | Support-Researcher | Need to understand unfamiliar system (5+ files) | Read-only exploration | Structured findings with code locations |
@@ -111,7 +111,7 @@ Before executing any task, check this matrix. If the task matches a row, delegat
 
 ### Autonomy Levels
 - **Atomic execution:** Delegatee follows strict specification, returns structured output. Use for
-  well-defined subtasks (plan creation, review, research).
+  well-defined subtasks (DAG authoring, review, research).
 - **Open-ended delegation:** Delegatee has authority to decompose objectives and pursue sub-goals.
   Use for design/R&D tasks where the approach isn't known upfront.
 ```
@@ -158,8 +158,9 @@ Decompose into the five REprompt components. Each component is independently aud
 ---
 **Team Composition:**
 - RnD-Manager: Design and research (owns the "thinking" phase)
-- Exec-Planner: Creates implementation plans (does not execute)
-- Exec-Manager: Orchestrates plan execution (spawns workers)
+- Change-DAG-Author: Creates Change DAGs (does not execute)
+- Change-DAG-Runner: Runs and archives Change DAGs
+- Change-DAG-Reviewer: Read-only semantic/work review
 - QA-Reviewer: Quality gate (post-implementation review)
 - Support-Debugger: Root cause analysis (diagnostic, not execution)
 - Support-Researcher: Deep codebase exploration (read-only)
@@ -192,8 +193,8 @@ Every exclusion includes a positive routing instruction — "X → use Y."
 ```markdown
 **Scope Exclusions:**
 - Do not design features or create design documents
-- Do not orchestrate multi-plan feature execution
-- Do not execute formal implementation plans
+- Do not orchestrate Change DAG execution
+- Do not execute Change DAGs
 - Do not perform QA review
 ```
 
@@ -204,10 +205,9 @@ Every exclusion includes a positive routing instruction — "X → use Y."
 | This agent does NOT... | Route instead to... | How |
 |------------------------|---------------------|-----|
 | Design features or create design documents | RnD-Manager | `task(subagent_type="rnd-manager")` |
-| Orchestrate multi-plan feature execution | Nyx using `feature-execution` | native `task` per Exec-Manager plan |
-| Execute formal implementation plans | Exec-Manager | `task(subagent_type="exec-manager")` |
+| Run and archive an authored Change DAG | Change-DAG-Runner | `task(subagent_type="change-dag-runner")` |
 | Perform QA review | QA-Reviewer | `task(subagent_type="qa-reviewer")` |
-| Create or amend plan files | Exec-Planner | `task(subagent_type="exec-planner")` |
+| Create or amend a Change DAG | Change-DAG-Author | `task(subagent_type="change-dag-author")` |
 | Root cause analysis on failures | Support-Debugger | `task(subagent_type="support-debugger")` |
 | Deep codebase research | Support-Researcher | `task(subagent_type="support-researcher")` |
 ```
@@ -224,7 +224,7 @@ These patterns have been observed to cause misbehavior. When present, fix immedi
 **MANDATORY: Use the Plan subagent for complex tasks.**
 ```
 The agent "Plan" doesn't exist in the subagent registry. The model either fails to find it
-or interprets the instruction as "create a plan file yourself."
+or interprets the instruction as "create the artifact yourself."
 
 **Fix:** Reference only agents that exist in the registry. Verify by cross-referencing
 with the available subagent type list.
@@ -234,8 +234,8 @@ with the available subagent type list.
 # ❌ No condition — applies even when it shouldn't
 Treat all lint errors in the repository as yours to fix.
 ```
-When an exec-planner creates a plan file and lint reports pre-existing errors in untouched
-code, this instruction forces the planner to fix them — violating its read-only scope.
+When a change-dag-author creates a Change DAG and lint reports pre-existing errors in untouched
+code, this instruction forces the authoring agent to fix them — violating its read-only scope.
 
 **Fix:** Scope the mandate and classify failures by baseline/causality.
 ```markdown
@@ -252,7 +252,7 @@ For errors in untouched files, log an observation and route to the appropriate a
 1. Delegate specialized work to subagents
 2. Run the linter after every edit — zero new errors is the standard
 ```
-If the agent delegates an edit to Exec-Worker, instruction 2 still applies (no scope
+If the agent delegates an edit to a worker, instruction 2 still applies (no scope
 condition) — but the agent can't run the linter on work it didn't do. It either violates
 delegation (runs lint itself, doubling work) or violates the lint rule.
 
@@ -267,14 +267,14 @@ After delegation completes: verify the delegatee's reported results.
 ### Anti-Pattern: Identity by Negation
 ```markdown
 # ❌ Defines the agent by what it doesn't do
-**Scope Exclusions:** This agent does NOT design, plan, execute plans, review, or debug.
+**Scope Exclusions:** This agent does NOT design, author DAGs, execute, review, or debug.
 ```
 After reading this, the model knows what it shouldn't do but has no positive identity.
 
 **Fix:** Define identity positively, then list exclusions as routing instructions.
 ```markdown
 # ✅ Positive identity first
-**Identity:** Default operations agent. Determines when plans are needed, when ADRs
+**Identity:** Default operations agent. Determines when a Change DAG is needed, when ADRs
 should be created, and when to stop and discuss before the user makes poor architectural
 decisions. Routes complex work to specialists; executes only routine tasks directly.
 
@@ -327,7 +327,7 @@ These can fade over long sessions — the delegation matrix (Tier 1) should alre
 
 ## Tier 3: Conditional — Load on Demand
 ```
-Everything else: plan syntax, troubleshooting procedures, layer conventions,
+Everything else: Change DAG syntax, troubleshooting procedures, layer conventions,
 logging rules, completion gates. These should NEVER be in always-on context.
 Use skill references or conditional auto-injection instead.
 ```
@@ -441,7 +441,7 @@ Treat agent file editing as a constraint budget. Every imperative you add consum
 10. [_empty_]
 
 ### Conditional Constraints (loaded on demand)
-- Plan syntax rules → loaded when task involves `artifacts/plans/`
+- Change DAG syntax rules → loaded when task involves authoring a DAG
 - Troubleshooting procedure → loaded when 3+ failed attempts
 - Layer conventions → auto-injected when editing files in governed directories
 - ADR/Logging rules → loaded when making architectural decisions

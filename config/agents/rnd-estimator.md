@@ -98,7 +98,7 @@ approach: "{implementation approach, if known}"
  | LARGE   | 80K-320K      | 20K-80K           | Cross-cutting, multi-layer   |
  | EPIC    | 320K+         | 80K+              | Multi-workflow, schema change|
 
-   **Plan threshold:** MEDIUM (≥32K weighted chars) — the model cannot comfortably hold all edit locations in one reasoning pass. Below this, a plan adds more noise than signal.
+   **Change DAG threshold:** MEDIUM (≥32K weighted chars) — the model cannot comfortably hold all edit locations in one reasoning pass. Below this, a change DAG adds more noise than signal.
    **DD threshold:** LARGE (≥80K weighted chars) OR architecturally novel OR incomplete/ambiguous requirements — any of those three axes triggers a design document.
 
 ## Output
@@ -132,7 +132,7 @@ breakdown:
     reason: "Coverage for new workflow"
 
 pipeline:
-  plan_needed: true       # weighted_chars ≥ 32K
+  dag_needed: true        # weighted_chars ≥ 32K
   dd_needed: false        # weighted_chars < 80K, not architecturally novel
 
 risks:

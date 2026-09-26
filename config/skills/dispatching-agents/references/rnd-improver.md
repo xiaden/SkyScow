@@ -6,7 +6,7 @@ Dispatch RnD-Improver to analyze existing code and suggest concrete improvements
 
 **Dispatch when:**
 - You want to improve existing code and need structured suggestions
-- An implementation plan needs repository-native realization guidance — "how should approach A fit this repository?"
+- An authored Change DAG needs repository-native realization guidance — "how should approach A fit this repository?"
 - RnD-Refiner needs repository-fit adaptation after the selected external evidence is sufficient
 - You're evaluating whether an existing module could be restructured for better maintainability
 - RnD-Refiner delegates repository-native adaptation to this agent in the adversarial design flow

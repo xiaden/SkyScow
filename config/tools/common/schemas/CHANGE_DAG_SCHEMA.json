@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "slug",
+    "anchor_commit",
+    "root",
+    "nodes"
+  ],
+  "properties": {
+    "slug": {
+      "type": "string",
+      "minLength": 1
+    },
+    "anchor_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{7,64}$",
+      "description": "Git HEAD recorded automatically when the DAG is created. This is a provenance/drift marker only, not an execution base, repository snapshot, cleanliness requirement, or commit-matching guard. Discovery, reads, preview, compilation, and execution use the live repository state."
+    },
+    "root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "requirement"
+            ],
+            "properties": {
+              "type": {
+                "const": "semantic"
+              },
+              "requirement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "satisfied_by": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": "Optional ALL-of relationship and the DAG's only edge. When present, every referenced child must be satisfied. Omission denotes an unresolved semantic leaf. References may converge on shared descendants but must never create a path back to an ancestor. If any referenced child is type 'run', every other referenced child must be type 'semantic'."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "path",
+              "content"
+            ],
+            "properties": {
+              "type": {
+                "const": "create"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "path",
+              "patch"
+            ],
+            "properties": {
+              "type": {
+                "const": "edit"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "patch": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "path"
+            ],
+            "properties": {
+              "type": {
+                "const": "remove"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "from_path",
+              "to_path"
+            ],
+            "properties": {
+              "type": {
+                "const": "move"
+              },
+              "from_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "to_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "command"
+            ],
+            "properties": {
+              "type": {
+                "const": "run"
+              },
+              "command": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Execution command as an argv array, executed with shell=False. It is not a shell string. One canonical policy module checks it against an exact executable-plus-subcommand allowlist."
+              },
+              "exclusive": {
+                "type": "boolean",
+                "default": false,
+                "description": "When true, execute this run node without any other run node executing concurrently within the active DAG."
+              }
+            },
+            "description": "Terminal command node and satisfaction barrier for implementation/verification work. Its semantic parent may have semantic siblings for it, but no other terminal siblings. Publication lifecycle commands such as commit, push, PR creation, release, or deployment belong outside the Change DAG; a local executor-generated checkpoint commit on successful DAG completion is separate executor lifecycle behavior, not a run node. exclusive defaults to false. command is an argv array executed with shell=False through one canonical policy allowlist."
+          }
+        ]
+      }
+    }
+  },
+  "$comment": "Graph invariants beyond JSON shape are enforced by the Change DAG validator/service. (1) satisfied_by is the only graph edge. (2) root depth is 0 and every other node's derived depth is the length of its longest path from root; depth is not stored. (3) a node must never be satisfied_by any ancestor, so the graph is acyclic. (4) shared descendants are legal and retain one node identity. (5) execution considers deeper nodes before shallower nodes. (6) semantic satisfaction is ALL-of when satisfied_by is present; a semantic node with no satisfied_by is unresolved and unsatisfied. Additional invariants: root resolves to a semantic node; every satisfied_by reference resolves; every node is reachable from root; if a semantic node references a run node, that run is its only non-semantic child and there is at most one direct run child. A semantic node may omit satisfied_by and remain schema-valid but unresolved. anchor_commit is the automatically captured creation-time Git HEAD and is a provenance/drift marker only, not an execution base or commit-matching guard. HEAD drift and a dirty working tree do not by themselves invalidate the DAG or make it non-executable. (7) The validator derives executable as a pre-execution conflict/applicability check: all currently specified terminal work must deterministically compile/lower in DAG execution order against the current live repository plus applicable accepted lower DAG work without deterministic compiler/patch conflicts. executable does not mean 'some progress can be made' and unresolved semantic leaves do not make it false; dag_start re-runs this preflight at call time and refuses to start a presently non-executable execution. Runtime-only apply/context failures remain ordinary recoverable failures. A valid, executable graph may remain unresolved and may stop with failed or unresolved blockers described descriptively; there is no durable quiescent status."
+}

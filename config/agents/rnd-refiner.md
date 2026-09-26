@@ -102,7 +102,7 @@ so leaf agents do not receive edit permission. Refiner creates or appends only t
 per-DD `ADVERSARIAL.md`; `DD.md` and unrelated files remain untouched. Do not
 create a new artifact family, routing registry, or workflow DSL. `task` is
 permitted only for the Manager-supplied `selected_nodes`, in dependency order,
-and within `max_cycles_per_pair`. A research-only or plan-only route must not
+and within `max_cycles_per_pair`. A research-only or dag-only route must not
 create partial DD artifacts.
 
 ## Dependency rules

@@ -1,95 +1,96 @@
 ---
 name: decomposing-design-documents
-description: Derive a persistent implementation graph from an accepted request or design document. Use when new work needs requirements, obligations, dependency, contract, and ownership decomposition; do not create plans or README part indexes for new work.
+description: Decompose an accepted request or design document into a Change DAG. Use when new work needs semantic decomposition and exact work nodes authored as a Change DAG; do not create task plans or implementation graphs.
 ---
 
 # Decomposing Design Documents
 
-For new work, this skill derives graph facts and hands them to `exec-planner`. It does not create task plans, phase files, parts indexes, `CONTRACTS.md`, execution rounds, or plan-letter artifacts.
+For new work, this skill derives a Change DAG from an accepted request or design document and hands it to `change-dag-author`. The Change DAG is the single implementation-work authority. This skill does not create task plans, plan phases, plan letters, `CONTRACTS.md`, execution rounds, or `GRAPH.json` implementation graphs.
 
 ## New-work pipeline
 
 ```text
 accepted request / accepted DD
         ↓
-Exec-Planner
+bounded live-repository discovery
         ↓
-artifacts/implementation/pending/{graph_id}/GRAPH.json
+change-dag-author
         ↓
-deterministic graph validation
+artifacts/change-dags/pending/{slug}/DAG.json
         ↓
-conditional Exec-PlanGate when observable coordination risk exists
+change-dag-reviewer (read-only semantic/work gate)
         ↓
-ready-frontier execution
+change-dag-runner: dag_start / dag_status
+        ↓
+independent post-change QA (separate lifecycle, not a DAG phase)
 ```
 
-`GRAPH.json` is the active authority for requirements, implementation obligations, dependencies, contracts, producer/consumer ownership, acceptance, provenance, and context hints. Worker packets and Manager frontiers are runtime scheduling decisions; they are not pre-packed during decomposition.
+`DAG.json` is declarative structure only: the semantic requirements and the exact terminal work that must satisfy them. It contains no runtime status and no execution history. `EXECUTION_STATE.json` records terminal-node execution state for resumability, and `WORK_LOG.jsonl` is append-only evidence.
 
-## Derive graph facts
+## Graph model
 
-1. Read the authoritative request, accepted DD when present, repository facts, and relevant existing contracts.
-2. Normalize each requirement without weakening, inventing, or dropping user intent. Every required requirement must map to one or more graph nodes.
-3. Derive bounded implementation obligations. A node is meaningful repository work, not a file, phase, plan, commit, or arbitrary tiny edit.
-4. Assign one owner to each obligation and record changed surfaces, acceptance, and relevant context hints.
-5. Add only real edges: prerequisite ordering, producer/consumer contracts, migrations, registrations, generated artifacts, or required data/control flow. Never derive edges from layers, letters, alphabetical order, review order, commit order, or milestone aesthetics.
-6. Define canonical root contracts with one declared producer and explicit consumers. Materialized actuals are added only by the producer through graph completion.
-7. Validate ownership closure, references, acyclicity, producer ancestry, requirement coverage, contract compatibility, safe writes, and source provenance.
-8. Invoke `exec-plan-gate` only after the complete graph exists and deterministic validation passes, and only when observable coordination risk exists. Otherwise `exec-planner` records its own `plan_gate: NOT_REQUIRED` rationale.
+- `satisfied_by` is the only edge and means ALL-of: a semantic node is satisfied only when every referenced child is satisfied.
+- A semantic node with no `satisfied_by` is an unresolved semantic leaf and is not satisfied; unresolved leaves are legal graph state.
+- Shared descendants are legal: multiple parents may reference one child identity, and that child is executed or satisfied once.
+- Node IDs are opaque, service-assigned, and monotonic (`^N[0-9]+$`); agents never allocate IDs.
+- Depth is derived from the longest path from root and is never persisted.
+- A `run` child is the only non-semantic child of its semantic parent (run-barrier invariant); a semantic node has at most one direct `run` child.
+- `schema_valid`, `executable`, and `resolved` are independent derived properties. `executable` is a pre-execution conflict/applicability check, not a progress measure.
+- A running/in-progress DAG is immutable; repair requires execution to stop/fail or `dag_stop`, then the stopped mutable region may be edited before `dag_start(retry=true)`.
 
-## Planner handoff
+## Authoring a Change DAG
 
-Dispatch `exec-planner` with the request or accepted DD, repository facts, normalized requirements, candidate obligations, contract relationships, ownership, acceptance, changed surfaces, and context hints. The Planner creates or amends `GRAPH.json`; it does not execute nodes or claim runtime state.
+1. Read the authoritative request, the accepted DD when present, repository facts, and relevant live surfaces. Discovery always reads the live repository; there is no projected planning worktree.
+2. Generate the smallest complete semantic graph. State a condition/postcondition per semantic node — never an implementation action. Pure paraphrase or recursive restatement is invalid decomposition.
+3. Submit the whole semantic graph atomically through `dag_create(slug, semantic_graph)`. Initial semantic construction is not a loop of `dag_add_requirement` calls; incremental insertion is reserved for later review, reconciliation, and recovery.
+4. Lower exact work from the deepest construction frontier upward. Terminal work node types are `create`, `edit`, `remove`, `move`, and `run`, attached with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`.
+5. For affected paths, combine live source with applicable accepted lower DAG patches through `dag_preview(path)`. New files, renamed paths, and planned-only symbols are read from DAG work, not rediscovered by repository search.
+6. Correct proposed mutable nodes with the typed `dag_update_*` tools or `dag_remove`. `dag_add_requirement` may insert a requirement between existing parents and selected children (convergence) and is also the recovery tool.
+7. Validate with `dag_validate` and inspect with `dag_show` and `dag_preview`. Authoring stops at a validated DAG; it never edits repository source.
 
-An amendment is bounded and provenance-aware. It may add/update/remove pending nodes, add/remove dependencies, add/update/remove unused contracts, and map/unmap requirements through explicit operations. It must not rewrite completed history, mutate while claims are active, or replace requirement/contract arrays wholesale.
+## Discovery and generation boundaries
 
-## Graph gate boundary
+- Discovery remains bounded by the semantic requirement being handled. If impact keeps expanding, decompose the requirement so the new concern becomes explicit graph structure rather than loading a larger repository slice.
+- Exact work is authored against live repository source plus applicable accepted lower DAG patches; there is no generated write scope and no file-ownership claim system.
+- GPU/consumer contracts are not a second dependency system. Interface coherence is re-homed to semantic requirements, bounded caller/implementation discovery, and patch-aware work review.
+- A `run` node verifies or satisfies the change (tests, builds, type checks, schema checks). Publication/lifecycle commands — commit, push, PR, release, deploy — never belong in a `run` node and are excluded by the canonical argv policy.
+- `anchor_commit` is a creation-time drift/provenance marker only; a dirty tree and `HEAD != anchor_commit` do not invalidate the DAG.
 
-`exec-plan-gate` is read-only. It validates the complete graph for requirement ownership, dependency closure, cycles, producer/consumer compatibility, materialized contract correctness, shared-write safety, migration ordering, and unowned gaps. It returns only actual gate outcomes; `NOT_REQUIRED` belongs to `exec-planner` and is not a gate verdict.
+## Reviewer handoff
 
-A graph may contain intermediate downstream-owned incompleteness during execution. It may not contain ownerless required work, impossible acceptance, or a missing producer/consumer owner.
+Dispatch `change-dag-author` to create or amend the Change DAG. The author uses authoring tools only and never mutates source.
 
-## Runtime boundary
+A `change-dag-reviewer` invocation is read-only (`dag_show`, `dag_preview`, `dag_validate`) and checks semantic sufficiency and minimality, ordering, grounding against repository reality, exact-work validity and applicability, run-barrier legality, conflict handling, and DD consistency. A reviewer verdict is an external review result consumed by the runner; it is not stored in Change DAG execution state.
 
-Decomposition ends at graph creation/amendment and validation. Runtime packet assembly belongs to `exec-manager`:
+## Runner and lifecycle boundary
 
-- derive the ready frontier from `PENDING` nodes whose dependencies are `COMPLETE`;
-- claim compatible nodes atomically with one packet-level write scope;
-- create ephemeral worker packets at execution time;
-- accept per-node evidence through Manager-owned graph mutations;
-- repeat until all required nodes reach terminal state, or surface a graph gap/blocker.
+Decomposition ends at DAG creation/amendment and review. Execution belongs to `change-dag-runner`:
 
-No packet or frontier artifact is persisted.
+- `dag_start(slug, retry?)` launches or queues whole-DAG execution and returns `running` or `queued`.
+- `dag_status(slug?)` is the canonical completion poll until the DAG is `root_satisfied` or idle/not active. There is no durable `quiescent` state; a stopped DAG with failed/unresolved blockers is reported descriptively.
+- `dag_stop(slug)` stops a queued or running DAG; it is recovery, not rollback.
+- On successful root satisfaction the executor records inherited starting-worktree state, runs `git add -A`, and creates a local checkpoint commit. That checkpoint is not publication and is not a DAG `run` node.
+- `dag_archive(slug)` moves a pending bundle to completed when execution is complete (root satisfied; no failed or `in_progress` terminal nodes) and does not depend on QA.
 
 ## DD lifecycle
 
-A DD may be archived through `dd_archive` only after every linked graph has been archived/completed with terminal QA PASS. A DD with no graph linkage retains the historical legacy archive behavior. Pending legacy plan absence is never proof of completion for a graph-backed DD, and plans and graphs are not co-authorities for new work.
-
-## Legacy compatibility
-
-Historical plan decomposition remains available only for reading or explicit compatibility migration. It must be labeled `LEGACY` and must not be presented as the new-work path. Do not create:
-
-- `artifacts/plans/pending/*`
-- `TASK-*.md`
-- parts README indexes
-- `PART-*-scope.md`
-- `CONTRACTS.md` as a second authority
-- dependency-ready plan groups or execution rounds
+A DD may be archived through `dd_archive` only after every Change DAG bundle linked from its Related Documents (or referenced from its Change DAG section) is completed in `artifacts/change-dags/` (artifact lifecycle). `dd_archive` evaluates both linked Change DAG completion and any declared non-DAG prerequisite gate. A declared prerequisite must be satisfied or explicitly migrated before archival; ordinary DDs with no declared prerequisite are not subject to an invented prerequisite gate. Archival does not depend on independent Change-DAG QA or `final_qa` PASS. QA-before-publication remains enforced by the separate `qa-push-manager` publication gate.
 
 ## Validation checklist
 
-- [ ] Every required requirement maps to an owned graph node.
-- [ ] Every node has a bounded obligation, acceptance, changed surfaces, and provenance.
-- [ ] Every edge is a real prerequisite or producer/consumer relationship.
-- [ ] Contract producers and consumers agree and producer ancestry is valid.
-- [ ] The graph is acyclic and has no ownerless gaps.
-- [ ] Superseded predecessors are structurally rewritten rather than treated as satisfied.
-- [ ] PlanGate is invoked only for a complete graph with observable coordination risk.
-- [ ] Runtime packetization is deferred to execution.
-- [ ] No new plan, parts README, `CONTRACTS.md`, or commit milestone is created.
+- [ ] Every required requirement maps to an owned semantic node.
+- [ ] Each semantic node states a postcondition, not an action.
+- [ ] Every semantic leaf is either terminal work or an explicit unresolved leaf.
+- [ ] The graph is acyclic, reachable, and free of illegal run-barrier structure.
+- [ ] Exact work is authored against live source plus applicable accepted lower DAG patches.
+- [ ] No `GRAPH.json`, task plan, phase letter, or `CONTRACTS.md` authority is created.
+- [ ] `dag_validate` reports the DAG as schema-valid (and executable when execution is intended).
 
 ## References
 
-- `file://config/skills/decomposing-design-documents/references/subagent-protocol.md` — historical dispatch compatibility only.
-- `file://config/tools/common/schemas/IMPLEMENTATION_GRAPH_SCHEMA.json` — graph shape.
-- `file://config/agents/exec-planner.md` — graph author/amender contract.
-- `file://config/agents/exec-plan-gate.md` — read-only graph gate.
+- `file://config/skills/decomposing-design-documents/references/subagent-protocol.md` — Change DAG authoring and handoff protocol.
+- `file://config/skills/dispatching-agents/references/change-dag-author.md` — author dispatch contract.
+- `file://config/skills/dispatching-agents/references/change-dag-reviewer.md` — read-only review dispatch contract.
+- `file://artifacts/SkyScow_Change_DAG_Agents.md` — Change DAG agent construction protocol.
+- `file://artifacts/SkyScow_Change_DAG_Toolset.md` — Change DAG tool contract.
+- `file://artifacts/SkyScow_Change_Execution_Artifacts.md` — Change DAG / Execution State / Work Log artifacts.

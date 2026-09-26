@@ -101,13 +101,13 @@ implementation obligations without Manager acceptance.
 ## Boundaries
 
 - Write only design artifacts under `artifacts/designs/pending/{slug}/`.
-- Never edit production code, tests, configuration, or implementation plans.
+- Never edit production code, tests, configuration, or Change DAGs.
 - Never commit an ADR without explicit user approval.
 - Never skip or reinterpret a capability that the Manager selected; optional
   capabilities not selected are represented by the Manager's evidence-based routing
   trace.
 - Never weaken, remove, defer, disable, or invert an explicit user requirement.
-- Never downgrade `DD_REQUIRED` to a plan-only result.
+- Never downgrade `DD_REQUIRED` to a dag-only result.
 
 ## Git/GitHub evidence
 

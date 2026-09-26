@@ -55,8 +55,8 @@ def record(writer="qa-test-generator", decision="REPAIRED", family="TASK-demo", 
 
 
 def test_identity_precedence_and_no_minting():
-    assert resolve_task_family(dd_family="DD-family", plan_set_family="plan") == "DD-family"
-    assert resolve_task_family(plan_set_family="plan", standalone="task") == "plan"
+    assert resolve_task_family(dd_family="DD-family", dag_family="plan") == "DD-family"
+    assert resolve_task_family(dag_family="plan", standalone="task") == "plan"
     assert resolve_task_family(standalone="task") == "task"
     with pytest.raises(ValueError, match="existing task-family identity"):
         resolve_task_family()
@@ -514,7 +514,7 @@ def test_docs_generator_provenance_is_writer_specific(workspace):
 
 def test_task_family_and_plan_set_precedence():
     assert resolve_task_family(task_family="task") == "task"
-    assert resolve_task_family(plan_set_family="plan", task_family="task") == "plan"
+    assert resolve_task_family(dag_family="plan", task_family="task") == "plan"
     assert resolve_task_family(task_family="task", standalone="standalone") == "task"
 
 
@@ -647,3 +647,23 @@ def test_subject_identity_rejects_empty_and_unsupported_types():
     for value in (123, ["kind", "behavior"], None):
         with pytest.raises(ValueError, match="subject must be a string or object"):
             subject_identity(value)
+
+
+
+def test_read_by_dag_slug_returns_records(workspace):
+    entry = record(family="TASK-dag-read")
+    assert "error" not in qa_record_write(entry, workspace_root=workspace)
+
+    result = qa_record_read(workspace_root=workspace, dag_slug="TASK-dag-read")
+    assert "error" not in result
+    payload = json.loads(result["output"])
+    assert payload["dag_slug"] == "TASK-dag-read"
+    assert payload["task_family"] == "TASK-dag-read"
+    assert payload["total"] == 1
+    assert payload["records"] == [entry]
+
+
+def test_read_rejects_mismatched_dag_slug_and_task_family(workspace):
+    result = qa_record_read(workspace_root=workspace, task_family="TASK-a", dag_slug="TASK-b")
+    assert result["error"] == "invalid_qa_history"
+    assert "same family" in result["message"]

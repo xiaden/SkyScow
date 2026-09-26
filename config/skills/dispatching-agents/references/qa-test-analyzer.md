@@ -24,11 +24,11 @@ owns only HOW test analysis is performed.
 Analyze test coverage and quality for the changed files.
 
 Context files to read:
-- [GRAPH_PATH]
+- [DAG_PATH]
 - [list changed files covered by the subject nodes]
 
 scope: "[files/modules to analyze]"
-graph_id: "[graph identifier]"
+slug: "[change dag slug]"
 subjectNodeIds: ["I001"]
 changedFiles: ["..."]
 
@@ -43,7 +43,7 @@ Generator history.
 | Field | Description | Example |
 |-------|-------------|---------|
 | `scope` | Files/modules to analyze | `src/auth/, src/auth/__tests__/` |
-| `graph_id` | Persistent graph identity for context | `auth-graph` |
+| `slug` | Change DAG identity for context | `auth-change` |
 | `changedFiles` | Changed surface | `["src/auth/service.py"]` |
 
 ## Expected Output

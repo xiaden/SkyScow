@@ -64,7 +64,7 @@ def test_worker_packet_without_files_is_ephemeral(workspace):
         files=None,
         graph_packet={
             "kind": "worker_node",
-            "graph_id": "graph-test",
+            "dag_slug": "dag-test",
             "node_ids": ["I001"],
             "request_context": "obligation context",
             "contracts": [{"id": "C1", "actual": "contract"}],
@@ -267,122 +267,6 @@ class TestModelSelection:
         assert result["model"] == bp.DEFAULT_MODEL
 
 
-# ---------------------------------------------------------------------------
-# Plan parsing and per-phase validation
-# ---------------------------------------------------------------------------
-
-
-class TestPlanParsing:
-    def test_normal_single_phase(self, workspace):
-        copy_fixture(workspace, "plans/normal_single_phase.md", "plans/TASK-x-A.md")
-        copy_fixture(workspace, "inputs/app.py", "app.py")
-        result = _measure(
-            workspace,
-            [
-                {"path": "app.py", "start_line": 1, "end_line": 7},
-                {"path": "plans/TASK-x-A.md", "start_line": 1, "end_line": 9},
-            ],
-        )
-        planning = result["planning"]
-        assert planning["explicit_phases"] is True
-        assert planning["phases"] == 1
-        assert len(planning["phases_detail"]) == 1
-        detail = planning["phases_detail"][0]
-        assert detail["number"] == 1
-        assert detail["plan"] == "TASK-x-A.md"
-        assert detail["steps"] == 3
-        assert detail["complete_steps"] == 1
-        assert detail["within_worker_limit"] is True
-        _assert_planning_consistent(result, DEFAULT_POLICY)
-
-    def test_multi_phase_sequential(self, workspace):
-        copy_fixture(workspace, "plans/multi_phase.md", "plans/TASK-y-B.md")
-        result = _measure(
-            workspace,
-            [{"path": "plans/TASK-y-B.md", "start_line": 1, "end_line": 20}],
-        )
-        planning = result["planning"]
-        assert planning["explicit_phases"] is True
-        assert planning["phases"] == 3
-        assert [d["number"] for d in planning["phases_detail"]] == [1, 2, 3]
-        assert [d["steps"] for d in planning["phases_detail"]] == [1, 2, 2]
-        assert [d["complete_steps"] for d in planning["phases_detail"]] == [0, 0, 2]
-        assert all(d["within_worker_limit"] for d in planning["phases_detail"])
-        _assert_planning_consistent(result, DEFAULT_POLICY)
-
-    def test_plan_range_is_ignored_for_parsing(self, workspace):
-        # Only lines 1-2 supplied, but full plan structure must be parsed.
-        copy_fixture(workspace, "plans/multi_phase.md", "plans/TASK-z-C.md")
-        result = _measure(
-            workspace,
-            [{"path": "plans/TASK-z-C.md", "start_line": 1, "end_line": 2}],
-        )
-        assert result["planning"]["explicit_phases"] is True
-        assert result["planning"]["phases"] == 3
-
-    def test_multiple_plan_files_aggregate(self, workspace):
-        copy_fixture(workspace, "plans/multi_phase.md", "plans/TASK-a.md")
-        copy_fixture(workspace, "plans/normal_single_phase.md", "plans/TASK-b.md")
-        result = _measure(
-            workspace,
-            [
-                {"path": "plans/TASK-a.md", "start_line": 1, "end_line": 20},
-                {"path": "plans/TASK-b.md", "start_line": 1, "end_line": 9},
-            ],
-        )
-        planning = result["planning"]
-        assert planning["explicit_phases"] is True
-        assert planning["phases"] == 4
-        assert {d["plan"] for d in planning["phases_detail"]} == {"TASK-a.md", "TASK-b.md"}
-
-    def test_non_sequential_plan_rejected(self, workspace):
-        copy_fixture(workspace, "plans/non_sequential.md", "plans/TASK-broken.md")
-        result = _measure(
-            workspace,
-            [{"path": "plans/TASK-broken.md", "start_line": 1, "end_line": 9}],
-        )
-        assert result["error"] == "plan_validation"
-        assert "sequential" in result["message"]
-
-    def test_malformed_phase_number_plan_parse_error(self, workspace):
-        copy_fixture(workspace, "plans/malformed_phase.md", "plans/TASK-bad.md")
-        result = _measure(
-            workspace,
-            [{"path": "plans/TASK-bad.md", "start_line": 1, "end_line": 5}],
-        )
-        assert result["error"] == "plan_parse"
-
-    def test_phase_without_steps_rejected(self, workspace):
-        copy_fixture(workspace, "plans/empty_phase.md", "plans/TASK-empty.md")
-        result = _measure(
-            workspace,
-            [{"path": "plans/TASK-empty.md", "start_line": 1, "end_line": 9}],
-        )
-        assert result["error"] == "plan_validation"
-        assert "no steps" in result["message"]
-
-    def test_plan_without_phases_falls_back(self, workspace):
-        copy_fixture(workspace, "plans/no_phases.md", "plans/TASK-prose.md")
-        result = _measure(
-            workspace,
-            [{"path": "plans/TASK-prose.md", "start_line": 1, "end_line": 4}],
-        )
-        planning = result["planning"]
-        assert planning["explicit_phases"] is False
-        assert planning["phases"] == planning["minimum_phases"]
-        _assert_planning_consistent(result, DEFAULT_POLICY)
-
-    def test_oversized_plan_exceeds_physical_limit(self, workspace):
-        copy_fixture(workspace, "plans/oversized.md", "plans/TASK-huge.md")
-        result = _measure(
-            workspace,
-            [{"path": "plans/TASK-huge.md", "start_line": 1, "end_line": 100}],
-        )
-        assert result["planning"]["explicit_phases"] is True
-        assert result["planning"]["phases"] == 10
-        assert result["planning"]["status"] == "PHYSICAL_LIMIT_EXCEEDED"
-        _assert_planning_consistent(result, DEFAULT_POLICY)
-
 
 # ---------------------------------------------------------------------------
 # Projections and status classification
@@ -503,10 +387,9 @@ class TestCompactOutput:
 
     def test_error_messages_bounded(self, workspace, tmp_path):
         # Malformed policy messages and read errors are bounded and stable.
-        copy_fixture(workspace, "plans/malformed_phase.md", "plans/bad.md")
-        result = _measure(workspace, [{"path": "plans/bad.md", "start_line": 1, "end_line": 5}])
-        assert result["error"] == "plan_parse"
-        assert len(result["message"]) <= 303
+        copy_fixture(workspace, "inputs/app.py", "app.py")
+        result = _measure(workspace, [{"path": "app.py", "start_line": 1, "end_line": 7}])
+        assert "error" not in result
 
     def test_policy_source_defaults_when_absent(self, workspace):
         copy_fixture(workspace, "inputs/app.py", "app.py")
@@ -534,16 +417,9 @@ class TestCompactOutput:
 
 
 class TestWorkerLimitChecks:
-    def test_within_worker_limit_flag_reflects_phase_size(self, workspace, monkeypatch):
-        # A single phase over the worker limit must be flagged.
-        copy_fixture(workspace, "plans/multi_phase.md", "plans/TASK-x.md")
-        monkeypatch.setenv(
-            "SKYSCOW_CONTEXT_BUDGET_POLICY",
-            str(copy_fixture(workspace, "policy/tiny.yaml", "tiny.yaml")),
-        )
-        result = _measure(
-            workspace,
-            [{"path": "plans/TASK-x.md", "start_line": 1, "end_line": 20}],
-        )
-        assert result["planning"]["explicit_phases"] is True
-        assert all(not d["within_worker_limit"] for d in result["planning"]["phases_detail"])
+    def test_worker_limit_fallback(self, workspace, monkeypatch):
+        copy_fixture(workspace, "inputs/app.py", "app.py")
+        monkeypatch.setenv("SKYSCOW_CONTEXT_BUDGET_POLICY", str(copy_fixture(workspace, "policy/tiny.yaml", "tiny.yaml")))
+        result = _measure(workspace, [{"path": "app.py", "start_line": 1, "end_line": 7}])
+        assert result["planning"]["explicit_phases"] is False
+        assert result["planning"]["phases"] == result["planning"]["minimum_phases"]

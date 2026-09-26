@@ -2,9 +2,9 @@
 
 Field contract for a terminal QA round record:
 
-- ``graph_id``: graph-native identity for graph work; legacy ``task_family`` remains accepted for publication/compatibility.
+- ``dag_slug``: Change DAG identity for DAG-backed work; legacy ``task_family`` remains accepted for publication/compatibility records. When both are supplied they must identify the same family.
 - ``round``: positive integer QA round number.
-- ``writer``: one of ``qa-test-generator``, ``qa-docs-generator``, ``exec-fixer``.
+- ``writer``: one of ``qa-test-generator``, ``qa-docs-generator``, or retained ``exec-fixer`` identity for continuity/historical records (not an active agent contract).
 - ``agent``: non-empty valid agent name that produced the record.
 - ``subject``: stable single-finding identity. A string, or an object whose
   ``kind`` plus at least one of ``file``/``module``/``symbol``/``contract``/
@@ -22,7 +22,7 @@ Field contract for a terminal QA round record:
 - ``repair``: required repair text for ``exec-fixer`` records.
 
 Stable record identity is ``(canonical family identity, round, writer, stable subject
-identity)``; graph-native ``graph_id`` is normalized to the canonical family identity. A repeated identity is rejected fail-closed on read and on write,
+identity)``; a supplied ``dag_slug`` is normalized to the canonical family identity. A repeated identity is rejected fail-closed on read and on write,
 while distinct findings, distinct writers, and independent writer concurrency
 remain allowed. Missing history is empty history. Progress, chain-of-thought,
 speculation, and analyzer-never-produced findings are rejected.
@@ -71,16 +71,16 @@ def _require_subject_object(subject: dict[str, Any]) -> tuple[str, ...]:
     return populated
 
 
-def resolve_task_family(*, dd_family: str = "", plan_set_family: str = "", standalone: str = "", task_family: str = "") -> str:
+def resolve_task_family(*, dd_family: str = "", dag_family: str = "", standalone: str = "", task_family: str = "") -> str:
     """Select an existing task-family identity, never manufacturing one.
 
-    Resolution precedence is ``dd_family``, then ``plan_set_family``, then
+    Resolution precedence is ``dd_family``, then ``dag_family``, then
     ``task_family``, then ``standalone``; the first non-empty stripped value
     wins.
 
     Args:
         dd_family: Design-document family candidate.
-        plan_set_family: Plan-set family candidate.
+        dag_family: Change DAG family candidate.
         standalone: Standalone family candidate.
         task_family: Task family candidate.
 
@@ -90,7 +90,7 @@ def resolve_task_family(*, dd_family: str = "", plan_set_family: str = "", stand
     Raises:
         ValueError: If no non-empty candidate is supplied.
     """
-    for value in (dd_family, plan_set_family, task_family, standalone):
+    for value in (dd_family, dag_family, task_family, standalone):
         if isinstance(value, str) and value.strip():
             return value.strip()
     raise ValueError("an existing task-family identity is required")
@@ -335,12 +335,12 @@ def validate_record(record: dict[str, Any]) -> dict[str, Any]:
     if missing:
         raise ValueError(f"missing required fields: {', '.join(sorted(missing))}")
     supplied_family = record.get("task_family")
-    supplied_graph = record.get("graph_id")
+    supplied_graph = record.get("dag_slug")
     if not isinstance(supplied_family, str) and not isinstance(supplied_graph, str):
-        raise ValueError("missing required fields: graph_id or task_family")
+        raise ValueError("missing required fields: dag_slug or task_family")
     if isinstance(supplied_family, str) and isinstance(supplied_graph, str) and supplied_family.strip() != supplied_graph.strip():
-        raise ValueError("graph_id and task_family must identify the same family")
-    family = safe_key(supplied_graph if isinstance(supplied_graph, str) else supplied_family, "graph identity" if isinstance(supplied_graph, str) else "task family")
+        raise ValueError("dag_slug and task_family must identify the same family")
+    family = safe_key(supplied_graph if isinstance(supplied_graph, str) else supplied_family, "DAG identity" if isinstance(supplied_graph, str) else "task family")
     writer = safe_key(record["writer"], "writer")
     if writer not in WRITERS:
         raise ValueError("unsupported writer")
@@ -399,8 +399,8 @@ def validate_record(record: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("fixer records require repair performed")
     result = dict(record)
     result["task_family"] = family
-    if "graph_id" in result:
-        result["graph_id"] = family
+    if "dag_slug" in result:
+        result["dag_slug"] = family
     result["writer"] = writer
     return result
 

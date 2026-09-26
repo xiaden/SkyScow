@@ -1,23 +1,23 @@
 ---
 name: gathering-artifacts
-description: Gather prior ADR, ASR, log, and design-doc context before design, planning, or routing work. Use when entering an unfamiliar area or making a decision that constrains future work; do not use for quick facts or mechanical execution of an already-validated plan.
+description: Gather prior ADR, ASR, log, and design-doc context before design, decomposition, or routing work. Use when entering an unfamiliar area or making a decision that constrains future work; do not use for quick facts or mechanical execution of an already-validated Change DAG.
 ---
 
 # Artifact Context Gathering
 
-Before design, planning, or routing work, assess whether prior ADRs, ASRs, logs, DDs, or dead ends materially constrain the route. Select `Support-Librarian` when they do; otherwise record the evidence-based skip in the Manager-owned routing trace. This skill templates the prompt.
+Before design, decomposition, or routing work, assess whether prior ADRs, ASRs, logs, DDs, or dead ends materially constrain the route. Select `Support-Librarian` when they do; otherwise record the evidence-based skip in the Manager-owned routing trace. This skill templates the prompt.
 
 ## When to Use
 
  | You're about to... | Use this skill |
  | -------------------- | --------------- |
   | Design a feature (RnD-Manager) | Conditional — select only when prior artifacts materially constrain the route |
-  | Create an implementation plan (Exec-Planner) | Conditional — select only when prior artifacts materially constrain the plan |
+  | Create a Change DAG (Change-DAG-Author) | Conditional — select only when prior artifacts materially constrain the Change DAG |
   | Route work to a department (Nyx, RnD-Manager) | Conditional — select only when prior artifacts materially constrain routing |
- | Execute a plan phase (Exec-Worker) | No — the plan should already reflect artifact context |
+  | Execute a Change DAG (Change-DAG-Runner) | No — the Change DAG should already reflect artifact context |
  | Do a quick fact check | No — overhead not worth it |
 
-**Threshold:** If prior artifacts are relevant to the task's architecture, artifact ownership, or future constraints, gather them first. If no relevant artifacts exist, log the evidence-based skip. Mechanical execution of an already-validated plan skips this skill.
+**Threshold:** If prior artifacts are relevant to the task's architecture, artifact ownership, or future constraints, gather them first. If no relevant artifacts exist, log the evidence-based skip. Mechanical execution of an already-validated Change DAG skips this skill.
 
 ## How to Use
 
@@ -27,7 +27,7 @@ Determine what you're about to do and what scope it touches:
 
 ```yaml
 task:
-  action: "design"           # design | plan | execute | review | debug
+  action: "design"           # design | decompose | execute | review | debug
   subject: "ML tagging pipeline redesign"
   scope: "src/components/ml, src/workflows/processing"
 ```
@@ -56,7 +56,7 @@ The Librarian returns a structured briefing. Use it:
 
  | Section | What to do |
  | --------- | ----------- |
- | `constraints` | These are non-negotiable. Your design/plan must comply. |
+  | `constraints` | These are non-negotiable. Your design/Change DAG must comply. |
  | `warnings` | Avoid these approaches. If you must use one, document why. |
  | `context` | Consider this background. May influence your approach. |
  | `open_questions` | Surface these to the user or document your resolution. |
@@ -80,4 +80,4 @@ gates; do not dispatch DDAuthor directly for a new formal DD.
 - **Don't skip relevant artifact context** — If prior decisions materially constrain the route, select Support-Librarian regardless of task size; otherwise record why it was skipped.
 - **Don't re-search what the Librarian already found** — Trust the briefing. Read cited artifacts only if you need more detail.
 - **Don't ignore `no_relevant_artifacts`** — An empty briefing is signal: you're in uncharted territory. Log your decisions for future sessions.
-- **Don't spawn Librarian during mechanical execution** — If you're following a plan step-by-step, the plan author should have already gathered context.
+- **Don't spawn Librarian during mechanical execution** — If you're following a Change DAG's exact work, the Change-DAG-Author should have already gathered context.

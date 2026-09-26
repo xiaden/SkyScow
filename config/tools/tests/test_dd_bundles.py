@@ -18,7 +18,6 @@ from common.helpers.dd_md import (
 )
 from common.tools.dd_archive import dd_archive
 from common.tools.dd_create import dd_create
-from common.tools.plan_archive import plan_archive
 from common.tools.dd_read import dd_read
 
 
@@ -64,33 +63,46 @@ def test_archive_moves_complete_bundle_and_updates_status(workspace):
     assert "**Status:** Completed" in (destination / "DD.md").read_text(encoding="utf-8")
 
 
-def test_archive_rejects_pending_plan_and_invalid_names(workspace):
+def test_archive_ignores_pending_legacy_plans(workspace):
     dd_create(**create_args(workspace))
     pending_plan = workspace / "artifacts/plans/pending/TASK-sample-dd-build.md"
     pending_plan.parent.mkdir(parents=True)
     pending_plan.write_text("plan", encoding="utf-8")
-    assert dd_archive("sample-dd", workspace_root=workspace)["error"] == "pending_plans"
-    assert dd_read("../sample-dd", workspace_root=workspace)["error"] == "invalid_name"
-    assert dd_archive("bad/name", workspace_root=workspace)["error"] == "invalid_name"
+    assert "output" in dd_archive("sample-dd", workspace_root=workspace)
 
 
-def test_archive_rejects_pending_plan_referenced_by_bundle_readme(workspace):
+def test_archive_rejects_pending_dag_and_accepts_completed_dag(workspace):
+    linked = [{
+        "title": "DAG",
+        "path": "artifacts/change-dags/pending/linked/DAG.json",
+        "description": "linked change dag",
+    }]
+    dd_create(**create_args(workspace), related_documents=linked)
+    dag = workspace / "artifacts/change-dags/pending/linked/DAG.json"
+    dag.parent.mkdir(parents=True)
+    dag.write_text("{}", encoding="utf-8")
+
+    rejected = dd_archive("sample-dd", workspace_root=workspace)
+    assert rejected["error"] == "linked_dags_incomplete"
+    assert rejected["linked_dags"] == ["linked"]
+    assert (workspace / "artifacts/designs/pending/sample-dd/DD.md").is_file()
+
+    (workspace / "artifacts/change-dags/completed").mkdir(parents=True, exist_ok=True)
+    dag.parent.rename(workspace / "artifacts/change-dags/completed/linked")
+
+    archived = dd_archive("sample-dd", workspace_root=workspace)
+    assert json.loads(archived["output"])["archived"] is True
+    assert (workspace / "artifacts/designs/completed/sample-dd/DD.md").is_file()
+    assert not (workspace / "artifacts/designs/pending/sample-dd").exists()
+
+
+def test_archive_ignores_unlinked_pending_dag(workspace):
     dd_create(**create_args(workspace))
-    bundle = workspace / "artifacts/designs/pending/sample-dd"
-    (bundle / "README.md").write_text(
-        "See TASK-unrelated-followup for the remaining work.\n", encoding="utf-8"
-    )
-    pending_plan = workspace / "artifacts/plans/pending/TASK-unrelated-followup.md"
-    pending_plan.parent.mkdir(parents=True)
-    pending_plan.write_text("plan", encoding="utf-8")
-
+    dag = workspace / "artifacts/change-dags/pending/unlinked/DAG.json"
+    dag.parent.mkdir(parents=True)
+    dag.write_text("{}", encoding="utf-8")
     result = dd_archive("sample-dd", workspace_root=workspace)
-
-    assert result["error"] == "pending_plans"
-    assert result["pending_plans"] == ["TASK-unrelated-followup.md"]
-    assert "found via parts README" in result["message"]
-    assert bundle.exists()
-
+    assert json.loads(result["output"])["archived"] is True
 
 def test_create_returns_invalid_input_error_envelopes(workspace):
     invalid_inputs = (
@@ -236,29 +248,6 @@ def test_archive_force_replaces_completed_bundle(workspace):
     assert not (destination / "old-sibling.txt").exists()
 
 
-def test_plan_archive_rejects_collision_and_force_replaces(workspace):
-    pending = workspace / "artifacts/plans/pending"
-    pending.mkdir(parents=True)
-    plan = pending / "TASK-collision.md"
-    plan.write_text(
-        "# Collision Plan\n\n### Phase 1: Setup\n\n- [x] P1-S1 Complete the work\n",
-        encoding="utf-8",
-    )
-    completed = workspace / "artifacts/plans/completed/TASK-collision.md"
-    completed.parent.mkdir(parents=True)
-    completed.write_text("old plan\n", encoding="utf-8")
-
-    result = plan_archive("TASK-collision", workspace_root=workspace)
-
-    assert result["error"] == "already_exists"
-    assert plan.exists()
-    assert completed.read_text(encoding="utf-8") == "old plan\n"
-
-    forced = plan_archive("TASK-collision", force=True, workspace_root=workspace)
-
-    assert json.loads(forced["output"])["archived"] is True
-    assert not plan.exists()
-    assert "P1-S1" in completed.read_text(encoding="utf-8")
 
 
 def test_archive_retries_after_completed_bundle_collision_is_cleared(workspace):
@@ -282,13 +271,80 @@ def test_archive_retries_after_completed_bundle_collision_is_cleared(workspace):
     assert not pending_document.exists()
 
 
-def test_graph_backed_dd_requires_archived_graph(tmp_path: Path):
+def test_archive_requires_completed_linked_dag(tmp_path: Path):
     workspace = tmp_path / "workspace"
     bundle = workspace / "artifacts/designs/pending/graph-dd"
     bundle.mkdir(parents=True)
-    (bundle / "DD.md").write_text(
-        "# Graph DD — Design Document\n\n**Status:** Approved\n**Author:** test\n**Created:** 2026-01-01\n\n---\n\n## Implementation Graph\n\ngraph_id: `missing-graph`\n",
+    (bundle / "DD.md").write_text("# Graph DD — Design Document\n\n**Status:** Approved\n**Author:** test\n**Created:** 2026-01-01\n\n**Related Documents:**\n- [DAG](artifacts/change-dags/pending/missing-graph/DAG.json) — linked\n\n---\n", encoding="utf-8")
+    result = dd_archive("graph-dd", workspace_root=workspace)
+    assert result["error"] == "linked_dags_incomplete"
+
+
+def _declare_prerequisite(workspace: Path, slug: str = "prereq-dd") -> Path:
+    dd_create(**create_args(workspace, slug))
+    path = workspace / "artifacts/designs/pending" / slug / "DD.md"
+    path.write_text(
+        path.read_text(encoding="utf-8")
+        + "\n**Prerequisite disposition:** complete TASK-prerequisite-dd-build.md before archive.\n",
         encoding="utf-8",
     )
-    result = dd_archive("graph-dd", workspace_root=workspace)
-    assert result["error"] == "linked_graphs_incomplete"
+    return path
+
+
+def test_archive_blocks_declared_pending_plan(workspace):
+    _declare_prerequisite(workspace)
+    pending = workspace / "artifacts/plans/pending/TASK-prerequisite-dd-build.md"
+    pending.parent.mkdir(parents=True)
+    pending.write_text("pending", encoding="utf-8")
+
+    result = dd_archive("prereq-dd", workspace_root=workspace)
+    assert result["error"] == "prerequisite_unsatisfied"
+    assert (workspace / "artifacts/designs/pending/prereq-dd/DD.md").is_file()
+
+
+def test_archive_accepts_declared_completed_plan(workspace):
+    _declare_prerequisite(workspace)
+    completed = workspace / "artifacts/plans/completed/TASK-prerequisite-dd-build.md"
+    completed.parent.mkdir(parents=True)
+    completed.write_text("completed", encoding="utf-8")
+
+    result = dd_archive("prereq-dd", workspace_root=workspace)
+    assert json.loads(result["output"])["archived"] is True
+    assert (workspace / "artifacts/designs/completed/prereq-dd/DD.md").is_file()
+
+
+def test_archive_without_prerequisite_or_dag_remains_unblocked(workspace):
+    dd_create(**create_args(workspace, "ordinary-dd"))
+    result = dd_archive("ordinary-dd", workspace_root=workspace)
+    assert json.loads(result["output"])["archived"] is True
+
+
+def test_archive_blocks_unresolvable_declared_prerequisite(workspace):
+    _declare_prerequisite(workspace, "unresolvable-dd")
+    path = workspace / "artifacts/designs/pending/unresolvable-dd/DD.md"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            "TASK-prerequisite-dd-build.md", "capture-request-context"
+        ),
+        encoding="utf-8",
+    )
+
+    result = dd_archive("unresolvable-dd", workspace_root=workspace)
+    assert result["error"] == "prerequisite_unsatisfied"
+    assert (workspace / "artifacts/designs/pending/unresolvable-dd/DD.md").is_file()
+
+
+def test_archive_requires_shared_slug_dag_then_accepts_completed(workspace):
+    slug = "shared-slug-dd"
+    related = [{"title": "DAG", "path": f"artifacts/change-dags/pending/{slug}/DAG.json", "description": "execution"}]
+    dd_create(**create_args(workspace, slug), related_documents=related)
+
+    blocked = dd_archive(slug, workspace_root=workspace)
+    assert blocked["error"] == "linked_dags_incomplete"
+    assert (workspace / "artifacts/designs/pending" / slug).is_dir()
+
+    dag = workspace / "artifacts/change-dags/completed" / slug / "DAG.json"
+    dag.parent.mkdir(parents=True)
+    dag.write_text("{}", encoding="utf-8")
+    archived = dd_archive(slug, workspace_root=workspace)
+    assert json.loads(archived["output"])["archived"] is True

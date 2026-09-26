@@ -5,9 +5,9 @@ Dispatch RnD-Estimator to size implementation effort.
 ## When to Dispatch
 
 **Dispatch when:**
-- You need effort sizing for a feature or plan before committing
+- You need effort sizing for a feature or change before committing
 - You're comparing implementation approaches and need relative effort
-- You need to validate scope before planning
+- You need to validate scope before decomposition
 - You're evaluating a technology choice and need ballpark effort
 
 **Do NOT dispatch when:**
@@ -22,7 +22,7 @@ Dispatch RnD-Estimator to size implementation effort.
 Estimate effort for [WORK ITEM].
 
 Context files to read:
-- [design doc, plan, or requirements]
+- [design doc, Change DAG, or requirements]
 - [relevant code for context]
 
 work item: "[description of what needs to be built]"
@@ -55,8 +55,8 @@ Where **sections** = distinct edit locations (functions, methods, blocks) and **
 |---------|---------------|---------|------------------------------|----------------------------------|
 | TRIVIAL | < 8K          | < 2K    | Single function, config      | Edit directly                    |
 | SMALL   | 8K-32K        | 2K-8K   | Few functions, 1-3 files     | Edit directly                    |
-| MEDIUM  | 32K-80K       | 8K-20K  | Multiple files, one layer    | Plan needed — can't hold in one pass |
-| LARGE   | 80K-320K      | 20K-80K | Cross-cutting, multi-layer   | DD + plan                        |
+| MEDIUM  | 32K-80K       | 8K-20K  | Multiple files, one layer    | Change DAG needed — can't hold in one pass |
+| LARGE   | 80K-320K      | 20K-80K | Cross-cutting, multi-layer   | DD + Change DAG                  |
 | EPIC    | 320K+         | 80K+    | Multi-workflow, schema change| DD + decompose                   |
 
 **DD threshold:** LARGE or above, OR architecturally novel, OR incomplete/ambiguous requirements.
@@ -64,7 +64,7 @@ Where **sections** = distinct edit locations (functions, methods, blocks) and **
 Output includes:
 - Effort tier with rationale
 - Estimated sections, files, char count, and weighted chars
-- Pipeline recommendation (plan_needed, dd_needed)
+- Pipeline recommendation (dag_needed, dd_needed)
 - Key risk factors
 - Confidence level
 

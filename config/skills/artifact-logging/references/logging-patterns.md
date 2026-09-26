@@ -2,16 +2,16 @@
 
 Detailed patterns for common logging scenarios. Each pattern covers when to use it and example code.
 
-## Plan Tag Required
+## Change DAG Tag Required
 
-Every `log_write` during a fix cycle or plan execution must include the plan title as a tag:
+Every `log_write` during a fix cycle or Change DAG execution must include the Change DAG slug as a tag:
 
 ```python
 log_write(
-    agent="exec-fixer",
+    agent="change-dag-runner",
     category="observation",
     message="Fix revealed deeper issue in query layer",
-    tags=["TASK-myfeature-B-build-query-layer"]  # Mandatory
+    tags=["myfeature-change"]  # Mandatory
 )
 ```
 
@@ -19,17 +19,17 @@ This is how QA and managers reconstruct the full execution history.
 
 ## Mid-Stream Context Recovery
 
-When picking up a plan mid-execution:
+When picking up a Change DAG mid-execution:
 
 ```python
 # Get all logs from this work period
-log_read(since="<when_plan_execution_started>")
+log_read(since="<when_dag_execution_started>")
 
-# Get all logs for this specific plan
-log_read(tag="<plan_title>")
+# Get all logs for this specific Change DAG
+log_read(tag="<dag_slug>")
 ```
 
-Both calls are required. The time window alone misses prior sessions; the tag alone misses logs written without the plan tag.
+Both calls are required. The time window alone misses prior sessions; the tag alone misses logs written without the DAG tag.
 
 ## Discovery Logging
 

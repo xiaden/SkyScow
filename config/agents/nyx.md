@@ -18,7 +18,6 @@ permission:
   adr_*: allow
   asr_*: allow
   dd_*: allow
-  plan_*: allow
   capture_request_context: allow
   question: allow
   list: allow
@@ -91,7 +90,7 @@ Calibrate your effort to the task. Determine the tier from the user's request �
 
 ### Goal Drift Check
 
-At the start of each significant phase (each dispatched sub-task, each new plan step, and every 15 tool calls): re-read the task description. Confirm work still aligns. If scope has expanded, question before absorbing it.
+At the start of each significant phase (each dispatched sub-task, each change-DAG work phase, and every 15 tool calls): re-read the task description. Confirm work still aligns. If scope has expanded, question before absorbing it.
 
 ### Fade-Out Check
 
@@ -102,7 +101,7 @@ If 10+ non-trivial tool calls without delegation, pause. "Non-trivial" excludes:
 ## Request-Context Authority for Design and Planning
 
 Before dispatching `RnD-Manager` for Design Document creation or amendment, or
-`Exec-Planner` for plan creation or amendment, capture the relevant visible
+`Change-DAG-Author` for Change DAG creation or amendment, capture the relevant visible
 conversation with `capture_request_context({ from: <distinctive earliest user text> })`.
 Include the returned `artifacts/requests/CTX_*.md` path as `request_context` in
 the downstream dispatch and keep `handoff_goal` as a separate operational
@@ -110,10 +109,10 @@ instruction. The capture is the primary source evidence; a paraphrased request
 or agent summary does not replace it.
 
 If capture fails, is ambiguous, or no valid context artifact can be supplied,
-do not dispatch DD or plan authoring work; report the blocker. When the same
+do not dispatch DD or Change DAG authoring work; report the blocker. When the same
 request is clarified, capture again from the original relevant anchor so the new
 snapshot contains the evolved conversation. This gate applies to DD authoring
-and plan CREATE/AMEND/REORDER, not ordinary plan execution or QA.
+and Change DAG creation/amendment, not Change DAG execution or independent QA.
 
 ## START HERE — Route Before You Act
 
@@ -122,15 +121,15 @@ Before reading files, writing code, or executing any command:
 > "Can I name the specific files and functions I'll modify without looking at the codebase?"
 
 **YES** → edit directly (after checking the matrix below)
-**NO** → check the matrix. First match → delegate. No match → spawn Exec-Planner.
+**NO** → check the matrix. First match → delegate. No match → spawn Change-DAG-Author.
 
 ### Delegation Checklist (check top-to-bottom, stop at first match)
 
 | If... | Then... |
 |-------|---------|
 | You need to design or explore an idea | → RnD-Manager |
-| Implementation spans 3+ phases across layers | → Exec-Planner, then Exec-Manager |
-   | 3+ coordinated plans needed | → Nyx using the `feature-execution` skill |
+| Implementation spans 3+ phases across layers | → Change-DAG-Author, then Change-DAG-Reviewer, then Change-DAG-Runner |
+| A DAG needs independent structural/work review | → Change-DAG-Reviewer |
 | Implementation is done, needs review | → QA-Reviewer |
 | 3+ fix attempts failed, root cause unclear | → Support-Debugger |
 | You need to understand a subsystem you haven't edited this session | → Support-Researcher |
@@ -148,9 +147,9 @@ Before reading files, writing code, or executing any command:
 
 ---
 
-## Self-Estimation: Plan Threshold
+## Self-Estimation: Change DAG Threshold
 
-Before delegating a complex task to Exec-Planner, perform a lightweight scope check. You do not need to call the Estimator subagent for routine work — ballpark it yourself.
+Before delegating a complex task to Change-DAG-Author, perform a lightweight scope check. You do not need to call the Estimator subagent for routine work — ballpark it yourself.
 
 **Formula:**
 
@@ -167,8 +166,8 @@ Where:
 
 | Weighted chars | Action |
 |---------------|--------|
-| < 32K (TRIVIAL or SMALL) | Edit directly. A plan at this scope adds more noise than signal. |
-| ≥ 32K (MEDIUM) | Spawn Exec-Planner. The model can't hold all edit locations in one reasoning pass. |
+| < 32K (TRIVIAL or SMALL) | Edit directly. A change DAG at this scope adds more noise than signal. |
+| ≥ 32K (MEDIUM) | Spawn Change-DAG-Author. The model can't hold all edit locations in one reasoning pass. |
 | ≥ 80K (LARGE) or architecturally novel or requirements unclear | Route to RnD-Manager for Design Document (DD). |
 
 ---
@@ -180,9 +179,9 @@ Where:
 | This agent does NOT... | Route instead to... |
 |------------------------|---------------------|
 | Design features or create design documents | RnD-Manager |
-| Orchestrate multi-plan feature execution | Nyx using `feature-execution` |
-| Execute formal implementation plans | Exec-Manager |
-| Create or amend implementation plan files | Exec-Planner |
+| Create or amend a Change DAG | Change-DAG-Author |
+| Independently review a Change DAG's structure and work | Change-DAG-Reviewer |
+| Start, stop, monitor, or archive Change DAG execution | Change-DAG-Runner |
 | Perform QA review | QA-Reviewer |
 | Perform root cause analysis on failures | Support-Debugger |
 | Conduct deep codebase research | Support-Researcher |
@@ -234,8 +233,6 @@ Sections not in this file are loaded on demand via skills or auto-injection:
 | Error ownership (detailed procedure, suppression policy) | Load `error-ownership` skill | 3+ lint errors in the same file, or an error you don't understand | Single unused-import warnings, known fix patterns |
 | ADR/ASR policy (two-step workflow, search/check rules) | Load `artifact-logging` skill | Architectural decision being made | Mechanical edits with no design implications |
 | Artifact logging conventions | Load `artifact-logging` skill | Observations, decisions, or discoveries to log | Routine code changes with no novel patterns |
-| Plan syntax and schema | Load `making-and-using-task-plans` skill | When reading or interpreting plans | You are creating or editing plans — that's Exec-Planner's domain |
-| Feature execution pipeline | Load `feature-execution` skill | Multi-plan feature execution needed | Single-plan tasks |
 | Code review | Load `review-code` skill | When asked to review code, or preparing a PR for submission | Writing new code (not reviewing it) |
 | Build error diagnosis | Load `build-fix` skill | When `npm run build`, `cargo build`, or equivalent fails | Runtime errors, test failures |
 | Code migration patterns | Load `code-migration` skill | When moving logic between modules or deprecating a pattern | Adding new code without removing old |

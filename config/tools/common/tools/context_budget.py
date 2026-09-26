@@ -6,22 +6,21 @@ Contracts
 ---------
 - **Generic file input.** ``files`` is a non-empty list of
   ``{path, start_line, end_line}`` objects. Optional ``graph_packet`` measures an
-  ephemeral worker-node or manager-review packet assembled from graph node
-  context; graph packets are never persisted. Unknown keys, invalid ranges,
-  traversal attempts, and unreadable files are rejected.
+  ephemeral Change DAG worker-node or manager-review packet assembled from DAG
+  node context; the packet identifies its Change DAG through the canonical
+   ``dag_slug`` key; the legacy ``graph_id`` key is no longer accepted. Packets
+   are never persisted. Unknown keys, invalid ranges, traversal attempts, and
+   unreadable files are rejected.
 - **Model metadata from frontmatter only.** Agent markdown files (path
   contains an ``agents`` segment and ends in ``.md``) contribute their
   frontmatter ``model:`` value through ``budget_policy.frontmatter_model``.
   Model selection is allowlisted with a deterministic ``DS_V4_F_0731``
   fallback (see ``budget_policy.select_tokenizer_model``).
-- **Historical plan compatibility.** Files whose path contains a ``plans``
-  segment and end in ``.md`` may still be parsed with ``plan_md.parse_plan`` for
-  legacy callers. Graph-native packets do not parse plans or require phases.
 - **Fixed policy.** All limits come from the shipped
   ``config/agent-context-budgets.yaml`` via ``budget_policy.load_policy``.
   Agent frontmatter is never consulted for policy.
 - **Compact output.** Stable JSON keys, bounded titles and error messages,
-  per-phase measurements, and normal/worst-case manager projections. Raw file
+  worker-limit projections, and normal/worst-case manager projections. Raw file
   contents, agent frontmatter bodies, and policy file text are never emitted.
 """
 
@@ -34,7 +33,6 @@ from typing import Any
 
 from ..helpers.budget_policy import frontmatter_model, load_policy, select_tokenizer_model
 from ..helpers.file_helpers import resolve_file_path
-from ..helpers.plan_md import parse_plan
 from ..helpers.tokenizer_helpers import (
     assemble_sections,
     load_tokenizers,
@@ -43,7 +41,7 @@ from ..helpers.tokenizer_helpers import (
 )
 
 _ALLOWED_ENTRY_KEYS = frozenset({"path", "start_line", "end_line"})
-_ALLOWED_PACKET_KEYS = frozenset({"kind", "graph_id", "node_ids", "files", "request_context", "contracts", "acceptance", "worker_return_tokens", "qa_return_tokens"})
+_ALLOWED_PACKET_KEYS = frozenset({"kind", "dag_slug", "node_ids", "files", "request_context", "contracts", "acceptance", "worker_return_tokens", "qa_return_tokens"})
 _MESSAGE_LIMIT = 300
 _TITLE_LIMIT = 120
 
@@ -74,10 +72,6 @@ def _has_dir_segment(resolved: Path, segment: str) -> bool:
     return segment in resolved.parts
 
 
-def _is_plan_file(resolved: Path) -> bool:
-    return resolved.suffix == ".md" and _has_dir_segment(resolved, "plans")
-
-
 def _is_agent_file(resolved: Path) -> bool:
     return resolved.suffix == ".md" and _has_dir_segment(resolved, "agents")
 
@@ -86,82 +80,10 @@ def _read_full(path: Path) -> str:
     return path.read_bytes().decode("utf-8")
 
 
-def _phase_scopes(raw_lines: list[str], heading_lines: list[int]) -> list[str]:
-    """Slice raw plan lines into per-phase content scopes.
-
-    ``heading_lines`` are 1-based heading line numbers; scopes run from each
-    heading up to the next heading (or end of file).
-    """
-    scopes: list[str] = []
-    for index, heading in enumerate(heading_lines):
-        start = heading - 1
-        end = heading_lines[index + 1] - 1 if index + 1 < len(heading_lines) else len(
-            raw_lines
-        )
-        scopes.append("".join(raw_lines[start:end]))
-    return scopes
-
-
 def _count_tokens(tokenizers: tuple[Any, Any], model: str, text: str) -> int:
     if model == "o200k":
         return len(tokenizers[0].encode(text, disallowed_special=()))
     return len(tokenizers[1].encode(text, add_special_tokens=False).ids)
-
-
-def _validate_explicit_phases(plan: Any, plan_path: Path) -> dict[str, str] | None:
-    """Return a compact error when explicit phases are not usable."""
-    numbers = [phase.number for phase in plan.phases]
-    if numbers != list(range(1, len(numbers) + 1)):
-        return _error(
-            "plan_validation",
-            f"{plan_path}: phase numbers must be sequential starting at 1 "
-            f"(got {numbers})",
-        )
-    for phase in plan.phases:
-        if not phase.steps:
-            return _error(
-                "plan_validation",
-                f"{plan_path}: phase {phase.number} ({phase.title}) has no steps",
-            )
-    return None
-
-
-def _analyze_plan(
-    plan_path: Path,
-    content: str,
-    tokenizers: tuple[Any, Any],
-    model: str,
-    worker_phase_limit: int,
-) -> tuple[dict[str, str] | None, int, list[dict[str, Any]]]:
-    """Parse and validate a plan; return (error, phase_count, phases_detail)."""
-    try:
-        plan = parse_plan(content)
-    except (ValueError, ImportError) as exc:
-        return _error("plan_parse", f"{plan_path}: {exc}"), 0, []
-
-    validation_error = _validate_explicit_phases(plan, plan_path)
-    if validation_error is not None:
-        return validation_error, 0, []
-
-    if not plan.phases:
-        return None, 0, []
-
-    scopes = _phase_scopes(plan.raw_lines, [phase.heading_line for phase in plan.phases])
-    detail: list[dict[str, Any]] = []
-    for phase, scope in zip(plan.phases, scopes):
-        phase_tokens = _count_tokens(tokenizers, model, scope)
-        detail.append(
-            {
-                "plan": plan_path.name,
-                "number": phase.number,
-                "title": _bounded_title(phase.title),
-                "tokens": phase_tokens,
-                "within_worker_limit": phase_tokens <= worker_phase_limit,
-                "steps": len(phase.steps),
-                "complete_steps": sum(1 for step in phase.steps if step.checked),
-            }
-        )
-    return None, len(plan.phases), detail
 
 
 def _build_planning(
@@ -171,7 +93,7 @@ def _build_planning(
     explicit_phases: bool,
     phases_detail: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Compute minimums, projections, and status from the fixed policy."""
+    """Compute the derived worker-limit and manager projections and status from the fixed policy."""
     worker_limit = policy["worker_phase_limit"]
     operational_limit = policy["manager_operational_limit"]
     physical_limit = policy["physical_limit"]
@@ -208,23 +130,23 @@ def _build_planning(
 
 def _packet_sections(packet: dict[str, Any], workspace_root: Path) -> list[str] | dict[str, str]:
     if set(packet) - _ALLOWED_PACKET_KEYS:
-        return _error("invalid_graph_packet", "graph_packet has unsupported keys")
+        return _error("invalid_dag_packet", "graph_packet has unsupported keys")
     if packet.get("kind") not in {"worker_node", "manager_review"}:
-        return _error("invalid_graph_packet", "kind must be worker_node or manager_review")
-    sections = [json.dumps({key: packet.get(key) for key in ("graph_id", "node_ids", "contracts", "acceptance") if key in packet}, sort_keys=True)]
+        return _error("invalid_dag_packet", "kind must be worker_node or manager_review")
+    sections = [json.dumps({key: packet.get(key) for key in ("dag_slug", "node_ids", "contracts", "acceptance") if key in packet}, sort_keys=True)]
     for entry in packet.get("files", []):
         if not isinstance(entry, dict):
-            return _error("invalid_graph_packet", "packet files must be objects")
+            return _error("invalid_dag_packet", "packet files must be objects")
         path = entry.get("path"); start = _integer(entry.get("start_line")); end = _integer(entry.get("end_line"))
         if not isinstance(path, str) or start is None or end is None or end < start:
-            return _error("invalid_graph_packet", "packet file ranges are invalid")
+            return _error("invalid_dag_packet", "packet file ranges are invalid")
         resolved = resolve_file_path(path, workspace_root)
         if isinstance(resolved, dict):
-            return _error("invalid_graph_packet", resolved.get("error", "invalid packet path"))
+            return _error("invalid_dag_packet", resolved.get("error", "invalid packet path"))
         try:
             sections.append(read_subsection(resolved, start, end))
         except (OSError, UnicodeDecodeError, ValueError) as exc:
-            return _error("invalid_graph_packet", str(exc))
+            return _error("invalid_dag_packet", str(exc))
     return sections
 
 
@@ -234,10 +156,16 @@ def context_budget(files: list[dict[str, Any]] | None, workspace_root: Path, gra
     Args:
         files: Non-empty list of ``{path, start_line, end_line}`` entries.
         workspace_root: Workspace root; all paths resolve inside it.
+        graph_packet: Optional ephemeral Change DAG worker-node or
+            manager-review packet (``kind`` is ``worker_node`` or
+            ``manager_review``), measured in addition to ``files`` and never
+            persisted.
 
     Returns:
         A compact JSON-serializable result, or a stable ``{error, message}``
-        object.
+        object. The ``planning`` section reports the derived worker-limit
+        (``minimum_phases``) and manager (``minimum_plans``) projections and a
+        policy ``status``; these are computed projections, not plan artifacts.
     """
     if files is None:
         files = []
@@ -254,7 +182,6 @@ def context_budget(files: list[dict[str, Any]] | None, workspace_root: Path, gra
 
     sections: list[str] = []
     resolved_paths: set[Path] = set()
-    plan_files: list[tuple[Path, str]] = []
     agent_models: list[str | None] = []
 
     for index, entry in enumerate(files):
@@ -290,12 +217,7 @@ def context_budget(files: list[dict[str, Any]] | None, workspace_root: Path, gra
         resolved_paths.add(resolved)
 
         try:
-            if _is_plan_file(resolved):
-                content = _read_full(resolved)
-                plan_files.append((resolved, content))
-                sections.append(content)
-            else:
-                sections.append(read_subsection(resolved, start_line, end_line))
+            sections.append(read_subsection(resolved, start_line, end_line))
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             return _error("read_error", f"{file_path}: {exc}")
 
@@ -308,7 +230,7 @@ def context_budget(files: list[dict[str, Any]] | None, workspace_root: Path, gra
     if packet_sections:
         sections.extend(packet_sections)
     if not sections:
-        return _error("invalid_graph_packet", "graph_packet must contain measurable context")
+        return _error("invalid_dag_packet", "graph_packet must contain measurable context")
     source = assemble_sections(sections)
     model = select_tokenizer_model(agent_models)
 
@@ -319,30 +241,11 @@ def context_budget(files: list[dict[str, Any]] | None, workspace_root: Path, gra
     source_tokens = _count_tokens(tokenizers, model, source)
     weighted = weighted_tokens(source_tokens, len(sections), len(resolved_paths))
 
-    explicit_phases = False
-    phases = 0
+    # Worker-limit fallback: estimate worker phases from the measured context.
+    phases = max(1, math.ceil(weighted / policy["worker_phase_limit"]))
     phases_detail: list[dict[str, Any]] = []
 
-    if plan_files:
-        for plan_path, content in plan_files:
-            error, plan_phase_count, plan_detail = _analyze_plan(
-                plan_path, content, tokenizers, model, policy["worker_phase_limit"]
-            )
-            if error is not None:
-                return error
-            if plan_phase_count:
-                explicit_phases = True
-                phases += plan_phase_count
-                phases_detail.extend(plan_detail)
-
-    if not explicit_phases:
-        # Worker-limit fallback: estimate phases when the input carries no
-        # explicit plan structure.
-        phases = max(1, math.ceil(weighted / policy["worker_phase_limit"]))
-
-    planning = _build_planning(
-        policy, weighted, phases, explicit_phases, phases_detail
-    )
+    planning = _build_planning(policy, weighted, phases, False, phases_detail)
 
     result = {
         "model": model,
@@ -366,7 +269,7 @@ def context_budget(files: list[dict[str, Any]] | None, workspace_root: Path, gra
     if graph_packet is not None:
         result["packet"] = {
             "kind": graph_packet.get("kind"),
-            "graph_id": graph_packet.get("graph_id"),
+            "dag_slug": graph_packet.get("dag_slug"),
             "node_ids": graph_packet.get("node_ids", []),
             "ephemeral": True,
         }

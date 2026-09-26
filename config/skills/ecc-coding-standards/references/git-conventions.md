@@ -50,8 +50,8 @@ When creating a PR:
 
 Follow this sequence for every feature:
 
-1. **Plan** — Write an implementation plan before coding. Identify dependencies, risks, and phases.  
-   *Use the `/plan` command or `planner` agent for complex features.*
+1. **Decompose** — Author a Change DAG (or an equivalent lightweight decomposition) before coding. Identify dependencies, risks, and verification.
+   *Use the `change-dag-author` agent for complex features.*
 2. **Behavioral evidence** — Where an executable behavioral oracle exists (a regression test can reproduce the defect, the repository already uses test-first style, or a spec-first test reduces ambiguity), write tests first (RED), implement to pass (GREEN), refactor (IMPROVE). For static config, packaging, Dockerfiles, deployment manifests, docs, mechanical migrations, build metadata, or infrastructure, the proof is the surface-appropriate build, smoke, or runtime check. Verify coverage per `/home/opencode/.config/opencode/instructions/validation-mandate.md`; no universal percentage. *Use the `/tdd` command or `tdd-guide` agent when RED → GREEN → REFACTOR applies.*
 3. **Self-review** — Review your own code before requesting review. Address CRITICAL and HIGH issues; fix MEDIUM when possible.  
    *Use the `/code-review` command or `code-reviewer` agent. See [Review Severity Levels](#review-severity-levels) below.*

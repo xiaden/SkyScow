@@ -21,7 +21,7 @@ Context files to read:
 - [files that need tests]
 - [reference tests for pattern/style guidance]
 
-graph_id: "[existing graph identity]"
+slug: "[change dag slug]"
 subjectNodeIds: ["I001"]
 round: [positive QA round number]
 
@@ -47,7 +47,7 @@ Keep a meaningful behavioral oracle, exercise real callers where possible, run t
 | `file` | Path to source file needing tests | `src/auth/service.ts` |
 | `missing` | Functions/classes/paths needing tests | `validateToken()`, `refreshSession()` |
 | `reason` | Why tests are needed | "Core auth logic — validateToken has no test coverage" |
-  | `graph_id` | Persistent graph identity for the durable record | `auth-graph` |
+  | `slug` | Change DAG identity for the durable record | `auth-change` |
 | `round` | Positive QA round number | `1` |
 
 ## Terminal Contract
@@ -62,7 +62,7 @@ Every invocation ends in **exactly one** verified terminal decision, written via
 - `BLOCKED` — the gap cannot be completed now.
 - `ESCALATED` — an implementation defect or out-of-remit decision was found.
 
-The record requires `writer`/`agent` = `qa-test-generator`, the graph ID (or legacy task family for publication records) and positive round, a stable
+The record requires `writer`/`agent` = `qa-test-generator`, the Change DAG slug (or the task family for standalone publication records) and positive round, a stable
 `subject` (kind plus at least one identifying key), `decision`, `evidence`, `verification`,
 `changed_files`/`changed_symbols` (empty only for a no-change outcome; `REPAIRED` needs at least one),
 and `source_kind: "analyzer-finding"` plus `source_ref`. A failed or missing write is a failed

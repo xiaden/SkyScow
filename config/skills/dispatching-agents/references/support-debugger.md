@@ -9,7 +9,7 @@ Dispatch Support-Debugger to diagnose test failures, runtime errors, lint errors
 - A runtime error occurs and the stack trace is ambiguous
 - Lint errors appear that aren't explained by the immediate diff
 - Observed behavior contradicts expectations and the cause is non-obvious
-- Exec-Manager hits a blocker after 3+ failed fix attempts on the same issue
+- Change-DAG-Runner hits a blocker after 3+ failed attempts on the same issue
 
 **Do NOT dispatch when:**
 - The error is an obvious typo or missing import — fix it directly
@@ -25,8 +25,8 @@ Fill in every field. Use `N/A` only when the field is genuinely unknown.
 Diagnose this failure:
 
 Context files:
-- {plan file being executed, if applicable}
-- {contracts file, if applicable}
+- {Change DAG bundle being executed, if applicable}
+- {applicable accepted DD, if applicable}
 - {any other relevant context files}
 
 failure:
@@ -57,15 +57,15 @@ failure:
 | Field | Description |
 |-------|-------------|
 | `rootCause` | Explanation of what caused the failure |
-| `fixComplexity` | One of `SIMPLE`, `NEEDS_PLAN`, `INCONCLUSIVE` |
+| `fixComplexity` | One of `SIMPLE`, `NEEDS_DAG`, `INCONCLUSIVE` |
 | `suggestedFix` | Concrete fix suggestion (present only when complexity is `SIMPLE`) |
 
 ## Routing After Diagnosis
 
 | Complexity | Meaning | Action |
 |------------|---------|--------|
-| `SIMPLE` | Root cause clear, fix scoped to a single section (function/method), weighted context < 32K chars | Spawn Exec-Fixer with `suggestedFix`, run lint, run tests, then full QA review |
-| `NEEDS_PLAN` | Fix requires coordinated changes across multiple sections or layers | Spawn Exec-Planner (AMEND) with `rootCause`, re-execute affected phases, then QA review |
+| `SIMPLE` | Root cause clear, fix scoped to a single section (function/method), weighted context < 32K chars | Apply the bounded raw edit with `suggestedFix`, run lint and tests, then QA review |
+| `NEEDS_DAG` | Fix requires coordinated changes across multiple sections or layers | Dispatch Change-DAG-Author to amend the stopped Change DAG with `rootCause`, re-run, then QA review |
 | `INCONCLUSIVE` | Debugger couldn't determine root cause | Escalate to Nyx with full debugger report. Do NOT attempt random fixes. |
 
 ## Dispatch Examples
@@ -76,7 +76,7 @@ failure:
 Diagnose this failure:
 
 Context files:
-- artifacts/plans/pending/TASK-A-refactor-auth.md
+- artifacts/change-dags/pending/<slug>/DAG.json
 - src/auth/service.ts
 - src/auth/__tests__/service.test.ts
 - src/auth/middleware.ts

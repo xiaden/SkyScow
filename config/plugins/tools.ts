@@ -56,6 +56,21 @@ const fileRangeSchema = tool.schema.object({
   end_line: tool.schema.number().describe("1-indexed inclusive end line"),
 })
 
+const semanticNodeSchema = tool.schema.object({
+  requirement: tool.schema.string().describe("Requirement statement that must be satisfied"),
+  satisfied_by: tool.schema
+    .array(tool.schema.string())
+    .optional()
+    .describe("Handles of child nodes that satisfy this requirement; omit for an open leaf"),
+})
+
+const semanticGraphSchema = tool.schema.object({
+  root: tool.schema.string().describe("Handle of the root semantic node"),
+  nodes: tool.schema
+    .record(tool.schema.string(), semanticNodeSchema)
+    .describe("Handle -> semantic node ({requirement, satisfied_by?})"),
+})
+
 function workspaceRoot(context: ToolContext): string {
   if (typeof context.directory === "string" && context.directory.length > 0) {
     return context.directory
@@ -269,7 +284,7 @@ const tools = {
   }),
 
   dd_archive: tool({
-    description: "Archive a pending DD bundle by updating DD.md to Completed and moving pending/{slug}/ to completed/{slug}/ after linked plans are complete. Refuses an occupied destination unless force is true.",
+    description: "Archive a pending DD bundle by updating DD.md to Completed and moving pending/{slug}/ to completed/{slug}/ after its linked Change DAG bundle in artifacts/change-dags/ is completed (artifact lifecycle). Refuses an occupied destination unless force is true.",
     args: {
       name: requiredString("DD name"),
       force: optionalBoolean("Replace an existing completed bundle"),
@@ -279,131 +294,195 @@ const tools = {
     },
   }),
 
-  plan_read: tool({
-    description: "Read a task plan and return structured JSON summary.",
+  // ── Change DAG ────────────────────────────────────────────────────────────
+
+  dag_create: tool({
+    description: "Create and persist a validated Change DAG from a semantic requirement graph; returns canonical node IDs.",
     args: {
-      plan_name: requiredString("Plan name"),
-      phase: optionalNumber("Return only this phase by number"),
+      slug: requiredString("Change DAG slug"),
+      semantic_graph: semanticGraphSchema,
     },
-    async execute(args: ToolArgs, context: ToolContext) {
-      return runPythonTool("common.tools.plan_read", args, context)
-    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_create", args, context) },
   }),
-
-  plan_complete_step: tool({
-    description: "Mark a step as complete in a task plan.",
+  dag_show: tool({
+    description: "Show the whole Change DAG or a bounded centered view around one node.",
     args: {
-      plan_name: requiredString("Plan name"),
-      step_id: requiredString("Step ID, for example P1-S3"),
-      annotation_marker: optionalString("Annotation marker"),
-      annotation_text: optionalString("Annotation text"),
+      slug: requiredString("Change DAG slug"),
+      node_id: optionalString("Center the view on this node ID"),
+      include_ancestors: optionalBoolean("Include ancestors of the centered node"),
+      include_descendants: optionalBoolean("Include descendants of the centered node"),
     },
-    async execute(args: ToolArgs, context: ToolContext) {
-      const annotation =
-        typeof args.annotation_marker === "string" && typeof args.annotation_text === "string"
-          ? { marker: args.annotation_marker, text: args.annotation_text }
-          : undefined
-
-      return runPythonTool(
-        "common.tools.plan_complete_step",
-        {
-          plan_name: args.plan_name,
-          step_id: args.step_id,
-          annotation,
-        },
-        context,
-      )
-    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_show", args, context) },
   }),
-
-  plan_annotate_step: tool({
-    description: "Add or edit an annotation on a plan step without changing its completion status. Use 'add' to append to existing annotations, 'edit' to replace them.",
+  dag_add_requirement: tool({
+    description: "Add a semantic requirement, either as an open leaf or inserted between parents and selected children.",
     args: {
-      plan_name: requiredString("Plan name"),
-      step_id: requiredString("Step ID, for example P1-S3"),
-      op: requiredString("'add' to append or 'edit' to replace"),
-      annotation_marker: requiredString("Annotation marker (e.g. Notes, Blocked, Warning)"),
-      annotation_text: requiredString("Annotation text"),
+      slug: requiredString("Change DAG slug"),
+      requirement: requiredString("Requirement statement"),
+      parent_ids: stringArray("Semantic parent node IDs"),
+      child_ids: optionalStringArray("Current direct children to move beneath the new requirement"),
     },
-    async execute(args: ToolArgs, context: ToolContext) {
-      return runPythonTool("common.tools.plan_annotate_step", args, context)
-    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_requirement", args, context) },
   }),
-
-  plan_unmark_step: tool({
-    description: "Revert a step from complete back to pending. Prepends an [UNMARKED] notice to the step's annotations. Used by managers and QA to direct re-execution of prematurely-completed steps.",
+  dag_add_create: tool({
+    description: "Attach a create node under the given parents.",
     args: {
-      plan_name: requiredString("Plan name"),
-      step_id: requiredString("Step ID, for example P1-S3"),
-      agent: requiredString("Agent performing the unmark (e.g. exec-manager, qa-reviewer)"),
-      reason: optionalString("Why the step is being unmarked"),
+      slug: requiredString("Change DAG slug"),
+      parent_ids: stringArray("Semantic parent node IDs"),
+      path: requiredString("Workspace-relative path to create"),
+      content: requiredString("Full file content"),
     },
-    async execute(args: ToolArgs, context: ToolContext) {
-      return runPythonTool("common.tools.plan_unmark_step", args, context)
-    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_create", args, context) },
   }),
-
-  plan_archive: tool({
-    description: "Archive a completed task plan from pending to completed. Refuses an occupied destination unless force is true.",
+  dag_add_edit: tool({
+    description: "Attach an edit node under the given parents.",
     args: {
-      plan_name: requiredString("Plan name"),
-      ignore_blocked: optionalBoolean("Archive despite Blocked annotations"),
-      force: optionalBoolean("Replace an existing completed plan"),
+      slug: requiredString("Change DAG slug"),
+      parent_ids: stringArray("Semantic parent node IDs"),
+      path: requiredString("Workspace-relative path to edit"),
+      patch: requiredString("Unified diff patch"),
     },
-    async execute(args: ToolArgs, context: ToolContext) {
-      return runPythonTool("common.tools.plan_archive", args, context)
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_edit", args, context) },
+  }),
+  dag_add_remove: tool({
+    description: "Attach a remove node under the given parents.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      parent_ids: stringArray("Semantic parent node IDs"),
+      path: requiredString("Workspace-relative path to remove"),
     },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_remove", args, context) },
   }),
-
-  impl_graph_create: tool({
-    description: "Create a validated persistent implementation graph.",
-    args: { graph: tool.schema.object({}) },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_create", args, context) },
+  dag_add_move: tool({
+    description: "Attach a move node under the given parents.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      parent_ids: stringArray("Semantic parent node IDs"),
+      from_path: requiredString("Workspace-relative source path"),
+      to_path: requiredString("Workspace-relative destination path"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_move", args, context) },
   }),
-  impl_graph_read: tool({
-    description: "Read a bounded implementation graph view.",
-    args: { graph_id: requiredString("Graph ID"), view: optionalString("View"), node_ids: optionalStringArray("Node IDs"), requirement_id: optionalString("Requirement ID"), contract_id: optionalString("Contract ID"), limit: optionalNumber("Result limit") },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_read", args, context) },
+  dag_add_run: tool({
+    description: "Attach a bounded verification run node under the given parents.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      parent_ids: stringArray("Semantic parent node IDs"),
+      command: stringArray("Command argv (no shell)"),
+      exclusive: optionalBoolean("Require exclusive execution"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_run", args, context) },
   }),
-  impl_graph_validate: tool({
-    description: "Validate an implementation graph.",
-    args: { graph_id: requiredString("Graph ID") },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_validate", args, context) },
+  dag_update_requirement: tool({
+    description: "Update the requirement text of a mutable semantic node.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Node ID"),
+      requirement: requiredString("Replacement requirement statement"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_requirement", args, context) },
   }),
-  impl_graph_amend: tool({
-    description: "Amend pending implementation graph topology.",
-    args: { graph_id: requiredString("Graph ID"), operations: tool.schema.array(tool.schema.object({})).optional().describe("Bounded amendment operations"), nodes: tool.schema.array(tool.schema.object({})).optional(), remove_node_ids: optionalStringArray("Node IDs to remove"), requirements: tool.schema.array(tool.schema.object({})).optional(), contracts: tool.schema.array(tool.schema.object({})).optional(), actor: requiredString("Planner actor"), reason: requiredString("Amendment reason") },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_amend", args, context) },
+  dag_update_create: tool({
+    description: "Update a mutable create node (at least one field).",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Node ID"),
+      path: optionalString("Replacement path"),
+      content: optionalString("Replacement content"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_create", args, context) },
   }),
-  impl_graph_claim: tool({
-    description: "Claim derived-ready implementation nodes.",
-    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), worker: optionalString("Worker identity"), manager_session: requiredString("Manager frontier session"), expected_structure_revision: requiredNumber("Expected structural revision"), expected_structure_digest: optionalString("Expected structural digest"), changed_files: optionalStringArray("Known changed files"), write_scopes: stringArray("Manager-established write scopes") },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_claim", args, context) },
+  dag_update_edit: tool({
+    description: "Update a mutable edit node (at least one field).",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Node ID"),
+      path: optionalString("Replacement path"),
+      patch: optionalString("Replacement unified diff"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_edit", args, context) },
   }),
-  impl_graph_release: tool({
-    description: "Release claimed implementation nodes.",
-    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity") },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_release", args, context) },
+  dag_update_remove: tool({
+    description: "Update a mutable remove node (at least one field).",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Node ID"),
+      path: optionalString("Replacement path"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_remove", args, context) },
   }),
-  impl_graph_complete: tool({
-    description: "Accept claimed implementation nodes.",
-    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), claim_id: requiredString("Claim identity"), results: tool.schema.array(tool.schema.object({})).describe("Exactly one distinct result per claimed node") },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_complete", args, context) },
+  dag_update_move: tool({
+    description: "Update a mutable move node (at least one field).",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Node ID"),
+      from_path: optionalString("Replacement source path"),
+      to_path: optionalString("Replacement destination path"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_move", args, context) },
   }),
-  impl_graph_block: tool({
-    description: "Block implementation nodes.",
-    args: { graph_id: requiredString("Graph ID"), node_ids: stringArray("Node IDs"), reason: requiredString("Block reason"), claim_id: optionalString("Claim identity") },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_block", args, context) },
+  dag_update_run: tool({
+    description: "Update a mutable run node (at least one field).",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Node ID"),
+      command: optionalStringArray("Replacement command argv"),
+      exclusive: optionalBoolean("Replacement exclusivity flag"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_run", args, context) },
   }),
-  impl_graph_record_qa: tool({
-    description: "Record terminal graph QA.",
-    args: { graph_id: requiredString("Graph ID"), status: requiredString("PASS or FAIL"), evidence: tool.schema.unknown() },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_record_qa", args, context) },
+  dag_remove: tool({
+    description: "Remove a mutable node, preserving shared descendants and garbage-collecting mutable unreachable work.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Node ID to remove"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_remove", args, context) },
   }),
-  impl_graph_archive: tool({
-    description: "Archive a complete implementation graph after terminal QA.",
-    args: { graph_id: requiredString("Graph ID") },
-    async execute(args, context) { return runPythonTool("common.tools.impl_graph_archive", args, context) },
+  dag_preview: tool({
+    description: "Preview compiled per-file operations, conflicts, blocked work, and run barriers without executing.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      path: optionalString("Limit to one workspace-relative path"),
+      node_id: optionalString("Limit to one node's reachable subgraph"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_preview", args, context) },
+  }),
+  dag_validate: tool({
+    description: "Report derived schema validity, executability, and resolution for a Change DAG.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_validate", args, context) },
+  }),
+  dag_start: tool({
+    description: "Execute a Change DAG, optionally retrying previously failed nodes.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      retry: optionalBoolean("Retry failed nodes"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_start", args, context) },
+  }),
+  dag_stop: tool({
+    description: "Stop an executing Change DAG so it can be repaired.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_stop", args, context) },
+  }),
+  dag_status: tool({
+    description: "Report Change DAG execution status, optionally for one slug.",
+    args: {
+      slug: optionalString("Change DAG slug; omit to report the active DAG and all queued DAGs"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_status", args, context) },
+  }),
+  dag_archive: tool({
+    description: "Archive a resolved Change DAG from pending to completed.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_archive", args, context) },
   }),
 
   context_tokens: tool({
@@ -421,9 +500,9 @@ const tools = {
 
   context_budget: tool({
     description:
-      "Measure generic file context plus optional implementation-graph worker-node and manager-review packets using the shipped orchestration policy (config/agent-context-budgets.yaml). Legacy plan parsing is retained only for historical compatibility.",
+      "Measure generic file context plus optional Change DAG worker-node and manager-review packets using the shipped orchestration policy (config/agent-context-budgets.yaml).",
     args: {
-      files: tool.schema.array(fileRangeSchema).optional().describe("Files or line ranges to measure; omit when using an ephemeral graph packet"),
+      files: tool.schema.array(fileRangeSchema).optional().describe("Files or line ranges to measure; omit when using an ephemeral DAG packet"),
       graph_packet: tool.schema.object({}).optional().describe("Ephemeral worker-node or manager-review packet"),
     },
     async execute(args: ToolArgs, context: ToolContext) {
@@ -479,12 +558,12 @@ const tools = {
 
   qa_record_write: tool({
     description:
-      "Write a validated terminal QA round record under artifacts/logs/qa-rounds. Records are writer-isolated for qa-test-generator, qa-docs-generator, or exec-fixer; generator decisions are REPAIRED, UNNECESSARY, BLOCKED, or ESCALATED, while exec-fixer may write only REPAIRED. A repeated stable record identity (graph_id or legacy task_family, round, writer, subject) is rejected fail-closed.",
+      "Write a validated terminal QA round record under artifacts/logs/qa-rounds. Records are writer-isolated for qa-test-generator, qa-docs-generator, or the retained exec-fixer identity for continuity/historical records (not an active agent contract); generator decisions are REPAIRED, UNNECESSARY, BLOCKED, or ESCALATED, while exec-fixer may write only REPAIRED. A repeated stable record identity (dag_slug or legacy task_family, round, writer, subject) is rejected fail-closed.",
     args: {
       record: tool.schema
         .object({})
         .describe(
-          "Terminal record with task_family, positive round, writer, agent, stable subject (string, or object with kind plus at least one identifying key), decision, repository-derived evidence, actual verification, changed_files, changed_symbols, and explicit provenance (source_kind: analyzer-finding for generators / fixer-issue for exec-fixer; source_ref), plus repair text for exec-fixer records. Progress, chain-of-thought, and speculation are rejected.",
+          "Terminal record with dag_slug (or legacy task_family), positive round, writer, agent, stable subject (string, or object with kind plus at least one identifying key), decision, repository-derived evidence, actual verification, changed_files, changed_symbols, and explicit provenance (source_kind: analyzer-finding for generators / fixer-issue for exec-fixer; source_ref), plus repair text for exec-fixer records. Progress, chain-of-thought, and speculation are rejected.",
         ),
     },
     async execute(args: ToolArgs, context: ToolContext) {
@@ -494,12 +573,12 @@ const tools = {
 
   qa_record_read: tool({
     description:
-      "Read validated terminal QA round records for an existing graph_id or legacy task_family, optionally filtered by round, writer, subject substring, decision, or provenance. Missing history is empty; malformed or cross-family history fails closed.",
+      "Read validated terminal QA round records for an existing dag_slug or legacy task_family, optionally filtered by round, writer, subject substring, decision, or provenance. Missing history is empty; malformed or cross-family history fails closed.",
     args: {
       task_family: optionalString("Legacy existing task-family identity (publication/compatibility records)"),
-      graph_id: optionalString("Graph-native identity for graph execution records"),
+      dag_slug: optionalString("Change DAG slug for DAG execution records"),
       round: optionalNumber("Positive QA round number"),
-      writer: optionalString("Writer: qa-test-generator, qa-docs-generator, or exec-fixer"),
+      writer: optionalString("Writer: qa-test-generator, qa-docs-generator, or retained exec-fixer identity (historical continuity; not an active agent contract)"),
       subject: optionalString("Subject substring filter"),
       decision: optionalString("Terminal decision: REPAIRED, UNNECESSARY, BLOCKED, or ESCALATED"),
       source_kind: optionalString("Provenance kind filter (exact): analyzer-finding or fixer-issue"),

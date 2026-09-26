@@ -15,14 +15,14 @@ Before changing code:
 3. Verify that the listed files own the behavior. Trace related caches, persistence, startup/reload, application facades, public contracts, and error handling rather than treating the file list or recommended action as complete architectural guidance.
 4. Classify the change as local/low-risk, standard, or high-risk. High-risk includes authentication or authorization, credentials or sessions, persistence deletion/migration, cache invalidation, startup/recovery, concurrency, cross-layer changes, public contracts, or security-sensitive data.
 
-## Phase 2: Route and plan
+## Phase 2: Route and author
 
 - For a genuinely local, low-risk correction with no contract or lifecycle impact, proceed with a bounded implementation.
-- For a correction spanning multiple layers, modules, state stores, or lifecycle boundaries, route through `Exec-Planner` and then `Exec-Manager`. The planner must create or amend a verifiable implementation plan; the manager must execute it phase by phase.
-- For high-risk work, require the plan to include security implications, failure/partial-operation behavior, concurrency considerations, rollback or recovery semantics, and restart/reload behavior where applicable.
+- For a correction spanning multiple layers, modules, state stores, or lifecycle boundaries, route through `Change-DAG-Author` and then `Change-DAG-Runner`. The author must create or amend a verifiable Change DAG; the runner must execute it to completion.
+- For high-risk work, require the Change DAG's requirements to include security implications, failure/partial-operation behavior, concurrency considerations, rollback or recovery semantics, and restart/reload behavior where applicable.
 - If investigation reveals an architectural mismatch, unclear ownership, missing contract, migration requirement, contradictory ADR/ASR, or an unresolved requirement that cannot be safely implemented locally, stop and escalate to `RnD-Manager` or request user clarification. Do not silently choose an architectural shortcut.
 
-The plan or bounded implementation must convert `expected_behavior` into executable invariants. Include normal, negative, persistence, restart/recovery, and relevant concurrency or partial-failure tests. For example, a session-revocation fix must verify validity before reset, immediate invalidity after reset, absence from persisted storage, invalidity after restart, rejection of the old password, and successful login with the new password.
+The Change DAG (or bounded implementation) must convert `expected_behavior` into executable invariants. Include normal, negative, persistence, restart/recovery, and relevant concurrency or partial-failure tests. For example, a session-revocation fix must verify validity before reset, immediate invalidity after reset, absence from persisted storage, invalidity after restart, rejection of the old password, and successful login with the new password.
 
 ## Phase 3: Implement and verify
 
@@ -30,10 +30,10 @@ Implement only the approved scope. Re-read files immediately before editing and 
 
 ## Phase 4: Mandatory QA gate
 
-Have `QA-Reviewer` perform a full review after all implementation phases. Provide the original request, requirement ledger, risk classification, plan, changed-file set, invariants, test results, and diff context. The full QA gate is mandatory for every meaningful implementation change, and independent correctness review is always required. Invoke the security review, test analysis, and documentation analysis lenses only when their canonical triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md` are met; do not restate those triggers here.
+Have `QA-Reviewer` perform a full review after all implementation phases. Provide the original request, requirement ledger, risk classification, Change DAG, changed-file set, invariants, test results, and diff context. The full QA gate is mandatory for every meaningful implementation change, and independent correctness review is always required. Invoke the security review, test analysis, and documentation analysis lenses only when their canonical triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md` are met; do not restate those triggers here.
 
-- `MINOR` findings: route to the permitted fixer, then rerun the full QA review.
-- Planning gaps, requirement drift, architectural issues, critical/security findings, or unresolved partial-failure behavior: stop, amend or escalate the plan; do not paper over them with a local patch.
+- `MINOR` findings: route to a bounded raw edit, then rerun the full QA review.
+- Planning gaps, requirement drift, architectural issues, critical/security findings, or unresolved partial-failure behavior: stop; author a remediation Change DAG (or a bounded correction) through `Change-DAG-Author`; never reopen a completed DAG, and do not paper over them with a local patch.
 - Do not report completion until QA explicitly passes, all required checks pass, and no high-severity findings remain.
 
 ## Concurrent worktree and commit rules

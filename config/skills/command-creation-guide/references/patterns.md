@@ -16,7 +16,7 @@ Concrete JSON examples for common command scenarios. Reference these when buildi
   "command": {
     "create-plan": {
       "description": "Create a detailed implementation plan for a feature",
-      "template": "Create a detailed implementation plan for the following feature:\n\n$ARGUMENTS\n\nInclude:\n1. Requirements analysis\n2. Technical approach\n3. Step-by-step implementation tasks\n4. Testing strategy\n5. Potential risks and mitigations\n\nSave the plan to artifacts/plans/pending/",
+      "template": "Create a detailed implementation plan for the following feature:\n\n$ARGUMENTS\n\nInclude:\n1. Requirements analysis\n2. Technical approach\n3. Step-by-step implementation tasks\n4. Testing strategy\n5. Potential risks and mitigations\n\nPresent the accepted request or DD to change-dag-author for Change DAG authoring and review",
       "agent": "plan"
     }
   }
@@ -123,7 +123,7 @@ Override the model for specific needs:
   "command": {
     "refactor-module": {
       "description": "Refactor a module following best practices",
-      "template": "Refactor module: $ARGUMENTS\n\nPhase 1: Analysis\n1. Read the module and all dependencies\n2. Identify code smells and issues\n3. Document current behavior\n\nPhase 2: Planning\n1. Create a refactoring plan\n2. Identify breaking changes\n3. Plan test updates\n\nPhase 3: Implementation\n1. Apply refactoring changes\n2. Update tests\n3. Update documentation\n\nPhase 4: Validation\n1. Run all tests\n2. Check for regressions\n3. Verify behavior unchanged\n\nSave plan to artifacts/plans/pending/ before starting implementation.",
+      "template": "Refactor module: $ARGUMENTS\n\nPhase 1: Analysis\n1. Read the module and all dependencies\n2. Identify code smells and issues\n3. Document current behavior\n\nPhase 2: Planning\n1. Create a refactoring plan\n2. Identify breaking changes\n3. Plan test updates\n\nPhase 3: Implementation\n1. Apply refactoring changes\n2. Update tests\n3. Update documentation\n\nPhase 4: Validation\n1. Run all tests\n2. Check for regressions\n3. Verify behavior unchanged\n\nHand the accepted request or DD to change-dag-author to author a Change DAG before starting implementation.",
       "agent": "build"
     }
   }

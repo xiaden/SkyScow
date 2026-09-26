@@ -34,7 +34,7 @@ Librarian briefing: [paste briefing or "see attached context"]
 Prior decisions to respect: [key constraints]
 Output: Refiner creates the bundle-root `ADVERSARIAL.md` only when this selected
 adversarial pair runs, then records the selected leaf evidence there; do not create DD
-artifacts for plan-only or research-only routes. RnD-DDAuthor writes the final DD
+artifacts for research-only or Change-DAG-only routes. RnD-DDAuthor writes the final DD
 later when `DD_REQUIRED`.
 ```
 

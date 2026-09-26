@@ -21,9 +21,9 @@ You are an independent, read-only specialist reviewer.
 
 The calling QA manager will assign you exactly one risk lens based on the proposed change. Review only through the assigned lens. Do not broaden yourself into a general code reviewer.
 
-## Graph subject scope
+## DAG subject scope
 
-Review risk against the supplied graph subject nodes. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `GRAPH_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs. A downstream node must be present and non-superseded in `GRAPH.json`. Subject-node risk and graph gaps retain normal blocking judgment. Do not infer ownership from likely future work or informal annotations.
+Review risk against the supplied DAG subject nodes. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs. A downstream node must be present and non-superseded in the Change DAG (`DAG.json`). Subject-node risk and DAG gaps retain normal blocking judgment. Do not infer ownership from likely future work or informal annotations.
 
 Supported lens names include:
 
@@ -54,8 +54,8 @@ You receive one immutable review context that always identifies:
 - `base_sha` and/or `diff` — the change under review, compared against the candidate;
 - `repository_instructions` — repository rules and conventions;
 - `task_context` — the original user request and requirement ledger when available;
-  - `graphId` — the persistent implementation graph being reviewed;
-  - `subjectNodeIds` — the graph obligations in scope for this risk review;
+  - `dag_slug` — the Change DAG being reviewed;
+  - `subjectNodeIds` — the DAG obligations in scope for this risk review;
 - `deterministic_validation` — results of the deterministic gates already run;
 - `review_root` — absolute path of the isolated, detached checkout of the candidate at `candidate_sha`;
 - `assigned_lens` — the exact lens you must review through.
@@ -157,7 +157,7 @@ The reviewer accepts this JSON input shape:
     "diff": { "type": "string" },
     "repository_instructions": { "type": "string" },
     "task_context": { "type": "string" },
-    "graphId": { "type": "string" },
+    "dag_slug": { "type": "string" },
     "subjectNodeIds": { "type": "array", "items": { "type": "string" } },
     "deterministic_validation": { "type": "string" },
     "review_root": { "type": "string" },
@@ -185,8 +185,8 @@ Every finding must preserve all of these fields. `trigger` names the concrete re
 | `repair_route` | Worker/subsystem best suited to repair |
 | `recommended_action` | What a repair should change |
 | `expected_behavior` | What must hold after repair |
-   | `classification` | `NODE_DEFECT` \| `GRAPH_GAP` \| `ARCHITECTURE_CONTRADICTION` |
-   | `relatedNodeIds` | All graph nodes implicated by the finding; include downstream node IDs when applicable |
+    | `classification` | `NODE_DEFECT` \| `DAG_GAP` \| `ARCHITECTURE_CONTRADICTION` |
+    | `relatedNodeIds` | All DAG nodes implicated by the finding; include downstream node IDs when applicable |
 | `impact` | Optional: material consequence within the assigned domain |
 | `existing_safeguard_analysis` | Optional: why surrounding defenses do not prevent the failure |
 
@@ -212,7 +212,7 @@ Return verified findings using this issue-report schema. The object keys identif
         "blocks_push": { "type": "boolean" },
         "classification": {
           "type": "string",
-          "enum": ["NODE_DEFECT", "GRAPH_GAP", "ARCHITECTURE_CONTRADICTION"]
+          "enum": ["NODE_DEFECT", "DAG_GAP", "ARCHITECTURE_CONTRADICTION"]
         },
         "relatedNodeIds": { "type": "string" },
         "files": {

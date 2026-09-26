@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Change DAG Execution State",
+  "description": "Mutable resumability state keyed by terminal node ID. Semantic-node state is never stored; it is derived from the DAG. QA PASS/FAIL is never stored here.",
+  "type": "object",
+  "propertyNames": {
+    "pattern": "^N[0-9]+$"
+  },
+  "additionalProperties": {
+    "enum": [
+      "not_satisfied",
+      "in_progress",
+      "satisfied",
+      "failed"
+    ]
+  }
+}

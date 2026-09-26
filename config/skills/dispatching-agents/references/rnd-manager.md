@@ -49,8 +49,8 @@ Refiner.
 requirements and provenance but does not repair, reinterpret, promote, or
 complete an incomplete handoff.
 7. **PatternEnforcer**, when selected, reports read-only impact evidence to the
-owning manager/planner; it is not the requirement or design decision gate.
-8. **RnD-Manager** returns `READY_FOR_PLANNING` only after the independent gate,
+owning manager/author; it is not the requirement or design decision gate.
+8. **RnD-Manager** returns `READY_FOR_DECOMPOSITION` only after the independent gate,
 DD recording, and mandatory lifecycle checks are coherent.
 
 ## Research-only dispatch

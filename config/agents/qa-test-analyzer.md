@@ -123,14 +123,14 @@ reports whether generation succeeded and does not re-run or re-audit it.
 
 ```yaml
 contextFiles:        # READ THESE FIRST
-  - {graph_file}     # Graph obligations and accepted implementation
+  - {dag_context}     # DAG obligations and checkpoint change boundary
   - {contracts_file} # Materialized contract records
   - {testing_instructions_backend}
   - {testing_instructions_frontend}  # If frontend changes
   - {testing_instructions_e2e}       # If e2e relevant
 
 task:
-  graph_id: "{graph-id}"
+  dag_slug: "{dag-slug}"
   subjectNodeIds: ["I001"]
   changedFiles:      # Implementation files to analyze
     - "src/persistence/constructor/builder.py"
@@ -145,7 +145,7 @@ handoff; QA-TestGenerator owns test edits and relevant verification.
 
 ### Current-state inspection
 
-- Read the assigned plan and changed files.
+- Read the DAG context and changed files.
 - Locate relevant existing tests and determine whether they exercise the changed behavior.
 - Identify stale tests, missing meaningful error-path coverage, and gaps in real-caller or contract coverage.
 - Distinguish repairable test gaps from implementation or systemic defects.

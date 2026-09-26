@@ -18,7 +18,7 @@ SkyScow is an agentic software-engineering harness built around OpenCode. This r
 | `tests/` | Focused Bun/TypeScript tests for the native request-context plugin. |
 | `.github/workflows/` | Pull-request validation and GHCR image publication workflows. `.github/release.yml` controls release-note categories. |
 | `docs/`, `README.md`, `.github/CONTRIBUTING.md`, `.github/SECURITY.md` | User, contribution, troubleshooting, and security documentation. |
-| `artifacts/` | Runtime engineering artifacts: request context, designs, plans, and logs. These are process records, not implementation state. |
+| `artifacts/` | Runtime engineering artifacts: request context, designs, Change DAGs, and logs. These are process records, not implementation state. |
 
 There are currently no subordinate `AGENTS.md` files; this root file is the repository-wide contract.
 
@@ -29,7 +29,7 @@ There are currently no subordinate `AGENTS.md` files; this root file is the repo
 | Image, startup, or runtime behavior | `Dockerfile`, `scripts/entrypoint.sh` | `scripts/bootstrap.sh`, `scripts/sleev-gateway-sync.sh`, `s6-overlay/s6-rc.d/`, compose files |
 | OpenCode agents, commands, skills, or permissions | Relevant directory under `config/` | `config/opencode.json`, `config/instructions/skill-first.md`, `config/skills/agent-tool-permissions/` |
 | Plugins or OpenCode tool bridge | `config/plugins/` or `config/tools/` | `.opencode/package.json`, `tests/`, `config/tools/tests/`, `config/skills/opencode-plugins/` |
-| Artifact, DD, plan, ADR, or logging behavior | `artifacts/` and the matching tool under `config/tools/` | `config/skills/artifact-logging/`, `config/skills/making-design-documents/`, `config/skills/making-and-using-task-plans/` |
+| Artifact, DD, Change DAG, ADR, or logging behavior | `artifacts/` and the matching tool under `config/tools/` | `config/skills/artifact-logging/`, `config/skills/making-design-documents/`, `config/skills/decomposing-design-documents/` |
 | Chromium or container security | `config/chromium-seccomp.json`, `scripts/validate_chromium_seccomp.py` | `Dockerfile`, compose `security_opt`, `README.md` |
 | CI, release, or image publication | `.github/workflows/validation.yml` or `docker-publish.yml` | `renovate.json`, `.github/release.yml`, Dockerfile, applicable `gg-*` skills |
 | Documentation | `README.md` and `docs/` | `.github/CONTRIBUTING.md`, `.github/SECURITY.md`, source and scripts being documented |
@@ -40,7 +40,7 @@ There are currently no subordinate `AGENTS.md` files; this root file is the repo
 - Keep dependency and tool versions exact in `Dockerfile`; Renovate manages the declared Dockerfile, GitHub Actions, npm, and Python pins. Do not float versions manually.
 - Configuration shipped in the image is reconciled through the bootstrap manifest. Change the source under `config/`; do not edit generated persistent state under `/home/opencode/.config/opencode` as if it were repository source.
 - Preserve executable permissions on shell entrypoints and s6 `run`/`finish` files. Preserve both `amd64` and `arm64` branches and their integrity checks in binary-download blocks.
-- Use the repository’s existing artifact/tool conventions for DDs, plans, logs, and request context. Do not create a DD or plan for routine edits; load the relevant skill when the task enters that artifact workflow.
+- Use the repository’s existing artifact/tool conventions for DDs, Change DAGs, logs, and request context. Do not create a DD or Change DAG for routine edits; load the relevant skill when the task enters that artifact workflow.
 - Internal replacements are migrations, not dual implementations: update active callers and remove superseded internal paths. External compatibility is allowed only under the canonical boundary rules in `config/instructions/compatability.md` and the `code-migration` skill.
 
 ## Architecture boundaries
@@ -79,11 +79,11 @@ The pull-request workflow in `.github/workflows/validation.yml` currently provid
 - `.github/workflows/docker-publish.yml` is authoritative for GHCR publication: it classifies stable/prerelease/manual channels, requires configured successful CI for tag releases, publishes an immutable SHA-tagged image, creates provenance/SBOM attestations, verifies the attestation, and promotes aliases.
 - `renovate.json` defines automated dependency-update coverage. Release-note grouping is configured in `.github/release.yml`.
 
-## Artifacts, design, and planning
+## Artifacts, design, and decomposition
 
-- `artifacts/requests/` contains captured conversation context used as primary request evidence for graph creation or downstream DD authoring.
+- `artifacts/requests/` contains captured conversation context used as primary request evidence for Change DAG creation or downstream DD authoring.
 - `artifacts/designs/pending/` and `artifacts/designs/completed/` contain design-document bundles; the DD and any root-level adversarial record are authoritative for design decisions and status.
-- `artifacts/implementation/` contains authoritative new-work `GRAPH.json` artifacts; graph nodes own requirements, contracts, dependencies, claims, evidence, and completion. `artifacts/plans/` remains readable historical compatibility only and is not a second authority for new work.
+- `artifacts/change-dags/pending/{slug}/` and `artifacts/change-dags/completed/{slug}/` contain the Change DAG bundle (`DAG.json`, `EXECUTION_STATE.json`, `WORK_LOG.jsonl`) and are the single implementation-work authority for new work; semantic nodes own requirements and exact work nodes own create/edit/remove/move/run operations. `artifacts/plans/` and any legacy implementation graph are readable historical compatibility only, not a second authority.
 - `artifacts/logs/` contains durable observations, discoveries, decisions, blockers, and QA records. Logs preserve context but do not outrank current source, tests, accepted DDs, or explicit requirements.
 - Use the artifact tools and matching skills rather than inventing new formats or writing process artifacts into source directories. The `artifacts/` tree is not a substitute for repository tests or CI evidence.
 
