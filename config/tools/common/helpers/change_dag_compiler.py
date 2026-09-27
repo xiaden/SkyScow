@@ -305,15 +305,51 @@ def _actionable_mechanical(dag: Any, state: dict[str, str]) -> tuple[list[str], 
     return actionable, blocked
 
 
+def _parse_edit_node_patch(node_id: str, node: dict, path: str) -> FilePatch:
+    """Parse one edit node's patch and enforce the one-node/one-file contract.
+
+    An edit node represents exactly one file operation, so its patch must contain
+    exactly one ``FilePatch``. The parsed target is canonicalized with
+    :func:`change_dag.canonical_path` -- the same lexical identity used to group
+    paths during compilation -- and must equal ``path`` (the node's already
+    canonicalized declared ``path``). ``a/``/``b/`` headers normalize to the bare
+    path, so ``a/foo.py``/``b/foo.py``/``./foo.py`` all match a declared
+    ``foo.py``; any other target (including unsupported special forms such as
+    ``/dev/null``) is rejected. Raises :class:`PatchError` for malformed, empty,
+    multi-file, or mismatched patches; the generic multi-file
+    :func:`change_dag_patch.parse_unified_diff` is left unchanged for other
+    callers.
+    """
+    patches = parse_unified_diff(node["patch"])
+    if len(patches) != 1:
+        raise PatchError(
+            f"edit node {node_id} must describe exactly one file operation, but its "
+            f"patch contains {len(patches)} file sections"
+        )
+    parsed = patches[0]
+    try:
+        target = change_dag.canonical_path(parsed.path)
+    except ValueError as exc:
+        raise PatchError(
+            f"edit node {node_id} patch target {parsed.path!r} is not a usable "
+            f"workspace-relative path: {exc}"
+        ) from exc
+    if target != path:
+        raise PatchError(
+            f"edit node {node_id} patch target {parsed.path!r} does not match "
+            f"declared path {path!r}"
+        )
+    return parsed
+
+
 def _parse_edit_nodes(
-    nodes_map: dict[str, dict], node_ids: list[str]
+    nodes_map: dict[str, dict], node_ids: list[str], path: str
 ) -> tuple[list[FilePatch], list[str]]:
     parsed: list[FilePatch] = []
     owners: list[str] = []
     for node_id in node_ids:
-        node_patches = parse_unified_diff(nodes_map[node_id]["patch"])
-        parsed.extend(node_patches)
-        owners.extend([node_id] * len(node_patches))
+        parsed.append(_parse_edit_node_patch(node_id, nodes_map[node_id], path))
+        owners.append(node_id)
     return parsed, owners
 
 
@@ -439,7 +475,7 @@ def _reconcile_frontier_edits(
         failed: list[tuple[str, Exception]] = []
         for peer in peers:
             try:
-                parsed = parse_unified_diff(nodes_map[peer]["patch"])
+                parsed = [_parse_edit_node_patch(peer, nodes_map[peer], path)]
             except PatchError as exc:
                 failed.append((peer, exc))
                 continue
@@ -470,7 +506,7 @@ def _reconcile_frontier_edits(
                     continue
                 try:
                     probe = peer_output
-                    for file_patch in parse_unified_diff(nodes_map[peer]["patch"]):
+                    for file_patch in [_parse_edit_node_patch(peer, nodes_map[peer], path)]:
                         probe = apply_file_patch(probe, file_patch, path=path)
                 except PatchError:
                     continue
@@ -739,7 +775,7 @@ def compile_operations(
             continue
 
         try:
-            parsed, _owners = _parse_edit_nodes(nodes_map, edit_nodes)
+            parsed, _owners = _parse_edit_nodes(nodes_map, edit_nodes, path)
         except PatchError as exc:
             add_conflict(path, group, f"compile_conflict: malformed patch: {exc}")
             continue
@@ -1157,24 +1193,48 @@ def preflight(dag: dict, state: dict, workspace_root: Path) -> dict:
 # Reconciliation and summary
 # ---------------------------------------------------------------------------
 def _already_applied(current: str, patches: list[FilePatch]) -> bool:
-    """True when the patches' new-side lines are present and match in order."""
+    """True only with exact proof that ``current`` is the patches' intended result.
+
+    Interruption reconciliation must never conclude that an interrupted edit
+    succeeded without proof, so the previous "no new-side lines matched" vacuous
+    success is replaced by an exact region comparison:
+
+    * Each hunk's *new side* (context ``' '`` and added ``'+'`` lines) must match
+      ``current`` contiguously. Because the region is exactly the new side, a
+      replaced/removed line cannot remain inside it.
+    * The position of that region in the resulting file is ``old_start - 1`` plus
+      the accumulated ``new_count - old_count`` delta of the earlier hunks -- the
+      same coordinate :func:`change_dag_patch.apply_file_patch` writes to. It is
+      never ``new_start - 1`` plus that delta, which double-counts the delta when
+      a patch already carries resulting-file starts.
+    * A deletion-only hunk has no new-side line to anchor the proof, so it can
+      never, by itself, make the patch "applied"; the file stays ambiguous.
+
+    Partial application, an overlapping external edit, or a wrong coordinate all
+    fail the exact comparison and therefore classify as ambiguous upstream.
+    """
     text = change_dag_patch.normalize_eol(current)
     lines = text.split("\n")
     if text.endswith("\n"):
         lines = lines[:-1]
     offset = 0
+    proven = False
     for file_patch in patches:
         for hunk in file_patch.hunks:
-            position = hunk.new_start - 1 + offset
-            for raw in hunk.lines:
-                marker = raw[:1]
-                content = raw[1:]
-                if marker in (" ", "+"):
-                    if position >= len(lines) or lines[position] != content:
-                        return False
-                    position += 1
+            position = hunk.old_start - 1 + offset
+            new_lines = [raw[1:] for raw in hunk.lines if raw[:1] in (" ", "+")]
+            if position < 0 or position + len(new_lines) > len(lines):
+                return False
+            if lines[position : position + len(new_lines)] != new_lines:
+                return False
+            if new_lines:
+                proven = True
+            elif any(raw[:1] == "-" for raw in hunk.lines):
+                # No new-side line exists to prove the intended result, and the
+                # removed content is gone from view: not provably applied.
+                return False
             offset += hunk.new_count - hunk.old_count
-    return True
+    return proven
 
 
 def source_fingerprint(path: Path) -> dict[str, Any] | None:
@@ -1252,7 +1312,14 @@ def node_present(dag: dict, node_id: str, workspace_root: Path, *, fingerprint: 
             return "present" if _already_applied(current, patches) else "ambiguous"
         except PatchError:
             return "ambiguous"
-        return "present" if updated == current else "absent"
+        if updated == current:
+            return "present"
+        if _already_applied(current, patches):
+            # The new side is present, yet the patch still applies (an insertion
+            # whose added content cannot be told apart from the pre-existing
+            # file). It is neither provably applied nor provably safe to re-apply.
+            return "ambiguous"
+        return "absent"
     if kind == "remove":
         path = workspace_root / str(node.get("path", ""))
         return "present" if not path.exists() else "absent"

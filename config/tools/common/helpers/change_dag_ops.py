@@ -688,6 +688,14 @@ def _read_live_source(workspace_root: Path, path: str) -> str | None:
         return None
 
 
+def _op_affects_path(op: Any, scope: str) -> bool:
+    """Return whether a compiled operation affects the canonical path scope."""
+    affected_paths = [op.path]
+    if op.op == "move" and op.to_path is not None:
+        affected_paths.append(op.to_path)
+    return any(change_dag.canonical_path(path) == scope for path in affected_paths)
+
+
 def _authoring_preview(
     dag: dict[str, Any], workspace_root: Path, slug: str, path: str, node_id: str
 ) -> dict[str, Any]:
@@ -820,8 +828,7 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
             scope = change_dag.canonical_path(path)
         except ValueError as exc:
             return _error("invalid_path", f"path: {exc}")
-        # A move affects two paths: it must be visible from either spelling.
-        ops = [op for op in ops if op.path == scope or (op.op == "move" and op.to_path == scope)]
+        ops = [op for op in ops if _op_affects_path(op, scope)]
         conflicts = [conflict for conflict in conflicts if conflict.path == scope]
         blocked = []
 

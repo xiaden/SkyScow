@@ -156,17 +156,36 @@ def test_schema_and_typed_authoring_default_and_validate_overwrite(tmp_path: Pat
     assert rejected["error"] == "invalid_field"
 
 
-def test_preview_scopes_move_by_source_and_destination_once(tmp_path: Path):
+def test_preview_scopes_move_by_both_paths_and_keeps_node_scope(tmp_path: Path):
     root = tmp_path / "workspace"
     root.mkdir()
     _dag(root)
     _write(root, "old.txt", "source\n")
     add_work(root, "move", "move", ["N1"], from_path="old.txt", to_path="new.txt", overwrite=True)
+
     whole = json.loads(preview(root, "move")["output"])
     assert len(whole["ops"]) == 1
-    assert whole["ops"][0]["overwrite"] is True
-    assert json.loads(preview(root, "move", path="old.txt")["output"])["ops"]
-    assert json.loads(preview(root, "move", path="new.txt")["output"])["ops"]
+    assert whole["ops"][0] == {
+        "nodes": ["N2"],
+        "op": "move",
+        "path": "old.txt",
+        "from_path": "old.txt",
+        "to_path": "new.txt",
+        "overwrite": True,
+        "segment": 0,
+        "execution_phase": 0,
+    }
+
+    for scoped_path in ("old.txt", "./old.txt", "new.txt", "dir/../new.txt"):
+        scoped = json.loads(preview(root, "move", path=scoped_path)["output"])
+        assert scoped["ops"] == [whole["ops"][0]]
+
+    unrelated = json.loads(preview(root, "move", path="other.txt")["output"])
+    assert unrelated["ops"] == []
+
+    node_scoped = json.loads(preview(root, "move", node_id="N2")["output"])
+    assert node_scoped["mode"] == "node"
+    assert node_scoped["ops"] == [whole["ops"][0]]
 
 
 def test_move_work_log_evidence_includes_paths_overwrite_and_result():
