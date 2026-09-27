@@ -32,7 +32,7 @@ _ALLOWED_UPDATE_FIELDS: dict[str, set[str]] = {
     "create": {"path", "content"},
     "edit": {"path", "patch"},
     "remove": {"path"},
-    "move": {"from_path", "to_path"},
+    "move": {"from_path", "to_path", "overwrite"},
     "run": {"command", "exclusive"},
 }
 
@@ -50,6 +50,15 @@ def _canonical_path_field(raw: Any, field: str) -> Any:
         return change_dag.canonical_path(raw)
     except ValueError as exc:
         return _error("invalid_path", f"{field}: {exc}")
+
+
+def _bool_field(raw: Any, field: str) -> Any:
+    """Return a strict boolean field value, or an ``invalid_field`` payload."""
+    if raw is None:
+        return False
+    if not isinstance(raw, bool):
+        return _error("invalid_field", f"{field} must be a boolean")
+    return raw
 
 
 # ---------------------------------------------------------------------------
@@ -481,6 +490,10 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
             return to_path
         node["from_path"] = from_path
         node["to_path"] = to_path
+        overwrite = _bool_field(fields.get("overwrite"), "overwrite")
+        if isinstance(overwrite, dict):
+            return overwrite
+        node["overwrite"] = overwrite
     elif kind == "run":
         command = fields.get("command")
         allowed, reason = change_dag_policy.validate_run_command(command)
@@ -556,6 +569,12 @@ def update_node(workspace_root: Path, slug: str, node_id: str, **fields: Any) ->
             if isinstance(canonical, dict):
                 return canonical
             provided[field] = canonical
+
+    if "overwrite" in provided:
+        overwrite = _bool_field(provided["overwrite"], "overwrite")
+        if isinstance(overwrite, dict):
+            return overwrite
+        provided["overwrite"] = overwrite
 
     candidate = copy.deepcopy(dag)
     candidate["nodes"][node_id].update(provided)
@@ -666,7 +685,8 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
             scope = change_dag.canonical_path(path)
         except ValueError as exc:
             return _error("invalid_path", f"path: {exc}")
-        ops = [op for op in ops if op.path == scope]
+        # A move affects two paths: it must be visible from either spelling.
+        ops = [op for op in ops if op.path == scope or (op.op == "move" and op.to_path == scope)]
         conflicts = [conflict for conflict in conflicts if conflict.path == scope]
         blocked = []
 
@@ -680,6 +700,7 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
                 "path": op.path,
                 "from_path": op.from_path,
                 "to_path": op.to_path,
+                **({"overwrite": bool(op.overwrite)} if op.op == "move" else {}),
                 **({"content": op.content} if op.content is not None else {}),
                 **({"patch": op.patch_text} if op.patch_text is not None else {}),
                 **({"applied": op.applied} if op.applied is not None else {}),

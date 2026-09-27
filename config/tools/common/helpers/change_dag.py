@@ -49,7 +49,7 @@ _NODE_ALLOWED: dict[str, set[str]] = {
     "create": {"type", "path", "content"},
     "edit": {"type", "path", "patch"},
     "remove": {"type", "path"},
-    "move": {"type", "from_path", "to_path"},
+    "move": {"type", "from_path", "to_path", "overwrite"},
     "run": {"type", "command", "exclusive"},
 }
 _ROOT_KEYS = {"slug", "anchor_commit", "root", "nodes"}
@@ -546,6 +546,8 @@ def _internal_schema_errors(dag: Any) -> list[str]:
             for field in ("from_path", "to_path"):
                 if not isinstance(node.get(field), str) or not node.get(field):
                     errors.append(f"node {node_id} {field} must be a non-empty string")
+            if "overwrite" in node and not isinstance(node["overwrite"], bool):
+                errors.append(f"node {node_id} overwrite must be a boolean")
         elif kind == "run":
             command = node.get("command")
             if not isinstance(command, list) or not command:

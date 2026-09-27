@@ -169,6 +169,8 @@ Lower **one frontier per fresh bounded invocation**; do not lower the whole repo
 
 Terminal work types are `create`, `edit`, `remove`, `move`, `run`. Accepted lower work is context, not a projected filesystem: higher work may rely on interfaces/syntax introduced by accepted lower patches because those patches are read alongside relevant live source.
 
+`move` is a first-class mechanical node, never a disguised `run` command. A move declares `from_path`, `to_path`, and optional `overwrite` (default `false`): the source becomes absent and the destination takes its former content. With `overwrite=false` the destination must not already exist (a collision is an ordinary recoverable terminal failure); `overwrite=true` atomically replaces an existing destination. Both paths are semantically affected, so path-scoped `dag_preview` shows the move under either spelling.
+
 When lower work changes, do not automatically invalidate every higher node. Re-read/review higher work lazily: retain it when it still applies and remains semantically valid; regenerate only affected mutable work when it no longer applies or is semantically wrong.
 
 ## 7. Patch visibility, overlap, and correction

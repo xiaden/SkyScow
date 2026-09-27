@@ -13,10 +13,11 @@ def dag_add_move(
     parent_ids: list[str],
     from_path: str,
     to_path: str,
+    overwrite: bool | None = None,
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
-    return add_work(workspace_root, slug, "move", parent_ids, from_path=from_path, to_path=to_path)
+    return add_work(workspace_root, slug, "move", parent_ids, from_path=from_path, to_path=to_path, overwrite=overwrite)
 
 
 if __name__ == "__main__":
@@ -28,6 +29,7 @@ if __name__ == "__main__":
                 args["parent_ids"],
                 args["from_path"],
                 args["to_path"],
+                args.get("overwrite"),
                 workspace_root=Path(args["workspace_root"]),
             )
         )

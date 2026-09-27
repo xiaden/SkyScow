@@ -41,6 +41,22 @@ def _terminal_defaults(dag: dict[str, Any], state: dict[str, str]) -> dict[str, 
     return result
 
 
+def _move_source_fingerprint(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any] | None:
+    """Latest recorded pre-rename source fingerprint for one move node, if any."""
+    try:
+        entries = state_helper.read_work_log(workspace_root, slug)
+    except ValueError:
+        return None
+    for entry in reversed(entries):
+        if entry.get("operation") != "move" or entry.get("phase") != "start":
+            continue
+        if node_id not in entry.get("nodes", []):
+            continue
+        fingerprint = entry.get("source_fingerprint")
+        return fingerprint if isinstance(fingerprint, dict) else None
+    return None
+
+
 def reconcile_interrupted(workspace_root: Path, slug: str) -> dict[str, Any]:
     dag, _, _ = change_dag.read_dag(workspace_root, slug)
     current = state_helper.read_state(workspace_root, slug)
@@ -53,9 +69,13 @@ def reconcile_interrupted(workspace_root: Path, slug: str) -> dict[str, Any]:
         if kind == "run":
             resolved, evidence = "failed", "interrupted run is never replayed automatically"
         else:
-            present = compiler.node_present(dag, node_id, workspace_root)
+            fingerprint = _move_source_fingerprint(workspace_root, slug, node_id) if kind == "move" else None
+            present = compiler.node_present(
+                dag, node_id, workspace_root, fingerprint=fingerprint,
+                require_fingerprint=(kind == "move"),
+            )
             resolved = {"present": "satisfied", "absent": "not_satisfied"}.get(present, "failed")
-            evidence = present
+            evidence = present if fingerprint is None else f"{present} (recorded source fingerprint)"
         state_helper.set_node_state(state, node_id, resolved)
         entry = state_helper.log_reconciliation(node_id, previous, resolved, reason="interrupted execution", evidence=evidence)
         state_helper.append_work_log(workspace_root, slug, entry)
@@ -191,6 +211,17 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
                         newly_failed = True
                 if newly_failed:
                     state_helper.append_work_log(workspace_root, slug, {"operation": "compile", "result": "failure", "path": conflict.path, "nodes": conflict.nodes, "detail": conflict.reason})
+                    for conflict_node in conflict.nodes:
+                        conflict_work = change_dag.node_map(dag).get(conflict_node, {})
+                        if conflict_work.get("type") != "move":
+                            continue
+                        state_helper.append_work_log(workspace_root, slug, state_helper.log_file_operation(
+                            [conflict_node], "move", path=str(conflict_work.get("from_path", "")),
+                            result="failure", detail=conflict.reason,
+                            from_path=conflict_work.get("from_path"),
+                            to_path=conflict_work.get("to_path"),
+                            overwrite=bool(conflict_work.get("overwrite", False)),
+                        ))
                     recorded = True
             if recorded:
                 state_helper.write_state(workspace_root, slug, state)
@@ -204,6 +235,15 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
                 for node_id in op.nodes:
                     state[node_id] = "in_progress"
             state_helper.write_state(workspace_root, slug, state)
+            # Capture move recovery evidence before any native rename runs, so an
+            # interrupted move can be reconciled conservatively.
+            for op in ops:
+                if op.op != "move":
+                    continue
+                state_helper.append_work_log(workspace_root, slug, state_helper.log_move_start(
+                    list(op.nodes), from_path=op.from_path, to_path=op.to_path,
+                    overwrite=bool(op.overwrite),
+                    source_fingerprint=compiler.source_fingerprint(workspace_root / str(op.from_path or ""))))
             results = compiler.apply_compiled(ops, workspace_root)
             for result in results:
                 outcome = "success" if result.get("ok") else "failure"
@@ -213,7 +253,8 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
                     result.get("nodes", []), result.get("action", "edit"),
                     path=result.get("path", ""), result=outcome, detail=result.get("error", ""),
                     patch=result.get("patch"), content=result.get("content"),
-                    from_path=result.get("from_path"), to_path=result.get("to_path")))
+                    from_path=result.get("from_path"), to_path=result.get("to_path"),
+                    overwrite=result.get("overwrite")))
             state_helper.write_state(workspace_root, slug, state)
             changed = True
 

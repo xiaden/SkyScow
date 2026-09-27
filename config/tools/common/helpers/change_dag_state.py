@@ -90,7 +90,7 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def log_file_operation(nodes: list[str], operation: str, *, path: str, result: str, detail: str = "", applied: bool = True, patch: str | None = None, content: str | None = None, from_path: str | None = None, to_path: str | None = None) -> dict[str, Any]:
+def log_file_operation(nodes: list[str], operation: str, *, path: str, result: str, detail: str = "", applied: bool = True, patch: str | None = None, content: str | None = None, from_path: str | None = None, to_path: str | None = None, overwrite: bool | None = None) -> dict[str, Any]:
     if operation not in {"create", "edit", "remove", "move"} or result not in {"success", "failure"}:
         raise ValueError("invalid file operation or result")
     entry: dict[str, Any] = {"timestamp": _timestamp(), "nodes": list(nodes), "operation": operation, "file": path, "result": result, "applied": applied, "detail": detail}
@@ -106,6 +106,7 @@ def log_file_operation(nodes: list[str], operation: str, *, path: str, result: s
             entry["from_path"] = from_path
         if to_path is not None:
             entry["to_path"] = to_path
+        entry["overwrite"] = bool(overwrite)
     return entry
 
 
@@ -119,6 +120,26 @@ def log_reconciliation(node_id: str, previous: str, resolved: str, *, reason: st
     _valid_value(previous)
     _valid_value(resolved)
     return {"timestamp": _timestamp(), "nodes": [node_id], "operation": "reconcile", "previous": previous, "resolved": resolved, "reason": reason, "evidence": evidence}
+
+
+def log_move_start(nodes: list[str], *, from_path: str | None, to_path: str | None, overwrite: bool, source_fingerprint: dict[str, Any] | None) -> dict[str, Any]:
+    """Record move recovery evidence before the native rename is attempted.
+
+    Operation-local evidence only: the source fingerprint lets an interrupted
+    move be reconciled conservatively instead of assuming that any file at the
+    destination proves the rename happened. No registry, snapshot, or path
+    ownership state is created.
+    """
+    return {
+        "timestamp": _timestamp(),
+        "nodes": list(nodes),
+        "operation": "move",
+        "phase": "start",
+        "from_path": from_path,
+        "to_path": to_path,
+        "overwrite": bool(overwrite),
+        "source_fingerprint": source_fingerprint,
+    }
 
 
 def log_checkpoint(slug: str, *, sha: str | None, committed: bool, inherited: dict[str, Any], message: str) -> dict[str, Any]:

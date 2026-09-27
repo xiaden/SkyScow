@@ -27,6 +27,8 @@ numerical node IDs never become semantic causality.
 """
 from __future__ import annotations
 
+import hashlib
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -56,6 +58,7 @@ __all__ = [
     "ready_run_nodes",
     "preflight",
     "node_present",
+    "source_fingerprint",
     "summarize",
 ]
 
@@ -81,6 +84,9 @@ class CompiledOp:
     # then re-verifies that exact base instead of replaying peer patches in
     # numeric order (which would recreate a false peer dependency).
     base_text: str | None = None
+    # Move nodes only: when true an existing destination is atomically replaced;
+    # when false (default) an existing destination is a recoverable failure.
+    overwrite: bool = False
 
 
 @dataclass
@@ -563,7 +569,7 @@ def compile_operations(
     creates: dict[str, list[str]] = {}
     edits: dict[str, list[str]] = {}
     removes: dict[str, list[str]] = {}
-    moves: list[tuple[str, str, str]] = []
+    moves: list[tuple[str, str, str, bool]] = []
     invalid_paths: list[tuple[str, list[Any]]] = []
     buckets = {"create": creates, "edit": edits, "remove": removes}
     for node_id in mechanical:
@@ -575,7 +581,7 @@ def compile_operations(
             if from_path is None or to_path is None:
                 invalid_paths.append((node_id, [node.get("from_path"), node.get("to_path")]))
                 continue
-            moves.append((node_id, from_path, to_path))
+            moves.append((node_id, from_path, to_path, bool(node.get("overwrite", False))))
         else:
             path = _canonical_node_path(node, "path")
             if path is None:
@@ -631,10 +637,10 @@ def compile_operations(
     # --- move coordination ---
     move_sources: dict[str, list[str]] = {}
     move_dests: dict[str, list[str]] = {}
-    for node_id, from_path, to_path in moves:
+    for node_id, from_path, to_path, _overwrite in moves:
         move_sources.setdefault(from_path, []).append(node_id)
         move_dests.setdefault(to_path, []).append(node_id)
-    for node_id, from_path, to_path in moves:
+    for node_id, from_path, to_path, overwrite in moves:
         involved = [node_id]
         for collision in (edits.get(from_path), removes.get(from_path)):
             if collision:
@@ -653,14 +659,15 @@ def compile_operations(
                 add_conflict(from_path, move_sources[from_path],
                              "runtime_context: move source does not exist in the live repository",
                              scope="runtime")
-        if view.exists(to_path):
-            if view.is_dag_written(to_path):
-                add_conflict(from_path, [node_id],
-                             "compile_conflict: move destination was already produced by earlier DAG work")
-            else:
-                add_conflict(from_path, [node_id],
-                             "runtime_context: move destination already exists in the live repository",
-                             scope="runtime")
+        if view.is_dag_written(to_path):
+            add_conflict(from_path, [node_id],
+                         "compile_conflict: move destination was already produced by earlier DAG work")
+        elif not overwrite and view.exists(to_path):
+            # An overwriting move may legitimately replace a live destination;
+            # content the DAG itself produced is still a deterministic conflict.
+            add_conflict(from_path, [node_id],
+                         "runtime_context: move destination already exists in the live repository",
+                         scope="runtime")
         destination_clash = [
             other
             for other in (
@@ -733,11 +740,11 @@ def compile_operations(
         ops.append(CompiledOp(nodes=group, op="remove", path=path))
 
     # --- moves ---
-    for node_id, from_path, to_path in sorted(moves, key=lambda item: (item[1], item[2])):
+    for node_id, from_path, to_path, overwrite in sorted(moves, key=lambda item: (item[1], item[2])):
         if node_id in conflicted:
             continue
         ops.append(CompiledOp(nodes=[node_id], op="move", path=from_path,
-                              from_path=from_path, to_path=to_path))
+                              from_path=from_path, to_path=to_path, overwrite=overwrite))
 
     rank = {"create": 0, "edit": 1, "move": 2, "remove": 3}
     ops.sort(key=lambda compiled: (compiled.path, rank.get(compiled.op, 9)))
@@ -854,6 +861,7 @@ def apply_compiled(ops: list[CompiledOp], workspace_root: Path) -> list[dict]:
         if op.op == "move":
             extra["from_path"] = op.from_path
             extra["to_path"] = op.to_path
+            extra["overwrite"] = bool(op.overwrite)
         return extra
 
     def failure(op: CompiledOp, error: str, message: str = "") -> dict:
@@ -918,13 +926,17 @@ def apply_compiled(ops: list[CompiledOp], workspace_root: Path) -> list[dict]:
             if not source.is_file():
                 results.append(failure(op, "context_mismatch"))
                 continue
-            if destination.exists() or destination.is_symlink():
+            if not op.overwrite and (destination.exists() or destination.is_symlink()):
                 results.append(failure(op, "context_mismatch"))
                 continue
             try:
-                data = source.read_bytes()
-                atomic_replace(destination, data)
-                source.unlink()
+                # One native filesystem rename. No shell `mv`, no copy+unlink,
+                # and no cross-filesystem emulation: if the filesystem cannot
+                # perform the rename atomically the operation fails normally.
+                if op.overwrite:
+                    os.replace(source, destination)
+                else:
+                    os.rename(source, destination)
             except OSError as exc:
                 results.append(failure(op, "io_error", str(exc)))
                 continue
@@ -1055,8 +1067,54 @@ def _already_applied(current: str, patches: list[FilePatch]) -> bool:
     return True
 
 
-def node_present(dag: dict, node_id: str, workspace_root: Path) -> str:
-    """Classify a mechanical node against live state: present/absent/ambiguous."""
+def source_fingerprint(path: Path) -> dict[str, Any] | None:
+    """Small content fingerprint of a move source, or ``None`` when unreadable.
+
+    Operation-local recovery evidence only: it identifies the intended moved
+    file across an interruption. It is not a provenance registry, snapshot
+    store, or ownership record, and it never replaces the native rename.
+    """
+    try:
+        data = Path(path).read_bytes()
+    except OSError:
+        return None
+    return {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+
+
+def _move_outcome(node: dict, workspace_root: Path, fingerprint: dict | None, *, require_fingerprint: bool = False) -> str:
+    """Conservatively classify an interrupted move from live path state."""
+    source = workspace_root / str(node.get("from_path", ""))
+    destination = workspace_root / str(node.get("to_path", ""))
+    overwrite = bool(node.get("overwrite", False))
+    from_exists = source.exists()
+    to_exists = destination.exists() or destination.is_symlink()
+    if from_exists and to_exists:
+        # The source survived and something occupies the destination: nothing
+        # here proves the rename happened.
+        return "ambiguous"
+    if from_exists:
+        return "absent"
+    if not to_exists:
+        return "ambiguous"
+    if fingerprint is not None:
+        return "present" if source_fingerprint(destination) == fingerprint else "ambiguous"
+    # Without recorded evidence, interruption reconciliation must not infer that
+    # an occupied destination came from this move. The legacy node_present query
+    # remains permissive for non-overwriting moves when no recovery evidence was
+    # requested; the executor passes require_fingerprint=True during recovery.
+    if require_fingerprint:
+        return "ambiguous"
+    return "ambiguous" if overwrite else "present"
+
+
+def node_present(dag: dict, node_id: str, workspace_root: Path, *, fingerprint: dict | None = None, require_fingerprint: bool = False) -> str:
+    """Classify a mechanical node against live state: present/absent/ambiguous.
+
+    ``fingerprint`` is a move node's recorded pre-rename source fingerprint
+    (see :func:`source_fingerprint`). When supplied, a destination only proves a
+    move when its content matches, so reconciliation never claims a move merely
+    because an unrelated file sits at the destination.
+    """
     workspace_root = Path(workspace_root)
     node = change_dag.node_map(dag).get(node_id)
     if not isinstance(node, dict):
@@ -1089,15 +1147,7 @@ def node_present(dag: dict, node_id: str, workspace_root: Path) -> str:
         path = workspace_root / str(node.get("path", ""))
         return "present" if not path.exists() else "absent"
     if kind == "move":
-        source = workspace_root / str(node.get("from_path", ""))
-        destination = workspace_root / str(node.get("to_path", ""))
-        from_exists = source.exists()
-        to_exists = destination.exists()
-        if not from_exists and to_exists:
-            return "present"
-        if from_exists:
-            return "absent"
-        return "ambiguous"
+        return _move_outcome(node, workspace_root, fingerprint, require_fingerprint=require_fingerprint)
     return "ambiguous"
 
 

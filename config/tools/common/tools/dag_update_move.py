@@ -13,10 +13,11 @@ def dag_update_move(
     node_id: str,
     from_path: str | None = None,
     to_path: str | None = None,
+    overwrite: bool | None = None,
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
-    return update_node(workspace_root, slug, node_id, from_path=from_path, to_path=to_path)
+    return update_node(workspace_root, slug, node_id, from_path=from_path, to_path=to_path, overwrite=overwrite)
 
 
 if __name__ == "__main__":
@@ -28,6 +29,7 @@ if __name__ == "__main__":
                 args["node_id"],
                 args.get("from_path"),
                 args.get("to_path"),
+                args.get("overwrite"),
                 workspace_root=Path(args["workspace_root"]),
             )
         )

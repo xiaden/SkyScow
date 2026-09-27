@@ -133,6 +133,11 @@
               "to_path": {
                 "type": "string",
                 "minLength": 1
+              },
+              "overwrite": {
+                "type": "boolean",
+                "default": false,
+                "description": "When true, atomically replace an existing destination with the moved source (native replace). When false (default), the destination must not already exist and a collision is an ordinary recoverable terminal failure."
               }
             }
           },
