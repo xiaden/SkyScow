@@ -18,6 +18,12 @@ it actually depends on. A ``run`` node is ordered after its sibling
 requirements under each direct semantic parent, so a failed sibling subtree
 blocks it; sibling subtrees under a shared ancestor are independent branches
 and never poison unrelated work.
+
+Same-file edit nodes are frontier-aware. Every peer authored at the same
+construction depth is interpreted against the *same* accepted lower-work state,
+and only their non-overlapping changed spans are composed. Deeper accepted work
+transforms the in-memory source that shallower work may intentionally consume;
+numerical node IDs never become semantic causality.
 """
 from __future__ import annotations
 
@@ -31,8 +37,11 @@ from .change_dag_patch import (
     FilePatch,
     PatchContextError,
     PatchError,
+    apply_file_patch,
     apply_patches,
     atomic_replace,
+    detect_eol,
+    normalize_eol,
     parse_unified_diff,
     read_text_preserving,
 )
@@ -67,6 +76,11 @@ class CompiledOp:
     # exactly what was attempted rather than only node IDs and paths.
     patch_text: str | None = None
     applied: str | None = None
+    # The accepted lower-work state an edit op's reconciled result was computed
+    # against, set only when a frontier composed more than one peer. Application
+    # then re-verifies that exact base instead of replaying peer patches in
+    # numeric order (which would recreate a false peer dependency).
+    base_text: str | None = None
 
 
 @dataclass
@@ -295,6 +309,214 @@ def _parse_edit_nodes(
     return parsed, owners
 
 
+def _changed_span(hunk) -> tuple[int, int, list[str]] | None:
+    """Base-coordinate ``(start, end, new_lines)`` for the lines a hunk changes.
+
+    Context lines only anchor a hunk and are excluded, so two same-frontier peers
+    that merely share context are not mistaken for overlapping proposals.
+    """
+    changed = [index for index, raw in enumerate(hunk.lines) if raw[:1] in {"+", "-"}]
+    if not changed:
+        return None
+    first, last = changed[0], changed[-1]
+    base_start = hunk.old_start - 1 + sum(
+        1 for raw in hunk.lines[:first] if raw[:1] in {" ", "-"}
+    )
+    base_end = hunk.old_start - 1 + sum(
+        1 for raw in hunk.lines[: last + 1] if raw[:1] in {" ", "-"}
+    )
+    new_lines = [raw[1:] for raw in hunk.lines[first : last + 1] if raw[:1] in {" ", "+"}]
+    return base_start, base_end, new_lines
+
+
+def _compose_replacements(base: str, replacements: list[tuple[int, int, list[str]]]) -> str:
+    """Apply base-coordinate replacements simultaneously (descending, indices hold)."""
+    eol = detect_eol(base)
+    normalized = normalize_eol(base)
+    trailing = normalized.endswith("\n")
+    lines = normalized.split("\n")
+    if trailing:
+        lines = lines[:-1]
+    for start, end, new_lines in sorted(
+        replacements, key=lambda item: (item[0], item[1]), reverse=True
+    ):
+        lines[start:end] = new_lines
+    result = "\n".join(lines)
+    if trailing:
+        result += "\n"
+    if eol != "\n":
+        result = result.replace("\n", eol)
+    return result
+
+
+def _spans_conflict(
+    left: tuple[int, int, list[str]], right: tuple[int, int, list[str]]
+) -> bool:
+    """True when two base-coordinate replacements cannot be composed."""
+    left_start, left_end, _left_lines = left
+    right_start, right_end, _right_lines = right
+    if left_start == left_end and right_start == right_end:
+        # Two pure insertions at the same anchor have no defined order.
+        return left_start == right_start
+    return left_start < right_end and right_start < left_end
+
+
+def _overlap_components(
+    proposals: list[tuple[str, list[tuple[int, int, list[str]]]]],
+) -> list[list[str]]:
+    """Group peers whose changed spans overlap (one deterministic cluster each)."""
+    adjacency: dict[int, set[int]] = {index: set() for index in range(len(proposals))}
+    for left in range(len(proposals)):
+        for right in range(left + 1, len(proposals)):
+            if any(
+                _spans_conflict(first, second)
+                for first in proposals[left][1]
+                for second in proposals[right][1]
+            ):
+                adjacency[left].add(right)
+                adjacency[right].add(left)
+    clusters: list[list[str]] = []
+    visited: set[int] = set()
+    for index in range(len(proposals)):
+        if index in visited or not adjacency[index]:
+            continue
+        stack = [index]
+        members: list[str] = []
+        while stack:
+            current = stack.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+            members.append(proposals[current][0])
+            stack.extend(sorted(adjacency[current] - visited))
+        clusters.append(sorted(members, key=change_dag._numeric_id))
+    clusters.sort(key=lambda group: change_dag._numeric_id(group[0]))
+    return clusters
+
+
+def _reconcile_frontier_edits(
+    base: str,
+    edit_nodes: list[str],
+    nodes_map: dict[str, dict],
+    depths: dict[str, int],
+    path: str,
+    *,
+    base_is_authored: bool,
+    base_nodes: list[str] | None = None,
+) -> tuple[str, list[tuple[list[str], str, str]]]:
+    """Interpret same-frontier peer proposals against one base, then reconcile.
+
+    Frontiers are the construction depths already used by ``execution_order``.
+    Deeper frontiers are accepted first and transform ``base``; every peer of the
+    *same* frontier is then interpreted against that identical accepted-lower
+    state, never against a peer's output. Non-overlapping peer changes compose
+    simultaneously, so numerical node IDs never become causality.
+
+    ``base_is_authored`` marks a base produced by this DAG (a ``create`` content
+    or an earlier segment's result) rather than the live repository, which is
+    what separates a deterministic contradiction from ordinary live drift.
+    Returns ``(reconciled_text, problems)`` where each problem is
+    ``(nodes, reason, scope)``.
+    """
+    problems: list[tuple[list[str], str, str]] = []
+    frontiers: dict[int, list[str]] = {}
+    for node_id in edit_nodes:
+        frontiers.setdefault(depths.get(node_id) or 0, []).append(node_id)
+
+    current = base
+    for depth in sorted(frontiers, reverse=True):
+        before = len(problems)
+        peers = frontiers[depth]
+        applied: list[tuple[str, list[tuple[int, int, list[str]]]]] = []
+        failed: list[tuple[str, Exception]] = []
+        for peer in peers:
+            try:
+                parsed = parse_unified_diff(nodes_map[peer]["patch"])
+            except PatchError as exc:
+                failed.append((peer, exc))
+                continue
+            probe = current
+            try:
+                for file_patch in parsed:
+                    probe = apply_file_patch(probe, file_patch, path=path)
+            except PatchError as exc:
+                failed.append((peer, exc))
+                continue
+            spans: list[tuple[int, int, list[str]]] = []
+            for file_patch in parsed:
+                for hunk in file_patch.hunks:
+                    span = _changed_span(hunk)
+                    if span is not None:
+                        spans.append(span)
+            applied.append((peer, spans))
+
+        if failed and applied:
+            # A peer that fails against the shared accepted state but applies to
+            # peer output is attempting a same-frontier dependency.
+            peer_output = _compose_replacements(
+                current, [span for _peer, spans in applied for span in spans]
+            )
+            resolved: set[str] = set()
+            for peer, exc in failed:
+                if not isinstance(exc, PatchContextError):
+                    continue
+                try:
+                    probe = peer_output
+                    for file_patch in parse_unified_diff(nodes_map[peer]["patch"]):
+                        probe = apply_file_patch(probe, file_patch, path=path)
+                except PatchError:
+                    continue
+                problems.append((
+                    [peer, *[other for other, _spans in applied]],
+                    f"context_conflict: {peer} requires content produced by same-frontier "
+                    f"peer work in {path}",
+                    "intra_dag",
+                ))
+                resolved.add(peer)
+            failed = [item for item in failed if item[0] not in resolved]
+
+        for peer, exc in failed:
+            if isinstance(exc, PatchContextError):
+                if exc.hunk_index == 0 and not base_is_authored:
+                    # The first authored patch is checked against the live file;
+                    # a mismatch here is ordinary recoverable live drift.
+                    problems.append(([peer], f"context_conflict: {exc.message}", "runtime"))
+                    continue
+                attribution = [peer, *(base_nodes or [])]
+                if base_is_authored and base_nodes:
+                    message = (
+                        f"context_conflict: {peer} does not apply to the content produced by "
+                        f"{', '.join(base_nodes)} for {path}: {exc.message}"
+                    )
+                elif base_is_authored:
+                    message = (
+                        f"context_conflict: {peer} does not apply to the content produced by "
+                        f"earlier DAG work for {path}: {exc.message}"
+                    )
+                else:
+                    message = (
+                        f"context_conflict: {peer} does not apply to the accepted lower state "
+                        f"for {path}: {exc.message}"
+                    )
+                problems.append((attribution, message, "intra_dag"))
+            else:
+                problems.append(([peer], f"compile_conflict: malformed patch: {exc}", "intra_dag"))
+
+        for cluster in _overlap_components(applied):
+            problems.append((
+                cluster,
+                f"context_conflict: same-frontier peers {cluster} modify overlapping "
+                f"source in {path}",
+                "intra_dag",
+            ))
+
+        if len(problems) == before and applied:
+            current = _compose_replacements(
+                current, [span for _peer, spans in applied for span in spans]
+            )
+    return current, problems
+
+
 # ---------------------------------------------------------------------------
 # Compilation
 # ---------------------------------------------------------------------------
@@ -316,6 +538,7 @@ def compile_operations(
     view = repo if repo is not None else _RepoView(workspace_root)
     order_index = _order_index(dag)
     order_key = _node_sort_key(order_index)
+    depths = change_dag.derived_depth(dag)
 
     mechanical, blocked = _actionable_mechanical(dag, effective_state)
     nodes_map = change_dag.node_map(dag)
@@ -433,52 +656,45 @@ def compile_operations(
         edit_nodes = sorted(edits.get(path, []), key=order_key)
         patch_text = "".join(nodes_map[node]["patch"] for node in edit_nodes)
         if path in creates:
+            if len(creates[path]) > 1:
+                continue  # already reported as multiple creates for one path
             base = nodes_map[creates[path][0]]["content"]
-            try:
-                parsed, _owners = _parse_edit_nodes(nodes_map, edit_nodes)
-                content = apply_patches(base, parsed, path=path) if parsed else base
-            except PatchContextError as exc:
-                add_conflict(path, group, f"context_conflict: {exc.message}")
-                continue
-            except PatchError as exc:
-                add_conflict(path, group, f"compile_conflict: malformed patch: {exc}")
-                continue
-            ops.append(CompiledOp(nodes=group, op="create", path=path, content=content,
-                                  patch_text=patch_text or None, applied=content))
+            base_is_authored = True
         else:
             try:
-                parsed, owners = _parse_edit_nodes(nodes_map, edit_nodes)
+                base = view.read(path)
             except PatchError as exc:
-                add_conflict(path, group, f"compile_conflict: malformed patch: {exc}")
+                add_conflict(path, group, f"runtime_context: cannot read target: {exc}",
+                             scope="runtime")
                 continue
-            try:
-                live = view.read(path)
-                updated = apply_patches(live, parsed, path=path)
-            except PatchContextError as exc:
-                if exc.hunk_index == 0 and not view.is_dag_written(path):
-                    # The first authored patch is checked against the live file;
-                    # a mismatch here is ordinary recoverable live drift.
-                    add_conflict(path, group, f"context_conflict: {exc.message}", scope="runtime")
-                else:
-                    failing = owners[exc.hunk_index]
-                    prior = list(dict.fromkeys(owners[:exc.hunk_index]))
-                    if view.is_dag_written(path) and not prior:
-                        reason = (
-                            f"context_conflict: {failing} does not apply to the content "
-                            f"produced by earlier DAG work for {path}: {exc.message}"
-                        )
-                    else:
-                        reason = (
-                            f"context_conflict: {failing} does not apply after prior same-file "
-                            f"DAG edit(s) {prior}: {exc.message}"
-                        )
-                    add_conflict(path, prior + [failing], reason)
-                continue
-            except PatchError as exc:
-                add_conflict(path, group, f"runtime_context: cannot read target: {exc}", scope="runtime")
-                continue
-            ops.append(CompiledOp(nodes=group, op="edit", path=path, patches=parsed,
+            base_is_authored = view.is_dag_written(path)
+
+        if not edit_nodes:
+            ops.append(CompiledOp(nodes=group, op="create", path=path, content=base, applied=base))
+            continue
+
+        updated, problems = _reconcile_frontier_edits(
+            base, edit_nodes, nodes_map, depths, path,
+            base_is_authored=base_is_authored,
+            base_nodes=list(creates.get(path, [])),
+        )
+        for problem_nodes, reason, scope in problems:
+            add_conflict(path, problem_nodes, reason, scope=scope)
+        if problems:
+            continue
+
+        try:
+            parsed, _owners = _parse_edit_nodes(nodes_map, edit_nodes)
+        except PatchError as exc:
+            add_conflict(path, group, f"compile_conflict: malformed patch: {exc}")
+            continue
+        if path in creates:
+            ops.append(CompiledOp(nodes=group, op="create", path=path, content=updated,
                                   patch_text=patch_text or None, applied=updated))
+        else:
+            ops.append(CompiledOp(nodes=group, op="edit", path=path, patches=parsed,
+                                  patch_text=patch_text or None, applied=updated,
+                                  base_text=base if len(edit_nodes) > 1 else None))
 
     # --- removes ---
     for path in sorted(removes):
@@ -633,12 +849,25 @@ def apply_compiled(ops: list[CompiledOp], workspace_root: Path) -> list[dict]:
             results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "create", **evidence(op)})
         elif op.op == "edit":
             path = workspace_root / op.path
-            try:
-                current = read_text_preserving(path)
-                updated = apply_patches(current, op.patches or [], path=op.path)
-            except PatchError:
-                results.append(failure(op, "context_mismatch"))
-                continue
+            if op.base_text is not None:
+                # A reconciled frontier: re-verify the exact accepted base rather
+                # than replaying peer patches in numeric order.
+                try:
+                    current = read_text_preserving(path)
+                except PatchError:
+                    results.append(failure(op, "context_mismatch"))
+                    continue
+                if current != op.base_text:
+                    results.append(failure(op, "context_mismatch"))
+                    continue
+                updated = op.applied if op.applied is not None else current
+            else:
+                try:
+                    current = read_text_preserving(path)
+                    updated = apply_patches(current, op.patches or [], path=op.path)
+                except PatchError:
+                    results.append(failure(op, "context_mismatch"))
+                    continue
             try:
                 atomic_replace(path, updated.encode("utf-8"))
             except OSError as exc:

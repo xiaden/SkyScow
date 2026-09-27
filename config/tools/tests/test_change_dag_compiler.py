@@ -66,8 +66,10 @@ def test_same_file_two_edits_coalesce_into_one_op(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     _write(workspace, "f.txt", "line1\nline2\nline3\n")
+    # Same-frontier peers are both authored against the common base, so the later
+    # patch keeps the original numbering (line 3, not the shifted line 4).
     first = "--- a/f.txt\n+++ b/f.txt\n@@ -1,1 +1,2 @@\n line1\n+inserted\n"
-    second = "--- a/f.txt\n+++ b/f.txt\n@@ -4,1 +4,1 @@\n-line3\n+line3b\n"
+    second = "--- a/f.txt\n+++ b/f.txt\n@@ -3,1 +3,1 @@\n-line3\n+line3b\n"
     dag = dag_with(
         {
             "N1": semantic("root", ["N2"]),

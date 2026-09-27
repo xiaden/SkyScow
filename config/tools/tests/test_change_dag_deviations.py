@@ -93,7 +93,9 @@ def test_multiple_lower_edits_compose_in_applied_context(tmp_path: Path):
     workspace.mkdir()
     (workspace / "f.txt").write_text("l1\nl2\nl3\n")
     first = "--- a/f.txt\n+++ b/f.txt\n@@ -1,1 +1,2 @@\n l1\n+ins\n"
-    second = "--- a/f.txt\n+++ b/f.txt\n@@ -4,1 +4,1 @@\n-l3\n+l3b\n"
+    # Same-frontier peers are authored against the common base: line 3, not the
+    # shifted line 4.
+    second = "--- a/f.txt\n+++ b/f.txt\n@@ -3,1 +3,1 @@\n-l3\n+l3b\n"
     dag = dag_with(
         {
             "N1": semantic("root", ["N2"]),

@@ -81,7 +81,10 @@ def test_compatible_same_file_edits_compose_without_false_conflict(tmp_path: Pat
     assert ops[0].applied == "A\nB\n"
 
 
-def test_ordered_dependent_same_file_edits_are_legal(tmp_path: Path):
+def test_same_frontier_peer_dependency_is_a_deterministic_conflict(tmp_path: Path):
+    # N11's patch only applies after N10's peer edit. Same-frontier peers are
+    # interpreted against the common base, so numeric node order must not turn
+    # that into accepted causality.
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     (workspace / "f.txt").write_text("a\n", encoding="utf-8")
@@ -90,10 +93,13 @@ def test_ordered_dependent_same_file_edits_are_legal(tmp_path: Path):
     result = preflight(dag, {}, workspace)
     ops, conflicts, _blocked = compile_operations(dag, {}, workspace)
 
-    assert result["executable"] is True
-    assert conflicts == []
-    assert len(ops) == 1
-    assert ops[0].applied == "AA\n"
+    assert result["executable"] is False
+    assert result["runtime_failures"] == []
+    assert ops == []
+    assert len(conflicts) == 1
+    assert conflicts[0].scope == "intra_dag"
+    assert set(conflicts[0].nodes) == {"N10", "N11"}
+    assert conflicts[0].reason.startswith("context_conflict:")
 
 
 def test_genuine_live_drift_remains_runtime_applicability_evidence(tmp_path: Path):
@@ -120,7 +126,7 @@ def test_genuine_live_drift_remains_runtime_applicability_evidence(tmp_path: Pat
     assert target.read_text(encoding="utf-8") == "baz\n"
 
 
-def test_three_node_collision_attributes_prior_same_file_contributors(tmp_path: Path):
+def test_three_node_collision_attributes_the_overlapping_peers(tmp_path: Path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     (workspace / "f.txt").write_text("a\nb\n", encoding="utf-8")
@@ -137,7 +143,9 @@ def test_three_node_collision_attributes_prior_same_file_contributors(tmp_path: 
     result = preflight(dag, {}, workspace)
     assert result["executable"] is False
     conflict = next(conflict for conflict in result["conflicts"] if conflict["scope"] == "intra_dag")
-    assert set(conflict["nodes"]) == {"N10", "N11", "N12"}
+    # N10 changes an independent region; only the two peers that rewrite the same
+    # base line conflict with each other.
+    assert set(conflict["nodes"]) == {"N11", "N12"}
     assert "N12" in conflict["reason"]
 
 
