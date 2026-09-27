@@ -38,6 +38,21 @@ _ALLOWED_UPDATE_FIELDS: dict[str, set[str]] = {
 
 
 # ---------------------------------------------------------------------------
+# Path identity
+# ---------------------------------------------------------------------------
+def _canonical_path_field(raw: Any, field: str) -> Any:
+    """Canonicalize a DAG path field, or return an ``invalid_path`` error payload.
+
+    The DAG stores one canonical workspace-relative spelling per file so that
+    path-coordinated compilation never sees two identities for one target.
+    """
+    try:
+        return change_dag.canonical_path(raw)
+    except ValueError as exc:
+        return _error("invalid_path", f"{field}: {exc}")
+
+
+# ---------------------------------------------------------------------------
 # Small helpers
 # ---------------------------------------------------------------------------
 def _error(code: str, message: str, **extra: Any) -> dict[str, Any]:
@@ -448,17 +463,24 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
             return _error("invalid_parent", f"parent is not semantic: {parent}")
 
     node: dict[str, Any] = {"type": kind}
-    if kind == "create":
-        node["path"] = fields.get("path")
-        node["content"] = fields.get("content")
-    elif kind == "edit":
-        node["path"] = fields.get("path")
-        node["patch"] = fields.get("patch")
-    elif kind == "remove":
-        node["path"] = fields.get("path")
+    if kind in ("create", "edit", "remove"):
+        path = _canonical_path_field(fields.get("path"), "path")
+        if isinstance(path, dict):
+            return path
+        node["path"] = path
+        if kind == "create":
+            node["content"] = fields.get("content")
+        elif kind == "edit":
+            node["patch"] = fields.get("patch")
     elif kind == "move":
-        node["from_path"] = fields.get("from_path")
-        node["to_path"] = fields.get("to_path")
+        from_path = _canonical_path_field(fields.get("from_path"), "from_path")
+        if isinstance(from_path, dict):
+            return from_path
+        to_path = _canonical_path_field(fields.get("to_path"), "to_path")
+        if isinstance(to_path, dict):
+            return to_path
+        node["from_path"] = from_path
+        node["to_path"] = to_path
     elif kind == "run":
         command = fields.get("command")
         allowed, reason = change_dag_policy.validate_run_command(command)
@@ -527,6 +549,13 @@ def update_node(workspace_root: Path, slug: str, node_id: str, **fields: Any) ->
         command_allowed, command_reason = change_dag_policy.validate_run_command(provided["command"])
         if not command_allowed:
             return _error("run_command_rejected", command_reason)
+
+    for field in change_dag.node_path_fields(kind):
+        if field in provided:
+            canonical = _canonical_path_field(provided[field], field)
+            if isinstance(canonical, dict):
+                return canonical
+            provided[field] = canonical
 
     candidate = copy.deepcopy(dag)
     candidate["nodes"][node_id].update(provided)
@@ -633,8 +662,12 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
         conflicts = [conflict for conflict in conflicts if set(conflict.nodes) & subgraph]
         blocked = [entry for entry in blocked if entry.node_id in subgraph]
     elif path is not None:
-        ops = [op for op in ops if op.path == path]
-        conflicts = [conflict for conflict in conflicts if conflict.path == path]
+        try:
+            scope = change_dag.canonical_path(path)
+        except ValueError as exc:
+            return _error("invalid_path", f"path: {exc}")
+        ops = [op for op in ops if op.path == scope]
+        conflicts = [conflict for conflict in conflicts if conflict.path == scope]
         blocked = []
 
     payload = {

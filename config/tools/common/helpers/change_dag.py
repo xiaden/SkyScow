@@ -56,6 +56,65 @@ _ROOT_KEYS = {"slug", "anchor_commit", "root", "nodes"}
 
 
 # ---------------------------------------------------------------------------
+# Canonical node paths
+# ---------------------------------------------------------------------------
+# Compiled files are grouped, coordinated, and reported by one canonical
+# workspace-relative identity. Two spellings that name the same repository file
+# (``foo.py``, ``./foo.py``, ``src/../foo.py``) must never compile independently.
+_PATH_DRIVE_RE = re.compile(r"^[A-Za-z]:")
+
+
+def canonical_path(path: Any) -> str:
+    """Return the canonical workspace-relative identity of a DAG file path.
+
+    Normalization is purely lexical -- no filesystem or symlink inspection -- and
+    drops ``.`` components, resolves ``..``, collapses redundant separators, and
+    renders the result with ``/`` separators.
+
+    Raises :class:`ValueError` for forms that cannot be represented consistently
+    as a workspace-relative DAG path: non-strings, empty strings, NUL bytes,
+    backslash separators, absolute or drive-qualified paths, home-relative ``~``
+    paths, directory-like trailing separators, and ``..`` that escapes the root.
+    """
+    if not isinstance(path, str):
+        raise ValueError("path must be a string")
+    if not path:
+        raise ValueError("path must be a non-empty string")
+    if "\x00" in path:
+        raise ValueError("path must not contain NUL bytes")
+    if "\\" in path:
+        raise ValueError(f"path must use '/' separators, not backslashes: {path!r}")
+    if path.startswith("/") or _PATH_DRIVE_RE.match(path):
+        raise ValueError(f"path must be workspace-relative, not absolute: {path!r}")
+    if path.startswith("~"):
+        raise ValueError(f"path must be workspace-relative, not home-relative: {path!r}")
+    if path.endswith("/"):
+        raise ValueError(f"path must name a file, not a directory: {path!r}")
+    parts: list[str] = []
+    for part in path.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            if not parts:
+                raise ValueError(f"path escapes the workspace root: {path!r}")
+            parts.pop()
+            continue
+        parts.append(part)
+    if not parts:
+        raise ValueError(f"path does not name a file: {path!r}")
+    return "/".join(parts)
+
+
+def node_path_fields(kind: str | None) -> tuple[str, ...]:
+    """Path-bearing fields of a mechanical node type."""
+    if kind in ("create", "edit", "remove"):
+        return ("path",)
+    if kind == "move":
+        return ("from_path", "to_path")
+    return ()
+
+
+# ---------------------------------------------------------------------------
 # Paths and IO
 # ---------------------------------------------------------------------------
 def _safe_slug(slug: Any) -> str:
@@ -542,6 +601,18 @@ def structure_errors(dag: Any) -> list[str]:
     for node_id in sorted(nodes):
         if not NODE_ID_PATTERN.match(node_id):
             errors.append(f"node {node_id} has invalid id; expected N<number>")
+
+    for node_id in sorted(nodes):
+        for field in node_path_fields(node_type(dag, node_id)):
+            raw = nodes[node_id].get(field)
+            if not isinstance(raw, str) or not raw:
+                continue  # shape errors already report missing/non-string values
+            try:
+                canonical_path(raw)
+            except ValueError as exc:
+                errors.append(
+                    f"node {node_id} {field} is not a usable workspace-relative path: {exc}"
+                )
 
     errors.extend(run_barrier_errors(dag))
     return errors

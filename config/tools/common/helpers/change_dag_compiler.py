@@ -517,6 +517,19 @@ def _reconcile_frontier_edits(
     return current, problems
 
 
+def _canonical_node_path(node: dict, field: str) -> str | None:
+    """Canonical workspace-relative identity for a node path field, or ``None``.
+
+    ``None`` means the stored value cannot be represented consistently as a
+    workspace-relative DAG path (reported as a deterministic conflict) rather
+    than letting two spellings of one file compile independently.
+    """
+    try:
+        return change_dag.canonical_path(node.get(field))
+    except ValueError:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Compilation
 # ---------------------------------------------------------------------------
@@ -528,6 +541,10 @@ def compile_operations(
     repo: "_RepoView | None" = None,
 ) -> tuple[list[CompiledOp], list[Conflict], list[Blocked]]:
     """Lower currently reachable mechanical work into per-path operations.
+
+    Nodes are grouped by :func:`change_dag.canonical_path`, so spellings that
+    name the same file (``foo.py``, ``./foo.py``, ``src/../foo.py``) coordinate
+    as one path instead of compiling independently and colliding at application.
 
     ``repo`` defaults to a live read-only view of ``workspace_root``. Whole-DAG
     preflight passes a simulated overlay so higher work is lowered against the
@@ -547,17 +564,24 @@ def compile_operations(
     edits: dict[str, list[str]] = {}
     removes: dict[str, list[str]] = {}
     moves: list[tuple[str, str, str]] = []
+    invalid_paths: list[tuple[str, list[Any]]] = []
+    buckets = {"create": creates, "edit": edits, "remove": removes}
     for node_id in mechanical:
         node = nodes_map[node_id]
         kind = node["type"]
-        if kind == "create":
-            creates.setdefault(node["path"], []).append(node_id)
-        elif kind == "edit":
-            edits.setdefault(node["path"], []).append(node_id)
-        elif kind == "remove":
-            removes.setdefault(node["path"], []).append(node_id)
-        elif kind == "move":
-            moves.append((node_id, node["from_path"], node["to_path"]))
+        if kind == "move":
+            from_path = _canonical_node_path(node, "from_path")
+            to_path = _canonical_node_path(node, "to_path")
+            if from_path is None or to_path is None:
+                invalid_paths.append((node_id, [node.get("from_path"), node.get("to_path")]))
+                continue
+            moves.append((node_id, from_path, to_path))
+        else:
+            path = _canonical_node_path(node, "path")
+            if path is None:
+                invalid_paths.append((node_id, [node.get("path")]))
+                continue
+            buckets[kind].setdefault(path, []).append(node_id)
 
     conflicts: list[Conflict] = []
     conflicted: set[str] = set()
@@ -569,6 +593,11 @@ def compile_operations(
 
     def group_ok(nodes: list[str]) -> bool:
         return not any(node_id in conflicted for node_id in nodes)
+
+    for node_id, raw_paths in sorted(invalid_paths, key=lambda item: change_dag._numeric_id(item[0])):
+        shown = ", ".join(repr(raw) for raw in raw_paths)
+        add_conflict(shown, [node_id],
+                     f"compile_conflict: path is not a usable workspace-relative path: {shown}")
 
     # --- same-path create/edit/remove coordination (intra-DAG) ---
     for path in sorted(set(creates) | set(edits) | set(removes)):
