@@ -25,7 +25,7 @@ You do not modify files, create commits, or repair findings.
 
 ## DAG subject scope
 
-Review degraded and partial states against the supplied DAG subject nodes. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs. A downstream node must be present and non-superseded in the Change DAG (`DAG.json`). Subject-node work and DAG gaps remain normal blocking findings. Do not infer ownership from likely future work or informal annotations.
+Review the assigned subject work against degraded, partial, cleanup, and failure states; the subject may be DAG-backed or a bounded non-DAG work item. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs when the work is DAG-backed. A downstream node must be present and non-superseded in the Change DAG (`DAG.json`) when a DAG exists. Subject work and gaps remain normal blocking findings. A `DAG_GAP` on a completed DAG is remediated as a bounded raw repair or a new remediation DAG, never by reopening the completed DAG. Do not infer ownership from likely future work or informal annotations.
 
 ## Applicability
 

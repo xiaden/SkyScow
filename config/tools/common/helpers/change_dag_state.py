@@ -90,10 +90,23 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def log_file_operation(nodes: list[str], operation: str, *, path: str, result: str, detail: str = "", applied: bool = True) -> dict[str, Any]:
+def log_file_operation(nodes: list[str], operation: str, *, path: str, result: str, detail: str = "", applied: bool = True, patch: str | None = None, content: str | None = None, from_path: str | None = None, to_path: str | None = None) -> dict[str, Any]:
     if operation not in {"create", "edit", "remove", "move"} or result not in {"success", "failure"}:
         raise ValueError("invalid file operation or result")
-    return {"timestamp": _timestamp(), "nodes": list(nodes), "operation": operation, "file": path, "result": result, "applied": applied, "detail": detail}
+    entry: dict[str, Any] = {"timestamp": _timestamp(), "nodes": list(nodes), "operation": operation, "file": path, "result": result, "applied": applied, "detail": detail}
+    # Preserve the concrete compiled operation actually attempted so historical
+    # evidence stays meaningful after the DAG is later amended. This is evidence,
+    # not authoritative current state.
+    if patch is not None:
+        entry["patch"] = patch
+    if content is not None:
+        entry["content"] = content
+    if operation == "move":
+        if from_path is not None:
+            entry["from_path"] = from_path
+        if to_path is not None:
+            entry["to_path"] = to_path
+    return entry
 
 
 def log_run(node_id: str, command: list[str], *, stdout: str = "", stderr: str = "", exit_code: int | None = None, result: str) -> dict[str, Any]:

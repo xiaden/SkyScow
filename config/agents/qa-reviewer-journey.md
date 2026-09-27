@@ -25,7 +25,7 @@ You do not modify files, create commits, repair findings, or perform general rep
 
 ## DAG subject scope
 
-Trace journeys to the expected state owned by the supplied subject nodes, not automatically to a feature-wide final state. For every incomplete or broken handoff, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retain all related node IDs, and identify a downstream node only when it is present and non-superseded in the Change DAG (`DAG.json`). Subject-node defects and DAG gaps remain blocking. Do not infer ownership from likely future work or informal annotations.
+Trace journeys to the expected state owned by the assigned subject work, not automatically to a feature-wide final state; the subject may be DAG-backed or a bounded non-DAG work item. For every incomplete or broken handoff, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retain all related node IDs when the work is DAG-backed, and identify a downstream node only when it is present and non-superseded in the Change DAG (`DAG.json`) and a DAG exists. Subject defects and gaps remain blocking. A `DAG_GAP` on a completed DAG is remediated as bounded raw repair or a new remediation DAG, never by reopening the completed DAG. Do not infer ownership from likely future work or informal annotations.
 
 ## Applicability
 
@@ -39,8 +39,8 @@ You receive one immutable review context that always identifies:
 - `base_sha` and/or `diff` — the change under review, compared against the candidate;
 - `repository_instructions` — repository rules and conventions;
 - `task_context` — the original user request and requirement ledger when available;
-  - `dag_slug` — the Change DAG being reviewed;
-  - `subjectNodeIds` — the DAG obligations in scope for this journey;
+  - `dag_slug` — the Change DAG being reviewed, when the work is DAG-backed;
+  - `subjectNodeIds` — the DAG obligations in scope for this journey, when DAG-backed;
 - `deterministic_validation` — results of the deterministic gates already run;
 - `review_root` — absolute path of the isolated, detached checkout of the candidate at `candidate_sha`.
 

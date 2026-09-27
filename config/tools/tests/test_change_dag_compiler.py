@@ -283,7 +283,7 @@ def test_preflight_executable_with_unresolved_leaf_and_dirty_tree(tmp_path: Path
     assert result["conflicts"] == []
 
 
-def test_preflight_not_executable_on_non_applying_patch(tmp_path: Path):
+def test_preflight_live_context_mismatch_is_runtime_failure(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     _write(workspace, "f.txt", "a\nb\n")
@@ -296,8 +296,12 @@ def test_preflight_not_executable_on_non_applying_patch(tmp_path: Path):
         }
     )
     result = preflight(dag, {}, workspace)
-    assert result["executable"] is False
-    assert any(issue["kind"] == "context_conflict" for issue in result["issues"])
+    # A patch whose context no longer matches the live repository is an ordinary
+    # recoverable runtime failure, not a pre-execution admission block: the DAG
+    # must still be allowed to run and fail that terminal node normally.
+    assert result["executable"] is True
+    assert not any(issue["kind"] == "context_conflict" for issue in result["issues"])
+    assert any(entry["kind"] == "runtime_failure" for entry in result["runtime_failures"])
 
 
 def test_preflight_not_executable_on_structure_error(tmp_path: Path):

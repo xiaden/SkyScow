@@ -25,7 +25,7 @@ You do not modify files, create commits, repair findings, or broaden the scope o
 
 ## DAG subject scope
 
-Review the supplied DAG subject nodes, not an assumed feature-wide final state. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs. Identify a downstream node only when it is explicitly present and non-superseded in the Change DAG (`DAG.json`). Subject-node work and DAG gaps retain normal blocking judgment. Never infer downstream ownership from likely future work or informal annotations.
+Review the assigned subject work, not an assumed feature-wide final state; the subject may be DAG-backed or a bounded non-DAG work item. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs when the work is DAG-backed. Identify a downstream node only when it is explicitly present and non-superseded in the Change DAG (`DAG.json`) and a DAG exists. Subject work and gaps retain normal blocking judgment. A `DAG_GAP` on a completed DAG routes to a bounded raw repair or a new remediation DAG, never to reopening the completed DAG. Never infer downstream ownership from likely future work or informal annotations.
 
 ## Applicability
 

@@ -100,10 +100,11 @@ def _request_shutdown(signum: int, frame: Any) -> None:
                 break
 
 
-def _run_command(command: list[str], workspace_root: Path) -> tuple[int | None, str, str, str | None]:
+def _launch_run(command: list[str], workspace_root: Path) -> tuple[subprocess.Popen | None, int, str | None]:
+    """Launch one run command in its own process group without blocking."""
     allowed, reason = policy.validate_run_command(command)
     if not allowed:
-        return None, "", "", reason
+        return None, -1, reason
     try:
         process = subprocess.Popen(
             command,
@@ -115,9 +116,14 @@ def _run_command(command: list[str], workspace_root: Path) -> tuple[int | None, 
             start_new_session=True,
         )
     except OSError as exc:
-        return None, "", "", str(exc)
+        return None, -1, str(exc)
     pgid = process.pid  # start_new_session makes the child a process-group leader
     _ACTIVE_RUN_GROUPS.add(pgid)
+    return process, pgid, None
+
+
+def _collect_run(process: subprocess.Popen, pgid: int) -> tuple[int | None, str, str, str | None]:
+    """Wait for a launched run command, applying the timeout to its group."""
     try:
         try:
             stdout, stderr = process.communicate(timeout=RUN_TIMEOUT_SECONDS)
@@ -128,6 +134,13 @@ def _run_command(command: list[str], workspace_root: Path) -> tuple[int | None, 
             return 124, stdout or "", stderr or "", "timeout"
     finally:
         _ACTIVE_RUN_GROUPS.discard(pgid)
+
+
+def _run_command(command: list[str], workspace_root: Path) -> tuple[int | None, str, str, str | None]:
+    process, pgid, error = _launch_run(command, workspace_root)
+    if process is None:
+        return None, "", "", error
+    return _collect_run(process, pgid)
 
 
 def _descriptive(slug: str, state: dict[str, str], status: str) -> dict[str, Any]:
@@ -196,19 +209,44 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
                 outcome = "success" if result.get("ok") else "failure"
                 for node_id in result.get("nodes", []):
                     state[node_id] = "satisfied" if result.get("ok") else "failed"
-                state_helper.append_work_log(workspace_root, slug, state_helper.log_file_operation(result.get("nodes", []), result.get("action", "edit"), path=result.get("path", ""), result=outcome, detail=result.get("error", "")))
+                state_helper.append_work_log(workspace_root, slug, state_helper.log_file_operation(
+                    result.get("nodes", []), result.get("action", "edit"),
+                    path=result.get("path", ""), result=outcome, detail=result.get("error", ""),
+                    patch=result.get("patch"), content=result.get("content"),
+                    from_path=result.get("from_path"), to_path=result.get("to_path")))
             state_helper.write_state(workspace_root, slug, state)
             changed = True
 
         ready = compiler.ready_run_nodes(dag, state, workspace_root)
         if ready:
-            for node_id in ready:
+            nodes_map = change_dag.node_map(dag)
+            exclusive_ready = [node for node in ready if bool(nodes_map[node].get("exclusive", False))]
+            if exclusive_ready:
+                # An exclusive run executes alone: no other run may be active
+                # concurrently. Non-exclusive ready runs wait for a later pass.
+                batch = exclusive_ready[:1]
+            else:
+                # Independently ready non-exclusive runs may overlap; each has
+                # its own process group and captured output, and state/Work Log
+                # recording is serialized below.
+                batch = [node for node in ready if not bool(nodes_map[node].get("exclusive", False))]
+
+            launched: list[tuple[str, subprocess.Popen | None, int, list[str], str | None]] = []
+            for node_id in batch:
                 if _SHUTDOWN_REQUESTED:
                     break
-                command = list(change_dag.node_map(dag)[node_id].get("command", []))
+                command = list(nodes_map[node_id].get("command", []))
                 state[node_id] = "in_progress"
                 state_helper.write_state(workspace_root, slug, state)
-                code, stdout, stderr, error = _run_command(command, workspace_root)
+                process, pgid, error = _launch_run(command, workspace_root)
+                launched.append((node_id, process, pgid, command, error))
+
+            for node_id, process, pgid, command, error in launched:
+                if process is None:
+                    code, stdout, stderr = None, "", ""
+                else:
+                    code, stdout, stderr, run_error = _collect_run(process, pgid)
+                    error = error or run_error
                 ok = error is None and code == 0
                 state[node_id] = "satisfied" if ok else "failed"
                 state_helper.append_work_log(workspace_root, slug, state_helper.log_run(node_id, command, stdout=stdout, stderr=stderr, exit_code=code, result="success" if ok else "failure"))

@@ -15,6 +15,7 @@ reachability garbage collection.
 from __future__ import annotations
 
 import copy
+import functools
 from pathlib import Path
 from typing import Any
 
@@ -247,6 +248,28 @@ def _validate_semantic_graph(semantic_graph: Any) -> tuple[list[str], list[str]]
 # ---------------------------------------------------------------------------
 # Public mutation surface
 # ---------------------------------------------------------------------------
+def _locked_mutation(func):
+    """Serialize a graph mutation against concurrent authoring invocations.
+
+    Node-ID allocation, reference rewiring, validation, and persistence all run
+    under one short-lived per-DAG lock so a stale read cannot silently overwrite
+    another accepted mutation. Node IDs remain monotonic and are never reused.
+    """
+
+    @functools.wraps(func)
+    def wrapper(workspace_root: Path, slug: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        root = Path(workspace_root)
+        try:
+            lock = change_dag_control.mutation_lock(root, slug)
+        except ValueError:
+            return func(root, slug, *args, **kwargs)
+        with lock:
+            return func(root, slug, *args, **kwargs)
+
+    return wrapper
+
+
+@_locked_mutation
 def create_dag(workspace_root: Path, slug: str, semantic_graph: Any) -> dict[str, Any]:
     workspace_root = Path(workspace_root)
     try:
@@ -305,6 +328,7 @@ def create_dag(workspace_root: Path, slug: str, semantic_graph: Any) -> dict[str
     )
 
 
+@_locked_mutation
 def add_requirement(
     workspace_root: Path,
     slug: str,
@@ -403,6 +427,7 @@ def add_requirement(
     )
 
 
+@_locked_mutation
 def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fields: Any) -> dict[str, Any]:
     workspace_root = Path(workspace_root)
     if kind not in WORK_KINDS:
@@ -471,6 +496,7 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
     )
 
 
+@_locked_mutation
 def update_node(workspace_root: Path, slug: str, node_id: str, **fields: Any) -> dict[str, Any]:
     workspace_root = Path(workspace_root)
     dag, state, err = _mutation_context(workspace_root, slug)
@@ -516,6 +542,7 @@ def update_node(workspace_root: Path, slug: str, node_id: str, **fields: Any) ->
     )
 
 
+@_locked_mutation
 def remove_node(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any]:
     workspace_root = Path(workspace_root)
     dag, state, err = _mutation_context(workspace_root, slug)
@@ -615,11 +642,14 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
                 "from_path": op.from_path,
                 "to_path": op.to_path,
                 **({"content": op.content} if op.content is not None else {}),
+                **({"patch": op.patch_text} if op.patch_text is not None else {}),
+                **({"applied": op.applied} if op.applied is not None else {}),
             }
             for op in ops
         ],
         "conflicts": [
-            {"path": conflict.path, "nodes": list(conflict.nodes), "reason": conflict.reason}
+            {"path": conflict.path, "nodes": list(conflict.nodes), "reason": conflict.reason,
+             "scope": conflict.scope}
             for conflict in conflicts
         ],
         "blocked": [{"node_id": entry.node_id, "reason": entry.reason} for entry in blocked],
@@ -627,6 +657,7 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
         "depths": depths,
         "executable": pre["executable"],
         "issues": pre["issues"],
+        "runtime_failures": pre.get("runtime_failures", []),
     }
     return change_dag.output(payload, "Preview Change DAG", {"slug": slug})
 
@@ -654,6 +685,7 @@ def validate(workspace_root: Path, slug: str) -> dict[str, Any]:
         "executable": pre["executable"],
         "resolved": change_dag.is_resolved(dag),
         "issues": issues,
+        "runtime_failures": pre.get("runtime_failures", []),
     }
     return change_dag.output(payload, "Validate Change DAG", {"slug": slug})
 

@@ -45,7 +45,7 @@ You do not fix things. You classify issues and return findings. Generators run b
 
 ## Review ownership and analyzer boundaries
 
-This agent reviews the changed subject described by the originating intent/DD/request, the Change DAG structure, the checkpoint commit/change boundary, the inherited starting-worktree evidence, the Work Log, and the actual current live repository. The subject may be implementation code, scripts, configuration, agent definitions, skills, or other artifacts. Compare the changed subject with DAG obligations, the DD/request, repository conventions, correctness expectations, and boundary behavior. Historical plan/graph artifacts are read-only compatibility context and are never new-work authority.
+This agent reviews the changed subject described by the originating intent/DD/request, the Change DAG structure, the checkpoint commit/change boundary, the inherited starting-worktree evidence, the Work Log, and the actual current live repository. The subject may be a full DD→Change DAG execution, a smaller Change DAG, a bounded direct/raw correction, or other completed implementation work; QA never requires a Change DAG to exist. For bounded non-DAG work, review from the available intent/request, the change boundary, inherited evidence where present, and the actual current repository — do not invent a DAG. The subject may be implementation code, scripts, configuration, agent definitions, skills, or other artifacts. Compare the changed subject with DAG obligations, the DD/request, repository conventions, correctness expectations, and boundary behavior. Historical plan/graph artifacts are read-only compatibility context and are never new-work authority.
 
 Test and documentation analysis are separate conditional services. QA-Reviewer decides applicability from
 the canonical classification and directly dispatches only the applicable analyzer. An analyzer inspects
@@ -73,16 +73,29 @@ waived because an analyzer applies. Specialist lenses remain separate when their
 - [ ] `checks.testCoverage` — applicable test analysis and post-analyzer test execution, or evidence-based `NOT_APPLICABLE`
 - [ ] `checks.documentation` — applicable documentation analysis, or evidence-based `NOT_APPLICABLE`
 
-Every incomplete finding is classified as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION` and retains every related DAG node ID.
-## DAG Scope and Incomplete Work
+Every incomplete finding is classified as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`; DAG-backed findings retain every related DAG node ID, and non-DAG findings identify their change boundary instead.
+## Subject Scope and Incomplete Work
 
-QA evaluates the changed subject and its owned responsibilities, not an assumed final state beyond the DAG. The review context must identify the DAG slug, subject node IDs, dependency/ownership context, checkpoint commit/change boundary, and changed files. Classify every incomplete finding before routing:
+QA evaluates the changed subject and its owned responsibilities, not an assumed final state beyond the executed graph. It runs for any size of completed work item: a full DD→Change DAG execution, a smaller Change DAG, a bounded direct/raw correction, or other completed implementation work, and never requires a Change DAG to exist. The review context identifies the DAG slug, subject node IDs, dependency/ownership context, checkpoint commit/change boundary, and changed files when the work is DAG-backed; for bounded non-DAG work it identifies the intent/request, change boundary, inherited evidence where present, and changed files. Classify every incomplete finding before routing:
 
-- `NODE_DEFECT` — the subject node's implementation or evidence is incorrect; blocking and routed to the owning manager.
-- `DAG_GAP` — required work, dependency, verification, or ownership is absent or defective in the DAG; blocking and routed to Change-DAG-Author to amend the DAG.
+- `NODE_DEFECT` — the subject work's implementation or evidence is incorrect; blocking and routed to the owning manager.
+- `DAG_GAP` — required work, dependency, verification, or ownership is absent or defective; blocking, with remediation routed by lifecycle (see below).
 - `ARCHITECTURE_CONTRADICTION` — implementation conflicts with the accepted request or design authority; blocking and routed upstream.
 
-All three classifications remain visible and retain related node IDs. Never infer ownership from likely-future work, annotations, or unrelated artifacts.
+All three classifications remain visible and retain related node IDs when the work is DAG-backed. Never infer ownership from likely-future work, annotations, or unrelated artifacts.
+
+### `DAG_GAP` remediation lifecycle
+
+A `DAG_GAP` is remediated according to the lifecycle of the work it describes; a completed DAG is never reopened:
+
+```text
+original DAG still executing/recovering and not completed -> amendment is valid
+original DAG already completed                          -> never reopen
+    small/local defect          -> bounded raw repair, then normal QA
+    substantial/cross-cutting   -> NEW remediation Change DAG, then normal QA
+```
+
+A completed Change DAG is terminal. Post-completion QA findings are repaired as bounded raw work or as a new remediation Change DAG that owns its own successful-root checkpoint.
 
 Do not infer downstream ownership from a handoff annotation, a likely future task, or an unrelated artifact. Downstream-owned work remains DAG-visible and is not dismissed; feature execution remains incomplete until every required DAG node reaches its accepted terminal state.
 
@@ -96,7 +109,7 @@ Do not infer downstream ownership from a handoff annotation, a likely future tas
 - Does not fix issues — classifies and routes
 - Does not re-do reviews within a round — one pass only
 - Does not write tests or documentation directly — the analyzers own generator handoff, edits, and verification
-- Does not implement or amend DAGs; DAG gaps route to Change-DAG-Author
+- Does not implement or amend DAGs; DAG gaps route by lifecycle — bounded raw repair, a new remediation DAG, or amendment only while the DAG is stopped/not completed
 - Does not manage R&D tasks — those belong to RnD department
 - Dispatches only the six QA capabilities listed in the task allow-list
 - Does not execute implementation — Change-DAG-Runner owns execution
@@ -132,6 +145,8 @@ Do not infer downstream ownership from a handoff annotation, a likely future tas
     inheritedWorktreeEvidence: "starting-worktree state recorded by the executor"
     applicability: "Canonical applicability result"
 ```
+
+For a bounded non-DAG work item the DAG fields (`dag_slug`, `dag_path`, `execution_state_path`, `work_log_path`, `subjectNodeIds`, `relatedNodeIds`, `dagContext`) are absent or empty; review from `changedFiles`, the change boundary, inherited evidence where present, and the actual current repository.
 
 ## Applicability boundary
 
@@ -236,7 +251,7 @@ ALL findings in one report. No holding back for round 2.
 | Severity | Criteria | Routing |
 | --- | --- | --- |
 | `MINOR` | Bounded node defect with applicable verification evidence | → bounded raw edit or remediation DAG |
-| `DAG_GAP` | Required work, dependency, verification, or ownership is absent or defective in the DAG | → Change-DAG-Author / amend DAG |
+| `DAG_GAP` | Required work, dependency, verification, or ownership is absent or defective | → bounded raw repair (small/local) or NEW remediation DAG (substantial); amend a stopped/not-completed DAG only — never reopen a completed DAG |
 | `CRITICAL` | Architectural violation, impossible requirement | → Nyx |
 | `REQUIREMENT_DRIFT` | DAG structure, implementation, or tests omit, weaken, defer, invert, or contradict an explicit user requirement | → at least `DAG_GAP`; `CRITICAL` when a required capability is removed |
 

@@ -23,7 +23,7 @@ The calling QA manager will assign you exactly one risk lens based on the propos
 
 ## DAG subject scope
 
-Review risk against the supplied DAG subject nodes. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs. A downstream node must be present and non-superseded in the Change DAG (`DAG.json`). Subject-node risk and DAG gaps retain normal blocking judgment. Do not infer ownership from likely future work or informal annotations.
+Review risk against the assigned subject work; the subject may be DAG-backed or a bounded non-DAG work item. For every incomplete finding, classify `classification` as `NODE_DEFECT`, `DAG_GAP`, or `ARCHITECTURE_CONTRADICTION`, retaining all related node IDs when the work is DAG-backed. A downstream node must be present and non-superseded in the Change DAG (`DAG.json`) when a DAG exists. Subject risk and gaps retain normal blocking judgment. A `DAG_GAP` on a completed DAG routes to bounded raw repair or a new remediation DAG, never to reopening the completed DAG. Do not infer ownership from likely future work or informal annotations.
 
 Supported lens names include:
 
@@ -54,8 +54,8 @@ You receive one immutable review context that always identifies:
 - `base_sha` and/or `diff` — the change under review, compared against the candidate;
 - `repository_instructions` — repository rules and conventions;
 - `task_context` — the original user request and requirement ledger when available;
-  - `dag_slug` — the Change DAG being reviewed;
-  - `subjectNodeIds` — the DAG obligations in scope for this risk review;
+  - `dag_slug` — the Change DAG being reviewed, when the work is DAG-backed;
+  - `subjectNodeIds` — the DAG obligations in scope for this risk review, when DAG-backed;
 - `deterministic_validation` — results of the deterministic gates already run;
 - `review_root` — absolute path of the isolated, detached checkout of the candidate at `candidate_sha`;
 - `assigned_lens` — the exact lens you must review through.

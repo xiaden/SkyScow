@@ -53,6 +53,11 @@ class CompiledOp:
     to_path: str | None = None
     content: str | None = None
     patches: list | None = None
+    # Concrete compiled evidence: the raw lower-work patch text and the resulting
+    # applied file content, so a bounded fresh context (and the Work Log) can see
+    # exactly what was attempted rather than only node IDs and paths.
+    patch_text: str | None = None
+    applied: str | None = None
 
 
 @dataclass
@@ -60,6 +65,10 @@ class Conflict:
     path: str
     nodes: list[str]
     reason: str
+    # "intra_dag" = deterministic conflict among this DAG's own authored work
+    # (makes the DAG non-executable). "runtime" = applicability mismatch against
+    # the current live repository (an ordinary recoverable terminal failure).
+    scope: str = "intra_dag"
 
 
 @dataclass
@@ -122,8 +131,58 @@ def _blocked_reason(dag: Any, state: dict[str, str], node_id: str) -> str | None
     return None
 
 
+def _barrier_gated(dag: Any, state: dict[str, str]) -> dict[str, str]:
+    """Map a mechanical node to the unsatisfied run barrier that gates it.
+
+    A ``run`` node is a satisfaction barrier at its semantic parent ``P``.
+    Mechanical work that is *strictly shallower* than ``P`` and bubbles to an
+    ancestor of ``P`` sits above that barrier and must not be applied until the
+    run is satisfied. Mechanical work at the same depth as ``P`` (an independent
+    sibling prerequisite) and work that feeds the run (below ``P``) still apply
+    first, so unrelated branches keep progressing independently.
+    """
+    nodes = change_dag.node_map(dag)
+    effective = state if isinstance(state, dict) else {}
+    satisfaction = change_dag.derived_satisfaction(dag, effective)
+    depth = change_dag.derived_depth(dag)
+    parents: dict[str, set[str]] = {node_id: set() for node_id in nodes}
+    for node_id in nodes:
+        for child in change_dag.direct_children(dag, node_id):
+            if child in nodes:
+                parents.setdefault(child, set()).add(node_id)
+
+    ancestor_barrier: dict[str, str] = {}
+    barrier_depth: dict[str, int] = {}
+    for node_id, node in nodes.items():
+        if node.get("type") != "run" or satisfaction.get(node_id, False):
+            continue
+        for parent in parents.get(node_id, ()):
+            parent_depth = depth.get(parent, 0)
+            for ancestor in change_dag.ancestor_map(dag).get(parent, set()):
+                if ancestor not in ancestor_barrier:
+                    ancestor_barrier[ancestor] = node_id
+                    barrier_depth[ancestor] = parent_depth
+    if not ancestor_barrier:
+        return {}
+
+    gated: dict[str, str] = {}
+    for node_id in nodes:
+        if change_dag.node_type(dag, node_id) not in MECHANICAL_TYPES:
+            continue
+        if effective.get(node_id) in {"satisfied", "failed"}:
+            continue
+        node_depth = depth.get(node_id, 0)
+        for parent in parents.get(node_id, ()):
+            barrier = ancestor_barrier.get(parent)
+            if barrier is not None and node_depth < barrier_depth.get(parent, 0):
+                gated[node_id] = barrier
+                break
+    return gated
+
+
 def _actionable_mechanical(dag: Any, state: dict[str, str]) -> tuple[list[str], list[Blocked]]:
     reachable = change_dag.reachable_from_root(dag)
+    gated = _barrier_gated(dag, state)
     actionable: list[str] = []
     blocked: list[Blocked] = []
     for node_id in change_dag.execution_order(dag):
@@ -135,6 +194,10 @@ def _actionable_mechanical(dag: Any, state: dict[str, str]) -> tuple[list[str], 
         # and must not be re-compiled/re-applied (that would never terminate).
         # Recovery is owned by dag_start(retry=true), which resets failed nodes.
         if state.get(node_id) in {"satisfied", "failed"}:
+            continue
+        barrier = gated.get(node_id)
+        if barrier is not None:
+            blocked.append(Blocked(node_id=node_id, reason=f"blocked by unsatisfied run barrier {barrier}"))
             continue
         reason = _blocked_reason(dag, state, node_id)
         if reason is not None:
@@ -185,15 +248,15 @@ def compile_operations(
     conflicts: list[Conflict] = []
     conflicted: set[str] = set()
 
-    def add_conflict(path: str, nodes: list[str], reason: str) -> None:
+    def add_conflict(path: str, nodes: list[str], reason: str, scope: str = "intra_dag") -> None:
         unique = sorted(set(nodes), key=order_key)
-        conflicts.append(Conflict(path=path, nodes=unique, reason=reason))
+        conflicts.append(Conflict(path=path, nodes=unique, reason=reason, scope=scope))
         conflicted.update(unique)
 
     def group_ok(nodes: list[str]) -> bool:
         return not any(node_id in conflicted for node_id in nodes)
 
-    # --- same-path create/edit/remove coordination ---
+    # --- same-path create/edit/remove coordination (intra-DAG) ---
     for path in sorted(set(creates) | set(edits) | set(removes)):
         if path in creates and path in removes:
             add_conflict(path, creates[path] + removes[path],
@@ -205,10 +268,14 @@ def compile_operations(
         if len(nodes) > 1:
             add_conflict(path, nodes, "compile_conflict: multiple create nodes for the same path")
         if (workspace_root / path).exists():
-            add_conflict(path, nodes, "compile_conflict: create target already exists")
+            add_conflict(path, nodes,
+                         "runtime_context: create target already exists in the live repository",
+                         scope="runtime")
     for path, nodes in edits.items():
         if path not in creates and not (workspace_root / path).is_file():
-            add_conflict(path, nodes, "compile_conflict: edit target does not exist")
+            add_conflict(path, nodes,
+                         "runtime_context: edit target does not exist in the live repository",
+                         scope="runtime")
 
     # --- move coordination ---
     move_sources: dict[str, list[str]] = {}
@@ -229,10 +296,12 @@ def compile_operations(
                          "compile_conflict: multiple moves share one source path")
         if from_path not in creates and not (workspace_root / from_path).is_file():
             add_conflict(from_path, move_sources[from_path],
-                         "compile_conflict: move source does not exist")
+                         "runtime_context: move source does not exist in the live repository",
+                         scope="runtime")
         if (workspace_root / to_path).exists():
             add_conflict(from_path, [node_id],
-                         "compile_conflict: move destination already exists")
+                         "runtime_context: move destination already exists in the live repository",
+                         scope="runtime")
         destination_clash = [
             other
             for other in (
@@ -255,6 +324,7 @@ def compile_operations(
         if not group_ok(group):
             continue
         edit_nodes = sorted(edits.get(path, []), key=order_key)
+        patch_text = "".join(nodes_map[node]["patch"] for node in edit_nodes)
         if path in creates:
             base = nodes_map[creates[path][0]]["content"]
             try:
@@ -266,7 +336,8 @@ def compile_operations(
             except PatchError as exc:
                 add_conflict(path, group, f"compile_conflict: malformed patch: {exc}")
                 continue
-            ops.append(CompiledOp(nodes=group, op="create", path=path, content=content))
+            ops.append(CompiledOp(nodes=group, op="create", path=path, content=content,
+                                  patch_text=patch_text or None, applied=content))
         else:
             try:
                 parsed = _parse_edit_nodes(nodes_map, edit_nodes)
@@ -275,14 +346,15 @@ def compile_operations(
                 continue
             try:
                 live = read_text_preserving(workspace_root / path)
-                apply_patches(live, parsed, path=path)
+                updated = apply_patches(live, parsed, path=path)
             except PatchContextError as exc:
-                add_conflict(path, group, f"context_conflict: {exc.message}")
+                add_conflict(path, group, f"context_conflict: {exc.message}", scope="runtime")
                 continue
             except PatchError as exc:
-                add_conflict(path, group, f"compile_conflict: cannot read target: {exc}")
+                add_conflict(path, group, f"runtime_context: cannot read target: {exc}", scope="runtime")
                 continue
-            ops.append(CompiledOp(nodes=group, op="edit", path=path, patches=parsed))
+            ops.append(CompiledOp(nodes=group, op="edit", path=path, patches=parsed,
+                                  patch_text=patch_text or None, applied=updated))
 
     # --- removes ---
     for path in sorted(removes):
@@ -314,9 +386,21 @@ def apply_compiled(ops: list[CompiledOp], workspace_root: Path) -> list[dict]:
     workspace_root = Path(workspace_root)
     results: list[dict] = []
 
+    def evidence(op: CompiledOp) -> dict:
+        extra: dict = {}
+        if op.patch_text is not None:
+            extra["patch"] = op.patch_text
+        if op.content is not None:
+            extra["content"] = op.content
+        if op.op == "move":
+            extra["from_path"] = op.from_path
+            extra["to_path"] = op.to_path
+        return extra
+
     def failure(op: CompiledOp, error: str, message: str = "") -> dict:
         entry = {"path": op.path, "nodes": list(op.nodes), "ok": False,
                  "action": op.op, "error": error}
+        entry.update(evidence(op))
         if message:
             entry["message"] = message
         return entry
@@ -332,7 +416,7 @@ def apply_compiled(ops: list[CompiledOp], workspace_root: Path) -> list[dict]:
             except OSError as exc:
                 results.append(failure(op, "io_error", str(exc)))
                 continue
-            results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "create"})
+            results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "create", **evidence(op)})
         elif op.op == "edit":
             path = workspace_root / op.path
             try:
@@ -346,7 +430,7 @@ def apply_compiled(ops: list[CompiledOp], workspace_root: Path) -> list[dict]:
             except OSError as exc:
                 results.append(failure(op, "io_error", str(exc)))
                 continue
-            results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "edit"})
+            results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "edit", **evidence(op)})
         elif op.op == "remove":
             path = workspace_root / op.path
             try:
@@ -355,7 +439,7 @@ def apply_compiled(ops: list[CompiledOp], workspace_root: Path) -> list[dict]:
             except OSError as exc:
                 results.append(failure(op, "io_error", str(exc)))
                 continue
-            results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "remove"})
+            results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "remove", **evidence(op)})
         elif op.op == "move":
             source = workspace_root / (op.from_path or "")
             destination = workspace_root / (op.to_path or "")
@@ -372,7 +456,7 @@ def apply_compiled(ops: list[CompiledOp], workspace_root: Path) -> list[dict]:
             except OSError as exc:
                 results.append(failure(op, "io_error", str(exc)))
                 continue
-            results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "move"})
+            results.append({"path": op.path, "nodes": list(op.nodes), "ok": True, "action": "move", **evidence(op)})
     return results
 
 
@@ -427,12 +511,17 @@ def ready_run_nodes(dag: dict, state: dict, workspace_root: Path) -> list[str]:
 def preflight(dag: dict, state: dict, workspace_root: Path) -> dict:
     """Derived pre-execution conflict/applicability check.
 
-    Unresolved semantic leaves, a dirty tree, and HEAD drift are not issues.
-    A structural error, compile conflict, or live-context conflict makes the
-    DAG non-executable. Blocked branch-local work is reported but is not itself
-    a conflict.
+    Only deterministic *intra-DAG* conflicts (structure errors, conflicting
+    operations authored into this DAG, malformed patches, creates that collide
+    with each other) make the DAG non-executable. Live-repository applicability
+    mismatches — a patch that no longer applies because the repository drifted,
+    an edit target another work item removed, a create target another work item
+    created — are reported as ``runtime_failures`` and handled as ordinary
+    recoverable terminal-node failures when reached. Unresolved semantic leaves,
+    a dirty tree, HEAD drift, and blocked branch-local work are not issues.
     """
     issues: list[dict] = []
+    runtime_failures: list[dict] = []
     try:
         structural = change_dag.structure_errors(dag)
     except Exception as exc:  # pragma: no cover - defensive
@@ -440,26 +529,33 @@ def preflight(dag: dict, state: dict, workspace_root: Path) -> dict:
     if structural:
         for message in structural:
             issues.append({"kind": "structure", "message": message})
-        return {"executable": False, "issues": issues, "conflicts": [], "blocked": []}
+        return {"executable": False, "issues": issues, "runtime_failures": [], "conflicts": [], "blocked": []}
 
     try:
         ops, conflicts, blocked = compile_operations(dag, state, workspace_root)
     except Exception as exc:  # pragma: no cover - defensive
         issues.append({"kind": "compile_conflict", "message": f"compilation failed: {exc}"})
-        return {"executable": False, "issues": issues, "conflicts": [], "blocked": []}
+        return {"executable": False, "issues": issues, "runtime_failures": [], "conflicts": [], "blocked": []}
 
     for conflict in conflicts:
-        kind = "context_conflict" if conflict.reason.startswith("context_conflict") else "compile_conflict"
-        issues.append({
-            "kind": kind,
+        entry = {
+            "kind": "compile_conflict",
             "path": conflict.path,
             "nodes": list(conflict.nodes),
             "message": conflict.reason,
-        })
+        }
+        if conflict.scope == "runtime":
+            # Live-repository applicability mismatch: not an admission blocker.
+            entry["kind"] = "runtime_failure"
+            runtime_failures.append(entry)
+        else:
+            entry["kind"] = "context_conflict" if conflict.reason.startswith("context_conflict") else "compile_conflict"
+            issues.append(entry)
 
     return {
         "executable": not issues,
         "issues": issues,
+        "runtime_failures": runtime_failures,
         "conflicts": [asdict(conflict) for conflict in conflicts],
         "blocked": [asdict(entry) for entry in blocked],
     }
