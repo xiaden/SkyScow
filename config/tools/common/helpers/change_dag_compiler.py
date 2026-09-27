@@ -207,11 +207,16 @@ def _actionable_mechanical(dag: Any, state: dict[str, str]) -> tuple[list[str], 
     return actionable, blocked
 
 
-def _parse_edit_nodes(nodes_map: dict[str, dict], node_ids: list[str]) -> list[FilePatch]:
+def _parse_edit_nodes(
+    nodes_map: dict[str, dict], node_ids: list[str]
+) -> tuple[list[FilePatch], list[str]]:
     parsed: list[FilePatch] = []
+    owners: list[str] = []
     for node_id in node_ids:
-        parsed.extend(parse_unified_diff(nodes_map[node_id]["patch"]))
-    return parsed
+        node_patches = parse_unified_diff(nodes_map[node_id]["patch"])
+        parsed.extend(node_patches)
+        owners.extend([node_id] * len(node_patches))
+    return parsed, owners
 
 
 # ---------------------------------------------------------------------------
@@ -328,7 +333,7 @@ def compile_operations(
         if path in creates:
             base = nodes_map[creates[path][0]]["content"]
             try:
-                parsed = _parse_edit_nodes(nodes_map, edit_nodes)
+                parsed, _owners = _parse_edit_nodes(nodes_map, edit_nodes)
                 content = apply_patches(base, parsed, path=path) if parsed else base
             except PatchContextError as exc:
                 add_conflict(path, group, f"context_conflict: {exc.message}")
@@ -340,7 +345,7 @@ def compile_operations(
                                   patch_text=patch_text or None, applied=content))
         else:
             try:
-                parsed = _parse_edit_nodes(nodes_map, edit_nodes)
+                parsed, owners = _parse_edit_nodes(nodes_map, edit_nodes)
             except PatchError as exc:
                 add_conflict(path, group, f"compile_conflict: malformed patch: {exc}")
                 continue
@@ -348,7 +353,19 @@ def compile_operations(
                 live = read_text_preserving(workspace_root / path)
                 updated = apply_patches(live, parsed, path=path)
             except PatchContextError as exc:
-                add_conflict(path, group, f"context_conflict: {exc.message}", scope="runtime")
+                if exc.hunk_index == 0:
+                    # The first authored patch is checked against the live file;
+                    # a mismatch here is ordinary recoverable live drift.
+                    add_conflict(path, group, f"context_conflict: {exc.message}", scope="runtime")
+                else:
+                    failing = owners[exc.hunk_index]
+                    prior = list(dict.fromkeys(owners[:exc.hunk_index]))
+                    add_conflict(
+                        path,
+                        prior + [failing],
+                        f"context_conflict: {failing} does not apply after prior same-file "
+                        f"DAG edit(s) {prior}: {exc.message}",
+                    )
                 continue
             except PatchError as exc:
                 add_conflict(path, group, f"runtime_context: cannot read target: {exc}", scope="runtime")

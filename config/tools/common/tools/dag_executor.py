@@ -309,34 +309,48 @@ def _launch_next(workspace_root: Path, *, wait_seconds: float = 0.0) -> bool:
         time.sleep(0.02)
     transferred = False
     try:
-        # Holding the lock proves no live executor owns this marker.
-        control.remove_marker(workspace_root)
-        entries = control.queue_list(workspace_root)
-        if not entries:
-            return False
-        entry = entries[0]
-        child: subprocess.Popen | None = None
-        try:
-            log_path = change_dag.work_log_path(workspace_root, entry["slug"]).with_name("executor.log")
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            stream = log_path.open("a", encoding="utf-8")
+        # The queue lock is held across selection, child launch, marker write,
+        # and removal of the selected entry.  This keeps queue mutation from
+        # invalidating the head between observation and handoff.
+        with control.queue_lock(workspace_root):
+            # Holding the execution lock proves no live executor owns this
+            # marker.  The lock order is execution lock, then queue lock;
+            # queue-only mutations never hold the queue lock while acquiring
+            # the execution lock.
+            control.remove_marker(workspace_root)
+            entries = control.queue_list(workspace_root)
+            if not entries:
+                return False
+            entry = entries[0]
+            child: subprocess.Popen | None = None
             try:
-                child = subprocess.Popen([sys.executable, "-m", "common.tools.dag_executor", entry["slug"], "--workspace-root", str(workspace_root)] + (["--retry"] if entry.get("retry") else []), cwd=Path(__file__).parents[2], stdin=subprocess.DEVNULL, stdout=stream, stderr=stream, start_new_session=True, close_fds=True, pass_fds=(fd,))
-            finally:
-                stream.close()
-            control.write_marker(workspace_root, entry["slug"], child.pid)
-        except OSError:
-            if child is not None:
-                control.stop_process_group(child.pid)
-            return False  # entry preserved for a later launch attempt
+                log_path = change_dag.work_log_path(workspace_root, entry["slug"]).with_name("executor.log")
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                stream = log_path.open("a", encoding="utf-8")
+                try:
+                    child = subprocess.Popen([sys.executable, "-m", "common.tools.dag_executor", entry["slug"], "--workspace-root", str(workspace_root)] + (["--retry"] if entry.get("retry") else []), cwd=Path(__file__).parents[2], stdin=subprocess.DEVNULL, stdout=stream, stderr=stream, start_new_session=True, close_fds=True, pass_fds=(fd,))
+                finally:
+                    stream.close()
+                control.write_marker(workspace_root, entry["slug"], child.pid)
+                if not control._dequeue_entry_locked(workspace_root, entry):
+                    raise OSError("selected queue head changed during handoff")
+            except (OSError, ValueError):
+                if child is not None:
+                    control.stop_process_group(child.pid)
+                    # Marker creation may have succeeded before queue removal
+                    # failed; do not leave this failed handoff looking active.
+                    try:
+                        control.remove_marker(workspace_root)
+                    except OSError:
+                        pass
+                return False  # entry remains first for a later launch attempt
 
-        # Launch succeeded: remove the queued entry and hand the lock to the
-        # child's inherited descriptor (do NOT LOCK_UN, which would release the
-        # shared open-file-description lock the child relies on).
-        control.dequeue_next(workspace_root)
-        os.close(fd)
-        transferred = True
-        return True
+            # Launch succeeded: the exact selected entry has been removed. Hand
+            # the execution lock to the child (do NOT LOCK_UN; the child's
+            # inherited descriptor keeps the shared open-file-description lock).
+            os.close(fd)
+            transferred = True
+            return True
     finally:
         if not transferred:
             control.release_lock(fd)

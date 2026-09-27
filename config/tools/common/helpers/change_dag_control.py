@@ -158,10 +158,29 @@ def _write_queue(workspace_root: Path, entries: list[dict[str, Any]]) -> None:
 
 def enqueue(workspace_root: Path, slug: str, retry: bool = False) -> int:
     with queue_lock(workspace_root):
-        entries = [entry for entry in queue_list(workspace_root) if entry["slug"] != slug]
+        entries = queue_list(workspace_root)
+        for index, entry in enumerate(entries):
+            if entry["slug"] == slug:
+                # A duplicate admission is an idempotent observation.  Keep the
+                # original request (including retry metadata) and its FIFO slot.
+                return index + 1
         entries.append({"slug": slug, "retry": retry})
         _write_queue(workspace_root, entries)
-    return len(entries)
+        return len(entries)
+
+
+def _dequeue_entry_locked(workspace_root: Path, expected: dict[str, Any]) -> bool:
+    """Remove exactly ``expected`` as the current queue head.
+
+    Callers must hold ``queue_lock``.  The identity check prevents a future
+    handoff caller from accidentally popping a different request if the queue
+    contents ever differ from the selected entry.
+    """
+    entries = queue_list(workspace_root)
+    if not entries or entries[0] != expected:
+        return False
+    _write_queue(workspace_root, entries[1:])
+    return True
 
 
 def dequeue_next(workspace_root: Path) -> dict[str, Any] | None:

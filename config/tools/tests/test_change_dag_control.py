@@ -26,10 +26,10 @@ def test_lock_and_marker(tmp_path: Path):
 def test_queue_fifo_and_duplicates(tmp_path: Path):
     assert enqueue(tmp_path, "a") == 1
     assert enqueue(tmp_path, "b", retry=True) == 2
-    assert enqueue(tmp_path, "a", retry=True) == 2
-    assert queue_list(tmp_path) == [{"slug": "b", "retry": True}, {"slug": "a", "retry": True}]
+    assert enqueue(tmp_path, "a", retry=True) == 1
+    assert queue_list(tmp_path) == [{"slug": "a", "retry": False}, {"slug": "b", "retry": True}]
     assert queue_remove(tmp_path, "b")
-    assert dequeue_next(tmp_path) == {"slug": "a", "retry": True}
+    assert dequeue_next(tmp_path) == {"slug": "a", "retry": False}
     assert dequeue_next(tmp_path) is None
 
 
