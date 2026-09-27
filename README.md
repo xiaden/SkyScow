@@ -55,6 +55,34 @@ SkyScow is not just a container full of tools — it ships a complete multi-agen
 
 **Research → design → decomposition → Change DAG → execution.** Substantial features start with research and an adversarial design pass, producing a design document (DD) that records the trade-offs and the decision. An accepted DD is decomposed into a Change DAG: a semantic graph of requirements plus exact work nodes. Nyx admits and stewards it through the lifecycle tools; `dag_executor` then executes it deterministically and serially. The Change DAG is how SkyScow structures a change that is too large to hold in one context window — it is one process among several, not the only way work gets done.
 
+### How work flows
+
+A simplified view of how Nyx routes engineering work:
+
+```mermaid
+flowchart TD
+    U["User request"] --> N["Nyx routes the work"]
+
+    N --> D["Direct bounded edit"]
+    N --> R["R&D / design"]
+    N --> C["Change DAG execution"]
+
+    D --> Q["Independent QA"]
+    R --> Q
+    C --> Q
+
+    Q --> P["Publication gate"]
+    P --> Done["Delivered"]
+```
+
+Small bounded work can stay direct; larger work moves through R&D and a Change DAG. Independent QA and publication are separate from implementation, and the support bench is available wherever repository research, artifact navigation, impact analysis, or root-cause debugging is needed.
+
+Detailed lifecycle documentation:
+
+- [R&D and design documents](docs/architecture/rnd-and-design.md)
+- [Change DAG lifecycle](docs/architecture/change-dag-lifecycle.md)
+- [QA and publication](docs/architecture/qa-and-publication.md)
+
 **Independent QA.** Every meaningful change gets independent correctness review, plus boundary, journey, and domain-risk lenses where the changed surface triggers them. Test and docs analyzers each inspect their own domain and dispatch a generator to repair concrete gaps. `/qa-push` is the final publication gate over a candidate commit, and `/qa-repo-review` runs a whole-tree review of a repository at an explicit GitHub ref.
 
 **Support bench.** `support-researcher` gathers codebase and external facts, `support-librarian` navigates the artifact corpus (logs, ADRs, ASRs, DDs, and prior work), `support-pattern-enforcer` maps the impact of a proposed change, and `support-debugger` traces failures to a root cause.
