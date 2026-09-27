@@ -5,6 +5,12 @@ per-file operations against the *live* repository. It never creates a projected
 worktree and never writes; only :func:`apply_compiled` writes, and only through
 the atomic per-file primitive in :mod:`change_dag_patch`.
 
+Runtime lowering is segmented: it stops at the next unsatisfied run barrier and
+resumes only after that run actually succeeds. Whole-DAG preflight instead uses
+:func:`compile_whole_dag`, which simulates deterministic mechanical progression
+through run barriers entirely in memory so ``executable`` reflects *all*
+currently specified work rather than only the first executable segment.
+
 Graph semantics are single-sourced from :mod:`change_dag`
 (``execution_order``, ``derived_satisfaction``, reachability, node typing).
 Failure is branch-local: a node is blocked only by a failure in a requirement
@@ -36,6 +42,7 @@ __all__ = [
     "Conflict",
     "Blocked",
     "compile_operations",
+    "compile_whole_dag",
     "apply_compiled",
     "ready_run_nodes",
     "preflight",
@@ -77,6 +84,58 @@ class Conflict:
 class Blocked:
     node_id: str
     reason: str
+
+
+class _RepoView:
+    """Read-only file access used by compilation.
+
+    The default view reads the live repository. Whole-DAG preflight passes a
+    simulated overlay so higher work is lowered against the *in-memory* result of
+    accepted lower work, never a projected worktree and never a repository write.
+    """
+
+    def __init__(self, workspace_root: Path, overlay: dict[str, str] | None = None,
+                 removed: set[str] | None = None) -> None:
+        self._root = Path(workspace_root)
+        self._overlay = overlay if overlay is not None else {}
+        self._removed = removed if removed is not None else set()
+
+    def is_dag_written(self, path: str) -> bool:
+        """True when the simulated DAG has already written this path."""
+        return path in self._overlay
+
+    def is_dag_removed(self, path: str) -> bool:
+        """True when the simulated DAG has already removed this path."""
+        return path in self._removed
+
+    def exists(self, path: str) -> bool:
+        if path in self._overlay:
+            return True
+        if path in self._removed:
+            return False
+        return (self._root / path).exists()
+
+    def is_file(self, path: str) -> bool:
+        if path in self._overlay:
+            return True
+        if path in self._removed:
+            return False
+        return (self._root / path).is_file()
+
+    def read(self, path: str) -> str:
+        if path in self._overlay:
+            return self._overlay[path]
+        if path in self._removed:
+            raise PatchError(f"path was removed by earlier DAG work: {path}")
+        return read_text_preserving(self._root / path)
+
+    def put(self, path: str, content: str) -> None:
+        self._overlay[path] = content
+        self._removed.discard(path)
+
+    def delete(self, path: str) -> None:
+        self._overlay.pop(path, None)
+        self._removed.add(path)
 
 
 # ---------------------------------------------------------------------------
@@ -240,11 +299,21 @@ def _parse_edit_nodes(
 # Compilation
 # ---------------------------------------------------------------------------
 def compile_operations(
-    dag: dict, state: dict, workspace_root: Path
+    dag: dict,
+    state: dict,
+    workspace_root: Path,
+    *,
+    repo: "_RepoView | None" = None,
 ) -> tuple[list[CompiledOp], list[Conflict], list[Blocked]]:
-    """Lower reachable mechanical work into per-path operations (no writes)."""
+    """Lower currently reachable mechanical work into per-path operations.
+
+    ``repo`` defaults to a live read-only view of ``workspace_root``. Whole-DAG
+    preflight passes a simulated overlay so higher work is lowered against the
+    in-memory result of accepted lower work rather than the live files.
+    """
     effective_state = state if isinstance(state, dict) else {}
     workspace_root = Path(workspace_root)
+    view = repo if repo is not None else _RepoView(workspace_root)
     order_index = _order_index(dag)
     order_key = _node_sort_key(order_index)
 
@@ -289,15 +358,23 @@ def compile_operations(
     for path, nodes in creates.items():
         if len(nodes) > 1:
             add_conflict(path, nodes, "compile_conflict: multiple create nodes for the same path")
-        if (workspace_root / path).exists():
-            add_conflict(path, nodes,
-                         "runtime_context: create target already exists in the live repository",
-                         scope="runtime")
+        if view.exists(path):
+            if view.is_dag_written(path):
+                add_conflict(path, nodes,
+                             "compile_conflict: create target was already produced by earlier DAG work")
+            else:
+                add_conflict(path, nodes,
+                             "runtime_context: create target already exists in the live repository",
+                             scope="runtime")
     for path, nodes in edits.items():
-        if path not in creates and not (workspace_root / path).is_file():
-            add_conflict(path, nodes,
-                         "runtime_context: edit target does not exist in the live repository",
-                         scope="runtime")
+        if path not in creates and not view.is_file(path):
+            if view.is_dag_removed(path):
+                add_conflict(path, nodes,
+                             "compile_conflict: edit target was removed by earlier DAG work")
+            else:
+                add_conflict(path, nodes,
+                             "runtime_context: edit target does not exist in the live repository",
+                             scope="runtime")
 
     # --- move coordination ---
     move_sources: dict[str, list[str]] = {}
@@ -316,14 +393,22 @@ def compile_operations(
         if len(move_sources[from_path]) > 1:
             add_conflict(from_path, move_sources[from_path],
                          "compile_conflict: multiple moves share one source path")
-        if from_path not in creates and not (workspace_root / from_path).is_file():
-            add_conflict(from_path, move_sources[from_path],
-                         "runtime_context: move source does not exist in the live repository",
-                         scope="runtime")
-        if (workspace_root / to_path).exists():
-            add_conflict(from_path, [node_id],
-                         "runtime_context: move destination already exists in the live repository",
-                         scope="runtime")
+        if from_path not in creates and not view.is_file(from_path):
+            if view.is_dag_removed(from_path):
+                add_conflict(from_path, move_sources[from_path],
+                             "compile_conflict: move source was removed by earlier DAG work")
+            else:
+                add_conflict(from_path, move_sources[from_path],
+                             "runtime_context: move source does not exist in the live repository",
+                             scope="runtime")
+        if view.exists(to_path):
+            if view.is_dag_written(to_path):
+                add_conflict(from_path, [node_id],
+                             "compile_conflict: move destination was already produced by earlier DAG work")
+            else:
+                add_conflict(from_path, [node_id],
+                             "runtime_context: move destination already exists in the live repository",
+                             scope="runtime")
         destination_clash = [
             other
             for other in (
@@ -367,22 +452,27 @@ def compile_operations(
                 add_conflict(path, group, f"compile_conflict: malformed patch: {exc}")
                 continue
             try:
-                live = read_text_preserving(workspace_root / path)
+                live = view.read(path)
                 updated = apply_patches(live, parsed, path=path)
             except PatchContextError as exc:
-                if exc.hunk_index == 0:
+                if exc.hunk_index == 0 and not view.is_dag_written(path):
                     # The first authored patch is checked against the live file;
                     # a mismatch here is ordinary recoverable live drift.
                     add_conflict(path, group, f"context_conflict: {exc.message}", scope="runtime")
                 else:
                     failing = owners[exc.hunk_index]
                     prior = list(dict.fromkeys(owners[:exc.hunk_index]))
-                    add_conflict(
-                        path,
-                        prior + [failing],
-                        f"context_conflict: {failing} does not apply after prior same-file "
-                        f"DAG edit(s) {prior}: {exc.message}",
-                    )
+                    if view.is_dag_written(path) and not prior:
+                        reason = (
+                            f"context_conflict: {failing} does not apply to the content "
+                            f"produced by earlier DAG work for {path}: {exc.message}"
+                        )
+                    else:
+                        reason = (
+                            f"context_conflict: {failing} does not apply after prior same-file "
+                            f"DAG edit(s) {prior}: {exc.message}"
+                        )
+                    add_conflict(path, prior + [failing], reason)
                 continue
             except PatchError as exc:
                 add_conflict(path, group, f"runtime_context: cannot read target: {exc}", scope="runtime")
@@ -410,6 +500,96 @@ def compile_operations(
     conflicts.sort(key=lambda conflict: (conflict.path, conflict.reason, conflict.nodes))
     blocked.sort(key=lambda entry: change_dag._numeric_id(entry.node_id))
     return ops, conflicts, blocked
+
+
+def _apply_simulated(repo: _RepoView, op: CompiledOp) -> None:
+    """Apply a compiled op to the in-memory overlay; the repository is untouched."""
+    if op.op == "create":
+        repo.put(op.path, op.content or "")
+    elif op.op == "edit":
+        repo.put(op.path, op.applied if op.applied is not None else "")
+    elif op.op == "remove":
+        repo.delete(op.path)
+    elif op.op == "move":
+        try:
+            content: str | None = repo.read(op.from_path or "")
+        except PatchError:
+            content = None
+        if op.to_path:
+            repo.put(op.to_path, content if content is not None else "")
+        repo.delete(op.from_path or "")
+
+
+def compile_whole_dag(
+    dag: dict, state: dict, workspace_root: Path
+) -> tuple[list[list[CompiledOp]], list[Conflict], list[Blocked]]:
+    """Deterministically lower *all* currently specified terminal work.
+
+    Runtime compilation is segmented: it stops at the next unsatisfied run
+    barrier and resumes only after that run actually succeeds, so a single
+    state-aware pass only sees the first executable segment. Preflight must
+    instead answer whether *all* currently specified work lowers without an
+    internal compiler/patch contradiction, so this simulates deterministic
+    mechanical progression entirely in memory:
+
+    * compile the current segment against the simulated overlay;
+    * fold accepted mechanical results into the overlay and mark their nodes
+      satisfied;
+    * assume every run barrier whose requirements are now met succeeds, then
+      continue lowering the work that becomes reachable above it.
+
+    No repository write, projected worktree, or command execution happens here.
+    Live-repository applicability mismatches stay ``scope="runtime"``;
+    contradictions against content the DAG itself produced are deterministic.
+    Returns the per-segment ops, the deduplicated conflicts found across every
+    segment, and the work still gated once progression stops.
+    """
+    effective_state = dict(state) if isinstance(state, dict) else {}
+    overlay: dict[str, str] = {}
+    removed: set[str] = set()
+    repo = _RepoView(workspace_root, overlay, removed)
+
+    segments: list[list[CompiledOp]] = []
+    conflicts: list[Conflict] = []
+    blocked: list[Blocked] = []
+    seen: set[tuple] = set()
+
+    limit = len(change_dag.node_map(dag)) + 2
+    for _ in range(limit):
+        segment_ops, segment_conflicts, blocked = compile_operations(
+            dag, effective_state, workspace_root, repo=repo
+        )
+        for conflict in segment_conflicts:
+            key = (conflict.path, conflict.reason, tuple(conflict.nodes), conflict.scope)
+            if key not in seen:
+                seen.add(key)
+                conflicts.append(conflict)
+
+        progressed = False
+        if segment_ops:
+            for op in segment_ops:
+                _apply_simulated(repo, op)
+                for node_id in op.nodes:
+                    effective_state[node_id] = "satisfied"
+            segments.append(segment_ops)
+            progressed = True
+
+        ready = [
+            node_id
+            for node_id in ready_run_nodes(dag, effective_state, workspace_root)
+            if effective_state.get(node_id) != "satisfied"
+        ]
+        if ready:
+            for node_id in ready:
+                effective_state[node_id] = "satisfied"
+            progressed = True
+
+        if not progressed:
+            break
+
+    conflicts.sort(key=lambda conflict: (conflict.path, conflict.reason, conflict.nodes))
+    blocked.sort(key=lambda entry: change_dag._numeric_id(entry.node_id))
+    return segments, conflicts, blocked
 
 
 # ---------------------------------------------------------------------------
@@ -547,6 +727,10 @@ def preflight(dag: dict, state: dict, workspace_root: Path) -> dict:
     created — are reported as ``runtime_failures`` and handled as ordinary
     recoverable terminal-node failures when reached. Unresolved semantic leaves,
     a dirty tree, HEAD drift, and blocked branch-local work are not issues.
+
+    ``executable`` is answered by :func:`compile_whole_dag`: it reflects whether
+    *all* currently specified work lowers deterministically, not merely the first
+    execution segment before the next unsatisfied run barrier.
     """
     issues: list[dict] = []
     runtime_failures: list[dict] = []
@@ -560,7 +744,7 @@ def preflight(dag: dict, state: dict, workspace_root: Path) -> dict:
         return {"executable": False, "issues": issues, "runtime_failures": [], "conflicts": [], "blocked": []}
 
     try:
-        ops, conflicts, blocked = compile_operations(dag, state, workspace_root)
+        _segments, conflicts, blocked = compile_whole_dag(dag, state, workspace_root)
     except Exception as exc:  # pragma: no cover - defensive
         issues.append({"kind": "compile_conflict", "message": f"compilation failed: {exc}"})
         return {"executable": False, "issues": issues, "runtime_failures": [], "conflicts": [], "blocked": []}

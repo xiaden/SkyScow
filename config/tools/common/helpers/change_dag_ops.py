@@ -615,7 +615,12 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
     if path is not None and node_id is not None:
         return _error("invalid_scope", "use at most one of path or node_id")
 
-    ops, conflicts, blocked = change_dag_compiler.compile_operations(dag, state, workspace_root)
+    segments, conflicts, blocked = change_dag_compiler.compile_whole_dag(dag, state, workspace_root)
+    # Flatten every deterministically lowerable segment; `segment` on each op
+    # distinguishes currently actionable runtime work (segment 0) from later work
+    # that a run barrier currently gates.
+    ops = [op for segment in segments for op in segment]
+    segment_index = {id(op): index for index, segment in enumerate(segments) for op in segment}
     pre = change_dag_compiler.preflight(dag, state, workspace_root)
     ready = change_dag_compiler.ready_run_nodes(dag, state, workspace_root)
     depths = change_dag.derived_depth(dag)
@@ -638,6 +643,7 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
             {
                 "nodes": list(op.nodes),
                 "op": op.op,
+                "segment": segment_index.get(id(op), 0),
                 "path": op.path,
                 "from_path": op.from_path,
                 "to_path": op.to_path,
@@ -654,6 +660,7 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
         ],
         "blocked": [{"node_id": entry.node_id, "reason": entry.reason} for entry in blocked],
         "run_barriers": ready,
+        "simulated_segments": len(segments),
         "depths": depths,
         "executable": pre["executable"],
         "issues": pre["issues"],
