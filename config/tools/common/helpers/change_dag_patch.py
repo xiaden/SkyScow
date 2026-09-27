@@ -158,7 +158,7 @@ def validate_hunk_ranges(file_patch: FilePatch, *, path: str = "") -> None:
     application would otherwise order them oppositely. ``apply_file_patch`` must
     never write a result the compiler cannot reproduce byte-for-byte. This
     mirrors the same-anchor rule in
-    :func:`change_dag_compiler._spans_conflict`.
+    :func:`change_dag_compiler_reconcile._spans_conflict`.
 
     Descending hunks are not treated as an overlap here; they are left to the
     ascending-order check in :func:`apply_file_patch` so the semantics for

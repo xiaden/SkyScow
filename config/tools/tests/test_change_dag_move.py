@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -133,7 +134,7 @@ def test_native_rename_failure_has_no_copy_fallback(tmp_path: Path, monkeypatch,
     def fail(*_args, **_kwargs):
         raise OSError("EXDEV")
 
-    monkeypatch.setattr(compiler.os, primitive, fail)
+    monkeypatch.setattr(os, primitive, fail)
     result = compiler.apply_compiled([operation], root)
     assert result[0]["error"] == "io_error"
     assert (root / "old.txt").read_text(encoding="utf-8") == "source\n"

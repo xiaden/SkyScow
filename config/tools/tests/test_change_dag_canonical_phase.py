@@ -19,6 +19,7 @@ if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
 from common.helpers import change_dag_compiler  # noqa: E402
+from common.helpers import change_dag_compiler_phase as compiler_phase  # noqa: E402
 from common.helpers.change_dag_compiler import (  # noqa: E402
     compile_phase,
     compile_whole_dag,
@@ -198,7 +199,10 @@ def _counting_compiler(monkeypatch) -> list[int]:
         calls.append(1)
         return real(*args, **kwargs)
 
+    # Preview compiles through the facade attribute; standalone preflight compiles
+    # through the phase module's own global, so both bindings are counted.
     monkeypatch.setattr(change_dag_compiler, "compile_whole_dag", counted)
+    monkeypatch.setattr(compiler_phase, "compile_whole_dag", counted)
     return calls
 
 
