@@ -14,7 +14,7 @@ Before design, decomposition, or routing work, assess whether prior ADRs, ASRs, 
   | Design a feature (RnD-Manager) | Conditional — select only when prior artifacts materially constrain the route |
   | Create a Change DAG (Change-DAG-Author) | Conditional — select only when prior artifacts materially constrain the Change DAG |
   | Route work to a department (Nyx, RnD-Manager) | Conditional — select only when prior artifacts materially constrain routing |
-  | Execute a Change DAG (Change-DAG-Runner) | No — the Change DAG should already reflect artifact context |
+  | Execute a Change DAG (Nyx lifecycle control) | No — the Change DAG should already reflect artifact context |
  | Do a quick fact check | No — overhead not worth it |
 
 **Threshold:** If prior artifacts are relevant to the task's architecture, artifact ownership, or future constraints, gather them first. If no relevant artifacts exist, log the evidence-based skip. Mechanical execution of an already-validated Change DAG skips this skill.

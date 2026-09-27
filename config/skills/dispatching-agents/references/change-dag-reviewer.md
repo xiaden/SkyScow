@@ -9,7 +9,7 @@ Dispatch Change-DAG-Reviewer as a dynamically selected, read-only reviewer for a
 **Do NOT dispatch when:**
 - The DAG has no observable coordination risk; record the review outcome with rationale without a gate dispatch.
 - Required DAG/source context for the requested bounded scope is missing.
-- Execution or implementation is needed; use Change-DAG-Runner.
+- Execution or implementation is needed; Nyx controls Change DAG lifecycle directly.
 - Completed work needs quality review; use QA-Reviewer.
 
 ## Dispatch Template
@@ -45,7 +45,7 @@ task:
 
 | Verdict | Next action |
 |---|---|
-| `PASS` | Return external evidence to the controller; it may route to Change-DAG-Runner, but PASS is not execution authorization or a lifecycle transition |
+| `PASS` | Return external evidence to the controller; it may start lifecycle execution, but PASS is not execution authorization or a lifecycle transition |
 | `AMEND_REQUIRED` | Return the bounded finding to Change-DAG-Author while the DAG is stopped/not active; revalidate and optionally reselect review from current triggers |
 | `DD_CONTRADICTION` | Escalate to DD/R&D owner or user |
 | `MISSING_ARTIFACT` | Halt until source/DAG context is restored |

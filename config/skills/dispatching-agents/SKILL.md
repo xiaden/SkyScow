@@ -97,7 +97,7 @@ Task at hand
 ├─ Requires diagnosing a failure? → Read affected files yourself first
 │  ├─ Cause is obvious after reading → Fix directly
 │  └─ Cause is unclear → Dispatch Support-Debugger
-├─ Requires executing an authored Change DAG? → Dispatch Change-DAG-Runner
+├─ Requires executing an authored Change DAG? → Nyx uses `dag_start`/`dag_status`/`dag_stop`/`dag_archive` directly
 ├─ Requires creating/amending a Change DAG? → Dispatch Change-DAG-Author
 ├─ Requires an independently justified bounded review of a Change DAG? → Dispatch Change-DAG-Reviewer
 ├─ Requires designing a feature or formal DD? → Dispatch RnD-Manager
@@ -142,9 +142,8 @@ Task at hand
 |------|-----------|
 | Create or amend Change DAG semantic and exact-work structure | [`change-dag-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) |
 | Dynamically selected bounded independent review of a Change DAG | [`change-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) |
-| Run, steward, and archive a validated Change DAG | [`change-dag-runner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-runner.md) |
 
-The Change DAG is the single implementation-work authority. Change-DAG-Author owns bounded discovery, semantic structure, exact work, convergence/reconciliation, preview, validation, and mutable correction without mutating source; Change-DAG-Reviewer is a dynamically selected read-only capability for a bounded independent question; Change-DAG-Runner owns mechanical execution admission and artifact lifecycle and does not dispatch or record QA. Reviewer evidence is never persisted DAG state and does not authorize execution.
+The Change DAG is the single implementation-work authority. Change-DAG-Author owns bounded discovery, semantic structure, exact work, convergence/reconciliation, preview, validation, and mutable correction without mutating source; Change-DAG-Reviewer is a dynamically selected read-only capability for a bounded independent question; Nyx owns lifecycle control through `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, while `dag_executor` performs deterministic execution and does not dispatch or record QA. Reviewer evidence is never persisted DAG state and does not authorize execution.
 
 ### R&D Department
 
@@ -212,7 +211,7 @@ All support agents are dispatched directly — they have no internal orchestrato
 
 ### QA and Publication Independence
 
-QA is independent of Change DAG execution and archival. Change-DAG-Runner **must not** dispatch or record QA, and `dag_archive` does not depend on QA. A candidate is published only through the separate publication gate (`qa-push-manager`), which enforces QA before publication. If a publication candidate reaches the gate without QA, use the `qa-reassertion` reference.
+QA is independent of Change DAG execution and archival. The Change DAG lifecycle **must not** dispatch or record QA, and `dag_archive` does not depend on QA. A candidate is published only through the separate publication gate (`qa-push-manager`), which enforces QA before publication. If a publication candidate reaches the gate without QA, use the `qa-reassertion` reference.
 
 ### Spec-First Testing
 
@@ -220,7 +219,7 @@ Spec-first / RED-first testing is surface-dependent, selected from observable re
 
 ### Pattern Impact Analysis
 
-After an accepted change, Support-PatternEnforcer may run read-only `impact_closure` (default) to report evidence-backed impact. It may run `migration_scan` only when an accepted DD explicitly establishes bounded migration scope. Findings use role-specific kinds and the shared `ADVISORY | NEEDS_OWNER | BLOCKING` envelope, route to the owning Change-DAG-Author or Change-DAG-Runner, and never amend a Change DAG automatically.
+After an accepted change, Support-PatternEnforcer may run read-only `impact_closure` (default) to report evidence-backed impact. It may run `migration_scan` only when an accepted DD explicitly establishes bounded migration scope. Findings use role-specific kinds and the shared `ADVISORY | NEEDS_OWNER | BLOCKING` envelope, route to the owning Change-DAG-Author or to Nyx's Change DAG lifecycle control, and never amend a Change DAG automatically.
 
 ## Dispatch Tool: native `task`
 
@@ -251,7 +250,7 @@ Need agent output for the very next step?
 ├─ Yes → task (blocks until done, result inline)
 └─ No → proceed without custom background lifecycle
 
-Spawning a manager (Change-DAG-Runner, RnD-Manager)?
+Spawning a manager (RnD-Manager)?
 └─ task (managers spawn workers and retain the session tree)
 ```
 
@@ -261,7 +260,7 @@ Spawning a manager (Change-DAG-Runner, RnD-Manager)?
 
   **Exec:** [`change-dag-author.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) — Change DAG creation, amendment, and exact-work authoring.
   [`change-dag-reviewer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) — Dynamically selected bounded independent review of a Change DAG scope.
-  [`change-dag-runner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-runner.md) — Execution admission, status stewardship, and archive.
+  `change-dag-lifecycle` skill — Nyx's lifecycle operation contract for starting, monitoring, stopping, recovering, retrying, and archiving Change DAGs.
 
   **R&D:** [`rnd-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) — Feature design, R&D, tradeoff analysis (orchestrator).
   [`rnd-refiner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) — Adversarial design refinement pipeline.

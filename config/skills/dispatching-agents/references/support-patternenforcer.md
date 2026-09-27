@@ -38,7 +38,7 @@ kind: coverage_required | ownership_required | consistency_risk | not_applicable
 evidence: [file:line or execution-path evidence]
 impact: "behavioral impact or none"
 disposition: ADVISORY | NEEDS_OWNER | BLOCKING
-owner: "owning Change-DAG-Author or Change-DAG-Runner or null"
+owner: "owning Change-DAG-Author or Nyx lifecycle control or null"
 ```
 
 For `migration_scan`, cite the exact accepted DD scope. A new helper, pattern, API, technique, naming similarity, or search hit does not authorize migration scanning. Findings are report-only and never amend a Change DAG.
@@ -47,7 +47,7 @@ For `migration_scan`, cite the exact accepted DD scope. A new helper, pattern, A
 
 `coverage_required` requires behavioral evidence: a direct caller of a changed contract, membership in the same changed dispatch/interface family, an explicitly required equivalent implementation, accepted DD/requirement inclusion, or execution-path evidence. Similarity, imports, old-helper use, and implementation resemblance produce at most non-blocking `consistency_risk`.
 
-`BLOCKING` is limited to a demonstrated uncovered changed contract/behavior path, proven divergence from explicitly uniform behavior, or a known legacy implementation left by an accepted migration. `consistency_risk` is non-blocking. Route `coverage_required` and `ownership_required` to the owning Change-DAG-Author or Change-DAG-Runner; the owner decides amend-current-DAG, new-remediation-DAG, or no-change disposition. An owner, `BLOCKING`, confidence, or closure never authorizes implementation.
+`BLOCKING` is limited to a demonstrated uncovered changed contract/behavior path, proven divergence from explicitly uniform behavior, or a known legacy implementation left by an accepted migration. `consistency_risk` is non-blocking. Route `coverage_required` and `ownership_required` to the owning Change-DAG-Author or to Nyx's Change DAG lifecycle control; the owner decides amend-current-DAG, new-remediation-DAG, or no-change disposition. An owner, `BLOCKING`, confidence, or closure never authorizes implementation.
 
 ## Expected Output
 

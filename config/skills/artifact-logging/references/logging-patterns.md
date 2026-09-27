@@ -8,7 +8,7 @@ Every `log_write` during a fix cycle or Change DAG execution must include the Ch
 
 ```python
 log_write(
-    agent="change-dag-runner",
+    agent="nyx",
     category="observation",
     message="Fix revealed deeper issue in query layer",
     tags=["myfeature-change"]  # Mandatory

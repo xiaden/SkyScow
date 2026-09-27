@@ -45,13 +45,13 @@ SkyScow is not just a container full of tools — it ships a complete multi-agen
 |---|---|---|
 | Orchestration | `nyx` | Default entry point; applies project rules and routes work before acting |
 | R&D | `rnd-manager`, `rnd-dd-author`, `rnd-architect`, `rnd-ideator`, `rnd-refiner`, `rnd-counter-ideator`, `rnd-counter-improver`, `rnd-improver`, `rnd-estimator`, `rnd-complexity-advisor` | Research, adversarial design, design documents, and effort sizing |
-| Execution | `change-dag-author`, `change-dag-reviewer`, `change-dag-runner` | Author, review, and run a Change DAG |
+| Execution | `change-dag-author`, `change-dag-reviewer` | Author and optionally review a Change DAG; Nyx controls lifecycle |
 | QA | `qa-reviewer` (+ correctness, boundary, journey, domain-risk lenses), `qa-push-manager`, `qa-repo-review-manager` (+ whole-tree reviewers), `qa-test-analyzer` / `qa-test-generator`, `qa-docs-analyzer` / `qa-docs-generator` | Independent review, test and docs gap repair, and publication gating |
 | Support | `support-researcher`, `support-librarian`, `support-pattern-enforcer`, `support-debugger` | Research, artifact navigation, impact analysis, and root-cause debugging |
 
 ### Processes
 
-**Research → design → decomposition → Change DAG → execution.** Substantial features start with research and an adversarial design pass, producing a design document (DD) that records the trade-offs and the decision. An accepted DD is decomposed into a Change DAG: a semantic graph of requirements plus exact work nodes. `change-dag-runner` then executes it deterministically and serially. The Change DAG is how SkyScow structures a change that is too large to hold in one context window — it is one process among several, not the only way work gets done.
+**Research → design → decomposition → Change DAG → execution.** Substantial features start with research and an adversarial design pass, producing a design document (DD) that records the trade-offs and the decision. An accepted DD is decomposed into a Change DAG: a semantic graph of requirements plus exact work nodes. Nyx admits and stewards it through the lifecycle tools; `dag_executor` then executes it deterministically and serially. The Change DAG is how SkyScow structures a change that is too large to hold in one context window — it is one process among several, not the only way work gets done.
 
 **Independent QA.** Every meaningful change gets independent correctness review, plus boundary, journey, and domain-risk lenses where the changed surface triggers them. Test and docs analyzers each inspect their own domain and dispatch a generator to repair concrete gaps. `/qa-push` is the final publication gate over a candidate commit, and `/qa-repo-review` runs a whole-tree review of a repository at an explicit GitHub ref.
 

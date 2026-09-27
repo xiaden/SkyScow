@@ -9,7 +9,7 @@ Dispatch Support-Debugger to diagnose test failures, runtime errors, lint errors
 - A runtime error occurs and the stack trace is ambiguous
 - Lint errors appear that aren't explained by the immediate diff
 - Observed behavior contradicts expectations and the cause is non-obvious
-- Change-DAG-Runner hits a blocker after 3+ failed attempts on the same issue
+- Change DAG lifecycle control hits a blocker after 3+ failed attempts on the same issue
 
 **Do NOT dispatch when:**
 - The error is an obvious typo or missing import — fix it directly

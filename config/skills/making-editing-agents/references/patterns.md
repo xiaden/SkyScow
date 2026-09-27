@@ -103,7 +103,7 @@ Before executing any task, check this matrix. If the task matches a row, delegat
 |--------------|----------|-------------------|----------|-------------------|
 | Feature design, R&D | RnD-Manager | User asks "design," "explore," "think about" | Open-ended: agent decides approach | Design doc in artifacts/designs/ |
 | Change DAG creation | Change-DAG-Author | Multi-step feature, shared writes or coordinated edits | Read-only DAG authoring | `DAG.json` under `artifacts/change-dags/pending/` |
-| Change DAG execution | Change-DAG-Runner | Authored DAG needs execution | Run and archive | Root satisfied; DAG archived |
+| Change DAG lifecycle | Nyx | Authored DAG needs execution or recovery | Use lifecycle tools and skill | Root satisfied; DAG archived or recovery routed |
 | QA review | QA-Reviewer | Implementation complete, before merge | Full review, no edits | Review report with tiered status |
 | Root cause analysis | Support-Debugger | 3+ failed fix attempts, unexplained failure | Read-only diagnosis | Diagnosis with suggested fix |
 | Deep codebase research | Support-Researcher | Need to understand unfamiliar system (5+ files) | Read-only exploration | Structured findings with code locations |
@@ -159,7 +159,7 @@ Decompose into the five REprompt components. Each component is independently aud
 **Team Composition:**
 - RnD-Manager: Design and research (owns the "thinking" phase)
 - Change-DAG-Author: Creates Change DAGs (does not execute)
-- Change-DAG-Runner: Runs and archives Change DAGs
+- Nyx: Owns Change DAG lifecycle control (`dag_start`/`dag_status`/`dag_stop`/`dag_archive`)
 - Change-DAG-Reviewer: Dynamically selected bounded independent review
 - QA-Reviewer: Quality gate (post-implementation review)
 - Support-Debugger: Root cause analysis (diagnostic, not execution)
@@ -205,7 +205,6 @@ Every exclusion includes a positive routing instruction — "X → use Y."
 | This agent does NOT... | Route instead to... | How |
 |------------------------|---------------------|-----|
 | Design features or create design documents | RnD-Manager | `task(subagent_type="rnd-manager")` |
-| Run and archive an authored Change DAG | Change-DAG-Runner | `task(subagent_type="change-dag-runner")` |
 | Perform QA review | QA-Reviewer | `task(subagent_type="qa-reviewer")` |
 | Create or amend a Change DAG | Change-DAG-Author | `task(subagent_type="change-dag-author")` |
 | Root cause analysis on failures | Support-Debugger | `task(subagent_type="support-debugger")` |

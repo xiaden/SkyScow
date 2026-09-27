@@ -17,10 +17,10 @@ bounded live-repository discovery
 change-dag-author (constructs, lowers, reconciles, previews, validates)
         ↓
 observable independent-review trigger?
-   ├─ no → change-dag-runner: dag_start / dag_status
+   ├─ no → Nyx: dag_start / dag_status
    └─ yes → change-dag-reviewer (bounded external evidence)
-                    ↓
-                 PASS → change-dag-runner
+                     ↓
+                  PASS → Nyx lifecycle control
                  AMEND_REQUIRED → author correction → revalidate
         ↓
 independent post-change QA (separate lifecycle, not a DAG phase)
@@ -65,15 +65,15 @@ The orchestrator/controller selects `change-dag-reviewer` only when observable c
 
 Reviewer input includes the DAG slug, relevant node IDs/bounded scope, source context, a concrete review question, the observable trigger, and `review_kind` (`SEMANTIC`, `EXACT_WORK`, `DD_CONSISTENCY`, or `COMBINED`). The reviewer is read-only (`dag_show`, `dag_preview`, `dag_validate`). `PASS` means only that the requested scope found no material issue; it is not persisted DAG state, execution authorization, or a mandatory lifecycle transition. `AMEND_REQUIRED` returns a bounded finding to the mutable author; `DD_CONTRADICTION` and `NEEDS_DECISION` route upstream.
 
-## Runner and lifecycle boundary
+## Lifecycle boundary
 
-Authoring ends at a validated DAG; optional independent review is a controller-selected evidence step. Execution belongs to `change-dag-runner`:
+Authoring ends at a validated DAG; optional independent review is a controller-selected evidence step. Nyx owns lifecycle control through the four public tools; `dag_executor` performs deterministic execution:
 
 - `dag_start(slug, retry?)` launches or queues whole-DAG execution and returns `running` or `queued`.
 - `dag_status(slug?)` is the canonical completion poll until the DAG is `root_satisfied` or idle/not active. There is no durable `quiescent` state; a stopped DAG with failed/unresolved blockers is reported descriptively.
 - `dag_stop(slug)` stops a queued or running DAG; it is recovery, not rollback.
 - On successful root satisfaction the executor records inherited starting-worktree state, runs `git add -A`, and creates a local checkpoint commit. That checkpoint is not publication and is not a DAG `run` node.
-- `dag_archive(slug)` moves a pending bundle to completed when execution is complete (root satisfied; no failed or `in_progress` terminal nodes) and does not depend on QA.
+- `dag_archive(slug)` moves a pending bundle to completed when execution is complete (root satisfied; no failed or `in_progress` terminal nodes) and does not depend on QA. Load `change-dag-lifecycle` for the concise operating contract.
 
 ## DD lifecycle
 

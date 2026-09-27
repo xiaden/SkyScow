@@ -18,7 +18,7 @@ Before changing code:
 ## Phase 2: Route and author
 
 - For a genuinely local, low-risk correction with no contract or lifecycle impact, proceed with a bounded implementation through the **Direct / Bounded Edit Route** below.
-- For a correction spanning multiple layers, modules, state stores, or lifecycle boundaries, route through `Change-DAG-Author` and then `Change-DAG-Runner`. The author must create or amend a verifiable Change DAG; the runner must execute it to completion through the **Change DAG Route** below.
+- For a correction spanning multiple layers, modules, state stores, or lifecycle boundaries, route through `Change-DAG-Author`; after optional bounded review, Nyx owns lifecycle control through the **Change DAG Route** below. The author must create or amend a verifiable Change DAG.
 - For high-risk work, require the Change DAG's requirements to include security implications, failure/partial-operation behavior, concurrency considerations, rollback or recovery semantics, and restart/reload behavior where applicable.
 - If investigation reveals an architectural mismatch, unclear ownership, missing contract, migration requirement, contradictory ADR/ASR, or an unresolved requirement that cannot be safely implemented locally, stop and escalate to `RnD-Manager` or request user clarification. Do not silently choose an architectural shortcut.
 
@@ -54,7 +54,7 @@ Do not assume old file contents or overwrite concurrent fleet changes. Never use
 ### Change DAG Route
 
 - Do not manually stage or commit the DAG's implementation work.
-- `Change-DAG-Runner`/the deterministic executor owns the automatic successful-root checkpoint after `dag_start` captures the inherited starting worktree state and the DAG root becomes satisfied.
+- Nyx owns lifecycle control through `dag_start`/`dag_status`/`dag_stop`/`dag_archive`; the deterministic executor owns the automatic successful-root checkpoint after `dag_start` captures the inherited starting worktree state and the DAG root becomes satisfied.
 - The executor-owned checkpoint intentionally runs `git add -A` and is exempt from this command's normal selective-staging rule. It represents the actual repository state at DAG completion and may contain inherited dirty worktree state by design.
 - Do not stash, split, reconstruct, selectively stage, reset, or otherwise try to isolate DAG-originated hunks before the checkpoint. Do not amend or rewrite the executor checkpoint merely to make it correspond only to DAG-authored files.
 - Use the inherited starting-worktree evidence and `WORK_LOG` as provenance for distinguishing pre-existing state from DAG execution. The checkpoint is not publication and is not the final QA gate.

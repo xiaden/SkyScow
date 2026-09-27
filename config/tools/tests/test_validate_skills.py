@@ -51,9 +51,11 @@ class TestShippedSkills:
     def test_expected_skill_count(self):
         # 31 -> 29: the obsolete plan-authority skills
         # (making-and-using-task-plans, feature-execution) were intentionally
-        # removed with the Change DAG replacement. Pinning the exact count still
-        # catches accidental skill loss (or unplanned additions) in the shipped set.
-        assert len(list(SHIPPED_SKILLS.glob("*/SKILL.md"))) == 29
+        # removed with the Change DAG replacement. 29 -> 30: `change-dag-lifecycle`
+        # was added when Change-DAG-Runner was removed and Nyx took over lifecycle
+        # control. Pinning the exact count still catches accidental skill loss
+        # (or unplanned additions) in the shipped set.
+        assert len(list(SHIPPED_SKILLS.glob("*/SKILL.md"))) == 30
 
     def test_gg_core_and_gg_repos_descriptions_are_parseable(self):
         """The two skills this regression was filed against must load."""

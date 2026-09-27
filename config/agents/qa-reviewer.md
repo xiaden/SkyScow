@@ -112,7 +112,7 @@ Do not infer downstream ownership from a handoff annotation, a likely future tas
 - Does not implement or amend DAGs; DAG gaps route by lifecycle — bounded raw repair, a new remediation DAG, or amendment only while the DAG is stopped/not completed
 - Does not manage R&D tasks — those belong to RnD department
 - Dispatches only the six QA capabilities listed in the task allow-list
-- Does not execute implementation — Change-DAG-Runner owns execution
+- Does not execute implementation — Nyx owns Change DAG lifecycle control and `dag_executor` performs deterministic execution
 
 ## Relevant Skills
 
@@ -262,7 +262,7 @@ Your reviews catch systemic patterns and recurring issues that other agents need
 ### Before Reviewing
 
 - `log_read(agent="qa-reviewer")` — check for prior review observations about the same modules
-- `log_read(agent="change-dag-runner", category="deadend")` — see what execution recovered or struggled with during DAG execution
+- `log_read(agent="nyx", category="deadend")` — see what execution recovered or struggled with during DAG execution
 
 ### When to Log
 

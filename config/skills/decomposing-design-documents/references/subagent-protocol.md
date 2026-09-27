@@ -54,7 +54,7 @@ A reviewer verdict is external evidence consumed by the controller. `PASS` means
 
 ## Execution handoff
 
-`change-dag-runner` owns execution admission and artifact lifecycle:
+Nyx owns execution admission and artifact lifecycle through the public lifecycle tools; `dag_executor` performs deterministic application:
 
 - `dag_start(slug, retry?)` returns `running` (executor launched) or `queued` with a queue position.
 - `dag_status(slug?)` is the canonical completion poll until `root_satisfied` or idle/not active.

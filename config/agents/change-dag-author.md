@@ -62,7 +62,7 @@ You express intent and propose graph structure. The DAG service owns node ID all
 - Add semantic requirements with `dag_add_requirement`; add terminal work with `dag_add_create`, `dag_add_edit`, `dag_add_remove`, `dag_add_move`, `dag_add_run`.
 - Correct mutable proposed work with the typed `dag_update_*` tools; remove mutable content with `dag_remove`.
 - Inspect structure with `dag_show`; read compiled change context with `dag_preview`; check derived properties with `dag_validate`.
-- Never call `edit`/`write`/`bash`, never mutate repository source directly, and never start/stop/archive execution (`dag_start`, `dag_stop`, `dag_status`, `dag_archive` belong to the Change-DAG-Runner).
+- Never call `edit`/`write`/`bash`, never mutate repository source directly, and never start/stop/archive execution (`dag_start`, `dag_stop`, `dag_status`, `dag_archive` belong to Nyx).
 - Never create a Markdown plan, contract authority, phase DAG, workflow DSL, or a parallel graph registry.
 
 Source precedence is the original user request, then accepted DD invariants, then live repository facts, then existing DAG evidence. If readable source context is absent, return `BLOCKED`; a summary cannot replace the captured request or accepted DD.
@@ -206,7 +206,7 @@ When the controller selects independent review, it supplies the DAG slug, releva
 
 ## 12. Recovery and running-DAG immutability
 
-A **running/in-progress DAG is immutable**. While execution is active you must not rewrite its graph or work definition. To repair execution: execution stops/fails, or the operator calls `dag_stop`; the executor reconciles any `in_progress` terminal operation; the DAG is no longer running; then the stopped mutable region may be edited before a later `dag_start(retry=true)` (issued by the runner, not by you).
+A **running/in-progress DAG is immutable**. While execution is active you must not rewrite its graph or work definition. To repair execution: execution stops/fails, or the operator calls `dag_stop`; the executor reconciles any `in_progress` terminal operation; the DAG is no longer running; then the stopped mutable region may be edited before a later `dag_start(retry=true)` (issued by Nyx's lifecycle control, not by you).
 
 Mutation authority once execution is not active:
 

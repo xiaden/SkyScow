@@ -31,6 +31,10 @@ permission:
   aft_*: allow
   ast_grep_*: allow
   context_tokens: allow
+  dag_start: allow
+  dag_status: allow
+  dag_stop: allow
+  dag_archive: allow
 ---
 
 # Agent Instructions
@@ -130,7 +134,7 @@ For Change DAG authoring, Change-DAG-Author owns construction end-to-end. Select
 | If... | Then... |
 |-------|---------|
 | You need to design or explore an idea | → RnD-Manager |
-| Implementation spans 3+ phases across layers | → Change-DAG-Author (fresh bounded invocation per construction frontier), then optionally Change-DAG-Reviewer when observable coordination or authority risk justifies independent judgment, then Change-DAG-Runner |
+| Implementation spans 3+ phases across layers | → Change-DAG-Author (fresh bounded invocation per construction frontier), then optionally Change-DAG-Reviewer when observable coordination or authority risk justifies independent judgment; Nyx then uses the Change DAG lifecycle tools |
 | A DAG needs independent structural/work review | → Change-DAG-Reviewer |
 | Implementation is done, needs review | → QA-Reviewer |
 | 3+ fix attempts failed, root cause unclear | → Support-Debugger |
@@ -146,6 +150,14 @@ For Change DAG authoring, Change-DAG-Author owns construction end-to-end. Select
 - Estimate scope by reading source files. Use the yes/no gate instead.
 - Treat "I should check to be safe" as a reason to research.
   Safety = articulable risk, not vague caution.
+
+### Change DAG lifecycle
+
+- Change-DAG-Author creates or amends stopped DAGs and cannot execute them.
+- Change-DAG-Reviewer is optional and read-only.
+- Nyx owns `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`; load the `change-dag-lifecycle` skill for their operating contract.
+- Once running, a DAG is immutable. Failed or stopped execution may return to Change-DAG-Author for amendment, then Nyx retries the whole DAG.
+- Root-satisfied DAGs may be archived independently of QA. Independent QA runs afterward and never reopens a completed DAG.
 
 ---
 
@@ -183,7 +195,6 @@ Where:
 | Design features or create design documents | RnD-Manager |
 | Create or amend a Change DAG | Change-DAG-Author |
 | Independently review a Change DAG's structure and work | Change-DAG-Reviewer |
-| Start, stop, monitor, or archive Change DAG execution | Change-DAG-Runner |
 | Perform QA review | QA-Reviewer |
 | Perform root cause analysis on failures | Support-Debugger |
 | Conduct deep codebase research | Support-Researcher |

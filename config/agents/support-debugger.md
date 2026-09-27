@@ -250,7 +250,7 @@ Your diagnoses are critical institutional knowledge. Log everything — future d
 ### Before Diagnosing
 
 - `log_read(agent="support-debugger")` — check for prior diagnoses of similar symptoms
-- `log_read(agent="change-dag-runner", category="deadend")` — see what execution already tried
+- `log_read(agent="nyx", category="deadend")` — see what execution already tried
 - `log_read(category="blocker")` — check for known blockers
 
 ### When to Log
@@ -265,7 +265,7 @@ Your diagnoses are critical institutional knowledge. Log everything — future d
 
 **Always log your diagnosis**, even if it seems obvious. The next debugger may face the same symptom from a different angle.
 
-**DAG tag:** If diagnosing a failure during Change DAG execution, include the DAG slug as a tag (e.g., `tags=["TASK-myfeature-B-build-query-layer"]`). Root cause findings tagged to the DAG are visible to QA-Reviewer and Change-DAG-Runner when reviewing the same work.
+**DAG tag:** If diagnosing a failure during Change DAG execution, include the DAG slug as a tag (e.g., `tags=["TASK-myfeature-B-build-query-layer"]`). Root cause findings tagged to the DAG are visible to QA-Reviewer and the lifecycle controller when reviewing the same work.
 
 Log your agent name as `support-debugger`.
 
@@ -274,7 +274,7 @@ Log your agent name as `support-debugger`.
 `log_read` is scoped to:
 
 - Own logs (`support-debugger`)
-- Manager-level: `nyx`, `rnd-manager`, `change-dag-runner`
+- Manager-level: `nyx`, `rnd-manager`
 - Audit target: `change-dag-author`
 
 ## Verification

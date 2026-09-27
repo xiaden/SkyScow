@@ -39,7 +39,7 @@ Log durable knowledge only — entries a future agent (including yourself in lat
 
 ```python
 log_write(
-    agent="your-agent-name",  # e.g., "change-dag-runner", "qa-reviewer"
+    agent="your-agent-name",  # e.g., "nyx", "qa-reviewer"
     category="observation",   # or "discovery", "decision", "dead-end", "research", "blocker"
     message="Clear description of what happened",
     tags=["dag-slug", "module-name"]  # Required for durable entries: at least one tag
@@ -47,7 +47,7 @@ log_write(
 ```
 
 **Always include:**
-- `agent`: Your agent name (e.g., "change-dag-runner", "rnd-dd-author")
+- `agent`: Your agent name (e.g., "nyx", "rnd-dd-author")
 - `category`: One of the categories above
 - `message`: Clear, specific description
 - `tags`: At least one tag for durable entries — a Change DAG slug (e.g., "myfeature-change"), module name, or topic. The `log_write` schema may accept an empty list, but policy requires at least one tag on every durable entry so future agents can find it.

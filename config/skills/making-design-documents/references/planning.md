@@ -16,7 +16,7 @@ exact work (create / edit / remove / move / run) on terminal frontier
 artifacts/change-dags/pending/{slug}/DAG.json
 ```
 
-`change-dag-runner` performs execution admission and artifact lifecycle after authoring. Execution state and work evidence live in `EXECUTION_STATE.json` and `WORK_LOG.jsonl`; they are not design artifacts.
+Nyx performs execution admission and artifact lifecycle (through `dag_start`/`dag_status`/`dag_stop`/`dag_archive`) after authoring; `dag_executor` applies the DAG deterministically. Execution state and work evidence live in `EXECUTION_STATE.json` and `WORK_LOG.jsonl`; they are not design artifacts.
 
 ## Method
 

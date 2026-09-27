@@ -40,7 +40,6 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 |-------|-----------|---------|
 | change-dag-author | Change DAG author | Creates/amends one Change DAG — semantic decomposition, exact work, patch visibility; never writes source |
 | change-dag-reviewer | Dynamically selected read-only reviewer | Bounded semantic/work/conflict/run-barrier/DD-consistency judgment when an observable trigger exists; external evidence only, stored nowhere in DAG state |
-| change-dag-runner | Change DAG execution control | Starts/stops/monitors execution, reconciles queue/marker/lock, checkpoints a successful completion, and archives a completed DAG |
 
 ### QA Department
 
@@ -65,7 +64,7 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 ### Dependency-ordered execution
 ```
-rnd-manager → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → change-dag-author → [optional change-dag-reviewer when an observable trigger exists] → change-dag-runner → independent QA (qa-reviewer)
+rnd-manager → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → change-dag-author → [optional change-dag-reviewer when an observable trigger exists] → Nyx Change DAG lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
 ```
 Use when: Later tasks depend on earlier results. The Manager selects the smallest
 sufficient graph; independent Librarian/Researcher work may run concurrently.
@@ -139,14 +138,14 @@ The Manager records the observed condition, selected and skipped capabilities, d
 
 The orchestrator/controller records the observed condition, selected and skipped capabilities,
 dependencies/concurrency, outcome, re-entry, and terminal reason in its existing
-routing trace; the Runner records execution facts in its existing execution trace.
+routing trace; Nyx uses the lifecycle tools while `dag_executor` records execution facts.
 These examples preserve static authority; they are not a registry or state-machine DSL:
 
 - **A — Straightforward DAG:** author/validate `DAG.json` and route directly to execution; skip reviewer and support capabilities without observable triggers. Mechanical `dag_start` admission and normal independent QA still apply.
 - **B — Independent branches:** multiple independent DAG nodes do not trigger review by count; execution is serialized by the single-DAG lock and runs in dependency order.
-- **C — Coupled producer/consumer:** select the change-dag-reviewer for a real cross-node contract, shared semantic convergence, incompatible proposals, shared write/schema/migration/registry, nontrivial ordering, DD ambiguity, recovery amendment, or explicit user request. The review receives a bounded scope/question and `review_kind`; PASS is evidence only, not execution authorization. The controller may route to the Runner after PASS or directly when no review is selected.
+- **C — Coupled producer/consumer:** select the change-dag-reviewer for a real cross-node contract, shared semantic convergence, incompatible proposals, shared write/schema/migration/registry, nontrivial ordering, DD ambiguity, recovery amendment, or explicit user request. The review receives a bounded scope/question and `review_kind`; PASS is evidence only, not execution authorization. The controller may start lifecycle execution after PASS or directly when no review is selected.
 - **D — Obvious node defect:** apply a bounded raw edit directly, or author a remediation DAG when the defect is substantial; do not invoke Debugger.
-- **E — Unclear node failure:** select Support-Debugger; route `SIMPLE` to a bounded raw edit, `NEEDS_DAG` to Change-DAG-Author for a DAG amendment and re-execution, and `INCONCLUSIVE` to escalation.
+- **E — Unclear node failure:** select Support-Debugger; route `SIMPLE` to a bounded raw edit, `NEEDS_DAG` to Change-DAG-Author for a DAG amendment and lifecycle retry, and `INCONCLUSIVE` to escalation.
 - **F — QA `DAG_GAP`:** route by lifecycle. If the original DAG is still executing/recovering and not completed, amend it via Change-DAG-Author and re-run, then run normal QA again. If it is already completed, never reopen it: route a small/local gap to a bounded raw repair, or a substantial/cross-cutting gap to a NEW remediation Change DAG, then run normal QA again. A completed DAG is never amended; a `DAG_GAP` is never blindly forced into a raw edit.
 - **G — Accepted migration:** select PatternEnforcer only for accepted impact closure or migration scope; findings remain advisory and scope changes return to Change-DAG-Author.
 - **H — Historical artifacts:** select Support-Librarian only when ADRs, DDs, logs, or dead ends materially constrain DAG creation/routing; record a skip otherwise.
