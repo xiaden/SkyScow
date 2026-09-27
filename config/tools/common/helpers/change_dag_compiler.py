@@ -7,9 +7,11 @@ the atomic per-file primitive in :mod:`change_dag_patch`.
 
 Graph semantics are single-sourced from :mod:`change_dag`
 (``execution_order``, ``derived_satisfaction``, reachability, node typing).
-Failure is branch-local: a mechanical node is only *blocked* when a sibling
-subtree has actually failed, which prevents harmless pending/unresolved
-branches from stalling independent work.
+Failure is branch-local: a node is blocked only by a failure in a requirement
+it actually depends on. A ``run`` node is ordered after its sibling
+requirements under each direct semantic parent, so a failed sibling subtree
+blocks it; sibling subtrees under a shared ancestor are independent branches
+and never poison unrelated work.
 """
 from __future__ import annotations
 
@@ -116,18 +118,34 @@ def _subtree_failed(dag: Any, state: dict[str, str], node_id: str) -> bool:
     return resolve(node_id)
 
 
+def _semantic_parents(dag: Any, node_id: str) -> list[str]:
+    """Direct semantic parents of ``node_id`` -- the nodes that require it."""
+    return [
+        candidate
+        for candidate, node in change_dag.node_map(dag).items()
+        if node.get("type") == change_dag.SEMANTIC_TYPE
+        and node_id in change_dag.direct_children(dag, candidate)
+    ]
+
+
 def _blocked_reason(dag: Any, state: dict[str, str], node_id: str) -> str | None:
-    """Return a branch-local blocked reason, or ``None`` when progressable."""
-    ancestors = change_dag.ancestor_map(dag).get(node_id, set())
-    path_set = set(ancestors) | {node_id}
-    for ancestor in sorted(ancestors, key=change_dag._numeric_id):
-        if change_dag.node_type(dag, ancestor) != change_dag.SEMANTIC_TYPE:
-            continue
-        for sibling in change_dag.direct_children(dag, ancestor):
-            if sibling in path_set:
+    """Return a branch-local failure reason, or ``None`` when progressable.
+
+    Failure is branch-local: a node is blocked only by a failure on a semantic
+    requirement path it actually depends on. A ``run`` node waits for the *other*
+    requirements of each direct semantic parent, so a failure in one of those
+    sibling subtrees genuinely blocks it. A mechanical node has no such
+    dependency -- a sibling subtree under a shared ancestor is an independent
+    branch -- so nothing here blocks it.
+    """
+    if change_dag.node_type(dag, node_id) != "run":
+        return None
+    for parent in _semantic_parents(dag, node_id):
+        for sibling in change_dag.direct_children(dag, parent):
+            if sibling == node_id:
                 continue
             if _subtree_failed(dag, state, sibling):
-                return f"ancestor {ancestor} has failed sibling branch {sibling}"
+                return f"required sibling branch {sibling} of {parent} failed"
     return None
 
 
@@ -199,10 +217,9 @@ def _actionable_mechanical(dag: Any, state: dict[str, str]) -> tuple[list[str], 
         if barrier is not None:
             blocked.append(Blocked(node_id=node_id, reason=f"blocked by unsatisfied run barrier {barrier}"))
             continue
-        reason = _blocked_reason(dag, state, node_id)
-        if reason is not None:
-            blocked.append(Blocked(node_id=node_id, reason=reason))
-            continue
+        # Mechanical work has no failure requirement: a sibling subtree under a
+        # shared ancestor is an independent branch. Only run nodes are blocked by
+        # a failure in a requirement they actually depend on.
         actionable.append(node_id)
     return actionable, blocked
 
@@ -490,7 +507,6 @@ def ready_run_nodes(dag: dict, state: dict, workspace_root: Path) -> list[str]:
     effective_state = state if isinstance(state, dict) else {}
     satisfaction = change_dag.derived_satisfaction(dag, effective_state)
     reachable = change_dag.reachable_from_root(dag)
-    nodes_map = change_dag.node_map(dag)
     ready: list[str] = []
     for node_id in change_dag.execution_order(dag):
         if node_id not in reachable or change_dag.node_type(dag, node_id) != "run":
@@ -499,12 +515,7 @@ def ready_run_nodes(dag: dict, state: dict, workspace_root: Path) -> list[str]:
             continue
         if effective_state.get(node_id) == "failed":
             continue
-        parents = [
-            candidate
-            for candidate, node in nodes_map.items()
-            if change_dag.node_type(dag, candidate) == change_dag.SEMANTIC_TYPE
-            and node_id in change_dag.direct_children(dag, candidate)
-        ]
+        parents = _semantic_parents(dag, node_id)
         if not parents:
             continue
         all_requirements_met = True
