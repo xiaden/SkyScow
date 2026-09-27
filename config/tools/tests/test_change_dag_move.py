@@ -23,7 +23,17 @@ from common.tools import dag_executor
 
 
 def _dag(root: Path, slug: str = "move") -> dict:
-    result = create_dag(root, slug, {"root": "root", "nodes": {"root": {"requirement": "move"}}})
+    result = create_dag(
+        root,
+        slug,
+        {
+            "root": "root",
+            "nodes": {
+                "root": {"requirement": "move", "requires": ["semantic"]},
+                "semantic": {"requirement": "move work"},
+            },
+        },
+    )
     assert "error" not in result
     return change_dag.read_dag(root, slug)[0]
 
@@ -68,22 +78,23 @@ def _interrupted(root: Path, *, overwrite: bool, source: str | None, destination
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "move", "requires": ["N2"]},
-            "N2": {"type": "move", "from_path": "old.txt", "to_path": "new.txt", "overwrite": overwrite},
+            "N1": {"type": "semantic", "requirement": "move", "requires": ["N2"], "decomposition_only": True},
+            "N2": {"type": "semantic", "requirement": "move work", "requires": ["N3"]},
+            "N3": {"type": "move", "from_path": "old.txt", "to_path": "new.txt", "overwrite": overwrite},
         },
     }
-    _bundle(root, "interrupted", dag, {"N2": "in_progress"})
+    _bundle(root, "interrupted", dag, {"N3": "in_progress"})
     if source is not None:
         _write(root, "old.txt", source)
     if destination is not None:
         _write(root, "new.txt", destination)
     fingerprint = _recorded_fingerprint(root, SOURCE_TEXT) if recorded else None
     state_helper.append_work_log(root, "interrupted", state_helper.log_move_start(
-        ["N2"], from_path="old.txt", to_path="new.txt", overwrite=overwrite,
+        ["N3"], from_path="old.txt", to_path="new.txt", overwrite=overwrite,
         source_fingerprint=fingerprint,
     ))
     dag_executor.reconcile_interrupted(root, "interrupted")
-    return state_helper.read_state(root, "interrupted")["N2"]
+    return state_helper.read_state(root, "interrupted")["N3"]
 
 
 def test_non_overwrite_move_uses_native_rename_and_preserves_content(tmp_path: Path):
@@ -149,15 +160,15 @@ def test_schema_and_typed_authoring_default_and_validate_overwrite(tmp_path: Pat
     root = tmp_path / "workspace"
     root.mkdir()
     _dag(root)
-    added = add_work(root, "move", "move", ["N1"], from_path="old.txt", to_path="new.txt")
+    added = add_work(root, "move", "move", ["N2"], from_path="old.txt", to_path="new.txt")
     assert "error" not in added
     dag = change_dag.read_dag(root, "move")[0]
-    assert dag["nodes"]["N2"]["overwrite"] is False
+    assert dag["nodes"]["N3"]["overwrite"] is False
     assert change_dag.validate_dag(dag) == []
-    updated = update_node(root, "move", "N2", overwrite=True)
+    updated = update_node(root, "move", "N3", overwrite=True)
     assert "error" not in updated
-    assert change_dag.read_dag(root, "move")[0]["nodes"]["N2"]["overwrite"] is True
-    rejected = update_node(root, "move", "N2", overwrite="yes")
+    assert change_dag.read_dag(root, "move")[0]["nodes"]["N3"]["overwrite"] is True
+    rejected = update_node(root, "move", "N3", overwrite="yes")
     assert rejected["error"] == "invalid_field"
 
 
@@ -166,12 +177,12 @@ def test_preview_scopes_move_by_both_paths_and_keeps_node_scope(tmp_path: Path):
     root.mkdir()
     _dag(root)
     _write(root, "old.txt", "source\n")
-    add_work(root, "move", "move", ["N1"], from_path="old.txt", to_path="new.txt", overwrite=True)
+    add_work(root, "move", "move", ["N2"], from_path="old.txt", to_path="new.txt", overwrite=True)
 
     whole = json.loads(preview(root, "move")["output"])
     assert len(whole["ops"]) == 1
     assert whole["ops"][0] == {
-        "nodes": ["N2"],
+        "nodes": ["N3"],
         "op": "move",
         "path": "old.txt",
         "from_path": "old.txt",
@@ -188,18 +199,18 @@ def test_preview_scopes_move_by_both_paths_and_keeps_node_scope(tmp_path: Path):
     unrelated = json.loads(preview(root, "move", path="other.txt")["output"])
     assert unrelated["ops"] == []
 
-    node_scoped = json.loads(preview(root, "move", node_id="N2")["output"])
+    node_scoped = json.loads(preview(root, "move", node_id="N3")["output"])
     assert node_scoped["mode"] == "node"
     assert node_scoped["ops"] == [whole["ops"][0]]
 
 
 def test_move_work_log_evidence_includes_paths_overwrite_and_result():
     success = state_helper.log_file_operation(
-        ["N2"], "move", path="old.txt", from_path="old.txt", to_path="new.txt",
+        ["N3"], "move", path="old.txt", from_path="old.txt", to_path="new.txt",
         overwrite=True, result="success",
     )
     failure = state_helper.log_file_operation(
-        ["N2"], "move", path="old.txt", from_path="old.txt", to_path="new.txt",
+        ["N3"], "move", path="old.txt", from_path="old.txt", to_path="new.txt",
         overwrite=False, result="failure", detail="EXDEV",
     )
     for entry, overwrite, result in ((success, True, "success"), (failure, False, "failure")):
@@ -228,8 +239,9 @@ def _move_dag(*, overwrite: bool) -> dict:
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "move", "requires": ["N2"]},
-            "N2": {"type": "move", "from_path": "old.txt", "to_path": "new.txt", "overwrite": overwrite},
+            "N1": {"type": "semantic", "requirement": "move", "requires": ["N2"], "decomposition_only": True},
+            "N2": {"type": "semantic", "requirement": "move work", "requires": ["N3"]},
+            "N3": {"type": "move", "from_path": "old.txt", "to_path": "new.txt", "overwrite": overwrite},
         },
     }
 

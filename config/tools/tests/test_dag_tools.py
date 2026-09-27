@@ -227,19 +227,22 @@ def test_remove_node_gcs_mutable_unreachable_descendants(workspace):
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "r", "requires": ["mid"]},
+                "root": {"requirement": "r", "requires": ["mid", "other"]},
                 "mid": {"requirement": "m", "requires": ["leaf"]},
+                "other": {"requirement": "o"},
                 "leaf": {"requirement": "l"},
             },
         },
     )
+    # BFS canonical IDs: root=N1, mid=N2, other=N3, leaf=N4. Removing mid leaves
+    # the root a valid semantic child (other) and GCs the unreachable leaf.
     result = remove_node(workspace, "demo", "N2")
     payload = _payload(result)
-    assert payload["removed"] == ["N2", "N3"]
-    assert payload["gc"] == ["N3"]
+    assert payload["removed"] == ["N2", "N4"]
+    assert payload["gc"] == ["N4"]
     dag = read_json(dag_json_path(workspace, "demo"))
-    assert set(dag["nodes"]) == {"N1"}
-    assert "requires" not in dag["nodes"]["N1"]
+    assert set(dag["nodes"]) == {"N1", "N3"}
+    assert dag["nodes"]["N1"]["requires"] == ["N3"]
 
 
 def test_remove_node_rejects_root(workspace):
@@ -296,10 +299,17 @@ def test_validate_resolved_true_when_every_semantic_node_locally_resolved(worksp
     create_dag(
         workspace,
         "demo",
-        {"root": "root", "nodes": {"root": {"requirement": "r"}}},
+        {
+            "root": "root",
+            "nodes": {
+                "root": {"requirement": "r", "requires": ["impl"]},
+                "impl": {"requirement": "impl"},
+            },
+        },
     )
-    # The root directly requires terminal work, so it is locally resolved.
-    add_work(workspace, "demo", "create", ["N1"], path="new.txt", content="x\n")
+    # BFS: root=N1, impl=N2. The root decomposes into a semantic child, and impl
+    # directly requires terminal work, so every semantic node is locally resolved.
+    add_work(workspace, "demo", "create", ["N2"], path="new.txt", content="x\n")
     payload = _payload(validate(workspace, "demo"))
     assert payload["schema_valid"] is True
     assert payload["executable"] is True
@@ -318,15 +328,15 @@ def test_dag_status_reports_unresolved_semantic_nodes(workspace):
             },
         },
     )
-    # BFS: root=N1, deferred=N2. Neither semantic node is locally resolved.
+    # BFS: root=N1, deferred=N2. The root is always decomposition_only, so it is
+    # locally resolved; only the deferred semantic leaf is unresolved.
     payload = dag_status("demo", workspace_root=workspace)
-    assert payload["unresolved_semantic_nodes"] == ["N1", "N2"]
+    assert payload["unresolved_semantic_nodes"] == ["N2"]
 
     add_work(workspace, "demo", "create", ["N2"], path="new.txt", content="x\n")
     payload = dag_status("demo", workspace_root=workspace)
-    # N2 now directly requires terminal work; N1 still has only an unresolved
-    # semantic child and no decomposition flag.
-    assert payload["unresolved_semantic_nodes"] == ["N1"]
+    # N2 now directly requires terminal work, so every semantic node is resolved.
+    assert payload["unresolved_semantic_nodes"] == []
 
 
 # ---------------------------------------------------------------------------
@@ -350,7 +360,13 @@ def test_mutations_rejected_while_dag_running(workspace):
     created = create_dag(
         workspace,
         "other",
-        {"root": "root", "nodes": {"root": {"requirement": "ok"}}},
+        {
+            "root": "root",
+            "nodes": {
+                "root": {"requirement": "ok", "requires": ["child"]},
+                "child": {"requirement": "child"},
+            },
+        },
     )
     assert created.get("output") is not None
 
@@ -594,3 +610,49 @@ def test_dag_set_decomposition_only_tool_module_delegates_to_ops(workspace):
     payload = _payload(dag_set_decomposition_only("demo", "N2", True, workspace_root=workspace))
     assert payload["node_id"] == "N2"
     assert payload["decomposition_only"] is True
+
+
+# ---------------------------------------------------------------------------
+# Root invariant: creation, immutability, and non-root behavior
+# ---------------------------------------------------------------------------
+def test_create_dag_persists_root_decomposition_only(workspace):
+    _two_node_dag(workspace)
+    dag = read_json(dag_json_path(workspace, "demo"))
+    assert dag["root"] == "N1"
+    assert dag["nodes"]["N1"]["type"] == "semantic"
+    assert dag["nodes"]["N1"]["decomposition_only"] is True
+    # Callers never supply it; the service sets it at creation time. Non-root
+    # semantic nodes do not receive it.
+    assert "decomposition_only" not in dag["nodes"]["N2"]
+
+
+def test_create_dag_rejects_semantic_root_without_requires(workspace):
+    result = create_dag(
+        workspace,
+        "leafroot",
+        {"root": "r", "nodes": {"r": {"requirement": "root"}}},
+    )
+    assert result["error"] == "invalid_semantic_graph"
+    assert any(
+        "root must directly require at least one semantic child" in message
+        for message in result["errors"]
+    )
+    assert not dag_json_path(workspace, "leafroot").exists()
+
+
+def test_set_decomposition_only_rejects_root_true_and_false(workspace):
+    _two_node_dag(workspace)
+    for value in (True, False):
+        result = set_decomposition_only(workspace, "demo", "N1", value)
+        assert result["error"] == "root_immutable"
+    dag = read_json(dag_json_path(workspace, "demo"))
+    assert dag["nodes"]["N1"]["decomposition_only"] is True
+
+
+def test_add_requirement_non_root_semantic_has_no_decomposition_flag(workspace):
+    _two_node_dag(workspace)
+    added = add_requirement(workspace, "demo", "child", ["N2"])
+    node_id = _payload(added)["node_id"]
+    dag = read_json(dag_json_path(workspace, "demo"))
+    assert dag["nodes"][node_id]["type"] == "semantic"
+    assert "decomposition_only" not in dag["nodes"][node_id]

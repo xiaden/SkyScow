@@ -31,7 +31,9 @@ from common.helpers.change_dag_ops_views import preview
 # Builders
 # ---------------------------------------------------------------------------
 def dag_with(nodes, root="N1", slug="demo"):
-    return {"slug": slug, "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
+    rooted_nodes = dict(nodes)
+    rooted_nodes[root] = {**rooted_nodes[root], "decomposition_only": True}
+    return {"slug": slug, "anchor_commit": "a" * 40, "root": root, "nodes": rooted_nodes}
 
 
 def semantic(requirement="r", requires=None):
@@ -191,17 +193,17 @@ def test_plain_spellings_are_unchanged(tmp_path):
 
 def test_authoring_boundary_canonicalizes_and_rejects(tmp_path):
     root = workspace(tmp_path)
-    assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root"}}}
+    assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root", "requires": ["semantic"]}, "semantic": {"requirement": "authoring"}}}
                       ).get("error") is None
 
-    assert add_work(root, "identity", "edit", ["N1"], path="./src/../foo.py",
+    assert add_work(root, "identity", "edit", ["N2"], path="./src/../foo.py",
                     patch=patch("foo.py", "a", "b")).get("error") is None
     dag, _path, _location = change_dag.read_dag(root, "identity")
-    assert change_dag.node_map(dag)["N2"]["path"] == "foo.py"
+    assert change_dag.node_map(dag)["N3"]["path"] == "foo.py"
 
     before = dict(change_dag.node_map(dag))
     for bad in ("/etc/passwd", "../escape.py", "a\\b.py", "~/.bashrc", "dir/"):
-        rejected = add_work(root, "identity", "create", ["N1"], path=bad, content="x\n")
+        rejected = add_work(root, "identity", "create", ["N2"], path=bad, content="x\n")
         assert rejected["error"] == "invalid_path", bad
         assert rejected["message"].startswith("path: "), bad
     dag, _path, _location = change_dag.read_dag(root, "identity")
@@ -210,18 +212,18 @@ def test_authoring_boundary_canonicalizes_and_rejects(tmp_path):
 
 def test_update_node_canonicalizes_and_rejects_unusable_paths(tmp_path):
     root = workspace(tmp_path, **{"x.py": "a\n"})
-    assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root"}}}
+    assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root", "requires": ["semantic"]}, "semantic": {"requirement": "authoring"}}}
                       ).get("error") is None
-    assert add_work(root, "identity", "edit", ["N1"], path="x.py",
+    assert add_work(root, "identity", "edit", ["N2"], path="x.py",
                     patch=patch("x.py", "a", "b")).get("error") is None
 
-    rejected = update_node(root, "identity", "N2", path="../escape.py")
+    rejected = update_node(root, "identity", "N3", path="../escape.py")
     assert rejected["error"] == "invalid_path"
 
-    updated = update_node(root, "identity", "N2", path="./pkg/../y.py")
+    updated = update_node(root, "identity", "N3", path="./pkg/../y.py")
     assert updated.get("error") is None
     dag, _path, _location = change_dag.read_dag(root, "identity")
-    assert change_dag.node_map(dag)["N2"]["path"] == "y.py"
+    assert change_dag.node_map(dag)["N3"]["path"] == "y.py"
 
 
 def test_structure_validation_flags_unusable_paths(tmp_path):
@@ -255,14 +257,14 @@ def test_compiler_reports_unusable_path_without_splitting_identity(tmp_path):
 # ---------------------------------------------------------------------------
 def test_preview_uses_canonical_identity_and_does_not_duplicate(tmp_path):
     root = workspace(tmp_path, **{"foo.py": "a\nb\n"})
-    assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root"}}}
+    assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root", "requires": ["semantic"]}, "semantic": {"requirement": "authoring"}}}
                       ).get("error") is None
-    add_work(root, "identity", "edit", ["N1"], path="foo.py", patch=patch("foo.py", "a", "A"))
-    add_work(root, "identity", "edit", ["N1"], path="./foo.py", patch=patch("./foo.py", "b", "B", line=2))
+    add_work(root, "identity", "edit", ["N2"], path="foo.py", patch=patch("foo.py", "a", "A"))
+    add_work(root, "identity", "edit", ["N2"], path="./foo.py", patch=patch("./foo.py", "b", "B", line=2))
 
     payload = json.loads(preview(root, "identity")["output"])
     assert [op["path"] for op in payload["ops"]] == ["foo.py"]
-    assert set(payload["ops"][0]["nodes"]) == {"N2", "N3"}
+    assert set(payload["ops"][0]["nodes"]) == {"N3", "N4"}
     assert payload["conflicts"] == []
     assert payload["executable"] is True
 

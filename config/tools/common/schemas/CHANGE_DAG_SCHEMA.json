@@ -20,7 +20,8 @@
     },
     "root": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Node id of the root semantic node. The root is always a decomposition-only semantic node: it directly requires at least one semantic child and never directly requires terminal work. The service sets decomposition_only=true on the root at creation; callers never supply it."
     },
     "nodes": {
       "type": "object",
@@ -54,7 +55,7 @@
               },
               "decomposition_only": {
                 "type": "boolean",
-                "description": "Persisted authoring intent, not runtime state. When true, this semantic requirement intentionally owns no direct terminal work: its obligation is fully decomposed into the semantic requirements it directly 'requires'. It may only be set true on a semantic node that directly requires at least one child, and every direct child must be semantic. Runtime satisfaction still derives only from the satisfaction of 'requires' children; this field never affects execution. Absent or false preserves all existing child structures and run-barrier rules. Only a bounded worker that has investigated the requirement may set it, through dag_set_decomposition_only."
+                "description": "Persisted authoring intent, not runtime state. When true, this semantic requirement intentionally owns no direct terminal work: its obligation is fully decomposed into the semantic requirements it directly 'requires'. It may only be set true on a semantic node that directly requires at least one child, and every direct child must be semantic. Runtime satisfaction still derives only from the satisfaction of 'requires' children; this field never affects execution. Absent or false preserves all existing child structures and run-barrier rules. Only a bounded worker that has investigated the requirement may set it, through dag_set_decomposition_only. The root node is always true and is set automatically by dag_create; the root is immutable and can never be changed through dag_set_decomposition_only."
               }
             }
           },
@@ -176,5 +177,5 @@
       }
     }
   },
-  "$comment": "The Change DAG validator enforces invariants beyond JSON shape: requires is the only ALL-of graph edge; root, reachability, acyclicity, shared-descendant identity, derived depth, and run-child constraints are validated; anchor_commit is provenance only; unresolved semantic nodes are valid but unsatisfied."
+  "$comment": "The Change DAG validator enforces invariants beyond JSON shape: requires is the only ALL-of graph edge; the root is always a decomposition-only semantic node that requires only semantic children; reachability, acyclicity, shared-descendant identity, derived depth, and run-child constraints are validated; anchor_commit is provenance only; unresolved semantic nodes are valid but unsatisfied."
 }

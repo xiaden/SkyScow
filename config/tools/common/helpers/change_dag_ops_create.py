@@ -107,6 +107,13 @@ def _validate_semantic_graph(semantic_graph: Any) -> tuple[list[str], list[str]]
         errors.append(f"root handle does not resolve: {root!r}")
         return errors, []
 
+    # The root always decomposes into semantic requirements only. The canonical
+    # root invariant is re-checked on the built DAG by change_dag.validate_dag;
+    # this catches a root that supplies no children at all.
+    root_refs = nodes[root].get("requires")
+    if not isinstance(root_refs, list) or not root_refs:
+        errors.append("root must directly require at least one semantic child")
+
     reachable = set(_bfs_order(root, nodes))
     for handle in nodes:
         if handle not in reachable:
@@ -156,6 +163,10 @@ def create_dag(workspace_root: Path, slug: str, semantic_graph: Any) -> dict[str
         refs = node.get("requires")
         if refs:
             entry["requires"] = [handles[ref] for ref in refs]
+        if handle == root_handle:
+            # The root is always decomposition-only. The service sets it here;
+            # callers never supply it in the semantic graph.
+            entry["decomposition_only"] = True
         built[handles[handle]] = entry
 
     dag = {"slug": slug, "anchor_commit": anchor, "root": handles[root_handle], "nodes": built}

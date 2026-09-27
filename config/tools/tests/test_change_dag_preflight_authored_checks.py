@@ -23,6 +23,8 @@ def patch(path: str, old: str = "a", new: str = "b") -> str:
 
 
 def dag(nodes: dict) -> dict:
+    # The root is always decomposition_only; fixtures only supply the graph.
+    nodes.setdefault("N1", {}).setdefault("decomposition_only", True)
     return {"slug": "preflight", "anchor_commit": "a" * 40, "root": "N1", "nodes": nodes}
 
 

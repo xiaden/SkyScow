@@ -33,6 +33,8 @@ from common.tools.dag_executor import run_execution  # noqa: E402
 # Builders (mirrors test_change_dag_whole_dag_preflight.py)
 # ---------------------------------------------------------------------------
 def dag_with(nodes: dict, root: str = "N1", slug: str = "demo") -> dict:
+    # The root is always decomposition_only; fixtures only supply the graph.
+    nodes.setdefault(root, {}).setdefault("decomposition_only", True)
     return {"slug": slug, "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
 
 

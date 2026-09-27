@@ -70,8 +70,12 @@ def make_repo(tmp_path: Path) -> Path:
 
 
 def write_dag(root: Path, slug: str, command: list[str] | None = None) -> None:
+    # The root is immutable, decomposition-only, and may only directly require
+    # semantic children. A semantic layer (N5) sits between the root and the
+    # terminal work so N1 -> N5 -> [create N2, semantic N3 -> run N4].
     nodes = {
-        "N1": {"type": "semantic", "requirement": "complete", "requires": ["N2", "N3"]},
+        "N1": {"type": "semantic", "requirement": "complete", "requires": ["N5"], "decomposition_only": True},
+        "N5": {"type": "semantic", "requirement": "decomposed", "requires": ["N2", "N3"]},
         "N2": {"type": "create", "path": "created.txt", "content": "created\n"},
         "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"]},
         "N4": {"type": "run", "command": command or ["python3", "-m", "compileall", "-q", "."]},
@@ -197,7 +201,10 @@ def test_dag_start_rejects_non_executable_dag(tmp_path: Path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N2", "N3"]},
+            # Structurally valid root so the refusal reason is the authored
+            # defect below (two creates for one path), not root invalidity.
+            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N4"], "decomposition_only": True},
+            "N4": {"type": "semantic", "requirement": "two files that conflict", "requires": ["N2", "N3"]},
             "N2": {"type": "create", "path": "dup.txt", "content": "one\n"},
             "N3": {"type": "create", "path": "dup.txt", "content": "two\n"},
         },
@@ -279,7 +286,8 @@ def test_unapplied_edit_terminates_and_records_failure_once(tmp_path: Path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "root", "requires": ["N2"]},
+            "N1": {"type": "semantic", "requirement": "root", "requires": ["N3"], "decomposition_only": True},
+            "N3": {"type": "semantic", "requirement": "apply the edit", "requires": ["N2"]},
             "N2": {"type": "edit", "path": "f.txt", "patch": "--- a/f.txt\n+++ b/f.txt\n@@ -1,1 +1,1 @@\n-goodbye\n+hi\n"},
         },
     })
@@ -449,7 +457,8 @@ def test_stop_starts_next_queued_dag(tmp_path: Path, nested_pytest_on_path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N2", "N3"]},
+            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N5"], "decomposition_only": True},
+            "N5": {"type": "semantic", "requirement": "decomposed", "requires": ["N2", "N3"]},
             "N2": {"type": "create", "path": "beta.txt", "content": "beta\n"},
             "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"]},
             "N4": {"type": "run", "command": ["python3", "-m", "compileall", "-q", "."]},
@@ -520,7 +529,8 @@ def test_successor_launch_holds_lock_and_never_double_launches(tmp_path: Path, n
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N2", "N3"]},
+            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N5"], "decomposition_only": True},
+            "N5": {"type": "semantic", "requirement": "decomposed", "requires": ["N2", "N3"]},
             "N2": {"type": "create", "path": "gamma.txt", "content": "gamma\n"},
             "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"]},
             "N4": {"type": "run", "command": ["python3", "-m", "compileall", "-q", "."]},

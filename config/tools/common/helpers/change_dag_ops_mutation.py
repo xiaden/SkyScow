@@ -374,6 +374,11 @@ def set_decomposition_only(
         return err
     assert dag is not None
 
+    if node_id == dag.get("root"):
+        return _error(
+            "root_immutable",
+            "the root node is immutable; it is always decomposition_only",
+        )
     nodes = change_dag.node_map(dag)
     if node_id not in nodes:
         return _error("unknown_node", f"node not found: {node_id}")

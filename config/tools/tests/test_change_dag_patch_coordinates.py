@@ -38,8 +38,19 @@ def edit(path: str, patch_text: str) -> dict:
 
 
 def single_edit_dag(patch_text: str, node_id: str = "N2") -> dict:
+    # The root may only require semantic children: N5 is the semantic
+    # implementation requirement whose terminal edit is ``node_id``.
     return dag_with(
-        {"N1": semantic("root", [node_id]), node_id: edit("f.txt", patch_text)}
+        {
+            "N1": {
+                "type": "semantic",
+                "requirement": "root",
+                "requires": ["N5"],
+                "decomposition_only": True,
+            },
+            "N5": semantic("implementation", [node_id]),
+            node_id: edit("f.txt", patch_text),
+        }
     )
 
 

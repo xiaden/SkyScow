@@ -142,11 +142,17 @@ def test_resolved_dag_tool_reports_no_frontier(workspace):
     create_dag(
         workspace,
         "demo",
-        {"root": "root", "nodes": {"root": {"requirement": "root"}}},
+        {
+            "root": "root",
+            "nodes": {
+                "root": {"requirement": "root", "requires": ["impl"]},
+                "impl": {"requirement": "impl"},
+            },
+        },
     )
     from common.helpers.change_dag_ops_mutation import add_work
 
-    add_work(workspace, "demo", "create", ["N1"], path="new.txt", content="x\n")
+    add_work(workspace, "demo", "create", ["N2"], path="new.txt", content="x\n")
 
     assert _payload(dag_decomposition_frontier("demo", workspace_root=workspace)) == {
         "resolved": True,

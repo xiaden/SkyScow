@@ -412,6 +412,40 @@ def decomposition_only_errors(dag: Any) -> list[str]:
     return errors
 
 
+def root_invariant_errors(dag: Any) -> list[str]:
+    """The root semantic node never owns direct terminal work.
+
+    The root is the overall intent and always decomposes into semantic
+    requirements only: it must carry ``decomposition_only=true``, directly
+    require at least one child, and every direct child must be semantic. This is
+    an explicit root-specific invariant. The generic
+    :func:`decomposition_only_errors` rule only constrains nodes that opt in, so
+    a root that silently omits the flag would otherwise validate.
+    """
+    errors: list[str] = []
+    nodes = node_map(dag)
+    root = dag.get("root") if isinstance(dag, dict) else None
+    if not isinstance(root, str) or root not in nodes:
+        return errors  # a missing/invalid root is reported by structure_errors
+    if node_type(dag, root) != SEMANTIC_TYPE:
+        return errors  # a non-semantic root is reported by structure_errors
+    if nodes[root].get("decomposition_only") is not True:
+        errors.append(f"root semantic node {root} must have decomposition_only=true")
+    children = direct_children(dag, root)
+    if not children:
+        errors.append(
+            f"root semantic node {root} must directly require at least one semantic child"
+        )
+    for child in children:
+        child_type = node_type(dag, child)
+        if child_type is not None and child_type != SEMANTIC_TYPE:
+            errors.append(
+                f"root semantic node {root} must not directly require terminal work: "
+                f"{child} ({child_type})"
+            )
+    return errors
+
+
 def run_barrier_errors(dag: Any) -> list[str]:
     errors: list[str] = []
     nodes = node_map(dag)
@@ -692,6 +726,7 @@ def structure_errors(dag: Any) -> list[str]:
 
     errors.extend(run_barrier_errors(dag))
     errors.extend(decomposition_only_errors(dag))
+    errors.extend(root_invariant_errors(dag))
     return errors
 
 

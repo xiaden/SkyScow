@@ -38,6 +38,8 @@ def make_repo(tmp_path: Path) -> Path:
 
 
 def write_raw_dag(root: Path, slug: str, dag: dict) -> None:
+    # The root is always decomposition_only; raw fixtures only supply the graph.
+    dag["nodes"][dag["root"]].setdefault("decomposition_only", True)
     bundle = root / "artifacts/change-dags/pending" / slug
     bundle.mkdir(parents=True, exist_ok=True)
     (bundle / "DAG.json").write_text(json.dumps(dag), encoding="utf-8")

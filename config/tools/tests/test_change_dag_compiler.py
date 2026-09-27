@@ -16,6 +16,8 @@ from common.helpers.change_dag_policy import describe_allowlist, validate_run_co
 # Small DAG builders matching the frozen node shapes.
 # ---------------------------------------------------------------------------
 def dag_with(nodes: dict, root: str = "N1") -> dict:
+    # The root is always decomposition_only; fixtures only supply the graph.
+    nodes.setdefault(root, {}).setdefault("decomposition_only", True)
     return {"slug": "demo", "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
 
 
@@ -267,8 +269,9 @@ def test_preflight_executable_with_unresolved_semantic_node_and_dirty_tree(tmp_p
     patch = "--- a/f.txt\n+++ b/f.txt\n@@ -2,1 +2,1 @@\n-b\n+B\n"
     dag = dag_with(
         {
-            "N1": semantic("root", ["N2", "N3"]),
+            "N1": semantic("root", ["N2", "N4"]),
             "N2": semantic("needs a product decision"),  # unresolved semantic node
+            "N4": semantic("change applied", ["N3"]),
             "N3": edit("f.txt", patch),
         }
     )

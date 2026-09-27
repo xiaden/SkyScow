@@ -87,6 +87,8 @@ def _move(source: str, destination: str, *, overwrite: bool = False) -> dict:
 
 
 def _dag(slug: str, nodes: dict) -> dict:
+    # The root is always decomposition_only; fixtures only supply the graph.
+    nodes.setdefault("N1", {}).setdefault("decomposition_only", True)
     return {"slug": slug, "anchor_commit": ANCHOR, "root": "N1", "nodes": nodes}
 
 

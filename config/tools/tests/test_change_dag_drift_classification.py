@@ -33,6 +33,12 @@ def edit(path: str, patch_text: str) -> dict:
     return {"type": "edit", "path": path, "patch": patch_text}
 
 
+def root_semantic(children: list[str]) -> dict:
+    node = semantic("root", children)
+    node["decomposition_only"] = True
+    return node
+
+
 def patch(path: str, old: str, new: str, *, line: int = 1) -> str:
     return f"--- a/{path}\n+++ b/{path}\n@@ -{line},1 +{line},1 @@\n-{old}\n+{new}\n"
 
@@ -75,18 +81,24 @@ def _bundle(root: Path, slug: str, dag: dict) -> None:
 # ---------------------------------------------------------------------------
 def test_later_hunk_live_drift_is_runtime_not_intra_dag(tmp_path: Path):
     workspace = _workspace(tmp_path, "a\nx\nDRIFT\n")
-    dag = dag_with({"N1": semantic("root", ["N2"]), "N2": edit("f.txt", TWO_HUNKS)})
+    dag = dag_with(
+        {
+            "N1": root_semantic(["N2"]),
+            "N2": semantic("implementation", ["N3"]),
+            "N3": edit("f.txt", TWO_HUNKS),
+        }
+    )
 
     ops, conflicts, _blocked = compile_operations(dag, {}, workspace)
 
     assert ops == []
     assert len(conflicts) == 1
     assert conflicts[0].scope == "runtime"
-    assert conflicts[0].nodes == ["N2"]
+    assert conflicts[0].nodes == ["N3"]
 
     result = preflight(dag, {}, workspace)
     assert result["executable"] is True
-    assert [entry["nodes"] for entry in result["runtime_failures"]] == [["N2"]]
+    assert [entry["nodes"] for entry in result["runtime_failures"]] == [["N3"]]
     assert (workspace / "f.txt").read_text(encoding="utf-8") == "a\nx\nDRIFT\n"
 
 
@@ -146,7 +158,11 @@ def test_later_hunk_against_accepted_deeper_work_is_intra_dag(tmp_path: Path):
 def test_first_hunk_against_pure_live_content_is_runtime(tmp_path: Path):
     workspace = _workspace(tmp_path, "a\nb\n")
     dag = dag_with(
-        {"N1": semantic("root", ["N2"]), "N2": edit("f.txt", patch("f.txt", "zzz", "yyy"))}
+        {
+            "N1": root_semantic(["N2"]),
+            "N2": semantic("implementation", ["N3"]),
+            "N3": edit("f.txt", patch("f.txt", "zzz", "yyy")),
+        }
     )
 
     ops, conflicts, _blocked = compile_operations(dag, {}, workspace)
@@ -161,7 +177,13 @@ def test_first_hunk_against_pure_live_content_is_runtime(tmp_path: Path):
 # ---------------------------------------------------------------------------
 def test_two_disjoint_hunks_both_applying_are_accepted(tmp_path: Path):
     workspace = _workspace(tmp_path, "a\nx\nb\n")
-    dag = dag_with({"N1": semantic("root", ["N2"]), "N2": edit("f.txt", TWO_HUNKS)})
+    dag = dag_with(
+        {
+            "N1": root_semantic(["N2"]),
+            "N2": semantic("implementation", ["N3"]),
+            "N3": edit("f.txt", TWO_HUNKS),
+        }
+    )
 
     ops, conflicts, _blocked = compile_operations(dag, {}, workspace)
 

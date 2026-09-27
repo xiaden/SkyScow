@@ -33,6 +33,8 @@ from common.tools.dag_executor import run_execution  # noqa: E402
 # Builders
 # ---------------------------------------------------------------------------
 def dag_with(nodes: dict, root: str = "N1", slug: str = "demo") -> dict:
+    # The root is always decomposition_only; fixtures only supply the graph.
+    nodes.setdefault(root, {}).setdefault("decomposition_only", True)
     return {"slug": slug, "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
 
 
@@ -340,8 +342,9 @@ def test_unresolved_semantic_node_does_not_block_whole_dag_preflight(tmp_path: P
             "N7": edit("f.txt", patch("f.txt", "b", "c")),
         }
     )
-    # N1 and N3 also have only semantic children without the decomposition flag.
-    assert change_dag.unresolved_semantic_nodes(dag) == ["N1", "N2", "N3"]
+    # The root is always decomposition_only and therefore locally resolved; N3
+    # still has only semantic children without the decomposition flag.
+    assert change_dag.unresolved_semantic_nodes(dag) == ["N2", "N3"]
 
     segments, conflicts, _blocked = compile_whole_dag(dag, {}, workspace)
     assert conflicts == []

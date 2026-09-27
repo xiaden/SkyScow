@@ -166,7 +166,11 @@ def test_live_drift_patch_mismatch_fails_only_affected_node(tmp_path: Path):
     (root / "f.txt").write_text("a\n")
     patch = "--- a/f.txt\n+++ b/f.txt\n@@ -1,1 +1,1 @@\n-a\n+b\n"
     dag = dag_with(
-        {"N1": semantic("root", ["N2"]), "N2": edit("f.txt", patch)},
+        {
+            "N1": {**semantic("root", ["N2"]), "decomposition_only": True},
+            "N2": semantic("implementation", ["N3"]),
+            "N3": edit("f.txt", patch),
+        },
         slug="drift",
     )
     write_bundle(root, "drift", dag)
@@ -178,7 +182,7 @@ def test_live_drift_patch_mismatch_fails_only_affected_node(tmp_path: Path):
 
     run_execution(root, "drift")
 
-    assert state_helper.read_state(root, "drift")["N2"] == "failed"
+    assert state_helper.read_state(root, "drift")["N3"] == "failed"
     # No checkpoint on a failed/incomplete DAG.
     log = subprocess.run(["git", "log", "--format=%s"], cwd=root, text=True, capture_output=True, check=True)
     assert "checkpoint drift" not in log.stdout
@@ -334,9 +338,18 @@ def test_exclusive_run_does_not_overlap_other_runs(tmp_path: Path, monkeypatch):
 def test_concurrent_node_additions_get_distinct_ids(tmp_path: Path):
     root = make_repo(tmp_path)
     created = create_dag(
-        root, "mut", {"root": "h", "nodes": {"h": {"requirement": "root"}}}
+        root,
+        "mut",
+        {
+            "root": "h",
+            "nodes": {
+                "h": {"requirement": "root", "requires": ["seed"]},
+                "seed": {"requirement": "seed"},
+            },
+        },
     )
     assert "error" not in created
+    seeded_ids = set(json.loads(created["output"])["node_ids_by_handle"].values())
 
     errors: list[dict] = []
     lock = __import__("threading").Lock()
@@ -353,7 +366,7 @@ def test_concurrent_node_additions_get_distinct_ids(tmp_path: Path):
     assert not errors, errors
     dag, _path, _location = change_dag.read_dag(root, "mut")
     nodes = change_dag.node_map(dag)
-    added = [node_id for node_id in nodes if node_id != "N1"]
+    added = [node_id for node_id in nodes if node_id not in seeded_ids]
     assert len(added) == 20
     assert len(set(added)) == 20
 
