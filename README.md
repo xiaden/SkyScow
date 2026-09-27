@@ -12,9 +12,11 @@
 
 <p align="center">
 
+[![CI](https://github.com/xiaden/SkyScow/actions/workflows/validation.yml/badge.svg?branch=main)](https://github.com/xiaden/SkyScow/actions/workflows/validation.yml)
+[![Latest tag](https://img.shields.io/github/v/tag/xiaden/SkyScow?label=latest%20tag)](https://github.com/xiaden/SkyScow/tags)
+[![GHCR image](https://img.shields.io/badge/GHCR-ghcr.io%2Fxiaden%2Fskyscow-2496ED?logo=docker&logoColor=white)](https://github.com/xiaden/SkyScow/pkgs/container/skyscow)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Stars](https://img.shields.io/github/stars/xiaden/SkyScow?style=social)](https://github.com/xiaden/SkyScow)
-[![GitHub Release](https://img.shields.io/github/v/release/xiaden/SkyScow)](https://github.com/xiaden/SkyScow/releases)
 [![Issues](https://img.shields.io/github/issues/xiaden/SkyScow)](https://github.com/xiaden/SkyScow/issues)
 
 </p>
