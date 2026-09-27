@@ -22,7 +22,20 @@ def dag_start(slug: str, retry: bool = False, *, workspace_root: Path) -> dict:
     errors = change_dag.validate_dag(dag)
     if errors:
         return {"error": "invalid_dag", "issues": errors}
-    preflight = compiler.preflight(dag, state_helper.read_state(root, slug), root)
+    # Admission must evaluate the EFFECTIVE state retry will actually attempt.
+    # The executor resets failed -> not_satisfied before running, so a
+    # deterministic intra-DAG conflict that retry would hit must be refused here
+    # rather than admitted and only discovered after the reset. Live-repository
+    # drift stays a runtime applicability mismatch (``runtime_failures``), so it
+    # remains an admitted, recoverable terminal failure. Only ``failed`` is
+    # reset; satisfied work is preserved and never replayed.
+    effective_state = state_helper.read_state(root, slug)
+    if retry:
+        effective_state = {
+            node_id: ("not_satisfied" if value == "failed" else value)
+            for node_id, value in effective_state.items()
+        }
+    preflight = compiler.preflight(dag, effective_state, root)
     if not preflight["executable"]:
         return {"error": "not_executable", "issues": preflight["issues"]}
     active = control.active_dag(root)

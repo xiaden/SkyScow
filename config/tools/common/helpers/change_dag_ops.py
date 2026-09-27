@@ -697,7 +697,8 @@ def _op_affects_path(op: Any, scope: str) -> bool:
 
 
 def _authoring_preview(
-    dag: dict[str, Any], workspace_root: Path, slug: str, path: str, node_id: str
+    dag: dict[str, Any], workspace_root: Path, slug: str, path: str, node_id: str,
+    state: dict[str, str],
 ) -> dict[str, Any]:
     """Frontier-bounded authoring context for one semantic boundary and path.
 
@@ -731,7 +732,7 @@ def _authoring_preview(
     boundary_depth = depths[node_id]
 
     ops, conflicts, overlay, removed = change_dag_compiler.compile_lower_work(
-        dag, workspace_root, boundary_depth
+        dag, workspace_root, boundary_depth, state=state
     )
     # A move affects both spellings: it is visible from its source and target.
     scoped_ops = [
@@ -800,7 +801,7 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
 
     # path + semantic node_id = frontier-bounded AUTHORING CONTEXT view.
     if path is not None and node_id is not None:
-        return _authoring_preview(dag, workspace_root, slug, path, node_id)
+        return _authoring_preview(dag, workspace_root, slug, path, node_id, state)
 
     execution_phases, conflicts, blocked = change_dag_compiler.compile_whole_dag(
         dag, state, workspace_root

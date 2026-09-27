@@ -35,6 +35,7 @@ from typing import Any
 
 from . import change_dag
 from . import change_dag_patch
+from . import change_dag_policy
 from .change_dag_patch import (
     FilePatch,
     PatchContextError,
@@ -239,6 +240,12 @@ def _barrier_gated(dag: Any, state: dict[str, str]) -> dict[str, str]:
     run is satisfied. Mechanical work at the same depth as ``P`` (an independent
     sibling prerequisite) and work that feeds the run (below ``P``) still apply
     first, so unrelated branches keep progressing independently.
+
+    Several barriers may share an ancestor. Gating is the existence of *any*
+    applicable barrier, so the deepest barrier under each ancestor wins and a
+    deeper unsatisfied barrier is never masked by a shallower one merely
+    encountered first. Selection and the reported barrier are independent of
+    node-map insertion order and deterministic under ties.
     """
     nodes = change_dag.node_map(dag)
     effective = state if isinstance(state, dict) else {}
@@ -250,18 +257,34 @@ def _barrier_gated(dag: Any, state: dict[str, str]) -> dict[str, str]:
             if child in nodes:
                 parents.setdefault(child, set()).add(node_id)
 
-    ancestor_barrier: dict[str, str] = {}
-    barrier_depth: dict[str, int] = {}
-    for node_id, node in nodes.items():
-        if node.get("type") != "run" or satisfaction.get(node_id, False):
+    ancestors = change_dag.ancestor_map(dag)
+    order_index = _order_index(dag)
+
+    def barrier_rank(run_id: str, parent_depth: int) -> tuple[int, int, int, str]:
+        # Deepest barrier first; ties broken by execution order then numeric id.
+        return (
+            parent_depth,
+            -order_index.get(run_id, 1 << 30),
+            -change_dag._numeric_id(run_id),
+            run_id,
+        )
+
+    # For every ancestor, the *deepest* unsatisfied barrier whose parent it
+    # strictly contains. Using max (not first-wins) keeps a deeper barrier from
+    # being masked by a shallower one encountered earlier in node-map order.
+    best: dict[str, tuple[int, int, int, str]] = {}
+    for run_id in change_dag.execution_order(dag):
+        if change_dag.node_type(dag, run_id) != "run":
             continue
-        for parent in parents.get(node_id, ()):
-            parent_depth = depth.get(parent, 0)
-            for ancestor in change_dag.ancestor_map(dag).get(parent, set()):
-                if ancestor not in ancestor_barrier:
-                    ancestor_barrier[ancestor] = node_id
-                    barrier_depth[ancestor] = parent_depth
-    if not ancestor_barrier:
+        if satisfaction.get(run_id, False):
+            continue
+        for parent in parents.get(run_id, ()):
+            candidate = barrier_rank(run_id, depth.get(parent, 0))
+            for ancestor in ancestors.get(parent, ()):
+                current = best.get(ancestor)
+                if current is None or candidate > current:
+                    best[ancestor] = candidate
+    if not best:
         return {}
 
     gated: dict[str, str] = {}
@@ -271,11 +294,14 @@ def _barrier_gated(dag: Any, state: dict[str, str]) -> dict[str, str]:
         if effective.get(node_id) in {"satisfied", "failed"}:
             continue
         node_depth = depth.get(node_id, 0)
+        chosen: tuple[int, int, int, str] | None = None
         for parent in parents.get(node_id, ()):
-            barrier = ancestor_barrier.get(parent)
-            if barrier is not None and node_depth < barrier_depth.get(parent, 0):
-                gated[node_id] = barrier
-                break
+            candidate = best.get(parent)
+            if candidate is not None and node_depth < candidate[0]:
+                if chosen is None or candidate > chosen:
+                    chosen = candidate
+        if chosen is not None:
+            gated[node_id] = chosen[3]
     return gated
 
 
@@ -362,6 +388,16 @@ def _changed_span(hunk) -> tuple[int, int, list[str]] | None:
     changed = [index for index, raw in enumerate(hunk.lines) if raw[:1] in {"+", "-"}]
     if not changed:
         return None
+    if hunk.old_count == 0:
+        # A zero-old-count hunk is a pure insertion anchored *after* original line
+        # ``old_start``; it occupies the empty base interval at 0-based index
+        # ``old_start`` -- the same coordinate ``apply_file_patch`` inserts at.
+        # Anchoring at ``old_start - 1`` would compose one line too high. Such a
+        # hunk carries no context/removed lines, so every changed line is an
+        # addition.
+        anchor = hunk.old_start
+        new_lines = [raw[1:] for raw in hunk.lines if raw[:1] == "+"]
+        return anchor, anchor, new_lines
     first, last = changed[0], changed[-1]
     base_start = hunk.old_start - 1 + sum(
         1 for raw in hunk.lines[:first] if raw[:1] in {" ", "-"}
@@ -467,7 +503,25 @@ def _reconcile_frontier_edits(
     for node_id in edit_nodes:
         frontiers.setdefault(depths.get(node_id) or 0, []).append(node_id)
 
+    def applies_to(text: str, peer: str) -> bool:
+        """True when ``peer`` applies cleanly to ``text`` (parse + exact apply)."""
+        try:
+            file_patch = _parse_edit_node_patch(peer, nodes_map[peer], path)
+            apply_file_patch(text, file_patch, path=path)
+        except PatchError:
+            return False
+        return True
+
     current = base
+    # Provenance of the content a failing hunk is compared against. ``base`` is
+    # DAG-produced when it is a create's content or an earlier segment's result
+    # (``base_is_authored``); deeper frontiers accepted inside this call also
+    # transform ``current``. Only a failure attributable to such accepted
+    # DAG-produced content is a deterministic contradiction -- a failure against
+    # pure live content is ordinary recoverable drift, regardless of which hunk
+    # failed. ``contributors`` names the accepted work reflected in ``current``.
+    contributors: list[str] = list(base_nodes or [])
+    transformed = False
     for depth in sorted(frontiers, reverse=True):
         before = len(problems)
         peers = frontiers[depth]
@@ -521,23 +575,30 @@ def _reconcile_frontier_edits(
 
         for peer, exc in failed:
             if isinstance(exc, PatchContextError):
-                if exc.hunk_index == 0 and not base_is_authored:
-                    # The first authored patch is checked against the live file;
-                    # a mismatch here is ordinary recoverable live drift.
+                # Intra-DAG only when the content the hunk failed against is
+                # DAG-produced: the base itself is authored, or a deeper frontier
+                # transformed ``current`` into content this peer cannot consume
+                # while it still applies to the pristine base (so the
+                # transformation caused the mismatch). A later hunk index alone
+                # proves nothing about provenance.
+                dag_produced = base_is_authored or (
+                    transformed and applies_to(base, peer)
+                )
+                if not dag_produced:
                     problems.append(([peer], f"context_conflict: {exc.message}", "runtime"))
                     continue
-                attribution = [peer, *(base_nodes or [])]
-                if base_is_authored and base_nodes:
+                attribution = [peer, *contributors]
+                if contributors:
                     message = (
                         f"context_conflict: {peer} does not apply to the content produced by "
-                        f"{', '.join(base_nodes)} for {path}: {exc.message}"
+                        f"{', '.join(contributors)} for {path}: {exc.message}"
                     )
                 elif base_is_authored:
                     message = (
                         f"context_conflict: {peer} does not apply to the content produced by "
                         f"earlier DAG work for {path}: {exc.message}"
                     )
-                else:
+                else:  # pragma: no cover - dag_produced implies a contributor
                     message = (
                         f"context_conflict: {peer} does not apply to the accepted lower state "
                         f"for {path}: {exc.message}"
@@ -558,6 +619,8 @@ def _reconcile_frontier_edits(
             current = _compose_replacements(
                 current, [span for _peer, spans in applied for span in spans]
             )
+            contributors.extend(peer for peer, _spans in applied)
+            transformed = True
     return current, problems
 
 
@@ -695,6 +758,38 @@ def compile_operations(
     for node_id, from_path, to_path, _overwrite in moves:
         move_sources.setdefault(from_path, []).append(node_id)
         move_dests.setdefault(to_path, []).append(node_id)
+
+    # MOVE ordering is semantically significant (deeper construction first); the
+    # one ordering is computed here and reused when emitting move ops below.
+    ordered_moves = sorted(moves, key=lambda item: order_key(item[0]))
+
+    # Two moves at the SAME construction frontier are both interpreted against
+    # the same accepted lower-work base; neither may consume the other's output.
+    # When one move's destination is another move's source, the final repository
+    # state would depend only on which is emitted first (the numeric-id
+    # tie-break), so the pair is an authored ambiguity: reject before any op is
+    # emitted for either. DIFFERENT construction depths stay legal because the
+    # move loop below orders deeper work first, letting a shallower move consume
+    # a source freed by a deeper move. Paths are already canonicalized above.
+    for left in range(len(ordered_moves)):
+        left_id, left_from, left_to, _left_overwrite = ordered_moves[left]
+        for right in range(left + 1, len(ordered_moves)):
+            right_id, right_from, right_to, _right_overwrite = ordered_moves[right]
+            if depths.get(left_id, 0) != depths.get(right_id, 0):
+                continue
+            if left_to == right_from:
+                shared = left_to
+            elif right_to == left_from:
+                shared = right_to
+            else:
+                continue
+            add_conflict(
+                shared,
+                [left_id, right_id],
+                f"compile_conflict: same-frontier moves {left_id} and {right_id} "
+                f"form an unorderable chain through {shared}",
+            )
+
     for node_id, from_path, to_path, overwrite in moves:
         involved = [node_id]
         for collision in (edits.get(from_path), removes.get(from_path)):
@@ -738,6 +833,7 @@ def compile_operations(
                          "compile_conflict: move destination collides with other work")
 
     ops: list[CompiledOp] = []
+    move_ops: list[CompiledOp] = []
 
     # --- create / edit groups (create supplies the base content) ---
     for path in sorted(set(creates) | set(edits)):
@@ -795,14 +891,24 @@ def compile_operations(
         ops.append(CompiledOp(nodes=group, op="remove", path=path))
 
     # --- moves ---
-    for node_id, from_path, to_path, overwrite in sorted(moves, key=lambda item: (item[1], item[2])):
+    # MOVE ordering is semantically significant: a shallower move may consume a
+    # destination freed by a deeper move's source, so moves are applied in
+    # construction-depth order (deeper first) with a deterministic tie-break.
+    # Filename/path sorting would silently reverse that dependency and execute a
+    # contradictory order.
+    for node_id, from_path, to_path, overwrite in ordered_moves:
         if node_id in conflicted:
             continue
-        ops.append(CompiledOp(nodes=[node_id], op="move", path=from_path,
-                              from_path=from_path, to_path=to_path, overwrite=overwrite))
+        move_ops.append(CompiledOp(nodes=[node_id], op="move", path=from_path,
+                                   from_path=from_path, to_path=to_path, overwrite=overwrite))
 
-    rank = {"create": 0, "edit": 1, "move": 2, "remove": 3}
+    rank = {"create": 0, "edit": 1, "remove": 3}
     ops.sort(key=lambda compiled: (compiled.path, rank.get(compiled.op, 9)))
+    # A same-path create/edit/remove runs before a move that consumes it (a
+    # create may supply a move source); moves keep their depth order among
+    # themselves. No non-move operation can depend on a move's output: a move
+    # destination colliding with other work is an explicit conflict.
+    ops.extend(move_ops)
 
     conflicts.sort(key=lambda conflict: (conflict.path, conflict.reason, conflict.nodes))
     blocked.sort(key=lambda entry: change_dag._numeric_id(entry.node_id))
@@ -825,6 +931,92 @@ def _apply_simulated(repo: _RepoView, op: CompiledOp) -> None:
         if op.to_path:
             repo.put(op.to_path, content if content is not None else "")
         repo.delete(op.from_path or "")
+
+
+def _invalid_path_conflict(node_id: str, raw_paths: list[Any]) -> Conflict:
+    shown = ", ".join(repr(raw) for raw in raw_paths)
+    return Conflict(
+        path=shown,
+        nodes=[node_id],
+        reason=f"compile_conflict: path is not a usable workspace-relative path: {shown}",
+    )
+
+
+def _authored_shape_conflicts(dag: Any) -> list[Conflict]:
+    """Independently knowable authored defects, regardless of runtime progress.
+
+    A run barrier that stays blocked in simulation must not hide malformed
+    authored work above or beside it. This validates only a node's *authored*
+    shape/syntax -- never live applicability, which stays ordinary recoverable
+    runtime evidence -- and reuses the compiler's own parse/canonicalization
+    entry points so there is a single implementation.
+    """
+    nodes = change_dag.node_map(dag)
+    reachable = change_dag.reachable_from_root(dag)
+    found: list[Conflict] = []
+    for node_id in change_dag.execution_order(dag):
+        if node_id not in reachable:
+            continue
+        kind = change_dag.node_type(dag, node_id)
+        node = nodes[node_id]
+        if kind == "run":
+            allowed, reason = change_dag_policy.validate_run_command(node.get("command"))
+            if not allowed:
+                found.append(Conflict(
+                    path=node_id,
+                    nodes=[node_id],
+                    reason=f"compile_conflict: run command rejected by policy: {reason}",
+                ))
+            continue
+        if kind not in MECHANICAL_TYPES:
+            continue
+        if kind == "edit":
+            path = _canonical_node_path(node, "path")
+            if path is None:
+                found.append(_invalid_path_conflict(node_id, [node.get("path")]))
+                continue
+            raw_patch = node.get("patch")
+            if not isinstance(raw_patch, str) or not raw_patch:
+                found.append(Conflict(
+                    path=path,
+                    nodes=[node_id],
+                    reason="compile_conflict: malformed patch: patch must be a non-empty string",
+                ))
+                continue
+            try:
+                _parse_edit_node_patch(node_id, node, path)
+            except PatchError as exc:
+                found.append(Conflict(
+                    path=path,
+                    nodes=[node_id],
+                    reason=f"compile_conflict: malformed patch: {exc}",
+                ))
+            continue
+        if kind == "move":
+            from_path = _canonical_node_path(node, "from_path")
+            to_path = _canonical_node_path(node, "to_path")
+            if from_path is None or to_path is None:
+                found.append(_invalid_path_conflict(
+                    node_id, [node.get("from_path"), node.get("to_path")]
+                ))
+            if "overwrite" in node and not isinstance(node.get("overwrite"), bool):
+                found.append(Conflict(
+                    path=from_path or node_id,
+                    nodes=[node_id],
+                    reason="compile_conflict: move overwrite must be a boolean",
+                ))
+            continue
+        # create / remove
+        path = _canonical_node_path(node, "path")
+        if path is None:
+            found.append(_invalid_path_conflict(node_id, [node.get("path")]))
+        if kind == "create" and not isinstance(node.get("content"), str):
+            found.append(Conflict(
+                path=path or node_id,
+                nodes=[node_id],
+                reason="compile_conflict: create content must be a string",
+            ))
+    return found
 
 
 def compile_whole_dag(
@@ -859,10 +1051,23 @@ def compile_whole_dag(
     removed: set[str] = set()
     repo = _RepoView(workspace_root, overlay, removed)
 
+    # Validate authored shape/policy before lowering. Mark malformed terminals
+    # failed only in this private simulation so compile_operations cannot crash
+    # on missing fields or replay invalid work; the authored defects remain
+    # deterministic conflicts and valid unrelated work can still be simulated.
+    authored_conflicts = _authored_shape_conflicts(dag)
+    authored_invalid = {node for conflict in authored_conflicts for node in conflict.nodes}
+    for node_id in authored_invalid:
+        effective_state[node_id] = "failed"
+
     execution_phases: list[list[CompiledOp]] = []
     conflicts: list[Conflict] = []
     blocked: list[Blocked] = []
     seen: set[tuple] = set()
+    for conflict in authored_conflicts:
+        key = (conflict.path, conflict.reason, tuple(conflict.nodes), conflict.scope)
+        seen.add(key)
+        conflicts.append(conflict)
 
     limit = len(change_dag.node_map(dag)) + 2
     for _ in range(limit):
@@ -935,7 +1140,7 @@ def lower_work_frontiers(dag: Any) -> dict[str, int]:
 
 
 def compile_lower_work(
-    dag: dict, workspace_root: Path, boundary_depth: int
+    dag: dict, workspace_root: Path, boundary_depth: int, *, state: dict | None = None
 ) -> tuple[list[CompiledOp], list[Conflict], dict[str, str], set[str]]:
     """Lower mechanical work strictly below a construction frontier boundary.
 
@@ -953,6 +1158,11 @@ def compile_lower_work(
     written, and no command runs. Returns ``(ops, conflicts, overlay, removed)``,
     where ``overlay`` maps written paths to their effective lower-work content
     and ``removed`` names paths lower work deleted.
+
+    ``state`` (optional) is Execution State. Already-``satisfied`` lower work is
+    represented in the live source and must not be re-projected; failed or
+    not-yet-applied lower work remains legitimate accepted context. Callers that
+    omit ``state`` keep the previous all-work projection behaviour.
     """
     nodes = change_dag.node_map(dag)
     frontiers = lower_work_frontiers(dag)
@@ -960,7 +1170,13 @@ def compile_lower_work(
         node_id for node_id, frontier in frontiers.items() if frontier > boundary_depth
     }
 
-    effective_state: dict[str, str] = {}
+    # Seed already-satisfied lower work as accepted-but-applied: live content
+    # already reflects it, so re-projecting it would duplicate its effect.
+    effective_state: dict[str, str] = {
+        node_id: node_state
+        for node_id, node_state in (state.items() if isinstance(state, dict) else ())
+        if node_state == "satisfied"
+    }
     overlay: dict[str, str] = {}
     removed: set[str] = set()
     repo = _RepoView(workspace_root, overlay, removed)
@@ -1202,11 +1418,13 @@ def _already_applied(current: str, patches: list[FilePatch]) -> bool:
     * Each hunk's *new side* (context ``' '`` and added ``'+'`` lines) must match
       ``current`` contiguously. Because the region is exactly the new side, a
       replaced/removed line cannot remain inside it.
-    * The position of that region in the resulting file is ``old_start - 1`` plus
-      the accumulated ``new_count - old_count`` delta of the earlier hunks -- the
-      same coordinate :func:`change_dag_patch.apply_file_patch` writes to. It is
-      never ``new_start - 1`` plus that delta, which double-counts the delta when
-      a patch already carries resulting-file starts.
+    * The position of that region in the resulting file is the hunk's F4 target:
+      ``old_start - 1`` plus the accumulated ``new_count - old_count`` delta of
+      the earlier hunks for a hunk that removes or keeps content, and
+      ``old_start`` plus that delta for a zero-``old_count`` insertion -- the same
+      coordinate :func:`change_dag_patch.apply_file_patch` writes to. It is never
+      ``new_start - 1`` plus that delta, which double-counts the delta when a
+      patch already carries resulting-file starts.
     * A deletion-only hunk has no new-side line to anchor the proof, so it can
       never, by itself, make the patch "applied"; the file stays ambiguous.
 
@@ -1221,7 +1439,11 @@ def _already_applied(current: str, patches: list[FilePatch]) -> bool:
     proven = False
     for file_patch in patches:
         for hunk in file_patch.hunks:
-            position = hunk.old_start - 1 + offset
+            position = (
+                hunk.old_start + offset
+                if hunk.old_count == 0
+                else hunk.old_start - 1 + offset
+            )
             new_lines = [raw[1:] for raw in hunk.lines if raw[:1] in (" ", "+")]
             if position < 0 or position + len(new_lines) > len(lines):
                 return False

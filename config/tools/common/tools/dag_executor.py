@@ -11,12 +11,14 @@ entire process tree, not just the direct child.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import signal
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -57,14 +59,134 @@ def _move_source_fingerprint(workspace_root: Path, slug: str, node_id: str) -> d
     return None
 
 
+def _timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _content_fingerprint(data: bytes) -> dict[str, Any]:
+    """Exact content proof token: sha256 plus size of the encoded bytes."""
+    return {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+
+
+def _path_fingerprint(path: Path) -> dict[str, Any] | None:
+    """Raw-byte fingerprint of a workspace file, or ``None`` when unreadable."""
+    try:
+        return _content_fingerprint(Path(path).read_bytes())
+    except OSError:
+        return None
+
+
+def _apply_start_entry(op: Any, workspace_root: Path) -> dict[str, Any]:
+    """Bounded pre-apply evidence for one composed atomic operation.
+
+    Recorded before :func:`compiler.apply_compiled` so an interrupted operation
+    can be reconciled as a unit: every ``op.nodes`` contributor shares this one
+    repository mutation. For ``create``/``edit`` the entry carries the exact base
+    and expected post-application content fingerprints, so recovery can prove the
+    whole result present, prove it absent, or report the whole group ambiguous --
+    never partial success. This is operation-local Work Log evidence only, not a
+    registry, snapshot store, or new artifact type. Moves keep their existing
+    ``log_move_start`` evidence and are not duplicated here.
+    """
+    entry: dict[str, Any] = {
+        "timestamp": _timestamp(),
+        "operation": "apply",
+        "phase": "start",
+        "nodes": list(op.nodes),
+        "action": op.op,
+        "path": op.path,
+    }
+    if op.op in {"create", "edit"}:
+        expected = op.applied if op.applied is not None else ""
+        entry["expected_fingerprint"] = _content_fingerprint(expected.encode("utf-8"))
+        entry["base_fingerprint"] = _path_fingerprint(Path(workspace_root) / str(op.path))
+    return entry
+
+
+def _operation_start_groups(
+    workspace_root: Path, slug: str, in_progress: list[str]
+) -> list[tuple[dict[str, Any], list[str]]]:
+    """Group in-progress nodes by the latest pre-apply evidence of one operation.
+
+    Entries are scanned newest-first and each in-progress node is claimed by the
+    most recent operation that names it, so a node is never regrouped under a
+    superseded attempt. Returns ``(entry, claimed_nodes)`` pairs.
+    """
+    try:
+        entries = state_helper.read_work_log(workspace_root, slug)
+    except ValueError:
+        return []
+    pending = set(in_progress)
+    groups: list[tuple[dict[str, Any], list[str]]] = []
+    for entry in reversed(entries):
+        if entry.get("operation") != "apply" or entry.get("phase") != "start":
+            continue
+        claimed = [node_id for node_id in entry.get("nodes", []) if node_id in pending]
+        if not claimed:
+            continue
+        for node_id in claimed:
+            pending.discard(node_id)
+        groups.append((entry, claimed))
+        if not pending:
+            break
+    return groups
+
+
+def _reconcile_operation_group(workspace_root: Path, entry: dict[str, Any]) -> tuple[str, str]:
+    """Resolve one composed operation and all its contributors as a single unit.
+
+    Whole result provably present -> ``satisfied``; provably absent ->
+    ``not_satisfied``; anything else is ``failed`` (ambiguous). There is no
+    per-node outcome, so an atomic operation can never be split by recovery.
+    """
+    target = Path(workspace_root) / str(entry.get("path", ""))
+    exists = target.exists() or target.is_symlink()
+    if entry.get("action") == "remove":
+        return ("not_satisfied", "removed path still present") if exists else ("satisfied", "removed path absent")
+    expected = entry.get("expected_fingerprint")
+    base = entry.get("base_fingerprint")
+    live = _path_fingerprint(target) if exists else None
+    if exists and live is not None and expected is not None and live == expected:
+        return "satisfied", "operation result present (content fingerprint)"
+    if not exists and base is None:
+        return "not_satisfied", "operation result absent (path absent)"
+    if exists and live is not None and base is not None and live == base:
+        return "not_satisfied", "operation not applied (base fingerprint unchanged)"
+    return "failed", "operation result ambiguous (content is neither base nor expected)"
+
+
 def reconcile_interrupted(workspace_root: Path, slug: str) -> dict[str, Any]:
     dag, _, _ = change_dag.read_dag(workspace_root, slug)
     current = state_helper.read_state(workspace_root, slug)
     state = _terminal_defaults(dag, current)
+    in_progress = [node_id for node_id, value in state.items() if value == "in_progress"]
     reconciled: list[dict[str, Any]] = []
-    for node_id, previous in list(state.items()):
-        if previous != "in_progress":
+    handled: set[str] = set()
+
+    # Composed operations first: every contributor shares one atomic repository
+    # mutation, so the whole group gets one outcome computed from operation-level
+    # evidence. This is what prevents partial-success fabrication.
+    groups = _operation_start_groups(workspace_root, slug, in_progress) if in_progress else []
+    for entry, group_nodes in groups:
+        resolved, evidence = _reconcile_operation_group(workspace_root, entry)
+        for node_id in group_nodes:
+            previous = state.get(node_id)
+            state_helper.set_node_state(state, node_id, resolved)
+            log_entry = state_helper.log_reconciliation(
+                node_id, previous, resolved,
+                reason="interrupted composed operation", evidence=evidence,
+            )
+            state_helper.append_work_log(workspace_root, slug, log_entry)
+            reconciled.append(log_entry)
+            handled.add(node_id)
+
+    # Remaining nodes have no operation evidence: reconcile them individually
+    # exactly as before (run -> failed, move -> recorded fingerprint, else
+    # node_present).
+    for node_id in in_progress:
+        if node_id in handled:
             continue
+        previous = state.get(node_id)
         kind = change_dag.node_type(dag, node_id)
         if kind == "run":
             resolved, evidence = "failed", "interrupted run is never replayed automatically"
@@ -231,19 +353,22 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
         # Recovery is owned by dag_start(retry=true), which resets failed -> not_satisfied.
         ops = [op for op in ops if not any(state.get(node_id) in {"satisfied", "failed"} for node_id in op.nodes)]
         if ops:
+            # Capture pre-apply recovery evidence before any mutation or state
+            # write, so an interruption after in_progress is persisted but before
+            # terminal state is persisted can reconcile each atomic operation as
+            # a unit. Move evidence stays operation-local (log_move_start).
+            for op in ops:
+                if op.op == "move":
+                    state_helper.append_work_log(workspace_root, slug, state_helper.log_move_start(
+                        list(op.nodes), from_path=op.from_path, to_path=op.to_path,
+                        overwrite=bool(op.overwrite),
+                        source_fingerprint=compiler.source_fingerprint(workspace_root / str(op.from_path or ""))))
+                else:
+                    state_helper.append_work_log(workspace_root, slug, _apply_start_entry(op, workspace_root))
             for op in ops:
                 for node_id in op.nodes:
                     state[node_id] = "in_progress"
             state_helper.write_state(workspace_root, slug, state)
-            # Capture move recovery evidence before any native rename runs, so an
-            # interrupted move can be reconciled conservatively.
-            for op in ops:
-                if op.op != "move":
-                    continue
-                state_helper.append_work_log(workspace_root, slug, state_helper.log_move_start(
-                    list(op.nodes), from_path=op.from_path, to_path=op.to_path,
-                    overwrite=bool(op.overwrite),
-                    source_fingerprint=compiler.source_fingerprint(workspace_root / str(op.from_path or ""))))
             results = compiler.apply_compiled(ops, workspace_root)
             for result in results:
                 outcome = "success" if result.get("ok") else "failure"

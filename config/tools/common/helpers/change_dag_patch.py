@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import re
+import stat
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,6 +25,7 @@ __all__ = [
     "detect_eol",
     "normalize_eol",
     "parse_unified_diff",
+    "validate_hunk_ranges",
     "apply_file_patch",
     "apply_patches",
     "atomic_replace",
@@ -132,6 +134,71 @@ def _parse_hunk(lines: list[str], index: int, path: str) -> tuple[Hunk, int]:
     return hunk, cursor
 
 
+def validate_hunk_ranges(file_patch: FilePatch, *, path: str = "") -> None:
+    """Reject hunks whose original-coordinate ranges overlap.
+
+    Every hunk is mapped to a 0-based half-open interval over the *original*
+    (pre-patch) text:
+
+    * ``old_count > 0`` occupies ``[old_start - 1, old_start - 1 + old_count)``.
+    * ``old_count == 0`` is a pure insertion anchored after original line
+      ``old_start``; it is modeled as the empty interval
+      ``[old_start, old_start)``.
+
+    Consecutive hunks must be non-overlapping, i.e. ``next_start >=
+    previous_end``. That permits adjacent hunks (``next_start == previous_end``)
+    and a zero-``old_count`` insertion exactly at a previous hunk's boundary,
+    while rejecting a hunk that claims original text produced by an earlier hunk
+    of the same patch (an original-coordinate dependency). This is the single
+    gate that keeps preview-time composition and apply-time application from
+    disagreeing. Raises :class:`PatchError` naming the path and both indexes.
+
+    Two pure insertions (``old_count == 0``) at the *same* anchor are also
+    rejected: their relative order is undefined, and preview composition and
+    application would otherwise order them oppositely. ``apply_file_patch`` must
+    never write a result the compiler cannot reproduce byte-for-byte. This
+    mirrors the same-anchor rule in
+    :func:`change_dag_compiler._spans_conflict`.
+
+    Descending hunks are not treated as an overlap here; they are left to the
+    ascending-order check in :func:`apply_file_patch` so the semantics for
+    out-of-order patches are unchanged (a repeated insertion anchor is unordered
+    regardless of hunk order, so it is rejected here first).
+    """
+    effective_path = path or file_patch.path
+    previous_index: int | None = None
+    previous_end = 0
+    insertion_anchors: dict[int, int] = {}
+    for index, hunk in enumerate(file_patch.hunks):
+        if hunk.old_count == 0:
+            start = hunk.old_start
+            end = hunk.old_start
+            earlier = insertion_anchors.get(hunk.old_start)
+            if earlier is not None:
+                raise PatchError(
+                    f"duplicate insertion anchor in {effective_path}: hunk {earlier} "
+                    f"and hunk {index} both insert at old_start={hunk.old_start}; "
+                    f"same-anchor pure insertions have no defined order"
+                )
+            insertion_anchors[hunk.old_start] = index
+        else:
+            start = hunk.old_start - 1
+            end = hunk.old_start - 1 + hunk.old_count
+        if previous_index is not None:
+            previous = file_patch.hunks[previous_index]
+            if hunk.old_start < previous.old_start:
+                return
+            if start < previous_end:
+                raise PatchError(
+                    f"overlapping hunks in {effective_path}: hunk {previous_index} "
+                    f"(old_start={previous.old_start}, old_count={previous.old_count}) "
+                    f"and hunk {index} (old_start={hunk.old_start}, "
+                    f"old_count={hunk.old_count}) overlap in original coordinates"
+                )
+        previous_index = index
+        previous_end = end
+
+
 def parse_unified_diff(patch: str) -> list[FilePatch]:
     """Parse a standard unified diff into one :class:`FilePatch` per file.
 
@@ -162,7 +229,9 @@ def parse_unified_diff(patch: str) -> list[FilePatch]:
             hunks.append(hunk)
         if not hunks:
             raise PatchError(f"file patch has no hunks: {path}")
-        files.append(FilePatch(path=path, hunks=hunks))
+        file_patch = FilePatch(path=path, hunks=hunks)
+        validate_hunk_ranges(file_patch, path=path)
+        files.append(file_patch)
         index = cursor
     if not files:
         raise PatchError("patch contains no file headers")
@@ -190,6 +259,7 @@ def apply_file_patch(original: str, file_patch: FilePatch, *, path: str = "") ->
     eol = detect_eol(original)
     normalized = normalize_eol(original)
     lines, trailing = _split_for_apply(normalized)
+    validate_hunk_ranges(file_patch, path=effective_path)
     offset = 0
     previous_start: int | None = None
     for hunk_index, hunk in enumerate(file_patch.hunks):
@@ -199,10 +269,27 @@ def apply_file_patch(original: str, file_patch: FilePatch, *, path: str = "") ->
                 f"{previous_start} then {hunk.old_start}"
             )
         previous_start = hunk.old_start
-        target = hunk.old_start - 1 + offset
+        # Unified-diff coordinates are 1-based over the original text. A hunk
+        # that removes/keeps content starts at index old_start - 1. A hunk with
+        # old_count == 0 is a pure insertion anchored *after* original line
+        # old_start, i.e. at 0-based index old_start. new_start is a
+        # resulting-file coordinate and is deliberately never used here:
+        # combining it with the running offset would double-count earlier deltas.
+        target = (
+            hunk.old_start + offset
+            if hunk.old_count == 0
+            else hunk.old_start - 1 + offset
+        )
         if target < 0:
             raise PatchContextError(
                 effective_path, hunk_index, f"hunk {hunk_index} targets a negative line"
+            )
+        if hunk.old_count == 0 and target > len(lines):
+            raise PatchContextError(
+                effective_path,
+                hunk_index,
+                f"hunk {hunk_index} inserts past end of file: target index "
+                f"{target} exceeds {len(lines)} lines",
             )
         position = target
         replacement: list[str] = []
@@ -257,9 +344,19 @@ def apply_patches(original: str, patches: list[FilePatch], *, path: str = "") ->
 
 
 def atomic_replace(path: Path, data: bytes) -> None:
-    """Atomically replace ``path`` with ``data`` (mkstemp + fsync + os.replace)."""
+    """Atomically replace ``path`` with ``data`` (mkstemp + fsync + os.replace).
+
+    When ``path`` already exists, its permission bits (including executable bits)
+    are copied onto the temporary file before ``os.replace`` so the atomic
+    replacement preserves the destination's mode. A create-new replacement keeps
+    the ``mkstemp`` default mode; no new create-mode policy is introduced.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        existing_mode: int | None = stat.S_IMODE(path.stat().st_mode)
+    except FileNotFoundError:
+        existing_mode = None
     fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     replaced = False
     try:
@@ -267,6 +364,8 @@ def atomic_replace(path: Path, data: bytes) -> None:
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
+        if existing_mode is not None:
+            os.chmod(temp_name, existing_mode)
         os.replace(temp_name, path)
         replaced = True
     finally:
