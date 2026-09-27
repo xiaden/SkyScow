@@ -33,14 +33,13 @@ from pathlib import Path
 
 import pytest
 
-from common.helpers.change_dag_compiler import (
+from common.helpers.change_dag_compiler_lowering import compile_operations
+from common.helpers.change_dag_compiler_phase import compile_whole_dag, preflight
+from common.helpers.change_dag_compiler_reconcile import (
     _changed_span,
     _compose_replacements,
-    apply_compiled,
-    compile_operations,
-    compile_whole_dag,
-    preflight,
 )
+from common.helpers.change_dag_compiler_runtime import apply_compiled
 from common.helpers.change_dag_patch import (
     FilePatch,
     Hunk,
@@ -49,7 +48,7 @@ from common.helpers.change_dag_patch import (
     parse_unified_diff,
     validate_hunk_ranges,
 )
-from common.helpers.change_dag_ops import preview
+from common.helpers.change_dag_ops_views import preview
 
 # ---------------------------------------------------------------------------
 # Harness

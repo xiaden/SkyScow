@@ -18,15 +18,14 @@ TOOLS = Path(__file__).parents[1]
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
-from common.helpers import change_dag_compiler  # noqa: E402
 from common.helpers import change_dag_compiler_phase as compiler_phase  # noqa: E402
-from common.helpers.change_dag_compiler import (  # noqa: E402
+from common.helpers.change_dag_compiler_graph import ready_run_nodes  # noqa: E402
+from common.helpers.change_dag_compiler_phase import (  # noqa: E402
     compile_phase,
     compile_whole_dag,
     preflight,
-    ready_run_nodes,
 )
-from common.helpers.change_dag_ops import preview, validate  # noqa: E402
+from common.helpers.change_dag_ops_views import preview, validate  # noqa: E402
 from common.tools.dag_executor import run_execution  # noqa: E402
 
 
@@ -193,15 +192,13 @@ def test_ready_frontier_comes_from_the_canonical_phase(tmp_path: Path):
 # ---------------------------------------------------------------------------
 def _counting_compiler(monkeypatch) -> list[int]:
     calls: list[int] = []
-    real = change_dag_compiler.compile_whole_dag
+    real = compiler_phase.compile_whole_dag
 
     def counted(*args, **kwargs):
         calls.append(1)
         return real(*args, **kwargs)
 
-    # Preview compiles through the facade attribute; standalone preflight compiles
-    # through the phase module's own global, so both bindings are counted.
-    monkeypatch.setattr(change_dag_compiler, "compile_whole_dag", counted)
+    # Preview and standalone preflight both resolve the phase module's global.
     monkeypatch.setattr(compiler_phase, "compile_whole_dag", counted)
     return calls
 
@@ -285,14 +282,14 @@ def test_execution_determines_its_phase_through_compile_phase(tmp_path: Path, mo
     write_bundle(root, "exec", dag)
 
     seen: list[tuple[list[str], list[str]]] = []
-    real = change_dag_compiler.compile_phase
+    real = compiler_phase.compile_phase
 
     def spy(*args, **kwargs):
         phase = real(*args, **kwargs)
         seen.append((_nodes(phase.ops), list(phase.ready_runs)))
         return phase
 
-    monkeypatch.setattr(change_dag_compiler, "compile_phase", spy)
+    monkeypatch.setattr(compiler_phase, "compile_phase", spy)
 
     result = run_execution(root, "exec")
 

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..helpers.change_dag_ops import validate
+from ..helpers.change_dag_ops_views import validate
 
 
 def dag_validate(slug: str, *, workspace_root: Path) -> dict[str, Any]:

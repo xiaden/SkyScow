@@ -13,8 +13,12 @@ TOOLS = Path(__file__).parents[1]
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
-from common.helpers import change_dag, change_dag_compiler as compiler, change_dag_state as state_helper
-from common.helpers.change_dag_ops import add_work, create_dag, preview, update_node
+from common.helpers import change_dag, change_dag_state as state_helper
+from common.helpers.change_dag_compiler_model import CompiledOp
+from common.helpers.change_dag_compiler_runtime import apply_compiled, source_fingerprint
+from common.helpers.change_dag_ops_create import create_dag
+from common.helpers.change_dag_ops_mutation import add_work, update_node
+from common.helpers.change_dag_ops_views import preview
 from common.tools import dag_executor
 
 
@@ -31,8 +35,8 @@ def _write(root: Path, name: str, content: str) -> Path:
     return path
 
 
-def _move_op(root: Path, *, overwrite: bool = False) -> compiler.CompiledOp:
-    return compiler.CompiledOp(
+def _move_op(root: Path, *, overwrite: bool = False) -> CompiledOp:
+    return CompiledOp(
         nodes=["N2"], op="move", path="old.txt", from_path="old.txt",
         to_path="new.txt", overwrite=overwrite,
     )
@@ -53,7 +57,7 @@ def _recorded_fingerprint(root: Path, content: str) -> dict | None:
     """A fingerprint captured from the intended source content pre-rename."""
     scratch = root / ".pre-rename-source"
     scratch.write_text(content, encoding="utf-8")
-    fingerprint = compiler.source_fingerprint(scratch)
+    fingerprint = source_fingerprint(scratch)
     scratch.unlink()
     return fingerprint
 
@@ -86,7 +90,7 @@ def test_non_overwrite_move_uses_native_rename_and_preserves_content(tmp_path: P
     root = tmp_path / "workspace"
     root.mkdir()
     _write(root, "old.txt", "source\n")
-    result = compiler.apply_compiled([_move_op(root)], root)
+    result = apply_compiled([_move_op(root)], root)
     assert result[0]["ok"] is True
     assert not (root / "old.txt").exists()
     assert (root / "new.txt").read_text(encoding="utf-8") == "source\n"
@@ -98,7 +102,7 @@ def test_non_overwrite_destination_collision_is_recoverable(tmp_path: Path):
     root.mkdir()
     _write(root, "old.txt", "source\n")
     _write(root, "new.txt", "existing\n")
-    result = compiler.apply_compiled([_move_op(root)], root)
+    result = apply_compiled([_move_op(root)], root)
     assert result[0]["error"] == "context_mismatch"
     assert (root / "old.txt").read_text(encoding="utf-8") == "source\n"
     assert (root / "new.txt").read_text(encoding="utf-8") == "existing\n"
@@ -109,7 +113,7 @@ def test_overwrite_move_uses_native_replace(tmp_path: Path):
     root.mkdir()
     _write(root, "old.txt", "A\n")
     _write(root, "new.txt", "B\n")
-    result = compiler.apply_compiled([_move_op(root, overwrite=True)], root)
+    result = apply_compiled([_move_op(root, overwrite=True)], root)
     assert result[0]["ok"] is True
     assert not (root / "old.txt").exists()
     assert (root / "new.txt").read_text(encoding="utf-8") == "A\n"
@@ -119,7 +123,7 @@ def test_missing_source_fails_without_touching_destination(tmp_path: Path):
     root = tmp_path / "workspace"
     root.mkdir()
     _write(root, "new.txt", "existing\n")
-    result = compiler.apply_compiled([_move_op(root)], root)
+    result = apply_compiled([_move_op(root)], root)
     assert result[0]["error"] == "context_mismatch"
     assert (root / "new.txt").read_text(encoding="utf-8") == "existing\n"
 
@@ -135,7 +139,7 @@ def test_native_rename_failure_has_no_copy_fallback(tmp_path: Path, monkeypatch,
         raise OSError("EXDEV")
 
     monkeypatch.setattr(os, primitive, fail)
-    result = compiler.apply_compiled([operation], root)
+    result = apply_compiled([operation], root)
     assert result[0]["error"] == "io_error"
     assert (root / "old.txt").read_text(encoding="utf-8") == "source\n"
     assert not (root / "new.txt").exists()

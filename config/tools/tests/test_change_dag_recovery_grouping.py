@@ -23,7 +23,7 @@ if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
 from common.helpers import change_dag  # noqa: E402
-from common.helpers import change_dag_compiler as compiler  # noqa: E402
+from common.helpers.change_dag_compiler_runtime import node_present  # noqa: E402
 from common.helpers import change_dag_state as state_helper  # noqa: E402
 from common.tools.dag_executor import reconcile_interrupted, run_execution  # noqa: E402
 
@@ -126,8 +126,8 @@ def test_reproduced_before_per_node_recovery_splits_the_composed_op(tmp_path: Pa
 
     # The single atomic operation fully landed, yet per-node classification
     # disagrees: N4 (b->c) proves present in "c" while N5 (a->b) does not.
-    n4 = compiler.node_present(dag, "N4", root)
-    n5 = compiler.node_present(dag, "N5", root)
+    n4 = node_present(dag, "N4", root)
+    n5 = node_present(dag, "N5", root)
     assert n4 == "present"
     assert n5 != "present"
     # This mismatch is exactly the fabricated partial success the grouping fixes.

@@ -19,12 +19,11 @@ if str(TOOLS) not in sys.path:
 
 from common.helpers import change_dag  # noqa: E402
 from common.helpers import change_dag_control as control  # noqa: E402
-from common.helpers import change_dag_ops as dag_ops  # noqa: E402
+from common.helpers.change_dag_ops_create import create_dag  # noqa: E402
+from common.helpers.change_dag_ops_mutation import add_requirement  # noqa: E402
 from common.helpers import change_dag_state as state_helper  # noqa: E402
-from common.helpers.change_dag_compiler import (  # noqa: E402
-    compile_operations,
-    preflight,
-)
+from common.helpers.change_dag_compiler_lowering import compile_operations  # noqa: E402
+from common.helpers.change_dag_compiler_phase import preflight  # noqa: E402
 from common.tools import dag_executor  # noqa: E402
 from common.tools.dag_executor import run_execution  # noqa: E402
 
@@ -334,7 +333,7 @@ def test_exclusive_run_does_not_overlap_other_runs(tmp_path: Path, monkeypatch):
 # ---------------------------------------------------------------------------
 def test_concurrent_node_additions_get_distinct_ids(tmp_path: Path):
     root = make_repo(tmp_path)
-    created = dag_ops.create_dag(
+    created = create_dag(
         root, "mut", {"root": "h", "nodes": {"h": {"requirement": "root"}}}
     )
     assert "error" not in created
@@ -343,7 +342,7 @@ def test_concurrent_node_additions_get_distinct_ids(tmp_path: Path):
     lock = __import__("threading").Lock()
 
     def add(index: int) -> None:
-        result = dag_ops.add_requirement(root, "mut", f"req {index}", ["N1"])
+        result = add_requirement(root, "mut", f"req {index}", ["N1"])
         if "error" in result:
             with lock:
                 errors.append(result)

@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json, os, subprocess, sys
 from pathlib import Path
-from ..helpers import change_dag, change_dag_compiler as compiler, change_dag_control as control, change_dag_state as state_helper
+from ..helpers import change_dag, change_dag_compiler_phase as compiler_phase, change_dag_control as control, change_dag_state as state_helper
 
 # Observable fallback flag: set only when detached Popen is unavailable.
 SYNCHRONOUS_FALLBACK_USED = False
@@ -30,7 +30,7 @@ def dag_start(slug: str, retry: bool = False, *, workspace_root: Path) -> dict:
             node_id: ("not_satisfied" if value == "failed" else value)
             for node_id, value in effective_state.items()
         }
-    preflight = compiler.preflight(dag, effective_state, root)
+    preflight = compiler_phase.preflight(dag, effective_state, root)
     if not preflight["executable"]:
         return {"error": "not_executable", "issues": preflight["issues"]}
     active = control.active_dag(root)

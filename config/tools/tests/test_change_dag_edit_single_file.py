@@ -17,12 +17,10 @@ TOOLS = Path(__file__).parents[1]
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
-from common.helpers.change_dag_compiler import (  # noqa: E402
-    apply_compiled,
-    compile_operations,
-    preflight,
-)
-from common.helpers.change_dag_ops import preview  # noqa: E402
+from common.helpers.change_dag_compiler_lowering import compile_operations  # noqa: E402
+from common.helpers.change_dag_compiler_phase import preflight  # noqa: E402
+from common.helpers.change_dag_compiler_runtime import apply_compiled  # noqa: E402
+from common.helpers.change_dag_ops_views import preview  # noqa: E402
 from common.helpers.change_dag_patch import parse_unified_diff  # noqa: E402
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from common.helpers.change_dag_ops import preview
+from common.helpers.change_dag_ops_views import preview
 
 
 def semantic(requirement: str, children=None) -> dict:

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common.helpers.change_dag_compiler import apply_compiled, compile_operations
+from common.helpers.change_dag_compiler_lowering import compile_operations
+from common.helpers.change_dag_compiler_runtime import apply_compiled
 
 
 def semantic(requirement: str, children: list[str]) -> dict:

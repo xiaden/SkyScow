@@ -4,8 +4,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from common.helpers.change_dag_compiler import compile_operations, preflight
-from common.helpers.change_dag_ops import add_work, create_dag, preview
+from common.helpers.change_dag_compiler_lowering import compile_operations
+from common.helpers.change_dag_compiler_phase import preflight
+from common.helpers.change_dag_ops_create import create_dag
+from common.helpers.change_dag_ops_mutation import add_work
+from common.helpers.change_dag_ops_views import preview
 
 
 def dag_with(nodes: dict) -> dict:

@@ -12,13 +12,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common.helpers.change_dag_compiler import (
+from common.helpers.change_dag_compiler_lowering import compile_operations
+from common.helpers.change_dag_compiler_phase import compile_whole_dag, preflight
+from common.helpers.change_dag_compiler_runtime import (
     _already_applied,
     apply_compiled,
-    compile_operations,
-    compile_whole_dag,
     node_present,
-    preflight,
 )
 from common.helpers.change_dag_patch import apply_file_patch, parse_unified_diff
 

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..helpers.change_dag_ops import create_dag
+from ..helpers.change_dag_ops_create import create_dag
 
 
 def dag_create(slug: str, semantic_graph: dict[str, Any], *, workspace_root: Path) -> dict[str, Any]:

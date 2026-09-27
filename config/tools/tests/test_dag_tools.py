@@ -17,16 +17,14 @@ from common.helpers.change_dag_control import (
     remove_marker,
     write_marker,
 )
-from common.helpers.change_dag_ops import (
+from common.helpers.change_dag_ops_create import create_dag
+from common.helpers.change_dag_ops_mutation import (
     add_requirement,
     add_work,
-    create_dag,
-    preview,
     remove_node,
-    show,
     update_node,
-    validate,
 )
+from common.helpers.change_dag_ops_views import preview, show, validate
 from common.helpers.change_dag_state import write_state
 from common.tools.dag_show import dag_show
 

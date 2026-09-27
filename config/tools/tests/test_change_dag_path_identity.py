@@ -20,8 +20,11 @@ if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
 from common.helpers import change_dag
-from common.helpers.change_dag_compiler import compile_operations, preflight
-from common.helpers.change_dag_ops import add_work, create_dag, preview, update_node
+from common.helpers.change_dag_compiler_lowering import compile_operations
+from common.helpers.change_dag_compiler_phase import preflight
+from common.helpers.change_dag_ops_create import create_dag
+from common.helpers.change_dag_ops_mutation import add_work, update_node
+from common.helpers.change_dag_ops_views import preview
 
 
 # ---------------------------------------------------------------------------

@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ..helpers import change_dag, change_dag_compiler as compiler
+from ..helpers import change_dag, change_dag_compiler_phase as compiler_phase, change_dag_compiler_runtime as compiler_runtime
 from ..helpers import change_dag_control as control
 from ..helpers import change_dag_policy as policy
 from ..helpers import change_dag_state as state_helper
@@ -79,7 +79,7 @@ def _path_fingerprint(path: Path) -> dict[str, Any] | None:
 def _apply_start_entry(op: Any, workspace_root: Path) -> dict[str, Any]:
     """Bounded pre-apply evidence for one composed atomic operation.
 
-    Recorded before :func:`compiler.apply_compiled` so an interrupted operation
+    Recorded before :func:`change_dag_compiler_runtime.apply_compiled` so an interrupted operation
     can be reconciled as a unit: every ``op.nodes`` contributor shares this one
     repository mutation. For ``create``/``edit`` the entry carries the exact base
     and expected post-application content fingerprints, so recovery can prove the
@@ -192,7 +192,7 @@ def reconcile_interrupted(workspace_root: Path, slug: str) -> dict[str, Any]:
             resolved, evidence = "failed", "interrupted run is never replayed automatically"
         else:
             fingerprint = _move_source_fingerprint(workspace_root, slug, node_id) if kind == "move" else None
-            present = compiler.node_present(
+            present = compiler_runtime.node_present(
                 dag, node_id, workspace_root, fingerprint=fingerprint,
                 require_fingerprint=(kind == "move"),
             )
@@ -325,7 +325,7 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
         # conflicts and blocked work, and the run frontier open at this state.
         # Whole-DAG simulation consumes the same primitive, so execution and
         # preview/validation cannot disagree about what work exists.
-        phase = compiler.compile_phase(dag, state, workspace_root)
+        phase = compiler_phase.compile_phase(dag, state, workspace_root)
         changed = False
 
         if phase.conflicts:
@@ -365,14 +365,14 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
                     state_helper.append_work_log(workspace_root, slug, state_helper.log_move_start(
                         list(op.nodes), from_path=op.from_path, to_path=op.to_path,
                         overwrite=bool(op.overwrite),
-                        source_fingerprint=compiler.source_fingerprint(workspace_root / str(op.from_path or ""))))
+                        source_fingerprint=compiler_runtime.source_fingerprint(workspace_root / str(op.from_path or ""))))
                 else:
                     state_helper.append_work_log(workspace_root, slug, _apply_start_entry(op, workspace_root))
             for op in phase.ops:
                 for node_id in op.nodes:
                     state[node_id] = "in_progress"
             state_helper.write_state(workspace_root, slug, state)
-            results = compiler.apply_compiled(phase.ops, workspace_root)
+            results = compiler_runtime.apply_compiled(phase.ops, workspace_root)
             for result in results:
                 outcome = "success" if result.get("ok") else "failure"
                 for node_id in result.get("nodes", []):

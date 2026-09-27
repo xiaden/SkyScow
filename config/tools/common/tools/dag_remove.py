@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..helpers.change_dag_ops import remove_node
+from ..helpers.change_dag_ops_mutation import remove_node
 
 
 def dag_remove(slug: str, node_id: str, *, workspace_root: Path) -> dict[str, Any]:

@@ -27,7 +27,7 @@ if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
 from common.helpers import change_dag_state as state_helper
-from common.helpers.change_dag_compiler import _already_applied, node_present
+from common.helpers.change_dag_compiler_runtime import _already_applied, node_present
 from common.helpers.change_dag_patch import parse_unified_diff
 from common.tools import dag_executor
 

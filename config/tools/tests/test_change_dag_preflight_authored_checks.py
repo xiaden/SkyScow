@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common.helpers.change_dag_compiler import preflight
+from common.helpers.change_dag_compiler_phase import preflight
 
 
 def semantic(requirement: str, children: list[str]) -> dict:

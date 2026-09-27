@@ -4,7 +4,7 @@ from __future__ import annotations
 from itertools import permutations
 from pathlib import Path
 
-from common.helpers.change_dag_compiler import compile_operations
+from common.helpers.change_dag_compiler_lowering import compile_operations
 
 
 def semantic(requirement: str, children: list[str]) -> dict:

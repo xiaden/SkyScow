@@ -19,7 +19,7 @@ if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
 from common.helpers import change_dag  # noqa: E402
-from common.helpers import change_dag_compiler as compiler  # noqa: E402
+from common.helpers.change_dag_compiler_phase import preflight  # noqa: E402
 from common.helpers import change_dag_control as control  # noqa: E402
 from common.helpers import change_dag_state as state_helper  # noqa: E402
 from common.tools.dag_start import dag_start  # noqa: E402
@@ -77,8 +77,8 @@ def test_stored_failed_state_hides_the_conflict_that_retry_would_hit(tmp_path: P
     })
     dag = change_dag.read_dag(root, "conflict")[0]
 
-    stale = compiler.preflight(dag, {"N10": "failed", "N11": "failed"}, root)
-    effective = compiler.preflight(dag, {"N10": "not_satisfied", "N11": "not_satisfied"}, root)
+    stale = preflight(dag, {"N10": "failed", "N11": "failed"}, root)
+    effective = preflight(dag, {"N10": "not_satisfied", "N11": "not_satisfied"}, root)
 
     # Stored failed state: both nodes skipped -> looks executable (the bug).
     assert stale["executable"] is True

@@ -18,10 +18,8 @@ if str(TOOLS) not in sys.path:
 
 from common.helpers import change_dag  # noqa: E402
 from common.helpers import change_dag_state as state_helper  # noqa: E402
-from common.helpers.change_dag_compiler import (  # noqa: E402
-    compile_operations,
-    ready_run_nodes,
-)
+from common.helpers.change_dag_compiler_graph import ready_run_nodes  # noqa: E402
+from common.helpers.change_dag_compiler_lowering import compile_operations  # noqa: E402
 from common.tools.dag_executor import run_execution  # noqa: E402
 
 

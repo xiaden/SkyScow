@@ -13,7 +13,8 @@ import subprocess
 from pathlib import Path
 
 from common.helpers import change_dag_state as state_helper
-from common.helpers.change_dag_compiler import compile_operations, preflight
+from common.helpers.change_dag_compiler_lowering import compile_operations
+from common.helpers.change_dag_compiler_phase import preflight
 from common.tools import dag_executor
 
 

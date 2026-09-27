@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..helpers.change_dag_ops import preview
+from ..helpers.change_dag_ops_views import preview
 
 
 def dag_preview(

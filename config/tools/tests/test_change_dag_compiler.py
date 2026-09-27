@@ -4,17 +4,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from common.helpers.change_dag import unresolved_leaves
-from common.helpers.change_dag_compiler import (
-    Blocked,
-    CompiledOp,
-    Conflict,
-    apply_compiled,
-    compile_operations,
-    node_present,
-    preflight,
-    ready_run_nodes,
-    summarize,
-)
+from common.helpers.change_dag_compiler_graph import ready_run_nodes
+from common.helpers.change_dag_compiler_lowering import compile_operations
+from common.helpers.change_dag_compiler_model import Blocked, CompiledOp, Conflict
+from common.helpers.change_dag_compiler_phase import preflight, summarize
+from common.helpers.change_dag_compiler_runtime import apply_compiled, node_present
 from common.helpers.change_dag_policy import describe_allowlist, validate_run_command
 
 

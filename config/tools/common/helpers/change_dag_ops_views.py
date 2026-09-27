@@ -2,7 +2,7 @@
 
 This module is a consumer of the Change DAG compiler; it must not recreate
 compiler semantics. Whole-DAG preview performs exactly one
-:func:`change_dag_compiler.compile_whole_dag` and reuses that compilation when
+:func:`change_dag_compiler_phase.compile_whole_dag` and reuses that compilation when
 calling ``preflight(..., compilation=(conflicts, blocked))`` -- it must never
 derive a parallel compilation or report. Authoring-context preview uses
 ``compile_lower_work`` with the persisted state passed through. Preview run
@@ -17,7 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from . import change_dag
-from . import change_dag_compiler
+from . import change_dag_compiler_graph as compiler_graph
+from . import change_dag_compiler_phase as compiler_phase
 from .change_dag_ops_support import _error, _load, _numeric
 from .change_dag_patch import PatchError, read_text_preserving
 
@@ -110,7 +111,7 @@ def _authoring_preview(
         )
     boundary_depth = depths[node_id]
 
-    ops, conflicts, overlay, removed = change_dag_compiler.compile_lower_work(
+    ops, conflicts, overlay, removed = compiler_phase.compile_lower_work(
         dag, workspace_root, boundary_depth, state=state
     )
     # A move affects both spellings: it is visible from its source and target.
@@ -133,7 +134,7 @@ def _authoring_preview(
     else:
         effective_source = live_source
 
-    frontiers = change_dag_compiler.lower_work_frontiers(dag)
+    frontiers = compiler_graph.lower_work_frontiers(dag)
     frontier_counts = {
         "same_frontier_nodes": sum(1 for f in frontiers.values() if f == boundary_depth),
         "shallower_nodes": sum(1 for f in frontiers.values() if f < boundary_depth),
@@ -183,7 +184,7 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
         return _authoring_preview(dag, workspace_root, slug, path, node_id, state)
 
     # Preview and admission share one whole-DAG compilation result.
-    execution_phases, conflicts, blocked = change_dag_compiler.compile_whole_dag(
+    execution_phases, conflicts, blocked = compiler_phase.compile_whole_dag(
         dag, state, workspace_root
     )
     # Flatten every deterministically lowerable execution phase. `segment` is
@@ -193,10 +194,10 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
     execution_phase = {
         id(op): index for index, phase in enumerate(execution_phases) for op in phase
     }
-    pre = change_dag_compiler.preflight(
+    pre = compiler_phase.preflight(
         dag, state, workspace_root, compilation=(conflicts, blocked)
     )
-    ready = change_dag_compiler.ready_run_nodes(dag, state, workspace_root)
+    ready = compiler_graph.ready_run_nodes(dag, state, workspace_root)
     depths = change_dag.derived_depth(dag)
 
     if node_id is not None:
@@ -248,7 +249,7 @@ def validate(workspace_root: Path, slug: str) -> dict[str, Any]:
 
     schema = change_dag.schema_errors(dag)
     structure = change_dag.structure_errors(dag)
-    pre = change_dag_compiler.preflight(dag, state, workspace_root)
+    pre = compiler_phase.preflight(dag, state, workspace_root)
     issues: list[dict[str, Any]] = [{"kind": "schema", "message": message} for message in schema]
     issues.extend({"kind": "structure", "message": message} for message in structure)
     for issue in pre.get("issues", []):

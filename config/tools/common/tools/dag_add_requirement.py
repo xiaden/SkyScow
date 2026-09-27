@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..helpers.change_dag_ops import add_requirement
+from ..helpers.change_dag_ops_mutation import add_requirement
 
 
 def dag_add_requirement(

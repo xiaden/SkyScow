@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common.helpers.change_dag_compiler import compile_operations, preflight
+from common.helpers.change_dag_compiler_lowering import compile_operations
+from common.helpers.change_dag_compiler_phase import preflight
 
 
 def dag_with(nodes: dict) -> dict:
