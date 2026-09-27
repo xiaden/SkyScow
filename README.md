@@ -91,6 +91,8 @@ Detailed lifecycle documentation:
 
 **Commands.** The user-facing commands include `/correct`, `/bulk_correct`, `/pr-resolve-issue`, `/commit-resolve-issue`, `/qa-push`, and `/qa-repo-review`, plus the general `ecc/*` commands (`/ecc/eval`, `/ecc/fix-build`, `/ecc/quality-gate`, and others).
 
+**Tissue.** SkyScow bundles Tissue's resident OpenCode plugin, triage agent, and resolve agent from the pinned `vendor/tissue` submodule. The Tissue controller remains a separate service/container; SkyScow's bootstrap owns the resident-side plugin and agents. See the [Tissue integration guide](docs/tissue-integration.md) for the deployment boundary and update procedure.
+
 Skills load on demand — SkyScow ships 29 of them — and a set of Python-backed tools backs the work: ADRs, ASRs, design documents, Change DAGs, durable logs, QA round records, context budgeting, and request-context capture.
 
 ---

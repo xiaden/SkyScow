@@ -393,6 +393,13 @@ RUN set -eux; \
 
 COPY config/ /usr/local/share/skyscow/
 
+# Tissue's resident-side integration is sourced from the pinned submodule. The
+# controller remains a separate service/container; only its OpenCode plugin and
+# agents are shipped here and reconciled by the SkyScow bootstrap manifest.
+COPY vendor/tissue/plugin/tissue-moderation.ts /usr/local/share/skyscow/plugins/tissue-moderation.ts
+COPY vendor/tissue/agents/tissue-triage.md /usr/local/share/skyscow/agents/tissue-triage.md
+COPY vendor/tissue/agents/tissue-resolve.md /usr/local/share/skyscow/agents/tissue-resolve.md
+
 COPY scripts/entrypoint.sh \
      scripts/bootstrap.sh \
      scripts/reconcile_opencode_state.py \
