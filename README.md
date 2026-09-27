@@ -35,28 +35,59 @@ OpenCode is provider-agnostic: point it at Anthropic, OpenAI, Google Gemini, Gro
 
 ---
 
+## The Shipped Harness
+
+SkyScow is not just a container full of tools — it ships a complete multi-agent software-engineering harness on top of OpenCode. Day-to-day work starts with the default agent, **`nyx`**, which routes each request to the right department before acting: a routine fix stays local, while a large or risky change moves through research, design, decomposition, execution, and independent QA.
+
+### Agents by department
+
+| Department | Agents | Role |
+|---|---|---|
+| Orchestration | `nyx` | Default entry point; applies project rules and routes work before acting |
+| R&D | `rnd-manager`, `rnd-dd-author`, `rnd-architect`, `rnd-ideator`, `rnd-refiner`, `rnd-counter-ideator`, `rnd-counter-improver`, `rnd-improver`, `rnd-estimator`, `rnd-complexity-advisor` | Research, adversarial design, design documents, and effort sizing |
+| Execution | `change-dag-author`, `change-dag-reviewer`, `change-dag-runner` | Author, review, and run a Change DAG |
+| QA | `qa-reviewer` (+ correctness, boundary, journey, domain-risk lenses), `qa-push-manager`, `qa-repo-review-manager` (+ whole-tree reviewers), `qa-test-analyzer` / `qa-test-generator`, `qa-docs-analyzer` / `qa-docs-generator` | Independent review, test and docs gap repair, and publication gating |
+| Support | `support-researcher`, `support-librarian`, `support-pattern-enforcer`, `support-debugger` | Research, artifact navigation, impact analysis, and root-cause debugging |
+
+### Processes
+
+**Research → design → decomposition → Change DAG → execution.** Substantial features start with research and an adversarial design pass, producing a design document (DD) that records the trade-offs and the decision. An accepted DD is decomposed into a Change DAG: a semantic graph of requirements plus exact work nodes. `change-dag-runner` then executes it deterministically and serially. The Change DAG is how SkyScow structures a change that is too large to hold in one context window — it is one process among several, not the only way work gets done.
+
+**Independent QA.** Every meaningful change gets independent correctness review, plus boundary, journey, and domain-risk lenses where the changed surface triggers them. Test and docs analyzers each inspect their own domain and dispatch a generator to repair concrete gaps. `/qa-push` is the final publication gate over a candidate commit, and `/qa-repo-review` runs a whole-tree review of a repository at an explicit GitHub ref.
+
+**Support bench.** `support-researcher` gathers codebase and external facts, `support-librarian` navigates the artifact corpus (logs, ADRs, ASRs, DDs, and prior work), `support-pattern-enforcer` maps the impact of a proposed change, and `support-debugger` traces failures to a root cause.
+
+**Git and GitHub.** The `gg-*` skill family (`gg-router`, `gg-core`, `gg-env`, `gg-repos`, `gg-actions`, `gg-artifacts`, `gg-docs`) covers local Git, credentials, collaboration, Actions, and attested artifacts. It loads on demand.
+
+**Commands.** The user-facing commands include `/correct`, `/bulk_correct`, `/pr-resolve-issue`, `/commit-resolve-issue`, `/qa-push`, and `/qa-repo-review`, plus the general `ecc/*` commands (`/ecc/eval`, `/ecc/fix-build`, `/ecc/quality-gate`, and others).
+
+Skills load on demand — SkyScow ships 29 of them — and a set of Python-backed tools backs the work: ADRs, ASRs, design documents, Change DAGs, durable logs, QA round records, context budgeting, and request-context capture.
+
+---
+
 ## Table of Contents
 
 | | Section |
 |---|---------|
-| 1 | [Quick Start](#quick-start) |
-| 2 | [Platform Support](#platform-support) |
-| 3 | [Why SkyScow](#why-skyscow) |
-| 4 | [Provider Support](#provider-support) |
-| 5 | [Docker Compose - Quick](#docker-compose---quick) |
-| 6 | [Docker Compose - Full](#docker-compose---full) |
-| 7 | [Environment Variables](#environment-variables) |
-| 8 | [What's Inside](#whats-inside) |
-| 9 | [Architecture](#architecture) |
-| 10 | [CLI Usage](#cli-usage) |
-| 11 | [Data and Persistence](#data-and-persistence) |
-| 12 | [Permissions](#permissions) |
-| 13 | [Upgrading](#upgrading) |
-| 14 | [Troubleshooting](#troubleshooting) |
-| 15 | [Building Locally](#building-locally) |
-| 16 | [Contributing](#contributing) |
-| 17 | [Support](#support) |
-| 18 | [License](#license) |
+| 1 | [The Shipped Harness](#the-shipped-harness) |
+| 2 | [Quick Start](#quick-start) |
+| 3 | [Platform Support](#platform-support) |
+| 4 | [Why SkyScow](#why-skyscow) |
+| 5 | [Provider Support](#provider-support) |
+| 6 | [Docker Compose - Quick](#docker-compose---quick) |
+| 7 | [Docker Compose - Full](#docker-compose---full) |
+| 8 | [Environment Variables](#environment-variables) |
+| 9 | [What's Inside](#whats-inside) |
+| 10 | [Architecture](#architecture) |
+| 11 | [CLI Usage](#cli-usage) |
+| 12 | [Data and Persistence](#data-and-persistence) |
+| 13 | [Permissions](#permissions) |
+| 14 | [Upgrading](#upgrading) |
+| 15 | [Troubleshooting](#troubleshooting) |
+| 16 | [Building Locally](#building-locally) |
+| 17 | [Contributing](#contributing) |
+| 18 | [Support](#support) |
+| 19 | [License](#license) |
 
 ---
 
@@ -77,6 +108,8 @@ services:
     container_name: skyscow
     restart: unless-stopped
     shm_size: 2g
+    security_opt:
+      - seccomp=./config/chromium-seccomp.json   # Chromium sandbox (required)
     ports:
       - "127.0.0.1:4096:4096"   # local-only by default
     volumes:
@@ -94,6 +127,8 @@ secrets:
   github_token:
     file: ${GITHUB_TOKEN_FILE:-/dev/null}
 ```
+
+> The `security_opt` line points at `config/chromium-seccomp.json`. If you are not running from a clone of this repo, download that profile as shown in [Docker Compose - Quick](#docker-compose---quick); Chromium's sandbox will not start without it.
 
 In that example, `/home/opencode` is the fixed path **inside** the container. On the host, `./data/opencode` and `./local-cache/opencode` are just example bind-mount paths relative to the folder containing your `docker-compose.yaml`. You can replace them with any host paths you want.
 
@@ -455,7 +490,6 @@ Includes Liberation, DejaVu, Noto, and Noto Color Emoji fonts for correct page r
 | `sleev` | Context compression gateway |
 | `aft` (`@cortexkit/aft`) | Code search and analysis |
 | `aft-opencode` (`@cortexkit/aft-opencode`) | AFT OpenCode plugin |
-| `opencode-ralph-rlm` (`@doeixd/opencode-ralph-rlm`) | Self-correcting coding loop |
 | `bun` | Fast JavaScript runtime (via `bunx`) |
 
 </details>
@@ -470,7 +504,7 @@ Includes Liberation, DejaVu, Noto, and Noto Color Emoji fonts for correct page r
 
 s6-overlay supervises OpenCode, Xvfb, and the Sleev gateway. If a process crashes, it restarts automatically. Container restart policies stay clean because the supervisor handles it internally.
 
-The Sleev CLI and its native gateway default to matching version 1.6.16. The packaged artifacts are SHA256-checked at image build time. Set `SLEEV_VERSION` to another stable release to have startup fetch, verify, and install the matching official CLI and gateway before s6 starts; failure is fatal. No systemd management is used.
+The Sleev CLI and its native gateway default to matching version 1.7.7. The packaged artifacts are SHA256-checked at image build time. Set `SLEEV_VERSION` to another stable release to have startup fetch, verify, and install the matching official CLI and gateway before s6 starts; failure is fatal. No systemd management is used.
 
 </details>
 
@@ -564,11 +598,15 @@ docker exec -it skyscow bash -c "opencode providers login"
 | `opencode export <sessionID>` | Export session as JSON |
 | `opencode plugin <module>` | Install a plugin |
 | `opencode upgrade` | Upgrade OpenCode (disabled by default in container) |
+| `sleev status` | Sleev gateway status |
+
+The agent also has AFT tools available through its plugin. These are **agent tools, not `opencode` subcommands**:
+
+| Agent tool | What it does |
+|---------|-------------|
 | `aft_search` | Semantic code search |
 | `aft_inspect` | Codebase health diagnostics |
 | `aft_outline` | Structural code outline |
-| `sleev status` | Sleev gateway status |
-| `opencode-ralph-rlm setup` | Set up Ralph-RLM coding loop in current project |
 
 
 
@@ -725,18 +763,17 @@ OpenCode takes a few seconds to initialize. Give it 10-15 seconds after `docker 
 </details>
 
 <details>
-<summary><strong>Why doesn't SkyScow need SYS_ADMIN or seccomp=unconfined?</strong></summary>
+<summary><strong>How does Chromium's sandbox work in the container?</strong></summary>
 
-Chromium runs with `--no-sandbox` inside the container, which is standard for containerized browser setups. This eliminates the need for `SYS_ADMIN` capabilities or `seccomp=unconfined` that some other Docker browser setups require. The container itself provides the isolation boundary.
+SkyScow runs Chromium with its built-in setuid sandbox enabled, together with the constrained seccomp profile shipped at `config/chromium-seccomp.json`. Both `shm_size: 2g` and the `security_opt` seccomp entry in the compose file are required for the browser sandbox to run correctly.
 
-If you prefer to use Chromium's built-in sandbox instead, add the following to your compose file and remove `--no-sandbox` from the `CHROMIUM_FLAGS` environment variable:
+The container does **not** need broad privileges. In particular:
 
-```yaml
-cap_add:
-  - SYS_ADMIN
-security_opt:
-  - seccomp=unconfined
-```
+- Do **not** add `--no-sandbox` or otherwise disable Chromium's sandbox.
+- Do **not** add `cap_add: SYS_ADMIN`.
+- Do **not** use `seccomp=unconfined`.
+
+The setuid sandbox plus the constrained profile are the isolation boundary, and weakening them is never a supported workaround. If browser automation fails, check `shm_size` and the `security_opt` entry first (see [Docker Compose - Quick](#docker-compose---quick)).
 
 </details>
 
