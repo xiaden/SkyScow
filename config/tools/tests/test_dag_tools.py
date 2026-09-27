@@ -22,11 +22,14 @@ from common.helpers.change_dag_ops_mutation import (
     add_requirement,
     add_work,
     remove_node,
+    set_decomposition_only,
     update_node,
 )
 from common.helpers.change_dag_ops_views import preview, show, validate
 from common.helpers.change_dag_state import write_state
 from common.tools.dag_show import dag_show
+from common.tools.dag_status import dag_status
+from common.tools.dag_set_decomposition_only import dag_set_decomposition_only
 
 PATCH = "@@ -1 +1 @@\n-a\n+b\n"
 
@@ -46,7 +49,7 @@ def _two_node_dag(workspace) -> None:
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "done", "satisfied_by": ["impl"]},
+                "root": {"requirement": "done", "requires": ["impl"]},
                 "impl": {"requirement": "impl"},
             },
         },
@@ -61,8 +64,8 @@ def _three_level_dag(workspace) -> None:
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "root", "satisfied_by": ["mid"]},
-                "mid": {"requirement": "mid", "satisfied_by": ["leaf"]},
+                "root": {"requirement": "root", "requires": ["mid"]},
+                "mid": {"requirement": "mid", "requires": ["leaf"]},
                 "leaf": {"requirement": "leaf"},
             },
         },
@@ -80,7 +83,7 @@ def test_create_dag_valid_and_invalid_writes_nothing(workspace):
     missing = create_dag(
         workspace,
         "bad2",
-        {"root": "r", "nodes": {"r": {"requirement": "x", "satisfied_by": ["ghost"]}}},
+        {"root": "r", "nodes": {"r": {"requirement": "x", "requires": ["ghost"]}}},
     )
     assert missing["error"] == "invalid_semantic_graph"
     assert not dag_json_path(workspace, "bad2").exists()
@@ -99,7 +102,7 @@ def test_create_dag_valid_and_invalid_writes_nothing(workspace):
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "done", "satisfied_by": ["impl"]},
+                "root": {"requirement": "done", "requires": ["impl"]},
                 "impl": {"requirement": "impl"},
             },
         },
@@ -129,15 +132,15 @@ def test_add_requirement_unresolved_leaf_and_insert_between_rewiring(workspace):
     new_id = _payload(inserted)["node_id"]
     assert new_id == "N3"
     dag = read_json(dag_json_path(workspace, "demo"))
-    assert dag["nodes"]["N1"]["satisfied_by"] == ["N3"]
-    assert dag["nodes"]["N3"]["satisfied_by"] == ["N2"]
+    assert dag["nodes"]["N1"]["requires"] == ["N3"]
+    assert dag["nodes"]["N3"]["requires"] == ["N2"]
 
     leaf = add_requirement(workspace, "demo", "a new open requirement", ["N3"])
     leaf_id = _payload(leaf)["node_id"]
     assert leaf_id == "N4"
     dag = read_json(dag_json_path(workspace, "demo"))
-    assert "satisfied_by" not in dag["nodes"][leaf_id]
-    assert dag["nodes"]["N3"]["satisfied_by"] == ["N2", leaf_id]
+    assert "requires" not in dag["nodes"][leaf_id]
+    assert dag["nodes"]["N3"]["requires"] == ["N2", leaf_id]
 
 
 def test_add_requirement_rejects_bad_child_and_non_semantic_parent(workspace):
@@ -196,9 +199,9 @@ def test_remove_node_preserves_shared_descendants(workspace):
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "r", "satisfied_by": ["left", "right"]},
-                "left": {"requirement": "l", "satisfied_by": ["shared"]},
-                "right": {"requirement": "rt", "satisfied_by": ["shared"]},
+                "root": {"requirement": "r", "requires": ["left", "right"]},
+                "left": {"requirement": "l", "requires": ["shared"]},
+                "right": {"requirement": "rt", "requires": ["shared"]},
                 "shared": {"requirement": "s"},
             },
         },
@@ -214,7 +217,7 @@ def test_remove_node_preserves_shared_descendants(workspace):
     assert "N2" not in dag["nodes"]
     assert "N4" in dag["nodes"]
     assert "N5" in dag["nodes"]
-    assert dag["nodes"]["N1"]["satisfied_by"] == ["N3"]
+    assert dag["nodes"]["N1"]["requires"] == ["N3"]
 
 
 def test_remove_node_gcs_mutable_unreachable_descendants(workspace):
@@ -224,8 +227,8 @@ def test_remove_node_gcs_mutable_unreachable_descendants(workspace):
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "r", "satisfied_by": ["mid"]},
-                "mid": {"requirement": "m", "satisfied_by": ["leaf"]},
+                "root": {"requirement": "r", "requires": ["mid"]},
+                "mid": {"requirement": "m", "requires": ["leaf"]},
                 "leaf": {"requirement": "l"},
             },
         },
@@ -236,7 +239,7 @@ def test_remove_node_gcs_mutable_unreachable_descendants(workspace):
     assert payload["gc"] == ["N3"]
     dag = read_json(dag_json_path(workspace, "demo"))
     assert set(dag["nodes"]) == {"N1"}
-    assert "satisfied_by" not in dag["nodes"]["N1"]
+    assert "requires" not in dag["nodes"]["N1"]
 
 
 def test_remove_node_rejects_root(workspace):
@@ -268,7 +271,7 @@ def test_validate_reports_derived_schema_executable_resolved(workspace):
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "r", "satisfied_by": ["open", "impl"]},
+                "root": {"requirement": "r", "requires": ["open", "impl"]},
                 "open": {"requirement": "still open"},
                 "impl": {"requirement": "impl"},
             },
@@ -289,6 +292,43 @@ def test_validate_reports_derived_schema_executable_resolved(workspace):
     assert any(issue["kind"] == "compile_conflict" for issue in second["issues"])
 
 
+def test_validate_resolved_true_when_every_semantic_node_locally_resolved(workspace):
+    create_dag(
+        workspace,
+        "demo",
+        {"root": "root", "nodes": {"root": {"requirement": "r"}}},
+    )
+    # The root directly requires terminal work, so it is locally resolved.
+    add_work(workspace, "demo", "create", ["N1"], path="new.txt", content="x\n")
+    payload = _payload(validate(workspace, "demo"))
+    assert payload["schema_valid"] is True
+    assert payload["executable"] is True
+    assert payload["resolved"] is True
+
+
+def test_dag_status_reports_unresolved_semantic_nodes(workspace):
+    create_dag(
+        workspace,
+        "demo",
+        {
+            "root": "root",
+            "nodes": {
+                "root": {"requirement": "r", "requires": ["deferred"]},
+                "deferred": {"requirement": "still open"},
+            },
+        },
+    )
+    # BFS: root=N1, deferred=N2. Neither semantic node is locally resolved.
+    payload = dag_status("demo", workspace_root=workspace)
+    assert payload["unresolved_semantic_nodes"] == ["N1", "N2"]
+
+    add_work(workspace, "demo", "create", ["N2"], path="new.txt", content="x\n")
+    payload = dag_status("demo", workspace_root=workspace)
+    # N2 now directly requires terminal work; N1 still has only an unresolved
+    # semantic child and no decomposition flag.
+    assert payload["unresolved_semantic_nodes"] == ["N1"]
+
+
 # ---------------------------------------------------------------------------
 # Running immutability
 # ---------------------------------------------------------------------------
@@ -302,6 +342,7 @@ def test_mutations_rejected_while_dag_running(workspace):
         assert add_requirement(workspace, "demo", "r", ["N2"])["error"] == "dag_running_immutable"
         assert remove_node(workspace, "demo", "N2")["error"] == "dag_running_immutable"
         assert update_node(workspace, "demo", "N2", requirement="changed")["error"] == "dag_running_immutable"
+        assert set_decomposition_only(workspace, "demo", "N2", True)["error"] == "dag_running_immutable"
     finally:
         remove_marker(workspace)
         release_lock(fd)
@@ -324,7 +365,7 @@ def test_node_ids_are_canonical_and_monotonic(workspace):
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "r", "satisfied_by": ["a", "b"]},
+                "root": {"requirement": "r", "requires": ["a", "b"]},
                 "a": {"requirement": "a"},
                 "b": {"requirement": "b"},
             },
@@ -417,7 +458,7 @@ def _completed_dag(workspace, slug: str) -> dict:
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "root", "satisfied_by": ["N2"]},
+            "N1": {"type": "semantic", "requirement": "root", "requires": ["N2"]},
             "N2": {"type": "edit", "path": "x.txt", "patch": PATCH},
         },
     }
@@ -450,9 +491,9 @@ def test_remove_node_refuses_to_strand_immutable_work(workspace):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "root", "satisfied_by": ["N2"]},
-            "N2": {"type": "semantic", "requirement": "mid", "satisfied_by": ["N3", "N5"]},
-            "N3": {"type": "semantic", "requirement": "sub", "satisfied_by": ["N4"]},
+            "N1": {"type": "semantic", "requirement": "root", "requires": ["N2"]},
+            "N2": {"type": "semantic", "requirement": "mid", "requires": ["N3", "N5"]},
+            "N3": {"type": "semantic", "requirement": "sub", "requires": ["N4"]},
             "N4": {"type": "edit", "path": "a.txt", "patch": PATCH},
             "N5": {"type": "edit", "path": "b.txt", "patch": PATCH},
         },
@@ -466,7 +507,7 @@ def test_remove_node_refuses_to_strand_immutable_work(workspace):
 
     persisted = read_json(dag_json_path(workspace, "orphan"))
     assert set(persisted["nodes"]) == {"N1", "N2", "N3", "N4", "N5"}
-    assert persisted["nodes"]["N1"]["satisfied_by"] == ["N2"]
+    assert persisted["nodes"]["N1"]["requires"] == ["N2"]
     assert persisted == dag
 
 
@@ -500,3 +541,56 @@ def test_update_node_run_rejects_non_run_field(workspace):
 def test_update_node_requires_at_least_one_field(workspace):
     _two_node_dag(workspace)
     assert update_node(workspace, "demo", "N2")["error"] == "invalid_arguments"
+
+
+# ---------------------------------------------------------------------------
+# set_decomposition_only
+# ---------------------------------------------------------------------------
+def test_set_decomposition_only_true_then_false_roundtrip(workspace):
+    _two_node_dag(workspace)
+    # A leaf cannot be declared fully decomposed: it directly requires nothing.
+    assert set_decomposition_only(workspace, "demo", "N2", True)["error"] == "invalid_graph"
+
+    child = add_requirement(workspace, "demo", "child", ["N2"])
+    assert _payload(child)["node_id"] == "N3"
+
+    declared = set_decomposition_only(workspace, "demo", "N2", True)
+    assert _payload(declared)["decomposition_only"] is True
+    assert read_json(dag_json_path(workspace, "demo"))["nodes"]["N2"]["decomposition_only"] is True
+
+    reopened = set_decomposition_only(workspace, "demo", "N2", False)
+    assert _payload(reopened)["decomposition_only"] is False
+    assert read_json(dag_json_path(workspace, "demo"))["nodes"]["N2"]["decomposition_only"] is False
+
+
+def test_set_decomposition_only_rejects_non_semantic_unknown_and_non_boolean(workspace):
+    _two_node_dag(workspace)
+    add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH)
+
+    assert set_decomposition_only(workspace, "demo", "N3", True)["error"] == "invalid_node"
+    assert set_decomposition_only(workspace, "demo", "N99", True)["error"] == "unknown_node"
+    assert set_decomposition_only(workspace, "demo", "N2", "yes")["error"] == "invalid_arguments"
+
+
+def test_set_decomposition_only_rejects_terminal_child(workspace):
+    _two_node_dag(workspace)
+    add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH)
+
+    result = set_decomposition_only(workspace, "demo", "N2", True)
+    assert result["error"] == "invalid_graph"
+    assert any("non-semantic child" in message for message in result["errors"])
+    assert "decomposition_only" not in read_json(dag_json_path(workspace, "demo"))["nodes"]["N2"]
+
+
+def test_set_decomposition_only_rejects_completed_dag(workspace):
+    _completed_dag(workspace, "archived")
+    result = set_decomposition_only(workspace, "archived", "N1", True)
+    assert result["error"] == "dag_not_pending"
+
+
+def test_dag_set_decomposition_only_tool_module_delegates_to_ops(workspace):
+    _two_node_dag(workspace)
+    add_requirement(workspace, "demo", "child", ["N2"])
+    payload = _payload(dag_set_decomposition_only("demo", "N2", True, workspace_root=workspace))
+    assert payload["node_id"] == "N2"
+    assert payload["decomposition_only"] is True

@@ -8,7 +8,7 @@ from common.helpers.change_dag_compiler_lowering import compile_operations
 
 
 def semantic(requirement: str, children: list[str]) -> dict:
-    return {"type": "semantic", "requirement": requirement, "satisfied_by": children}
+    return {"type": "semantic", "requirement": requirement, "requires": children}
 
 
 def run() -> dict:

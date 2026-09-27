@@ -2,7 +2,8 @@
 
 The Change DAG is the declarative definition of the work required to satisfy a
 root requirement. It contains no runtime execution state and no execution
-history. ``satisfied_by`` is the only graph edge and means ALL-of.
+history. ``requires`` is the only graph edge; it means ALL-of and expresses
+what must become true for a semantic requirement to be fulfilled.
 
 This module is intentionally stdlib-only except for a *guarded optional*
 ``jsonschema`` import used to enforce the shipped JSON Schema shape. When
@@ -45,7 +46,7 @@ _NODE_REQUIRED: dict[str, set[str]] = {
     "run": {"type", "command"},
 }
 _NODE_ALLOWED: dict[str, set[str]] = {
-    "semantic": {"type", "requirement", "satisfied_by"},
+    "semantic": {"type", "requirement", "requires", "decomposition_only"},
     "create": {"type", "path", "content"},
     "edit": {"type", "path", "patch"},
     "remove": {"type", "path"},
@@ -247,7 +248,7 @@ def direct_children(dag: Any, node_id: str) -> list[str]:
     node = node_map(dag).get(node_id)
     if not isinstance(node, dict) or node.get("type") != SEMANTIC_TYPE:
         return []
-    refs = node.get("satisfied_by")
+    refs = node.get("requires")
     if not isinstance(refs, list):
         return []
     return [ref for ref in refs if isinstance(ref, str)]
@@ -378,6 +379,39 @@ def execution_order(dag: Any) -> list[str]:
     return sorted(depths, key=lambda node_id: (-depths[node_id], _numeric_id(node_id)))
 
 
+def decomposition_only_errors(dag: Any) -> list[str]:
+    """Structural invariant for a node that declares no direct terminal work.
+
+    ``decomposition_only`` is persisted authoring intent, not runtime state: the
+    node's obligation is fully decomposed into the semantic requirements it
+    directly ``requires``. It is therefore legal only on a semantic node that
+    directly requires at least one child, and every direct child must itself be
+    semantic. A direct create/edit/remove/move/run child is structurally invalid.
+    """
+    errors: list[str] = []
+    nodes = node_map(dag)
+    for node_id in sorted(nodes):
+        if node_type(dag, node_id) != SEMANTIC_TYPE:
+            continue
+        if nodes[node_id].get("decomposition_only") is not True:
+            continue
+        children = direct_children(dag, node_id)
+        if not children:
+            errors.append(
+                f"decomposition_only semantic node {node_id} must directly require "
+                "at least one semantic child"
+            )
+            continue
+        for child in children:
+            child_type = node_type(dag, child)
+            if child_type is not None and child_type != SEMANTIC_TYPE:
+                errors.append(
+                    f"decomposition_only semantic node {node_id} has a non-semantic child: "
+                    f"{child} ({child_type})"
+                )
+    return errors
+
+
 def run_barrier_errors(dag: Any) -> list[str]:
     errors: list[str] = []
     nodes = node_map(dag)
@@ -451,20 +485,58 @@ def derived_satisfaction(dag: Any, state: Any) -> dict[str, bool]:
     return {node_id: resolve(node_id, set()) for node_id in nodes}
 
 
+def semantic_node_resolved(dag: Any, node_id: str) -> bool:
+    """Whether a semantic node's authoring obligation is locally expressed.
+
+    A semantic node is locally resolved in exactly one of two ways:
+
+    1. it declares ``decomposition_only=true`` and directly requires one or more
+       semantic children only; or
+    2. it directly requires at least one terminal work node.
+
+    A node with no ``requires`` is unresolved. Semantic children alone, without
+    the decomposition flag, do not resolve the node. A ``decomposition_only``
+    node with a direct terminal child is structurally invalid and is not a
+    resolution shortcut.
+
+    This is derived authoring state only. It never affects runtime satisfaction,
+    compiler traversal, execution ordering, or executable/preflight meaning.
+    """
+    node = node_map(dag).get(node_id)
+    if not isinstance(node, dict) or node.get("type") != SEMANTIC_TYPE:
+        return False
+    children = direct_children(dag, node_id)
+    if not children:
+        return False
+    if node.get("decomposition_only") is True:
+        return all(node_type(dag, child) == SEMANTIC_TYPE for child in children)
+    return any(node_type(dag, child) in TERMINAL_TYPES for child in children)
+
+
 def is_resolved(dag: Any) -> bool:
-    for node_id in node_map(dag):
-        if node_type(dag, node_id) == SEMANTIC_TYPE and not direct_children(dag, node_id):
-            return False
-    return True
+    """Whether every reachable semantic node is locally resolved."""
+    reachable = reachable_from_root(dag)
+    return all(
+        semantic_node_resolved(dag, node_id)
+        for node_id in reachable
+        if node_type(dag, node_id) == SEMANTIC_TYPE
+    )
 
 
-def unresolved_leaves(dag: Any) -> list[str]:
-    leaves = [
+def unresolved_semantic_nodes(dag: Any) -> list[str]:
+    """Reachable semantic nodes whose authoring obligation is not locally resolved.
+
+    Replaces the earlier ``unresolved_leaves`` concept: an unresolved semantic
+    node may already have semantic children and need not be a graph leaf.
+    """
+    reachable = reachable_from_root(dag)
+    unresolved = [
         node_id
-        for node_id in node_map(dag)
-        if node_type(dag, node_id) == SEMANTIC_TYPE and not direct_children(dag, node_id)
+        for node_id in reachable
+        if node_type(dag, node_id) == SEMANTIC_TYPE
+        and not semantic_node_resolved(dag, node_id)
     ]
-    return sorted(leaves, key=_numeric_id)
+    return sorted(unresolved, key=_numeric_id)
 
 
 def satisfied_terminal_nodes(dag: Any, state: Any) -> list[str]:
@@ -521,14 +593,16 @@ def _internal_schema_errors(dag: Any) -> list[str]:
             requirement = node.get("requirement")
             if not isinstance(requirement, str) or not requirement:
                 errors.append(f"node {node_id} requirement must be a non-empty string")
-            if "satisfied_by" in node:
-                refs = node["satisfied_by"]
+            if "requires" in node:
+                refs = node["requires"]
                 if not isinstance(refs, list) or not refs:
-                    errors.append(f"node {node_id} satisfied_by must be a non-empty array")
+                    errors.append(f"node {node_id} requires field must be a non-empty array")
                 elif any(not isinstance(ref, str) or not ref for ref in refs):
-                    errors.append(f"node {node_id} satisfied_by entries must be non-empty strings")
+                    errors.append(f"node {node_id} requires entries must be non-empty strings")
                 elif len(set(refs)) != len(refs):
-                    errors.append(f"node {node_id} satisfied_by entries must be unique")
+                    errors.append(f"node {node_id} requires entries must be unique")
+            if "decomposition_only" in node and not isinstance(node["decomposition_only"], bool):
+                errors.append(f"node {node_id} decomposition_only must be a boolean")
         elif kind == "create":
             if not isinstance(node.get("path"), str) or not node.get("path"):
                 errors.append(f"node {node_id} path must be a non-empty string")
@@ -589,7 +663,7 @@ def structure_errors(dag: Any) -> list[str]:
     for node_id in sorted(nodes):
         for child in direct_children(dag, node_id):
             if child not in nodes:
-                errors.append(f"node {node_id} satisfied_by references missing node: {child}")
+                errors.append(f"node {node_id} requires references a missing node: {child}")
 
     reachable = reachable_from_root(dag)
     for node_id in sorted(nodes):
@@ -598,7 +672,7 @@ def structure_errors(dag: Any) -> list[str]:
 
     cycle = _find_cycle(dag)
     if cycle is not None:
-        errors.append(f"satisfied_by path returns to an ancestor (cycle): {' -> '.join(cycle)}")
+        errors.append(f"requires path returns to an ancestor (cycle): {' -> '.join(cycle)}")
 
     for node_id in sorted(nodes):
         if not NODE_ID_PATTERN.match(node_id):
@@ -617,6 +691,7 @@ def structure_errors(dag: Any) -> list[str]:
                 )
 
     errors.extend(run_barrier_errors(dag))
+    errors.extend(decomposition_only_errors(dag))
     return errors
 
 

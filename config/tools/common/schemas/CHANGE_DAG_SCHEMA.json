@@ -42,7 +42,7 @@
                 "type": "string",
                 "minLength": 1
               },
-              "satisfied_by": {
+              "requires": {
                 "type": "array",
                 "minItems": 1,
                 "uniqueItems": true,
@@ -50,7 +50,11 @@
                   "type": "string",
                   "minLength": 1
                 },
-                "description": "Optional ALL-of relationship and the DAG's only edge. When present, every referenced child must be satisfied. Omission denotes an unresolved semantic leaf. References may converge on shared descendants but must never create a path back to an ancestor. If any referenced child is type 'run', every other referenced child must be type 'semantic'."
+                "description": "'requires' is the DAG's only edge and expresses what must become true for a semantic requirement to be fulfilled. It is ALL-of: when present, every referenced node must be satisfied. Omission denotes an unresolved semantic node. References may converge on shared descendants but must never create a path back to an ancestor. A semantic node may directly require at most one 'run' node; when it directly requires a 'run', every other required node must be type 'semantic'."
+              },
+              "decomposition_only": {
+                "type": "boolean",
+                "description": "Persisted authoring intent, not runtime state. When true, this semantic requirement intentionally owns no direct terminal work: its obligation is fully decomposed into the semantic requirements it directly 'requires'. It may only be set true on a semantic node that directly requires at least one child, and every direct child must be semantic. Runtime satisfaction still derives only from the satisfaction of 'requires' children; this field never affects execution. Absent or false preserves all existing child structures and run-barrier rules. Only a bounded worker that has investigated the requirement may set it, through dag_set_decomposition_only."
               }
             }
           },
@@ -172,5 +176,5 @@
       }
     }
   },
-  "$comment": "The Change DAG validator enforces invariants beyond JSON shape: satisfied_by is the only ALL-of graph edge; root, reachability, acyclicity, shared-descendant identity, derived depth, and run-child constraints are validated; anchor_commit is provenance only; unresolved semantic leaves are valid but unsatisfied."
+  "$comment": "The Change DAG validator enforces invariants beyond JSON shape: requires is the only ALL-of graph edge; root, reachability, acyclicity, shared-descendant identity, derived depth, and run-child constraints are validated; anchor_commit is provenance only; unresolved semantic nodes are valid but unsatisfied."
 }

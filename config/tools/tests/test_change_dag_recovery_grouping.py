@@ -55,9 +55,9 @@ def composed_edit_dag(slug: str = "composed") -> dict:
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "root", "satisfied_by": ["N2"]},
-            "N2": {"type": "semantic", "requirement": "implementation", "satisfied_by": ["N3", "N4"]},
-            "N3": {"type": "semantic", "requirement": "deeper", "satisfied_by": ["N5"]},
+            "N1": {"type": "semantic", "requirement": "root", "requires": ["N2"]},
+            "N2": {"type": "semantic", "requirement": "implementation", "requires": ["N3", "N4"]},
+            "N3": {"type": "semantic", "requirement": "deeper", "requires": ["N5"]},
             "N4": edit("f.txt", "b", "c"),
             "N5": edit("f.txt", "a", "b"),
         },
@@ -70,7 +70,7 @@ def single_edit_dag(slug: str = "single") -> dict:
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "root", "satisfied_by": ["N2"]},
+            "N1": {"type": "semantic", "requirement": "root", "requires": ["N2"]},
             "N2": edit("f.txt", "a", "b"),
         },
     }
@@ -212,7 +212,7 @@ def test_move_recovery_still_requires_recorded_fingerprint(tmp_path: Path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "root", "satisfied_by": ["N2"]},
+            "N1": {"type": "semantic", "requirement": "root", "requires": ["N2"]},
             "N2": {"type": "move", "from_path": "old.txt", "to_path": "new.txt"},
         },
     }

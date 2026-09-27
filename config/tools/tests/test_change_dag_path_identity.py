@@ -34,10 +34,10 @@ def dag_with(nodes, root="N1", slug="demo"):
     return {"slug": slug, "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
 
 
-def semantic(requirement="r", satisfied_by=None):
+def semantic(requirement="r", requires=None):
     node = {"type": "semantic", "requirement": requirement}
-    if satisfied_by:
-        node["satisfied_by"] = satisfied_by
+    if requires:
+        node["requires"] = requires
     return node
 
 
@@ -59,8 +59,8 @@ def move(from_path, to_path):
 
 def peer_dag(first, second):
     return dag_with({
-        "N1": semantic(satisfied_by=["N2"]),
-        "N2": semantic(satisfied_by=["N10", "N11"]),
+        "N1": semantic(requires=["N2"]),
+        "N2": semantic(requires=["N10", "N11"]),
         "N10": first,
         "N11": second,
     })
@@ -179,8 +179,8 @@ def test_move_source_alias_matches_edit_coordination(tmp_path):
 def test_plain_spellings_are_unchanged(tmp_path):
     root = workspace(tmp_path, **{"pkg/mod.py": "a\n"})
     dag = dag_with({
-        "N1": semantic(satisfied_by=["N2"]),
-        "N2": semantic(satisfied_by=["N3", "N4"]),
+        "N1": semantic(requires=["N2"]),
+        "N2": semantic(requires=["N3", "N4"]),
         "N3": edit("pkg/mod.py", patch("pkg/mod.py", "a", "b")),
         "N4": create("pkg/other.py", "new\n"),
     })
@@ -227,7 +227,7 @@ def test_update_node_canonicalizes_and_rejects_unusable_paths(tmp_path):
 def test_structure_validation_flags_unusable_paths(tmp_path):
     root = workspace(tmp_path)
     dag = dag_with({
-        "N1": semantic(satisfied_by=["N2"]),
+        "N1": semantic(requires=["N2"]),
         "N2": edit("../escape.py", patch("../escape.py", "a", "b")),
     })
     errors = change_dag.structure_errors(dag)

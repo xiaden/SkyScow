@@ -24,7 +24,7 @@ def _handle_cycle(root: str, nodes: dict[str, Any]) -> list[str] | None:
         color[handle] = 1
         path.append(handle)
         node = nodes.get(handle)
-        refs = node.get("satisfied_by") if isinstance(node, dict) else None
+        refs = node.get("requires") if isinstance(node, dict) else None
         if isinstance(refs, list):
             for child in refs:
                 if not isinstance(child, str) or child not in nodes:
@@ -54,7 +54,7 @@ def _bfs_order(root: str, nodes: dict[str, Any]) -> list[str]:
         seen.add(handle)
         order.append(handle)
         node = nodes[handle]
-        refs = node.get("satisfied_by") if isinstance(node, dict) else None
+        refs = node.get("requires") if isinstance(node, dict) else None
         if isinstance(refs, list):
             for child in sorted(ref for ref in refs if isinstance(ref, str)):
                 if child not in seen:
@@ -85,20 +85,20 @@ def _validate_semantic_graph(semantic_graph: Any) -> tuple[list[str], list[str]]
         requirement = node.get("requirement")
         if not isinstance(requirement, str) or not requirement:
             errors.append(f"node {handle} requirement must be a non-empty string")
-        for extra in sorted(set(node) - {"requirement", "satisfied_by"}):
+        for extra in sorted(set(node) - {"requirement", "requires"}):
             errors.append(f"node {handle} has unexpected field: {extra}")
-        refs = node.get("satisfied_by")
+        refs = node.get("requires")
         if refs is not None:
             if not isinstance(refs, list) or not refs:
-                errors.append(f"node {handle} satisfied_by must be a non-empty array")
+                errors.append(f"node {handle} requires field must be a non-empty array")
             else:
                 for ref in refs:
                     if not isinstance(ref, str) or not ref:
-                        errors.append(f"node {handle} satisfied_by entries must be non-empty strings")
+                        errors.append(f"node {handle} requires entries must be non-empty strings")
                     elif ref not in nodes:
-                        errors.append(f"node {handle} satisfied_by references missing handle: {ref}")
+                        errors.append(f"node {handle} requires references a missing handle: {ref}")
                 if len(set(refs)) != len(refs):
-                    errors.append(f"node {handle} satisfied_by entries must be unique")
+                    errors.append(f"node {handle} requires entries must be unique")
     if errors:
         return errors, []
     assert isinstance(root, str)
@@ -116,7 +116,7 @@ def _validate_semantic_graph(semantic_graph: Any) -> tuple[list[str], list[str]]
 
     cycle = _handle_cycle(root, nodes)
     if cycle is not None:
-        errors.append(f"satisfied_by path returns to an ancestor (cycle): {' -> '.join(cycle)}")
+        errors.append(f"requires path returns to an ancestor (cycle): {' -> '.join(cycle)}")
         return errors, []
 
     return [], _bfs_order(root, nodes)
@@ -153,9 +153,9 @@ def create_dag(workspace_root: Path, slug: str, semantic_graph: Any) -> dict[str
     for handle in order:
         node = nodes[handle]
         entry: dict[str, Any] = {"type": change_dag.SEMANTIC_TYPE, "requirement": node["requirement"]}
-        refs = node.get("satisfied_by")
+        refs = node.get("requires")
         if refs:
-            entry["satisfied_by"] = [handles[ref] for ref in refs]
+            entry["requires"] = [handles[ref] for ref in refs]
         built[handles[handle]] = entry
 
     dag = {"slug": slug, "anchor_commit": anchor, "root": handles[root_handle], "nodes": built}

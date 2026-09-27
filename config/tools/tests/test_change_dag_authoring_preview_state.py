@@ -10,7 +10,7 @@ from common.helpers.change_dag_ops_views import preview
 def semantic(requirement: str, children=None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
     if children is not None:
-        node["satisfied_by"] = children
+        node["requires"] = children
     return node
 
 

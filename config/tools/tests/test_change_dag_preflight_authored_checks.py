@@ -7,7 +7,7 @@ from common.helpers.change_dag_compiler_phase import preflight
 
 
 def semantic(requirement: str, children: list[str]) -> dict:
-    return {"type": "semantic", "requirement": requirement, "satisfied_by": children}
+    return {"type": "semantic", "requirement": requirement, "requires": children}
 
 
 def run(command=None) -> dict:

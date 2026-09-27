@@ -12,7 +12,7 @@ from common.helpers.change_dag_state import (
 
 
 def dag() -> dict:
-    return {"root": "N1", "nodes": {"N1": {"type": "semantic", "satisfied_by": ["N2"]}, "N2": {"type": "edit", "path": "x", "patch": "p"}}}
+    return {"root": "N1", "nodes": {"N1": {"type": "semantic", "requires": ["N2"]}, "N2": {"type": "edit", "path": "x", "patch": "p"}}}
 
 
 def test_state_round_trip_and_validation(tmp_path: Path):

@@ -36,10 +36,10 @@ def dag_with(nodes: dict, root: str = "N1", slug: str = "demo") -> dict:
     return {"slug": slug, "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
 
 
-def semantic(requirement: str = "r", satisfied_by=None) -> dict:
+def semantic(requirement: str = "r", requires=None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
-    if satisfied_by is not None:
-        node["satisfied_by"] = satisfied_by
+    if requires is not None:
+        node["requires"] = requires
     return node
 
 
@@ -321,16 +321,16 @@ def test_preflight_traverses_sequential_run_barriers(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 5. an unresolved semantic leaf elsewhere does not make executable false
+# 5. an unresolved semantic node elsewhere does not make executable false
 # ---------------------------------------------------------------------------
-def test_unresolved_leaf_does_not_block_whole_dag_preflight(tmp_path: Path):
+def test_unresolved_semantic_node_does_not_block_whole_dag_preflight(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     (workspace / "f.txt").write_text("a\n")
     dag = dag_with(
         {
             "N1": semantic("root", ["N2", "N9"]),
-            "N2": semantic("needs a product decision"),        # unresolved leaf
+            "N2": semantic("needs a product decision"),        # unresolved semantic node
             "N9": semantic("aggregate", ["N3", "N7"]),
             "N3": semantic("verified", ["N4"]),
             "N4": semantic("inner", ["N5", "N6"]),
@@ -340,7 +340,8 @@ def test_unresolved_leaf_does_not_block_whole_dag_preflight(tmp_path: Path):
             "N7": edit("f.txt", patch("f.txt", "b", "c")),
         }
     )
-    assert change_dag.unresolved_leaves(dag) == ["N2"]
+    # N1 and N3 also have only semantic children without the decomposition flag.
+    assert change_dag.unresolved_semantic_nodes(dag) == ["N1", "N2", "N3"]
 
     segments, conflicts, _blocked = compile_whole_dag(dag, {}, workspace)
     assert conflicts == []

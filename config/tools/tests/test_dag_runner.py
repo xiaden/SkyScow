@@ -71,9 +71,9 @@ def make_repo(tmp_path: Path) -> Path:
 
 def write_dag(root: Path, slug: str, command: list[str] | None = None) -> None:
     nodes = {
-        "N1": {"type": "semantic", "requirement": "complete", "satisfied_by": ["N2", "N3"]},
+        "N1": {"type": "semantic", "requirement": "complete", "requires": ["N2", "N3"]},
         "N2": {"type": "create", "path": "created.txt", "content": "created\n"},
-        "N3": {"type": "semantic", "requirement": "verified", "satisfied_by": ["N4"]},
+        "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"]},
         "N4": {"type": "run", "command": command or ["python3", "-m", "compileall", "-q", "."]},
     }
     write_raw_dag(root, slug, {"slug": slug, "anchor_commit": "a" * 40, "root": "N1", "nodes": nodes})
@@ -197,7 +197,7 @@ def test_dag_start_rejects_non_executable_dag(tmp_path: Path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "complete", "satisfied_by": ["N2", "N3"]},
+            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N2", "N3"]},
             "N2": {"type": "create", "path": "dup.txt", "content": "one\n"},
             "N3": {"type": "create", "path": "dup.txt", "content": "two\n"},
         },
@@ -217,7 +217,7 @@ def test_dag_start_rejects_invalid_dag(tmp_path: Path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "complete", "satisfied_by": ["N99"]},
+            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N99"]},
         },
     })
     result = dag_start("invalid", workspace_root=root)
@@ -279,7 +279,7 @@ def test_unapplied_edit_terminates_and_records_failure_once(tmp_path: Path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "root", "satisfied_by": ["N2"]},
+            "N1": {"type": "semantic", "requirement": "root", "requires": ["N2"]},
             "N2": {"type": "edit", "path": "f.txt", "patch": "--- a/f.txt\n+++ b/f.txt\n@@ -1,1 +1,1 @@\n-goodbye\n+hi\n"},
         },
     })
@@ -449,9 +449,9 @@ def test_stop_starts_next_queued_dag(tmp_path: Path, nested_pytest_on_path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "complete", "satisfied_by": ["N2", "N3"]},
+            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N2", "N3"]},
             "N2": {"type": "create", "path": "beta.txt", "content": "beta\n"},
-            "N3": {"type": "semantic", "requirement": "verified", "satisfied_by": ["N4"]},
+            "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"]},
             "N4": {"type": "run", "command": ["python3", "-m", "compileall", "-q", "."]},
         },
     })
@@ -520,9 +520,9 @@ def test_successor_launch_holds_lock_and_never_double_launches(tmp_path: Path, n
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "complete", "satisfied_by": ["N2", "N3"]},
+            "N1": {"type": "semantic", "requirement": "complete", "requires": ["N2", "N3"]},
             "N2": {"type": "create", "path": "gamma.txt", "content": "gamma\n"},
-            "N3": {"type": "semantic", "requirement": "verified", "satisfied_by": ["N4"]},
+            "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"]},
             "N4": {"type": "run", "command": ["python3", "-m", "compileall", "-q", "."]},
         },
     })

@@ -8,7 +8,7 @@ from common.helpers.change_dag_compiler_runtime import apply_compiled
 
 
 def semantic(requirement: str, children: list[str]) -> dict:
-    return {"type": "semantic", "requirement": requirement, "satisfied_by": children}
+    return {"type": "semantic", "requirement": requirement, "requires": children}
 
 
 def move(source: str, destination: str, overwrite: bool = False) -> dict:

@@ -68,7 +68,7 @@ def _interrupted(root: Path, *, overwrite: bool, source: str | None, destination
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "move", "satisfied_by": ["N2"]},
+            "N1": {"type": "semantic", "requirement": "move", "requires": ["N2"]},
             "N2": {"type": "move", "from_path": "old.txt", "to_path": "new.txt", "overwrite": overwrite},
         },
     }
@@ -228,7 +228,7 @@ def _move_dag(*, overwrite: bool) -> dict:
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "move", "satisfied_by": ["N2"]},
+            "N1": {"type": "semantic", "requirement": "move", "requires": ["N2"]},
             "N2": {"type": "move", "from_path": "old.txt", "to_path": "new.txt", "overwrite": overwrite},
         },
     }

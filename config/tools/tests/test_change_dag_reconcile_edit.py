@@ -42,7 +42,7 @@ def _edit_dag(node_id: str, path: str, patch: str) -> dict:
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            "N1": {"type": "semantic", "requirement": "edit", "satisfied_by": [node_id]},
+            "N1": {"type": "semantic", "requirement": "edit", "requires": [node_id]},
             node_id: {"type": "edit", "path": path, "patch": patch},
         },
     }

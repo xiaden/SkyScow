@@ -44,7 +44,7 @@ def write_raw_dag(root: Path, slug: str, dag: dict) -> None:
 
 
 def semantic(requirement: str, children: list[str]) -> dict:
-    return {"type": "semantic", "requirement": requirement, "satisfied_by": children}
+    return {"type": "semantic", "requirement": requirement, "requires": children}
 
 
 def edit(path: str, old: str, new: str, *, line: int = 1) -> dict:

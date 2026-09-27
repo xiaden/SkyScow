@@ -8,6 +8,7 @@ from common.helpers.change_dag import (
     ancestor_map,
     atomic_write_json,
     dag_json_path,
+    decomposition_only_errors,
     derived_depth,
     derived_satisfaction,
     direct_children,
@@ -21,9 +22,10 @@ from common.helpers.change_dag import (
     reachable_from_root,
     resolve_anchor_commit,
     satisfied_terminal_nodes,
+    semantic_node_resolved,
     state_json_path,
     structure_errors,
-    unresolved_leaves,
+    unresolved_semantic_nodes,
     validate_dag,
 )
 
@@ -39,10 +41,10 @@ def dag_with(nodes: dict, root: str = "N1", slug: str = "demo") -> dict:
     }
 
 
-def semantic(requirement: str = "r", satisfied_by=None) -> dict:
+def semantic(requirement: str = "r", requires=None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
-    if satisfied_by is not None:
-        node["satisfied_by"] = satisfied_by
+    if requires is not None:
+        node["requires"] = requires
     return node
 
 
@@ -52,6 +54,15 @@ def edit(path: str = "x.txt") -> dict:
 
 def run(command=None) -> dict:
     return {"type": "run", "command": command or ["pytest"]}
+
+
+TERMINAL_NODES = {
+    "create": {"type": "create", "path": "x.txt", "content": "x\n"},
+    "edit": {"type": "edit", "path": "x.txt", "patch": "@@ -1 +1 @@\n-a\n+b\n"},
+    "remove": {"type": "remove", "path": "x.txt"},
+    "move": {"type": "move", "from_path": "x.txt", "to_path": "y.txt"},
+    "run": {"type": "run", "command": ["pytest"]},
+}
 
 
 def test_valid_semantic_graph_passes_validation():
@@ -76,7 +87,7 @@ def test_root_must_reference_a_semantic_node(tmp_path: Path):
 
 def test_missing_reference_is_rejected():
     dag = dag_with({"N1": semantic("root", ["N2"]), "N2": edit()})
-    dag["nodes"]["N1"]["satisfied_by"] = ["N2", "N99"]
+    dag["nodes"]["N1"]["requires"] = ["N2", "N99"]
     errors = structure_errors(dag)
     assert any("missing node: N99" in error for error in errors)
 
@@ -192,24 +203,155 @@ def test_shared_descendant_retains_one_identity():
     assert reachable_from_root(dag) == {"N1", "N2", "N3", "N4"}
 
 
-def test_unresolved_leaf_is_legal_but_unresolved():
+def test_unresolved_semantic_node_is_legal_but_unresolved():
     dag = dag_with(
         {
             "N1": semantic("root", ["N2", "N3"]),
-            "N2": semantic("permission is obtained"),  # unresolved leaf
+            "N2": semantic("permission is obtained"),  # unresolved semantic node
             "N3": edit("done.py"),
         }
     )
     assert validate_dag(dag) == []
     assert structure_errors(dag) == []
     assert is_resolved(dag) is False
-    assert unresolved_leaves(dag) == ["N2"]
+    assert unresolved_semantic_nodes(dag) == ["N2"]
+    # N1 directly requires terminal work, so it is locally resolved.
+    assert semantic_node_resolved(dag, "N1") is True
+    assert semantic_node_resolved(dag, "N2") is False
 
 
-def test_resolved_graph_when_every_semantic_has_children():
+def test_resolved_graph_when_every_semantic_node_is_locally_resolved():
     dag = dag_with({"N1": semantic("root", ["N2"]), "N2": edit()})
     assert is_resolved(dag) is True
-    assert unresolved_leaves(dag) == []
+    assert unresolved_semantic_nodes(dag) == []
+
+
+def test_empty_semantic_node_is_unresolved():
+    dag = dag_with({"N1": semantic("root")})
+    assert semantic_node_resolved(dag, "N1") is False
+    assert is_resolved(dag) is False
+    assert unresolved_semantic_nodes(dag) == ["N1"]
+
+
+def test_semantic_children_without_decomposition_flag_are_unresolved():
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2"]),
+            "N2": semantic("deferred"),
+        }
+    )
+    assert validate_dag(dag) == []
+    assert semantic_node_resolved(dag, "N1") is False
+    assert is_resolved(dag) is False
+    assert unresolved_semantic_nodes(dag) == ["N1", "N2"]
+
+
+def test_semantic_children_with_decomposition_flag_resolve():
+    dag = dag_with(
+        {
+            "N1": {
+                "type": "semantic",
+                "requirement": "root",
+                "requires": ["N2", "N3"],
+                "decomposition_only": True,
+            },
+            "N2": semantic("child a"),
+            "N3": semantic("child b"),
+        }
+    )
+    assert validate_dag(dag) == []
+    assert semantic_node_resolved(dag, "N1") is True
+    # Local resolution is not inherited: the semantic children stay unresolved.
+    assert is_resolved(dag) is False
+    assert unresolved_semantic_nodes(dag) == ["N2", "N3"]
+
+
+def test_direct_ordinary_terminal_work_resolves():
+    for kind, node in TERMINAL_NODES.items():
+        dag = dag_with({"N1": semantic("root", ["N2"]), "N2": dict(node)})
+        assert semantic_node_resolved(dag, "N1") is True, kind
+        assert is_resolved(dag) is True, kind
+
+
+def test_run_with_semantic_siblings_resolves_subject_to_run_invariant():
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2", "N3"]),
+            "N2": semantic("reviewed"),
+            "N3": run(["pytest"]),
+        }
+    )
+    assert validate_dag(dag) == []  # run barrier allows semantic siblings of a run
+    assert semantic_node_resolved(dag, "N1") is True
+    # N2 remains an unresolved semantic node.
+    assert is_resolved(dag) is False
+    assert unresolved_semantic_nodes(dag) == ["N2"]
+
+
+def test_decomposition_only_with_terminal_child_is_invalid_not_resolved():
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2"]),
+            "N2": {
+                "type": "semantic",
+                "requirement": "claimed decomposed",
+                "requires": ["N3"],
+                "decomposition_only": True,
+            },
+            "N3": edit(),
+        }
+    )
+    assert decomposition_only_errors(dag)
+    assert semantic_node_resolved(dag, "N2") is False
+
+
+def test_global_resolution_requires_every_reachable_semantic_node_resolved():
+    unresolved = dag_with(
+        {
+            "N1": semantic("root", ["N2", "N4"]),
+            "N2": semantic("branch", ["N3"]),
+            "N3": edit("a.py"),
+            "N4": semantic("still open"),
+        }
+    )
+    assert is_resolved(unresolved) is False
+    assert unresolved_semantic_nodes(unresolved) == ["N1", "N4"]
+
+    resolved = dag_with(
+        {
+            "N1": {
+                "type": "semantic",
+                "requirement": "root",
+                "requires": ["N2", "N4"],
+                "decomposition_only": True,
+            },
+            "N2": semantic("branch", ["N3"]),
+            "N3": edit("a.py"),
+            "N4": semantic("converged", ["N3"]),
+        }
+    )
+    assert validate_dag(resolved) == []
+    assert is_resolved(resolved) is True
+    assert unresolved_semantic_nodes(resolved) == []
+
+
+def test_shared_descendant_resolution_uses_one_identity():
+    dag = dag_with(
+        {
+            "N1": {
+                "type": "semantic",
+                "requirement": "root",
+                "requires": ["N2", "N3"],
+                "decomposition_only": True,
+            },
+            "N2": semantic("left", ["N4"]),
+            "N3": semantic("right", ["N4"]),
+            "N4": edit("shared.py"),
+        }
+    )
+    assert validate_dag(dag) == []
+    assert is_resolved(dag) is True
+    assert unresolved_semantic_nodes(dag) == []
 
 
 def test_node_id_pattern_and_monotonic_no_reuse(tmp_path: Path):
@@ -302,3 +444,84 @@ def test_node_helpers_and_output_shape():
     assert result["title"] == "Done"
     assert result["metadata"] == {}
     assert '"ok"' in result["output"]
+
+
+# ---------------------------------------------------------------------------
+# decomposition_only: persisted semantic authoring intent
+# ---------------------------------------------------------------------------
+def test_decomposition_only_true_with_semantic_children_is_valid():
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2"]),
+            "N2": {
+                "type": "semantic",
+                "requirement": "fully decomposed",
+                "requires": ["N3", "N4"],
+                "decomposition_only": True,
+            },
+            "N3": semantic("child a"),
+            "N4": semantic("child b"),
+        }
+    )
+    assert validate_dag(dag) == []
+    assert structure_errors(dag) == []
+    assert decomposition_only_errors(dag) == []
+
+
+def test_decomposition_only_is_rejected_on_terminal_nodes():
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2"]),
+            "N2": {"type": "edit", "path": "x.txt", "patch": "@@ -1 +1 @@\n-a\n+b\n", "decomposition_only": True},
+        }
+    )
+    errors = validate_dag(dag)
+    assert errors
+    assert any("decomposition_only" in error for error in errors)
+
+
+def test_decomposition_only_true_requires_at_least_one_child():
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2"]),
+            "N2": {"type": "semantic", "requirement": "claimed decomposed", "decomposition_only": True},
+        }
+    )
+    errors = structure_errors(dag)
+    assert any("must directly require at least one semantic child" in error for error in errors)
+
+
+def test_decomposition_only_true_rejects_each_terminal_child():
+    for kind, node in TERMINAL_NODES.items():
+        dag = dag_with(
+            {
+                "N1": semantic("root", ["N2"]),
+                "N2": {
+                    "type": "semantic",
+                    "requirement": "claimed decomposed",
+                    "requires": ["N3"],
+                    "decomposition_only": True,
+                },
+                "N3": dict(node),
+            }
+        )
+        errors = decomposition_only_errors(dag)
+        assert any("has a non-semantic child: N3" in error for error in errors), (kind, errors)
+        assert any(error for error in validate_dag(dag)), (kind, errors)
+
+
+def test_decomposition_only_false_preserves_terminal_children():
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2"]),
+            "N2": {
+                "type": "semantic",
+                "requirement": "not decomposition-only",
+                "requires": ["N3"],
+                "decomposition_only": False,
+            },
+            "N3": edit(),
+        }
+    )
+    assert validate_dag(dag) == []
+    assert decomposition_only_errors(dag) == []

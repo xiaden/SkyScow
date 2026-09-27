@@ -31,6 +31,10 @@ function optionalBoolean(description: string) {
   return tool.schema.boolean().optional().describe(description)
 }
 
+function requiredBoolean(description: string) {
+  return tool.schema.boolean().describe(description)
+}
+
 function stringArray(description: string) {
   return tool.schema.array(tool.schema.string()).describe(description)
 }
@@ -58,17 +62,17 @@ const fileRangeSchema = tool.schema.object({
 
 const semanticNodeSchema = tool.schema.object({
   requirement: tool.schema.string().describe("Requirement statement that must be satisfied"),
-  satisfied_by: tool.schema
+  requires: tool.schema
     .array(tool.schema.string())
     .optional()
-    .describe("Handles of child nodes that satisfy this requirement; omit for an open leaf"),
+    .describe("Handles of nodes that must become true for this requirement to be fulfilled (ALL-of); omit when the requirement has no authored children yet"),
 })
 
 const semanticGraphSchema = tool.schema.object({
   root: tool.schema.string().describe("Handle of the root semantic node"),
   nodes: tool.schema
     .record(tool.schema.string(), semanticNodeSchema)
-    .describe("Handle -> semantic node ({requirement, satisfied_by?})"),
+    .describe("Handle -> semantic node ({requirement, requires?})"),
 })
 
 function workspaceRoot(context: ToolContext): string {
@@ -433,6 +437,16 @@ const tools = {
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_update_run", args, context) },
   }),
+  dag_set_decomposition_only: tool({
+    description:
+      "Declare or reopen whether a mutable semantic node intentionally owns no direct terminal work because its obligation is fully decomposed into the semantic requirements it directly requires. Semantic nodes only.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Semantic node ID"),
+      value: requiredBoolean("true to declare fully decomposed into semantic children; false to reopen the judgment"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_set_decomposition_only", args, context) },
+  }),
   dag_remove: tool({
     description: "Remove a mutable node, preserving shared descendants and garbage-collecting mutable unreachable work.",
     args: {
@@ -460,6 +474,26 @@ const tools = {
       slug: requiredString("Change DAG slug"),
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_validate", args, context) },
+  }),
+  dag_decomposition_frontier: tool({
+    description:
+      "Return the deepest unresolved semantic frontier of a Change DAG — the canonical semantic node identities currently ready for bounded Worker authoring. " +
+      "Derived from the existing graph depth and resolution semantics; never infers dependencies. Read-only.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_frontier", args, context) },
+  }),
+  dag_decomposition_scope: tool({
+    description:
+      "Return the bounded graph-local decomposition context for one assigned semantic node: the target node, all immediate semantic parents, the deduplicated sibling union " +
+      "(the other direct children of those parents), and the target's direct children. " +
+      "Derived from the existing graph and resolution semantics; read-only; never performs repository discovery or compiles patches.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Assigned semantic node ID"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_scope", args, context) },
   }),
   dag_start: tool({
     description: "Execute a Change DAG, optionally retrying previously failed nodes.",

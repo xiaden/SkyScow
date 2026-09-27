@@ -7,8 +7,9 @@ Pins the settled architecture where there is no ``change-dag-runner`` agent:
                   but never authors or mutates a DAG, and never dispatches
                   node-level workers
     Author     -- construction manager: owns DAG construction/amendment and the
-                  construction-frontier loop; dispatches only Change-DAG-Worker;
-                  never executes
+                  service-derived decomposition-frontier loop
+                  (``dag_decomposition_frontier``); dispatches only
+                  Change-DAG-Worker; never executes
     Worker     -- bounded leaf: lowers exactly one assigned semantic node, never
                   mutates source, never executes, never spawns agents
     Reviewer   -- optional, read-only, bounded; Nyx-selected only
@@ -66,6 +67,7 @@ WORKER_TOOLS = (
     "dag_update_move",
     "dag_update_run",
     "dag_remove",
+    "dag_set_decomposition_only",
 )
 
 RUNNER_STEMS = ("change-dag-runner", "Change-DAG-Runner")
@@ -76,6 +78,14 @@ STALE_OWNERSHIP_PHRASES = (
     "one bounded invocation per frontier",
     "one fresh bounded Change-DAG-Author invocation per frontier",
     "fresh Change-DAG-Author invocation",
+)
+
+# Wording from the manual-frontier model where the Author computed depths itself
+# and kept a processed-frontier registry. None of it may survive in an active
+# surface: progress must come from the DAG service, never session memory.
+STALE_FRONTIER_PHRASES = (
+    "construction frontier",
+    "construction-frontier",
 )
 
 
@@ -189,6 +199,19 @@ class TestWorkerAuthority:
         permission = _permission("change-dag-worker")
         for tool in WORKER_TOOLS:
             assert _allowed(permission, tool), f"Worker needs {tool}"
+
+
+class TestDecompositionOnlyAuthority:
+    def test_worker_alone_may_set_decomposition_only(self):
+        assert (
+            _permission("change-dag-worker").get("dag_set_decomposition_only") == "allow"
+        )
+
+    def test_setter_explicitly_denied_to_author_nyx_and_reviewer(self):
+        for agent in ("change-dag-author", "nyx", "change-dag-reviewer"):
+            assert (
+                _permission(agent).get("dag_set_decomposition_only") == "deny"
+            ), f"{agent} must explicitly deny dag_set_decomposition_only"
 
 
 class TestReviewerAuthority:
@@ -308,3 +331,59 @@ class TestLifecycleDocumentation:
         assert "never reopens a completed DAG" in nyx
         orchestrate = (COMMANDS / "ecc" / "orchestrate.md").read_text(encoding="utf-8")
         assert "never reopen" in orchestrate
+
+
+class TestServiceDerivedDecomposition:
+    """Pins the service-derived decomposition model across active surfaces.
+
+    Progress comes from ``dag_decomposition_frontier`` (which reports a resolved
+    frontier) and per-node scope comes from ``dag_decomposition_scope``. The
+    Author must not hand-compute depths or keep a processed-frontier registry,
+    and the dispatch contract must not copy semantic packets into the child.
+    """
+
+    def test_author_queries_the_frontier_service(self):
+        text = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+        assert "dag_decomposition_frontier" in text
+        assert "resolved=true" in text
+        assert "requires` path to A" in text
+
+    def test_worker_retrieves_its_own_scope(self):
+        text = (AGENTS / "change-dag-worker.md").read_text(encoding="utf-8")
+        assert "dag_decomposition_scope(slug, node_id)" in text
+
+    def test_worker_dispatch_reference_retrieves_scope(self):
+        text = (
+            SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md"
+        ).read_text(encoding="utf-8")
+        assert "dag_decomposition_scope(slug, node_id)" in text
+
+    def test_no_copied_semantic_packet_fields(self):
+        paths = (
+            AGENTS / "change-dag-author.md",
+            AGENTS / "change-dag-worker.md",
+            SKILLS / "dispatching-agents" / "references" / "change-dag-author.md",
+            SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md",
+        )
+        offenders: list[str] = []
+        for path in paths:
+            text = path.read_text(encoding="utf-8")
+            for field in ("semantic_scope:", "ancestor_intent:", "NO_DIRECT_WORK"):
+                if field in text:
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}: {field}")
+        assert not offenders, "stale copied semantic packet fields: " + ", ".join(
+            offenders
+        )
+
+    def test_no_manual_construction_frontier_wording(self):
+        offenders: list[str] = []
+        for path in _documented_surfaces():
+            text = path.read_text(encoding="utf-8")
+            for phrase in STALE_FRONTIER_PHRASES:
+                if phrase in text:
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}: {phrase}")
+        assert not offenders, "stale manual-frontier wording: " + ", ".join(offenders)
+
+    def test_run_sibling_rule_is_explicit(self):
+        text = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+        assert "no `create`/`edit`/`remove`/`move` siblings" in text

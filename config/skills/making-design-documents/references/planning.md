@@ -9,7 +9,7 @@ requirements / accepted DD
         ↓
 semantic obligations (conditions/postconditions)
         ↓
-nesting / ALL-of satisfied_by edges
+nesting / ALL-of requires edges
         ↓
 exact work (create / edit / remove / move / run) on terminal frontier
         ↓
@@ -23,18 +23,19 @@ Nyx performs execution admission and artifact lifecycle (through `dag_start`/`da
 1. Read the authoritative request, accepted DD when present, repository facts, and relevant live surfaces.
 2. Normalize requirements and preserve their provenance.
 3. Generate the smallest complete **semantic** graph: conditions/postconditions, never implementation actions. Submit it atomically with `dag_create`.
-4. Model `satisfied_by` as the only edge and interpret it as ALL-of. A semantic leaf with no children is an unresolved semantic leaf and is legal.
-5. Lower exact work from the deepest construction frontier upward using `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`, reading live source plus applicable accepted lower DAG patches via `dag_preview(path)`.
+4. Model `requires` as the only edge and interpret it as ALL-of; `requires` expresses what must become true for a semantic requirement to be fulfilled. A semantic node with no `requires` is an unresolved semantic node and is legal.
+5. Lower exact work from the deepest unresolved decomposition frontier upward (`dag_decomposition_frontier`) using `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`, reading live source plus applicable accepted lower DAG patches via frontier-bounded `dag_preview(path=..., node_id=...)`.
 6. Preserve a run-barrier invariant: a semantic node has at most one direct `run` child, and that run is its only non-semantic child.
 7. Validate with `dag_validate`; inspect with `dag_show` / `dag_preview`. Node IDs are service-assigned (`^N[0-9]+$`) and depth is derived, never persisted.
 
 ## Least-commitment modeling
 
 - Independent obligations remain independent.
+- Semantic siblings imply no authoring dependency through each other. If correct authoring of B requires accepted work from A, B must have a `requires` path to A rather than being represented as an independent sibling.
 - Do not add edges for layers, labels, alphabetical order, review order, commit order, or milestone aesthetics.
 - Do not infer a dependency from likely future work; add the missing semantic node instead.
 - A semantic child must materially refine its parent; pure paraphrase or recursive restatement is invalid decomposition.
-- A downstream consumer may remain unresolved during authoring only as an explicit unresolved semantic leaf.
+- A downstream consumer may remain unresolved during authoring only as an explicit unresolved semantic node.
 
 ## DAG authority
 
@@ -64,8 +65,8 @@ Canonical QA applicability owns test, documentation, boundary, journey, domain-r
 
 - [ ] Every requirement maps to an owned semantic node.
 - [ ] Each semantic node states a postcondition, not an action.
-- [ ] Every semantic leaf is terminal exact work or an explicit unresolved leaf.
-- [ ] Every `satisfied_by` edge is an ALL-of relation and the graph is acyclic.
+- [ ] Every semantic node is locally resolved or an explicit unresolved semantic node.
+- [ ] Every `requires` edge is an ALL-of relation and the graph is acyclic.
 - [ ] Run-barrier invariant holds (at most one direct run child per semantic node).
 - [ ] Exact work is valid against live source plus applicable accepted lower DAG patches.
 - [ ] Legacy plan/graph terminology does not appear in active authoring instructions.

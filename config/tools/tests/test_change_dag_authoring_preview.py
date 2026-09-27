@@ -30,10 +30,10 @@ def dag_with(nodes: dict, root: str = "N1", slug: str = "demo") -> dict:
     return {"slug": slug, "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
 
 
-def semantic(requirement: str, satisfied_by=None) -> dict:
+def semantic(requirement: str, requires=None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
-    if satisfied_by is not None:
-        node["satisfied_by"] = satisfied_by
+    if requires is not None:
+        node["requires"] = requires
     return node
 
 

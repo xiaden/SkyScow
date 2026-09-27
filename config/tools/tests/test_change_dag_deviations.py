@@ -35,10 +35,10 @@ def dag_with(nodes: dict, root: str = "N1", slug: str = "demo") -> dict:
     return {"slug": slug, "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
 
 
-def semantic(requirement: str = "r", satisfied_by=None) -> dict:
+def semantic(requirement: str = "r", requires=None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
-    if satisfied_by is not None:
-        node["satisfied_by"] = satisfied_by
+    if requires is not None:
+        node["requires"] = requires
     return node
 
 
@@ -385,6 +385,6 @@ def test_orchestration_never_reopens_completed_dag():
 def test_author_contract_owns_frontier_loop_and_worker_dispatch():
     author = _read("config/agents/change-dag-author.md")
     assert "change-dag-worker" in author
-    assert "construction frontier" in author
+    assert "dag_decomposition_frontier" in author
     assert "fresh Change-DAG-Author invocation" not in author
     assert "one bounded invocation per frontier" not in author

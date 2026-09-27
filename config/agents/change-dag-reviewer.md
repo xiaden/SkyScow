@@ -22,6 +22,7 @@ permission:
   dag_show: allow
   dag_preview: allow
   dag_validate: allow
+  dag_set_decomposition_only: deny
   question: allow
   list: allow
   todowrite: allow

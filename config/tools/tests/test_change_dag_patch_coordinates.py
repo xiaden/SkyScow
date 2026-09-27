@@ -29,7 +29,7 @@ def dag_with(nodes: dict, root: str = "N1") -> dict:
 def semantic(requirement: str, children: list[str] | None = None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
     if children is not None:
-        node["satisfied_by"] = children
+        node["requires"] = children
     return node
 
 

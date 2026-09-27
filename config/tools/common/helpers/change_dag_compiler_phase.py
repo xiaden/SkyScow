@@ -194,7 +194,7 @@ def preflight(
     mismatches — a patch that no longer applies because the repository drifted,
     an edit target another work item removed, a create target another work item
     created — are reported as ``runtime_failures`` and handled as ordinary
-    recoverable terminal-node failures when reached. Unresolved semantic leaves,
+    recoverable terminal-node failures when reached. Unresolved semantic nodes,
     a dirty tree, HEAD drift, and blocked branch-local work are not issues.
 
     ``executable`` is answered by :func:`compile_whole_dag`: it reflects whether

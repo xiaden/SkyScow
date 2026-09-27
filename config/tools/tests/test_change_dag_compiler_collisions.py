@@ -18,7 +18,7 @@ def dag_with(nodes: dict) -> dict:
 def semantic(requirement: str, children: list[str] | None = None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
     if children is not None:
-        node["satisfied_by"] = children
+        node["requires"] = children
     return node
 
 
@@ -159,7 +159,7 @@ def test_preview_uses_same_intra_dag_classification_as_preflight(workspace):
         {
             "root": "root",
             "nodes": {
-                "root": {"requirement": "root", "satisfied_by": ["implementation"]},
+                "root": {"requirement": "root", "requires": ["implementation"]},
                 "implementation": {"requirement": "implementation"},
             },
         },

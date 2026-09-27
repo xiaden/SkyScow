@@ -1,11 +1,11 @@
 # Change-DAG-Worker
 
-Dispatch Change-DAG-Worker to lower **exactly one** assigned semantic node of an existing Change DAG. It is a bounded leaf construction capability owned by Change-DAG-Author; Nyx never dispatches it for normal DAG construction. The worker discovers only the repository evidence its requirement needs and either lowers the requirement into exact terminal work or refines it into further semantic decomposition.
+Dispatch Change-DAG-Worker to lower **exactly one** assigned semantic node of an existing Change DAG. It is a bounded leaf construction capability owned by Change-DAG-Author; Nyx never dispatches it for normal DAG construction. The worker retrieves its own scope with `dag_decomposition_scope`, discovers only the repository evidence its requirement needs, and either lowers the requirement into exact terminal work or refines it into further semantic decomposition.
 
 ## When to Dispatch
 
-- **From Change-DAG-Author only**, once per semantic node selected from the current construction frontier, when the node's requirement must be lowered into exact work or reconciled.
-- A worker returns `DECOMPOSED` when it introduces deeper semantic requirements; the manager then recomputes the construction frontier.
+- **From Change-DAG-Author only**, once per semantic node returned by `dag_decomposition_frontier`, when the node's requirement must be lowered into exact work or reconciled.
+- A worker returns `DECOMPOSED` when it introduces deeper semantic requirements; the manager then re-queries `dag_decomposition_frontier`.
 
 **Do NOT dispatch when:**
 - You are Nyx or any agent other than Change-DAG-Author: worker dispatch is internal to construction.
@@ -21,35 +21,30 @@ Lower one assigned semantic node of Change DAG [SLUG].
 task:
   type: LOWER | RECONCILE
   slug: "[SLUG]"
-semantic_scope:
   node_id: "[NODE_ID]"
-  requirement: "[EXACT SEMANTIC POSTCONDITION]"
-  ancestor_intent:
-    - "[BOUNDED NECESSARY PARENT INTENT]"
 authority:
   request_context: "artifacts/requests/CTX_....md"
   accepted_dd: "[OPTIONAL ACCEPTED DD PATH]"
-reason: "[WHY THIS NODE IS BEING LOWERED OR RECONCILED]"
 
-Read the assigned node and its accepted lower work with frontier-bounded dag_preview(path=..., node_id=[NODE_ID]); read only the live source and repository surfaces the requirement needs. Lower the requirement into create/edit/remove/move/run work or refine it into further semantic requirements. Do NOT read or rely on same-frontier peer proposals, do NOT edit repository source, do NOT dispatch other agents, and do NOT execute the DAG.
+Retrieve your own scope with dag_decomposition_scope(slug, node_id) — do not expect the requirement, ancestor intent, or a semantic_scope object in this prompt. Then read the assigned node and its accepted lower work with frontier-bounded dag_preview(path=..., node_id=[NODE_ID]); read only the live source and repository surfaces the requirement needs. Either lower the requirement into create/edit/remove/move/run work, or add semantic children and call dag_set_decomposition_only(slug, node_id, true) when the node intentionally owns no direct terminal work (otherwise leave it unresolved so it returns on a later frontier). Do NOT read or rely on same-frontier peer proposals, do NOT edit repository source, do NOT dispatch other agents, and do NOT execute the DAG.
 ```
 
 ## Required behavior
 
-1. Read the assigned semantic node and its frontier-bounded planned-change context (`dag_preview(path=..., node_id=[NODE_ID])`): live source plus accepted work from strictly deeper frontiers only.
-2. Keep discovery bounded to the assigned requirement; when discovery expands materially, decompose the requirement instead of loading a larger repository slice.
-3. Either add exact terminal work (`dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`) or add/refine semantic children (`dag_add_requirement`). A semantic child must materially narrow the parent; pure paraphrase is invalid.
-4. Reconcile only its own mutable proposal with the typed `dag_update_*` tools and `dag_remove`.
-5. Return one bounded result; never claim construction completion and never run final validation (the Author manager owns both).
+1. Retrieve the assigned node's bounded scope first with `dag_decomposition_scope(slug, node_id)`; the dispatch packet carries node identity only.
+2. Read the assigned semantic node and its frontier-bounded planned-change context (`dag_preview(path=..., node_id=[NODE_ID])`): live source plus accepted work from strictly deeper frontiers only.
+3. Keep discovery bounded to the assigned requirement; when discovery expands materially, decompose the requirement instead of loading a larger repository slice.
+4. Choose exactly one outcome: add exact terminal work (`dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`), or add/refine semantic children (`dag_add_requirement`) and either declare `dag_set_decomposition_only(slug, node_id, true)` when the node intentionally owns no direct terminal work or leave it unresolved for a later frontier. A semantic child must materially narrow the parent; pure paraphrase is invalid.
+5. Reconcile only its own mutable proposal with the typed `dag_update_*` tools and `dag_remove`.
+6. Return one bounded result; never claim construction completion and never run final validation (the Author manager owns both).
 
 ## Outcomes
 
 | Result | Meaning |
 |---|---|
 | `LOWERED` | Exact mechanical work now satisfies the assigned requirement. |
-| `DECOMPOSED` | Deeper semantic requirements were added; the manager must recompute the frontier. |
+| `DECOMPOSED` | Deeper semantic requirements were added; the node is either marked `decomposition_only` or left unresolved for a later frontier, and the manager re-queries the frontier. |
 | `RECONCILED` | Mutable work in the assigned scope was corrected. |
-| `NO_DIRECT_WORK` | The requirement is fully owned by its decomposed children; no direct mechanical work is needed. |
 | `BLOCKED` | A missing authority/source/decision/tooling condition prevents completion. |
 
 ## Expected output
@@ -58,7 +53,7 @@ Read the assigned node and its accepted lower work with frontier-bounded dag_pre
 status: DONE | BLOCKED
 slug: "[SLUG]"
 semantic_node_id: "[NODE_ID]"
-result: LOWERED | DECOMPOSED | RECONCILED | NO_DIRECT_WORK
+result: LOWERED | DECOMPOSED | RECONCILED
 affected_node_ids: ["[NODE_ID]"]
 summary: "..."
 blockers: []

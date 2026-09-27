@@ -165,27 +165,27 @@ def add_requirement(
     if selected is None:
         candidate_nodes[new_id] = {"type": change_dag.SEMANTIC_TYPE, "requirement": requirement}
         for parent in parents:
-            refs = list(candidate_nodes[parent].get("satisfied_by", []))
+            refs = list(candidate_nodes[parent].get("requires", []))
             if new_id not in refs:
                 refs.append(new_id)
-            candidate_nodes[parent]["satisfied_by"] = refs
+            candidate_nodes[parent]["requires"] = refs
     else:
         candidate_nodes[new_id] = {
             "type": change_dag.SEMANTIC_TYPE,
             "requirement": requirement,
-            "satisfied_by": list(selected),
+            "requires": list(selected),
         }
         chosen = set(selected)
         for parent in parents:
             rewired: list[str] = []
-            for ref in candidate_nodes[parent].get("satisfied_by", []):
+            for ref in candidate_nodes[parent].get("requires", []):
                 if ref in chosen:
                     if new_id not in rewired:
                         rewired.append(new_id)
                 else:
                     rewired.append(ref)
             if rewired:
-                candidate_nodes[parent]["satisfied_by"] = rewired
+                candidate_nodes[parent]["requires"] = rewired
 
     errors = change_dag.validate_dag(candidate)
     if errors:
@@ -195,9 +195,9 @@ def add_requirement(
     if real_id != new_id:
         candidate_nodes[real_id] = candidate_nodes.pop(new_id)
         for node in candidate_nodes.values():
-            refs = node.get("satisfied_by")
+            refs = node.get("requires")
             if isinstance(refs, list) and new_id in refs:
-                node["satisfied_by"] = [real_id if ref == new_id else ref for ref in refs]
+                node["requires"] = [real_id if ref == new_id else ref for ref in refs]
         if candidate.get("root") == new_id:
             candidate["root"] = real_id
     _persist(candidate, workspace_root, slug)
@@ -270,10 +270,10 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
     candidate_nodes = candidate["nodes"]
     candidate_nodes[new_id] = node
     for parent in parents:
-        refs = list(candidate_nodes[parent].get("satisfied_by", []))
+        refs = list(candidate_nodes[parent].get("requires", []))
         if new_id not in refs:
             refs.append(new_id)
-        candidate_nodes[parent]["satisfied_by"] = refs
+        candidate_nodes[parent]["requires"] = refs
 
     errors = change_dag.validate_dag(candidate)
     if errors:
@@ -283,9 +283,9 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
     if real_id != new_id:
         candidate_nodes[real_id] = candidate_nodes.pop(new_id)
         for entry in candidate_nodes.values():
-            refs = entry.get("satisfied_by")
+            refs = entry.get("requires")
             if isinstance(refs, list) and new_id in refs:
-                entry["satisfied_by"] = [real_id if ref == new_id else ref for ref in refs]
+                entry["requires"] = [real_id if ref == new_id else ref for ref in refs]
     _persist(candidate, workspace_root, slug)
     return change_dag.output(
         {"slug": slug, "node_id": real_id, "kind": kind, "parents": parents},
@@ -354,6 +354,50 @@ def update_node(workspace_root: Path, slug: str, node_id: str, **fields: Any) ->
 
 
 @_locked_mutation
+def set_decomposition_only(
+    workspace_root: Path, slug: str, node_id: str, value: Any
+) -> dict[str, Any]:
+    """Declare or reopen whether a semantic node owns no direct terminal work.
+
+    ``decomposition_only`` is persisted authoring intent, not runtime state. It is
+    semantic-only: a terminal node can never be fully decomposed, so the setter
+    rejects a non-semantic target. Setting ``true`` validates the structural
+    invariant that the node directly requires at least one semantic child and no
+    terminal child; setting ``false`` lets a worker reopen an earlier judgment
+    and preserves the node's existing child structure.
+    """
+    workspace_root = Path(workspace_root)
+    if not isinstance(value, bool):
+        return _error("invalid_arguments", "value must be a boolean")
+    dag, _state, err = _mutation_context(workspace_root, slug)
+    if err is not None:
+        return err
+    assert dag is not None
+
+    nodes = change_dag.node_map(dag)
+    if node_id not in nodes:
+        return _error("unknown_node", f"node not found: {node_id}")
+    if change_dag.node_type(dag, node_id) != change_dag.SEMANTIC_TYPE:
+        return _error(
+            "invalid_node",
+            f"node {node_id} is not semantic; decomposition_only is semantic-only",
+        )
+
+    candidate = copy.deepcopy(dag)
+    candidate["nodes"][node_id]["decomposition_only"] = value
+    errors = change_dag.validate_dag(candidate)
+    if errors:
+        return _error("invalid_graph", "; ".join(errors), errors=errors)
+
+    _persist(candidate, workspace_root, slug)
+    return change_dag.output(
+        {"slug": slug, "node_id": node_id, "decomposition_only": value},
+        "Set Decomposition Only",
+        {"slug": slug, "node_id": node_id},
+    )
+
+
+@_locked_mutation
 def remove_node(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any]:
     workspace_root = Path(workspace_root)
     dag, state, err = _mutation_context(workspace_root, slug)
@@ -376,14 +420,14 @@ def remove_node(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any]
     for node in candidate["nodes"].values():
         if node.get("type") != change_dag.SEMANTIC_TYPE:
             continue
-        refs = node.get("satisfied_by")
+        refs = node.get("requires")
         if not isinstance(refs, list):
             continue
         filtered = [ref for ref in refs if ref != node_id]
         if filtered:
-            node["satisfied_by"] = filtered
+            node["requires"] = filtered
         else:
-            node.pop("satisfied_by", None)
+            node.pop("requires", None)
 
     reachable = change_dag.reachable_from_root(candidate)
     stranded = sorted(

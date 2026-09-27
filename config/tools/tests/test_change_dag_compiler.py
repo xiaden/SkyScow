@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common.helpers.change_dag import unresolved_leaves
+from common.helpers.change_dag import unresolved_semantic_nodes
 from common.helpers.change_dag_compiler_graph import ready_run_nodes
 from common.helpers.change_dag_compiler_lowering import compile_operations
 from common.helpers.change_dag_compiler_model import Blocked, CompiledOp, Conflict
@@ -19,10 +19,10 @@ def dag_with(nodes: dict, root: str = "N1") -> dict:
     return {"slug": "demo", "anchor_commit": "a" * 40, "root": root, "nodes": nodes}
 
 
-def semantic(requirement: str = "r", satisfied_by=None) -> dict:
+def semantic(requirement: str = "r", requires=None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
-    if satisfied_by is not None:
-        node["satisfied_by"] = satisfied_by
+    if requires is not None:
+        node["requires"] = requires
     return node
 
 
@@ -259,7 +259,7 @@ def test_apply_compiled_create_does_not_overwrite(tmp_path: Path):
 # ---------------------------------------------------------------------------
 # preflight
 # ---------------------------------------------------------------------------
-def test_preflight_executable_with_unresolved_leaf_and_dirty_tree(tmp_path: Path):
+def test_preflight_executable_with_unresolved_semantic_node_and_dirty_tree(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     _write(workspace, "f.txt", "a\nb\nc\n")
@@ -268,11 +268,11 @@ def test_preflight_executable_with_unresolved_leaf_and_dirty_tree(tmp_path: Path
     dag = dag_with(
         {
             "N1": semantic("root", ["N2", "N3"]),
-            "N2": semantic("needs a product decision"),  # unresolved leaf
+            "N2": semantic("needs a product decision"),  # unresolved semantic node
             "N3": edit("f.txt", patch),
         }
     )
-    assert unresolved_leaves(dag) == ["N2"]
+    assert unresolved_semantic_nodes(dag) == ["N2"]
     result = preflight(dag, {}, workspace)
     assert result["executable"] is True
     assert result["issues"] == []
@@ -309,7 +309,7 @@ def test_preflight_not_executable_on_structure_error(tmp_path: Path):
     assert any(issue["kind"] == "structure" for issue in result["issues"])
 
 
-def test_preflight_allows_unresolved_semantic_leaves(tmp_path: Path):
+def test_preflight_allows_unresolved_semantic_nodes(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     dag = dag_with({"N1": semantic("root", ["N2"]), "N2": semantic("undecided")})

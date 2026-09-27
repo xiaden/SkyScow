@@ -69,7 +69,7 @@ def _workspace(tmp_path: Path, files: dict[str, str], *, name: str = "workspace"
 def _semantic(requirement: str, children: list[str] | None = None) -> dict:
     node = {"type": "semantic", "requirement": requirement}
     if children is not None:
-        node["satisfied_by"] = children
+        node["requires"] = children
     return node
 
 
