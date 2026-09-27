@@ -803,6 +803,7 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
     if path is not None and node_id is not None:
         return _authoring_preview(dag, workspace_root, slug, path, node_id, state)
 
+    # Preview and admission share one whole-DAG compilation result.
     execution_phases, conflicts, blocked = change_dag_compiler.compile_whole_dag(
         dag, state, workspace_root
     )
@@ -813,7 +814,9 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
     execution_phase = {
         id(op): index for index, phase in enumerate(execution_phases) for op in phase
     }
-    pre = change_dag_compiler.preflight(dag, state, workspace_root)
+    pre = change_dag_compiler.preflight(
+        dag, state, workspace_root, compilation=(conflicts, blocked)
+    )
     ready = change_dag_compiler.ready_run_nodes(dag, state, workspace_root)
     depths = change_dag.derived_depth(dag)
 

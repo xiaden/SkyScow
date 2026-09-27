@@ -22,13 +22,8 @@ def dag_start(slug: str, retry: bool = False, *, workspace_root: Path) -> dict:
     errors = change_dag.validate_dag(dag)
     if errors:
         return {"error": "invalid_dag", "issues": errors}
-    # Admission must evaluate the EFFECTIVE state retry will actually attempt.
-    # The executor resets failed -> not_satisfied before running, so a
-    # deterministic intra-DAG conflict that retry would hit must be refused here
-    # rather than admitted and only discovered after the reset. Live-repository
-    # drift stays a runtime applicability mismatch (``runtime_failures``), so it
-    # remains an admitted, recoverable terminal failure. Only ``failed`` is
-    # reset; satisfied work is preserved and never replayed.
+    # Preflight the effective retry state: reset only failed nodes. Deterministic
+    # conflicts refuse admission; live applicability failures remain recoverable.
     effective_state = state_helper.read_state(root, slug)
     if retry:
         effective_state = {
@@ -63,10 +58,7 @@ def dag_start(slug: str, retry: bool = False, *, workspace_root: Path) -> dict:
         control.release_lock(fd)
         return {"error": "executor_log_unavailable", "message": str(exc), "dag": slug}
 
-    # The synchronous fallback applies ONLY to a genuine Popen failure (detached
-    # execution unsupported). A marker-write failure after a successful launch
-    # must never trigger it, or the detached child and the in-process loop would
-    # both run the same DAG.
+    # Fall back only when detached launch fails; never execute twice after launch.
     try:
         child = subprocess.Popen(_launch_command(slug, root, retry), cwd=Path(__file__).parents[2], stdin=subprocess.DEVNULL, stdout=stream, stderr=stream, start_new_session=True, close_fds=True, pass_fds=(fd,))
     except (OSError, ValueError):
@@ -88,9 +80,7 @@ def dag_start(slug: str, retry: bool = False, *, workspace_root: Path) -> dict:
         control.release_lock(fd)
         return {"error": "marker_write_failed", "message": str(exc), "dag": slug}
 
-    # Launch + marker succeeded. Close the parent's descriptor without an
-    # explicit LOCK_UN: the child's inherited descriptor references the same
-    # open-file-description and keeps the flock held for the child's lifetime.
+    # The inherited descriptor keeps the execution flock held by the child.
     os.close(fd)
     return {"state": "running", "dag": slug, "pid": child.pid, "detached": True}
 

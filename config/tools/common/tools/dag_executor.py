@@ -312,6 +312,7 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
     inherited = control.capture_inherited_state(workspace_root)
     reconcile_interrupted(workspace_root, slug)
     state = _terminal_defaults(dag, state_helper.read_state(workspace_root, slug))
+    nodes_map = change_dag.node_map(dag)
 
     while not _SHUTDOWN_REQUESTED:
         satisfaction = change_dag.derived_satisfaction(dag, state)
@@ -320,44 +321,46 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
             state_helper.append_work_log(workspace_root, slug, state_helper.log_checkpoint(slug, sha=checkpoint.get("sha"), committed=bool(checkpoint.get("committed")), inherited=inherited, message=checkpoint.get("message", "")))
             return {"state": "root_satisfied", "dag": slug, "checkpoint": checkpoint}
 
+        # One canonical compiler step: the mechanical work compilable now, its
+        # conflicts and blocked work, and the run frontier open at this state.
+        # Whole-DAG simulation consumes the same primitive, so execution and
+        # preview/validation cannot disagree about what work exists.
+        phase = compiler.compile_phase(dag, state, workspace_root)
         changed = False
 
-        ops, conflicts, _blocked = compiler.compile_operations(dag, state, workspace_root)
-        if conflicts:
-            recorded = False
-            for conflict in conflicts:
+        if phase.conflicts:
+            for conflict in phase.conflicts:
                 newly_failed = False
                 for node_id in conflict.nodes:
                     if state.get(node_id) not in {"satisfied", "failed"}:
                         state[node_id] = "failed"
                         newly_failed = True
-                if newly_failed:
-                    state_helper.append_work_log(workspace_root, slug, {"operation": "compile", "result": "failure", "path": conflict.path, "nodes": conflict.nodes, "detail": conflict.reason})
-                    for conflict_node in conflict.nodes:
-                        conflict_work = change_dag.node_map(dag).get(conflict_node, {})
-                        if conflict_work.get("type") != "move":
-                            continue
-                        state_helper.append_work_log(workspace_root, slug, state_helper.log_file_operation(
-                            [conflict_node], "move", path=str(conflict_work.get("from_path", "")),
-                            result="failure", detail=conflict.reason,
-                            from_path=conflict_work.get("from_path"),
-                            to_path=conflict_work.get("to_path"),
-                            overwrite=bool(conflict_work.get("overwrite", False)),
-                        ))
-                    recorded = True
-            if recorded:
-                state_helper.write_state(workspace_root, slug, state)
+                if not newly_failed:
+                    continue
+                state_helper.append_work_log(workspace_root, slug, {"operation": "compile", "result": "failure", "path": conflict.path, "nodes": conflict.nodes, "detail": conflict.reason})
+                for conflict_node in conflict.nodes:
+                    conflict_work = nodes_map.get(conflict_node, {})
+                    if conflict_work.get("type") != "move":
+                        continue
+                    state_helper.append_work_log(workspace_root, slug, state_helper.log_file_operation(
+                        [conflict_node], "move", path=str(conflict_work.get("from_path", "")),
+                        result="failure", detail=conflict.reason,
+                        from_path=conflict_work.get("from_path"),
+                        to_path=conflict_work.get("to_path"),
+                        overwrite=bool(conflict_work.get("overwrite", False)),
+                    ))
                 changed = True
+            if changed:
+                state_helper.write_state(workspace_root, slug, state)
 
-        # Defense in depth: never re-apply work whose terminal node already failed.
-        # Recovery is owned by dag_start(retry=true), which resets failed -> not_satisfied.
-        ops = [op for op in ops if not any(state.get(node_id) in {"satisfied", "failed"} for node_id in op.nodes)]
-        if ops:
+        # phase.ops already excludes satisfied, failed, and barrier-gated work, so
+        # the primitive itself is the "never re-apply terminal work" guarantee.
+        if not changed and phase.ops:
             # Capture pre-apply recovery evidence before any mutation or state
             # write, so an interruption after in_progress is persisted but before
             # terminal state is persisted can reconcile each atomic operation as
             # a unit. Move evidence stays operation-local (log_move_start).
-            for op in ops:
+            for op in phase.ops:
                 if op.op == "move":
                     state_helper.append_work_log(workspace_root, slug, state_helper.log_move_start(
                         list(op.nodes), from_path=op.from_path, to_path=op.to_path,
@@ -365,11 +368,11 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
                         source_fingerprint=compiler.source_fingerprint(workspace_root / str(op.from_path or ""))))
                 else:
                     state_helper.append_work_log(workspace_root, slug, _apply_start_entry(op, workspace_root))
-            for op in ops:
+            for op in phase.ops:
                 for node_id in op.nodes:
                     state[node_id] = "in_progress"
             state_helper.write_state(workspace_root, slug, state)
-            results = compiler.apply_compiled(ops, workspace_root)
+            results = compiler.apply_compiled(phase.ops, workspace_root)
             for result in results:
                 outcome = "success" if result.get("ok") else "failure"
                 for node_id in result.get("nodes", []):
@@ -383,9 +386,10 @@ def run_execution(workspace_root: Path, slug: str, retry: bool = False) -> dict[
             state_helper.write_state(workspace_root, slug, state)
             changed = True
 
-        ready = compiler.ready_run_nodes(dag, state, workspace_root)
-        if ready:
-            nodes_map = change_dag.node_map(dag)
+        # ready_runs was answered by the same primitive once no mechanical work
+        # remained, so the state it was derived from is the current state.
+        if not changed and phase.ready_runs:
+            ready = phase.ready_runs
             exclusive_ready = [node for node in ready if bool(nodes_map[node].get("exclusive", False))]
             if exclusive_ready:
                 # An exclusive run executes alone: no other run may be active

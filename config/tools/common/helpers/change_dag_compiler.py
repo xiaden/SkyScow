@@ -1,29 +1,14 @@
-"""Deterministic Change DAG compiler shared by ``dag_preview`` and execution.
+"""Deterministic Change DAG compiler shared by preview and execution.
 
-The compiler lowers the declarative DAG plus Execution State into concrete
-per-file operations against the *live* repository. It never creates a projected
-worktree and never writes; only :func:`apply_compiled` writes, and only through
-the atomic per-file primitive in :mod:`change_dag_patch`.
+The compiler lowers the declarative DAG and Execution State into operations
+against a read-only live repository view; only :func:`apply_compiled` writes,
+using the atomic primitives in :mod:`change_dag_patch`. Runtime lowering stops
+at unsatisfied run barriers. Whole-DAG preflight simulates all specified work
+in memory, while authoring preview lowers only selected construction frontiers.
 
-Runtime lowering is segmented: it stops at the next unsatisfied run barrier and
-resumes only after that run actually succeeds. Whole-DAG preflight instead uses
-:func:`compile_whole_dag`, which simulates deterministic mechanical progression
-through run barriers entirely in memory so ``executable`` reflects *all*
-currently specified work rather than only the first executable segment.
-
-Graph semantics are single-sourced from :mod:`change_dag`
-(``execution_order``, ``derived_satisfaction``, reachability, node typing).
-Failure is branch-local: a node is blocked only by a failure in a requirement
-it actually depends on. A ``run`` node is ordered after its sibling
-requirements under each direct semantic parent, so a failed sibling subtree
-blocks it; sibling subtrees under a shared ancestor are independent branches
-and never poison unrelated work.
-
-Same-file edit nodes are frontier-aware. Every peer authored at the same
-construction depth is interpreted against the *same* accepted lower-work state,
-and only their non-overlapping changed spans are composed. Deeper accepted work
-transforms the in-memory source that shallower work may intentionally consume;
-numerical node IDs never become semantic causality.
+Graph semantics come from :mod:`change_dag`. Failure is branch-local, and
+same-frontier peers share one lower-work base; deeper accepted work may be
+consumed by shallower work, but numeric node IDs never create causality.
 """
 from __future__ import annotations
 
@@ -53,7 +38,9 @@ __all__ = [
     "CompiledOp",
     "Conflict",
     "Blocked",
+    "Phase",
     "compile_operations",
+    "compile_phase",
     "compile_whole_dag",
     "compile_lower_work",
     "lower_work_frontiers",
@@ -77,18 +64,12 @@ class CompiledOp:
     to_path: str | None = None
     content: str | None = None
     patches: list | None = None
-    # Concrete compiled evidence: the raw lower-work patch text and the resulting
-    # applied file content, so a bounded fresh context (and the Work Log) can see
-    # exactly what was attempted rather than only node IDs and paths.
+    # Concrete patch text and resulting content for Work Log/recovery evidence.
     patch_text: str | None = None
     applied: str | None = None
-    # The accepted lower-work state an edit op's reconciled result was computed
-    # against, set only when a frontier composed more than one peer. Application
-    # then re-verifies that exact base instead of replaying peer patches in
-    # numeric order (which would recreate a false peer dependency).
+    # Accepted lower-work base for multi-peer composition; application rechecks it.
     base_text: str | None = None
-    # Move nodes only: when true an existing destination is atomically replaced;
-    # when false (default) an existing destination is a recoverable failure.
+    # Move destination replacement policy; false is the default recoverable collision.
     overwrite: bool = False
 
 
@@ -97,9 +78,7 @@ class Conflict:
     path: str
     nodes: list[str]
     reason: str
-    # "intra_dag" = deterministic conflict among this DAG's own authored work
-    # (makes the DAG non-executable). "runtime" = applicability mismatch against
-    # the current live repository (an ordinary recoverable terminal failure).
+    # ``intra_dag`` is deterministic/non-executable; ``runtime`` is recoverable drift.
     scope: str = "intra_dag"
 
 
@@ -107,6 +86,16 @@ class Conflict:
 class Blocked:
     node_id: str
     reason: str
+
+
+@dataclass
+class Phase:
+    """The shared next step for runtime execution and in-memory simulation."""
+
+    ops: list[CompiledOp]
+    conflicts: list[Conflict]
+    blocked: list[Blocked]
+    ready_runs: list[str]
 
 
 class _RepoView:
@@ -211,15 +200,7 @@ def _semantic_parents(dag: Any, node_id: str) -> list[str]:
 
 
 def _blocked_reason(dag: Any, state: dict[str, str], node_id: str) -> str | None:
-    """Return a branch-local failure reason, or ``None`` when progressable.
-
-    Failure is branch-local: a node is blocked only by a failure on a semantic
-    requirement path it actually depends on. A ``run`` node waits for the *other*
-    requirements of each direct semantic parent, so a failure in one of those
-    sibling subtrees genuinely blocks it. A mechanical node has no such
-    dependency -- a sibling subtree under a shared ancestor is an independent
-    branch -- so nothing here blocks it.
-    """
+    """Return a failure reason only for a ``run`` node's required siblings."""
     if change_dag.node_type(dag, node_id) != "run":
         return None
     for parent in _semantic_parents(dag, node_id):
@@ -232,20 +213,10 @@ def _blocked_reason(dag: Any, state: dict[str, str], node_id: str) -> str | None
 
 
 def _barrier_gated(dag: Any, state: dict[str, str]) -> dict[str, str]:
-    """Map a mechanical node to the unsatisfied run barrier that gates it.
+    """Map each mechanical node to its deepest applicable unsatisfied barrier.
 
-    A ``run`` node is a satisfaction barrier at its semantic parent ``P``.
-    Mechanical work that is *strictly shallower* than ``P`` and bubbles to an
-    ancestor of ``P`` sits above that barrier and must not be applied until the
-    run is satisfied. Mechanical work at the same depth as ``P`` (an independent
-    sibling prerequisite) and work that feeds the run (below ``P``) still apply
-    first, so unrelated branches keep progressing independently.
-
-    Several barriers may share an ancestor. Gating is the existence of *any*
-    applicable barrier, so the deepest barrier under each ancestor wins and a
-    deeper unsatisfied barrier is never masked by a shallower one merely
-    encountered first. Selection and the reported barrier are independent of
-    node-map insertion order and deterministic under ties.
+    Work below or at a barrier parent's depth may progress; shallower work that
+    bubbles through that parent waits. Selection is independent of node-map order.
     """
     nodes = change_dag.node_map(dag)
     effective = state if isinstance(state, dict) else {}
@@ -315,36 +286,22 @@ def _actionable_mechanical(dag: Any, state: dict[str, str]) -> tuple[list[str], 
             continue
         if change_dag.node_type(dag, node_id) not in MECHANICAL_TYPES:
             continue
-        # Satisfied work is immutable; failed work is an explicit recovery point
-        # and must not be re-compiled/re-applied (that would never terminate).
-        # Recovery is owned by dag_start(retry=true), which resets failed nodes.
+        # Terminal work is immutable until dag_start(retry=true) resets failures.
         if state.get(node_id) in {"satisfied", "failed"}:
             continue
         barrier = gated.get(node_id)
         if barrier is not None:
             blocked.append(Blocked(node_id=node_id, reason=f"blocked by unsatisfied run barrier {barrier}"))
             continue
-        # Mechanical work has no failure requirement: a sibling subtree under a
-        # shared ancestor is an independent branch. Only run nodes are blocked by
-        # a failure in a requirement they actually depend on.
         actionable.append(node_id)
     return actionable, blocked
 
 
 def _parse_edit_node_patch(node_id: str, node: dict, path: str) -> FilePatch:
-    """Parse one edit node's patch and enforce the one-node/one-file contract.
+    """Parse one file patch and require its canonical target to equal ``path``.
 
-    An edit node represents exactly one file operation, so its patch must contain
-    exactly one ``FilePatch``. The parsed target is canonicalized with
-    :func:`change_dag.canonical_path` -- the same lexical identity used to group
-    paths during compilation -- and must equal ``path`` (the node's already
-    canonicalized declared ``path``). ``a/``/``b/`` headers normalize to the bare
-    path, so ``a/foo.py``/``b/foo.py``/``./foo.py`` all match a declared
-    ``foo.py``; any other target (including unsupported special forms such as
-    ``/dev/null``) is rejected. Raises :class:`PatchError` for malformed, empty,
-    multi-file, or mismatched patches; the generic multi-file
-    :func:`change_dag_patch.parse_unified_diff` is left unchanged for other
-    callers.
+    Generic multi-file parsing remains available to other callers; edit nodes do
+    not accept multiple sections or special targets such as ``/dev/null``.
     """
     patches = parse_unified_diff(node["patch"])
     if len(patches) != 1:
@@ -380,21 +337,12 @@ def _parse_edit_nodes(
 
 
 def _changed_span(hunk) -> tuple[int, int, list[str]] | None:
-    """Base-coordinate ``(start, end, new_lines)`` for the lines a hunk changes.
-
-    Context lines only anchor a hunk and are excluded, so two same-frontier peers
-    that merely share context are not mistaken for overlapping proposals.
-    """
+    """Return the changed span in original-file coordinates."""
     changed = [index for index, raw in enumerate(hunk.lines) if raw[:1] in {"+", "-"}]
     if not changed:
         return None
     if hunk.old_count == 0:
-        # A zero-old-count hunk is a pure insertion anchored *after* original line
-        # ``old_start``; it occupies the empty base interval at 0-based index
-        # ``old_start`` -- the same coordinate ``apply_file_patch`` inserts at.
-        # Anchoring at ``old_start - 1`` would compose one line too high. Such a
-        # hunk carries no context/removed lines, so every changed line is an
-        # addition.
+        # Zero-count insertions use the same anchor as apply_file_patch.
         anchor = hunk.old_start
         new_lines = [raw[1:] for raw in hunk.lines if raw[:1] == "+"]
         return anchor, anchor, new_lines
@@ -484,19 +432,10 @@ def _reconcile_frontier_edits(
     base_is_authored: bool,
     base_nodes: list[str] | None = None,
 ) -> tuple[str, list[tuple[list[str], str, str]]]:
-    """Interpret same-frontier peer proposals against one base, then reconcile.
+    """Reconcile same-frontier peers against one lower-work base.
 
-    Frontiers are the construction depths already used by ``execution_order``.
-    Deeper frontiers are accepted first and transform ``base``; every peer of the
-    *same* frontier is then interpreted against that identical accepted-lower
-    state, never against a peer's output. Non-overlapping peer changes compose
-    simultaneously, so numerical node IDs never become causality.
-
-    ``base_is_authored`` marks a base produced by this DAG (a ``create`` content
-    or an earlier segment's result) rather than the live repository, which is
-    what separates a deterministic contradiction from ordinary live drift.
-    Returns ``(reconciled_text, problems)`` where each problem is
-    ``(nodes, reason, scope)``.
+    Deeper frontiers transform the base; peers at one depth compose only
+    non-overlapping changes against that shared base. Returns text and conflicts.
     """
     problems: list[tuple[list[str], str, str]] = []
     frontiers: dict[int, list[str]] = {}
@@ -648,21 +587,11 @@ def compile_operations(
     repo: "_RepoView | None" = None,
     include_nodes: set[str] | None = None,
 ) -> tuple[list[CompiledOp], list[Conflict], list[Blocked]]:
-    """Lower currently reachable mechanical work into per-path operations.
+    """Lower reachable mechanical work into coordinated per-path operations.
 
-    Nodes are grouped by :func:`change_dag.canonical_path`, so spellings that
-    name the same file (``foo.py``, ``./foo.py``, ``src/../foo.py``) coordinate
-    as one path instead of compiling independently and colliding at application.
-
-    ``repo`` defaults to a live read-only view of ``workspace_root``. Whole-DAG
-    preflight passes a simulated overlay so higher work is lowered against the
-    in-memory result of accepted lower work rather than the live files.
-
-    ``include_nodes`` restricts lowering to an explicit mechanical node set and
-    bypasses run-barrier gating. Only the construction-frontier authoring view
-    (:func:`compile_lower_work`) uses it: a construction frontier is an
-    authoring/context boundary, so execution run barriers never gate it.
-    Runtime and preflight compilation leave it ``None``.
+    Paths use canonical identity. ``repo`` supplies a live or simulated read-only
+    view; ``include_nodes`` is reserved for frontier-bounded authoring preview and
+    bypasses execution run-barrier gating.
     """
     effective_state = state if isinstance(state, dict) else {}
     workspace_root = Path(workspace_root)
@@ -910,27 +839,59 @@ def compile_operations(
     # destination colliding with other work is an explicit conflict.
     ops.extend(move_ops)
 
-    conflicts.sort(key=lambda conflict: (conflict.path, conflict.reason, conflict.nodes))
-    blocked.sort(key=lambda entry: change_dag._numeric_id(entry.node_id))
+    _finalize(conflicts, blocked)
     return ops, conflicts, blocked
 
 
-def _apply_simulated(repo: _RepoView, op: CompiledOp) -> None:
-    """Apply a compiled op to the in-memory overlay; the repository is untouched."""
-    if op.op == "create":
-        repo.put(op.path, op.content or "")
-    elif op.op == "edit":
-        repo.put(op.path, op.applied if op.applied is not None else "")
-    elif op.op == "remove":
-        repo.delete(op.path)
-    elif op.op == "move":
-        try:
-            content: str | None = repo.read(op.from_path or "")
-        except PatchError:
-            content = None
-        if op.to_path:
-            repo.put(op.to_path, content if content is not None else "")
-        repo.delete(op.from_path or "")
+def compile_phase(
+    dag: dict,
+    state: dict,
+    workspace_root: Path,
+    *,
+    repo: "_RepoView | None" = None,
+    include_nodes: set[str] | None = None,
+) -> Phase:
+    """Return the shared next mechanical phase and ready run frontier."""
+    ops, conflicts, blocked = compile_operations(
+        dag, state, workspace_root, repo=repo, include_nodes=include_nodes
+    )
+    projected = dict(state) if isinstance(state, dict) else {}
+    for op in ops:
+        for node_id in op.nodes:
+            projected[node_id] = "satisfied"
+    return Phase(
+        ops=ops,
+        conflicts=conflicts,
+        blocked=blocked,
+        ready_runs=ready_run_nodes(dag, projected, workspace_root),
+    )
+
+
+def _simulate_ops(repo: _RepoView, ops: list[CompiledOp], state: dict[str, str]) -> None:
+    """Project a phase's ops onto the overlay and mark their nodes satisfied."""
+    for op in ops:
+        if op.op == "create":
+            repo.put(op.path, op.content or "")
+        elif op.op == "edit":
+            repo.put(op.path, op.applied if op.applied is not None else "")
+        elif op.op == "remove":
+            repo.delete(op.path)
+        elif op.op == "move":
+            try:
+                content: str | None = repo.read(op.from_path or "")
+            except PatchError:
+                content = None
+            if op.to_path:
+                repo.put(op.to_path, content if content is not None else "")
+            repo.delete(op.from_path or "")
+        for node_id in op.nodes:
+            state[node_id] = "satisfied"
+
+
+def _finalize(conflicts: list[Conflict], blocked: list[Blocked]) -> None:
+    """Apply the compiler's deterministic conflict/blocked ordering."""
+    conflicts.sort(key=lambda conflict: (conflict.path, conflict.reason, conflict.nodes))
+    blocked.sort(key=lambda entry: change_dag._numeric_id(entry.node_id))
 
 
 def _invalid_path_conflict(node_id: str, raw_paths: list[Any]) -> Conflict:
@@ -1019,107 +980,83 @@ def _authored_shape_conflicts(dag: Any) -> list[Conflict]:
     return found
 
 
+def _lower_progression(
+    dag: dict,
+    state: dict[str, str],
+    workspace_root: Path,
+    *,
+    repo: _RepoView,
+    advance_runs: bool,
+    include_nodes: set[str] | None = None,
+    conflicts: list[Conflict] | None = None,
+) -> tuple[list[list[CompiledOp]], list[Conflict], list[Blocked]]:
+    """Advance shared phases over an overlay until no work can progress.
+
+    ``advance_runs`` controls whether ready run frontiers are simulated as
+    satisfied; authoring context leaves them as execution boundaries.
+    """
+    phases: list[list[CompiledOp]] = []
+    conflicts = list(conflicts or [])
+    blocked: list[Blocked] = []
+    seen = {(c.path, c.reason, tuple(c.nodes), c.scope) for c in conflicts}
+
+    for _ in range(len(change_dag.node_map(dag)) + 2):
+        phase = compile_phase(
+            dag, state, workspace_root, repo=repo, include_nodes=include_nodes
+        )
+        for conflict in phase.conflicts:
+            key = (conflict.path, conflict.reason, tuple(conflict.nodes), conflict.scope)
+            if key not in seen:
+                seen.add(key)
+                conflicts.append(conflict)
+        blocked = phase.blocked
+
+        ready = phase.ready_runs if advance_runs else []
+        # A run-only transition still advances the execution phase.
+        progressed = bool(phase.ops or ready)
+        if progressed:
+            phases.append(phase.ops)
+        if phase.ops:
+            _simulate_ops(repo, phase.ops, state)
+        for node_id in ready:
+            state[node_id] = "satisfied"
+        if not progressed:
+            break
+
+    return phases, conflicts, blocked
+
+
 def compile_whole_dag(
     dag: dict, state: dict, workspace_root: Path
 ) -> tuple[list[list[CompiledOp]], list[Conflict], list[Blocked]]:
-    """Deterministically lower *all* currently specified terminal work.
+    """Lower all specified terminal work in memory for whole-DAG preflight.
 
-    Runtime compilation is segmented: it stops at the next unsatisfied run
-    barrier and resumes only after that run actually succeeds, so a single
-    state-aware pass only sees the first executable segment. Preflight must
-    instead answer whether *all* currently specified work lowers without an
-    internal compiler/patch contradiction, so this simulates deterministic
-    mechanical progression entirely in memory:
-
-    * compile the current execution phase against the simulated overlay;
-    * fold accepted mechanical results into the overlay and mark their nodes
-      satisfied;
-    * assume every run barrier whose requirements are now met succeeds, then
-      advance the execution phase and continue lowering the work that becomes
-      reachable above it.
-
-    No repository write, projected worktree, or command execution happens here.
-    Live-repository applicability mismatches stay ``scope="runtime"``;
-    contradictions against content the DAG itself produced are deterministic.
-    Returns the per-execution-phase ops, including empty phases crossed only by
-    simulated run frontiers, the deduplicated conflicts found across every
-    phase, and the work still gated once progression stops. Execution phase is
-    deliberately separate from construction depth/frontier.
+    Runtime remains barrier-segmented; this simulation crosses ready run
+    frontiers without executing them. It performs no writes or commands, keeps
+    live drift as runtime evidence, and returns execution phases, conflicts, and
+    remaining blocked work. Execution phase is distinct from construction depth.
     """
     effective_state = dict(state) if isinstance(state, dict) else {}
     overlay: dict[str, str] = {}
     removed: set[str] = set()
     repo = _RepoView(workspace_root, overlay, removed)
 
-    # Validate authored shape/policy before lowering. Mark malformed terminals
-    # failed only in this private simulation so compile_operations cannot crash
-    # on missing fields or replay invalid work; the authored defects remain
-    # deterministic conflicts and valid unrelated work can still be simulated.
+    # Detect authored defects before blocked progression hides them; state changes
+    # here are private to the simulation.
     authored_conflicts = _authored_shape_conflicts(dag)
-    authored_invalid = {node for conflict in authored_conflicts for node in conflict.nodes}
-    for node_id in authored_invalid:
+    for node_id in {node for conflict in authored_conflicts for node in conflict.nodes}:
         effective_state[node_id] = "failed"
 
-    execution_phases: list[list[CompiledOp]] = []
-    conflicts: list[Conflict] = []
-    blocked: list[Blocked] = []
-    seen: set[tuple] = set()
-    for conflict in authored_conflicts:
-        key = (conflict.path, conflict.reason, tuple(conflict.nodes), conflict.scope)
-        seen.add(key)
-        conflicts.append(conflict)
-
-    limit = len(change_dag.node_map(dag)) + 2
-    for _ in range(limit):
-        phase_ops, phase_conflicts, blocked = compile_operations(
-            dag, effective_state, workspace_root, repo=repo
-        )
-        for conflict in phase_conflicts:
-            key = (conflict.path, conflict.reason, tuple(conflict.nodes), conflict.scope)
-            if key not in seen:
-                seen.add(key)
-                conflicts.append(conflict)
-
-        if phase_ops:
-            for op in phase_ops:
-                _apply_simulated(repo, op)
-                for node_id in op.nodes:
-                    effective_state[node_id] = "satisfied"
-
-        ready = [
-            node_id
-            for node_id in ready_run_nodes(dag, effective_state, workspace_root)
-            if effective_state.get(node_id) != "satisfied"
-        ]
-
-        # Preserve a phase even when its only progress is crossing a run
-        # frontier. Otherwise later mechanical work is incorrectly relabelled
-        # as phase 0 when callers derive its phase from non-empty batches.
-        progressed = bool(phase_ops or ready)
-        if progressed:
-            execution_phases.append(phase_ops)
-
-        if ready:
-            for node_id in ready:
-                effective_state[node_id] = "satisfied"
-
-        if not progressed:
-            break
-
-    conflicts.sort(key=lambda conflict: (conflict.path, conflict.reason, conflict.nodes))
-    blocked.sort(key=lambda entry: change_dag._numeric_id(entry.node_id))
-    return execution_phases, conflicts, blocked
+    phases, conflicts, blocked = _lower_progression(
+        dag, effective_state, workspace_root, repo=repo, advance_runs=True,
+        conflicts=authored_conflicts,
+    )
+    _finalize(conflicts, blocked)
+    return phases, conflicts, blocked
 
 
 def lower_work_frontiers(dag: Any) -> dict[str, int]:
-    """Construction-frontier depth of every mechanical node.
-
-    A mechanical node's frontier is the longest-path derived depth of the
-    semantic node(s) it directly satisfies -- the construction layer that
-    owned it. Deepest-frontier work is authored first, so same-frontier peers
-    share a frontier depth regardless of numerical node ID or persistence order.
-    Unparented mechanical nodes (unreachable or malformed) are omitted.
-    """
+    """Return each mechanical node's longest-path construction frontier."""
     depths = change_dag.derived_depth(dag)
     nodes = change_dag.node_map(dag)
     semantic_parents: dict[str, list[str]] = {node_id: [] for node_id in nodes}
@@ -1142,36 +1079,19 @@ def lower_work_frontiers(dag: Any) -> dict[str, int]:
 def compile_lower_work(
     dag: dict, workspace_root: Path, boundary_depth: int, *, state: dict | None = None
 ) -> tuple[list[CompiledOp], list[Conflict], dict[str, str], set[str]]:
-    """Lower mechanical work strictly below a construction frontier boundary.
+    """Lower work from strictly deeper construction frontiers into an overlay.
 
-    A construction frontier is an authoring/context boundary, deliberately
-    distinct from a run barrier. Exact work authored for one frontier shares one
-    accepted-lower-work base: for a semantic boundary at ``boundary_depth``,
-    mechanical work whose own frontier (:func:`lower_work_frontiers`) is
-    strictly deeper is accepted context, while work at the boundary's own depth
-    -- the current node's own proposal and every same-frontier peer proposal --
-    and shallower/future work are excluded. Longest-path depth, convergence, and
-    shared descendants are preserved; a shared deeper node contributes once.
-
-    Everything lowers deepest-frontier-first into an in-memory overlay. Run
-    barriers never gate this view (they are execution boundaries), nothing is
-    written, and no command runs. Returns ``(ops, conflicts, overlay, removed)``,
-    where ``overlay`` maps written paths to their effective lower-work content
-    and ``removed`` names paths lower work deleted.
-
-    ``state`` (optional) is Execution State. Already-``satisfied`` lower work is
-    represented in the live source and must not be re-projected; failed or
-    not-yet-applied lower work remains legitimate accepted context. Callers that
-    omit ``state`` keep the previous all-work projection behaviour.
+    Same-frontier and shallower work is excluded; run barriers do not gate this
+    authoring view. Satisfied lower work is assumed present in the live source,
+    while failed or unapplied work remains projectable. Returns operations,
+    conflicts, written overlay content, and removed paths.
     """
-    nodes = change_dag.node_map(dag)
     frontiers = lower_work_frontiers(dag)
     include = {
         node_id for node_id, frontier in frontiers.items() if frontier > boundary_depth
     }
 
-    # Seed already-satisfied lower work as accepted-but-applied: live content
-    # already reflects it, so re-projecting it would duplicate its effect.
+    # Satisfied work is already represented in live content; do not replay it.
     effective_state: dict[str, str] = {
         node_id: node_state
         for node_id, node_state in (state.items() if isinstance(state, dict) else ())
@@ -1180,29 +1100,13 @@ def compile_lower_work(
     overlay: dict[str, str] = {}
     removed: set[str] = set()
     repo = _RepoView(workspace_root, overlay, removed)
-    ordered_ops: list[CompiledOp] = []
-    conflicts: list[Conflict] = []
-    seen: set[tuple] = set()
 
-    limit = len(nodes) + 2
-    for _ in range(limit):
-        ops, phase_conflicts, _blocked = compile_operations(
-            dag, effective_state, workspace_root, repo=repo, include_nodes=include
-        )
-        for conflict in phase_conflicts:
-            key = (conflict.path, conflict.reason, tuple(conflict.nodes), conflict.scope)
-            if key not in seen:
-                seen.add(key)
-                conflicts.append(conflict)
-        if not ops:
-            break
-        for op in ops:
-            _apply_simulated(repo, op)
-            ordered_ops.append(op)
-            for node_id in op.nodes:
-                effective_state[node_id] = "satisfied"
-
-    conflicts.sort(key=lambda conflict: (conflict.path, conflict.reason, conflict.nodes))
+    phases, conflicts, _blocked = _lower_progression(
+        dag, effective_state, workspace_root, repo=repo, advance_runs=False,
+        include_nodes=include,
+    )
+    ordered_ops = [op for phase in phases for op in phase]
+    _finalize(conflicts, [])
     return ordered_ops, conflicts, overlay, removed
 
 
@@ -1348,7 +1252,13 @@ def ready_run_nodes(dag: dict, state: dict, workspace_root: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 # Preflight
 # ---------------------------------------------------------------------------
-def preflight(dag: dict, state: dict, workspace_root: Path) -> dict:
+def preflight(
+    dag: dict,
+    state: dict,
+    workspace_root: Path,
+    *,
+    compilation: tuple[list[Conflict], list[Blocked]] | None = None,
+) -> dict:
     """Derived pre-execution conflict/applicability check.
 
     Only deterministic *intra-DAG* conflicts (structure errors, conflicting
@@ -1362,7 +1272,9 @@ def preflight(dag: dict, state: dict, workspace_root: Path) -> dict:
 
     ``executable`` is answered by :func:`compile_whole_dag`: it reflects whether
     *all* currently specified work lowers deterministically, not merely the first
-    execution segment before the next unsatisfied run barrier.
+    execution segment before the next unsatisfied run barrier. A caller that has
+    already compiled the DAG passes ``compilation`` to reuse that result, so
+    preview and validation derive their report from one compilation, not two.
     """
     issues: list[dict] = []
     runtime_failures: list[dict] = []
@@ -1375,11 +1287,14 @@ def preflight(dag: dict, state: dict, workspace_root: Path) -> dict:
             issues.append({"kind": "structure", "message": message})
         return {"executable": False, "issues": issues, "runtime_failures": [], "conflicts": [], "blocked": []}
 
-    try:
-        _segments, conflicts, blocked = compile_whole_dag(dag, state, workspace_root)
-    except Exception as exc:  # pragma: no cover - defensive
-        issues.append({"kind": "compile_conflict", "message": f"compilation failed: {exc}"})
-        return {"executable": False, "issues": issues, "runtime_failures": [], "conflicts": [], "blocked": []}
+    if compilation is None:
+        try:
+            _segments, conflicts, blocked = compile_whole_dag(dag, state, workspace_root)
+        except Exception as exc:  # pragma: no cover - defensive
+            issues.append({"kind": "compile_conflict", "message": f"compilation failed: {exc}"})
+            return {"executable": False, "issues": issues, "runtime_failures": [], "conflicts": [], "blocked": []}
+    else:
+        conflicts, blocked = compilation
 
     for conflict in conflicts:
         entry = {
