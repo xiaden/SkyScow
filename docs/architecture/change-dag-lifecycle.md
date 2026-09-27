@@ -4,8 +4,8 @@ How an accepted DD becomes an executable **Change DAG**, and how that DAG is exe
 
 Four roles, deliberately separated:
 
-- `change-dag-author` **constructs** the DAG — manager role: semantic graph, construction-frontier loop, reconciliation, validation — and amends mutable work during recovery. It never executes.
-- `change-dag-worker` **lowers** one assigned semantic node into exact work or further decomposition, dispatched internally by the author manager. It never manages the frontier, mutates source, or executes.
+- `change-dag-author` **constructs** the DAG — manager role: semantic graph, service-derived decomposition-frontier loop, reconciliation, validation — and amends mutable work during recovery. It never executes.
+- `change-dag-worker` **lowers** one assigned semantic node into exact work or further decomposition, dispatched internally by the author manager; it retrieves its own scope with `dag_decomposition_scope`. It never manages the frontier, mutates source, or executes.
 - `nyx` **operates** the lifecycle tools (`dag_start`, `dag_status`, `dag_stop`, `dag_archive`).
 - `dag_executor` **applies** terminal work deterministically and serially.
 
@@ -17,8 +17,8 @@ Four roles, deliberately separated:
 flowchart TD
     DD["Accepted Design Document"] --> S["dag_create with semantic graph"]
     S --> SEM["Semantic requirements<br/>postconditions, not actions"]
-    SEM --> F{"Construction frontier<br/>deepest unresolved nodes"}
-    F --> W["change-dag-worker<br/>one per semantic node"]
+    SEM --> F{"dag_decomposition_frontier<br/>deepest unresolved nodes"}
+    F --> W["change-dag-worker<br/>one per returned node"]
     W --> X["Exact work nodes<br/>create • edit • remove • move • run"]
     X --> F
     F -->|no frontier left| VAL["dag_validate<br/>schema-valid • executable • resolved"]
@@ -26,12 +26,14 @@ flowchart TD
     REV --> AUTH["Authored Change DAG"]
     VAL --> AUTH
 
-    CTX["Bounded repository evidence<br/>ancestor intent • DD • request context"] -.-> F
+    CTX["Bounded repository evidence<br/>live source • DD • request context"] -.-> F
 ```
 
 - The initial semantic structure is submitted atomically through `dag_create(slug, semantic_graph)`. Semantic nodes express postconditions, not implementation actions.
-- Exact work is lowered one **construction frontier** at a time, from the deepest semantic nodes upward. The author manager dispatches one fresh bounded `change-dag-worker` per semantic node; a frontier is the scheduling/reconciliation unit and a semantic node is the worker/context unit. The author reconciles each frontier before moving shallower and must not load the entire repository into one session.
-- `dag_validate` reports `schema_valid`, `executable`, and `resolved`. A DAG can be schema-valid and still unresolved — unresolved semantic leaves do not necessarily make it non-executable.
+- The DAG's only edge is `requires`, and it is ALL-of: `requires` expresses what must become true for a semantic requirement to be fulfilled. A semantic node is satisfied only when every node it directly requires is satisfied. Nodes on the same semantic frontier assert authoring independence; the frontier service derives the frontier from `requires` edges only and never infers a missing causal relationship. Semantic siblings imply no authoring dependency through each other; if correct authoring of B requires accepted work from A, B must have a `requires` path to A rather than being represented as an independent sibling.
+- Exact work is lowered one **decomposition frontier** at a time, from the deepest semantic nodes upward. The author manager queries `dag_decomposition_frontier(slug)` and dispatches one fresh bounded `change-dag-worker` per returned node; a frontier is the service-derived scheduling/reconciliation unit and a semantic node is the worker/context unit. The Worker retrieves its own scope with `dag_decomposition_scope(slug, node_id)`. The author reconciles only when results or conflicts require it, re-queries the frontier rather than tracking progress locally, and must not load the entire repository into one session.
+- A semantic node may record persisted authoring intent with `dag_set_decomposition_only(slug, node_id, true)` when its obligation is fully decomposed into the semantic requirements it directly `requires` and it intentionally owns no direct terminal work. It is semantic-only: the node must directly require at least one semantic child, and a direct create/edit/remove/move/run child makes the DAG structurally invalid. `value=false` reopens the judgment. The field never affects runtime satisfaction, which still derives only from the satisfaction of `requires` children; only a bounded worker may call the setter.
+- `dag_validate` reports `schema_valid`, `executable`, and `resolved`. A semantic node is locally resolved when it directly requires at least one terminal work node, or when it declares `decomposition_only=true` over semantic children only; `resolved` means every reachable semantic node is locally resolved. A DAG can be schema-valid and still unresolved — unresolved semantic nodes do not necessarily make it non-executable.
 - Optional review may be selected by Nyx for observable coordination or authority risks such as shared convergence, interface migrations, shared schemas, recovery amendments, or explicit user request. The author surfaces `review_triggers`; neither the author nor a worker dispatches the reviewer.
 
 ## Executing the DAG
