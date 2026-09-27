@@ -24,6 +24,7 @@ from . import change_dag_compiler
 from . import change_dag_control
 from . import change_dag_policy
 from . import change_dag_state
+from .change_dag_patch import PatchError, read_text_preserving
 
 WORK_KINDS = ("create", "edit", "remove", "move", "run")
 
@@ -654,21 +655,155 @@ def remove_node(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any]
 # ---------------------------------------------------------------------------
 # Read-only surface
 # ---------------------------------------------------------------------------
+def _render_op(op: Any, *, phase: int | None = None) -> dict[str, Any]:
+    rendered: dict[str, Any] = {
+        "nodes": list(op.nodes),
+        "op": op.op,
+        "path": op.path,
+        "from_path": op.from_path,
+        "to_path": op.to_path,
+    }
+    if phase is not None:
+        # RUN-BARRIER execution phase, never a construction frontier.
+        rendered["segment"] = phase
+        rendered["execution_phase"] = phase
+    if op.op == "move":
+        rendered["overwrite"] = bool(op.overwrite)
+    if op.content is not None:
+        rendered["content"] = op.content
+    if op.patch_text is not None:
+        rendered["patch"] = op.patch_text
+    if op.applied is not None:
+        rendered["applied"] = op.applied
+    return rendered
+
+
+def _read_live_source(workspace_root: Path, path: str) -> str | None:
+    target = workspace_root / path
+    if not target.is_file():
+        return None
+    try:
+        return read_text_preserving(target)
+    except (PatchError, OSError):
+        return None
+
+
+def _authoring_preview(
+    dag: dict[str, Any], workspace_root: Path, slug: str, path: str, node_id: str
+) -> dict[str, Any]:
+    """Frontier-bounded authoring context for one semantic boundary and path.
+
+    Answers "what effective content may an author working on ``node_id``
+    legitimately use as accepted prior context for ``path``?": live source plus
+    accepted lower DAG work whose construction frontier is strictly deeper than
+    the boundary. Same-frontier peer proposals, the boundary node's own proposed
+    work, and shallower/future work are excluded from the effective source; only
+    a count of that excluded later work is reported. Never writes, never runs.
+    """
+    try:
+        scope = change_dag.canonical_path(path)
+    except ValueError as exc:
+        return _error("invalid_path", f"path: {exc}")
+    nodes = change_dag.node_map(dag)
+    if node_id not in nodes:
+        return _error("unknown_node", f"node not found: {node_id}")
+    node_kind = change_dag.node_type(dag, node_id)
+    if node_kind != change_dag.SEMANTIC_TYPE:
+        return _error(
+            "invalid_boundary_node",
+            "authoring-context preview requires a semantic boundary node; "
+            f"{node_id} is {node_kind!r}",
+        )
+    depths = change_dag.derived_depth(dag)
+    if node_id not in depths:
+        return _error(
+            "invalid_boundary_node",
+            f"boundary node is not reachable from the root: {node_id}",
+        )
+    boundary_depth = depths[node_id]
+
+    ops, conflicts, overlay, removed = change_dag_compiler.compile_lower_work(
+        dag, workspace_root, boundary_depth
+    )
+    # A move affects both spellings: it is visible from its source and target.
+    scoped_ops = [
+        op for op in ops if op.path == scope or (op.op == "move" and op.to_path == scope)
+    ]
+    contributing = sorted({node for op in scoped_ops for node in op.nodes}, key=_numeric)
+    contributing_set = set(contributing)
+    scoped_conflicts = [
+        conflict
+        for conflict in conflicts
+        if conflict.path == scope or (set(conflict.nodes) & contributing_set)
+    ]
+
+    live_source = _read_live_source(workspace_root, scope)
+    if scope in overlay:
+        effective_source = overlay[scope]
+    elif scope in removed:
+        effective_source = None
+    else:
+        effective_source = live_source
+
+    frontiers = change_dag_compiler.lower_work_frontiers(dag)
+    frontier_counts = {
+        "same_frontier_nodes": sum(1 for f in frontiers.values() if f == boundary_depth),
+        "shallower_nodes": sum(1 for f in frontiers.values() if f < boundary_depth),
+    }
+
+    payload = {
+        "slug": slug,
+        "mode": "authoring_context",
+        "path": scope,
+        "node_id": node_id,
+        "boundary_depth": boundary_depth,
+        "frontier": boundary_depth,
+        "live_present": live_source is not None,
+        "live_source": live_source,
+        "effective_source": effective_source,
+        "ops": [_render_op(op) for op in scoped_ops],
+        "contributing_nodes": contributing,
+        "creates": [_render_op(op) for op in scoped_ops if op.op == "create"],
+        "edits": [_render_op(op) for op in scoped_ops if op.op == "edit"],
+        "moves": [_render_op(op) for op in scoped_ops if op.op == "move"],
+        "removes": [_render_op(op) for op in scoped_ops if op.op == "remove"],
+        "conflicts": [
+            {"path": conflict.path, "nodes": list(conflict.nodes),
+             "reason": conflict.reason, "scope": conflict.scope}
+            for conflict in scoped_conflicts
+        ],
+        # Metadata only: later/same-frontier work content never enters the bounded
+        # authoring context consumed by the author.
+        "excluded_later_work": frontier_counts,
+    }
+    return change_dag.output(
+        payload,
+        "Preview Change DAG Authoring Context",
+        {"slug": slug, "node_id": node_id, "path": scope},
+    )
+
+
 def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: str | None = None) -> dict[str, Any]:
     workspace_root = Path(workspace_root)
     dag, state, _location, err = _load(workspace_root, slug)
     if err is not None:
         return err
     assert dag is not None and state is not None
-    if path is not None and node_id is not None:
-        return _error("invalid_scope", "use at most one of path or node_id")
 
-    segments, conflicts, blocked = change_dag_compiler.compile_whole_dag(dag, state, workspace_root)
-    # Flatten every deterministically lowerable segment; `segment` on each op
-    # distinguishes currently actionable runtime work (segment 0) from later work
-    # that a run barrier currently gates.
-    ops = [op for segment in segments for op in segment]
-    segment_index = {id(op): index for index, segment in enumerate(segments) for op in segment}
+    # path + semantic node_id = frontier-bounded AUTHORING CONTEXT view.
+    if path is not None and node_id is not None:
+        return _authoring_preview(dag, workspace_root, slug, path, node_id)
+
+    execution_phases, conflicts, blocked = change_dag_compiler.compile_whole_dag(
+        dag, state, workspace_root
+    )
+    # Flatten every deterministically lowerable execution phase. `segment` is
+    # retained as a compatibility alias, but it means a RUN-BARRIER execution
+    # segment, not a construction frontier or the count of non-empty batches.
+    ops = [op for phase in execution_phases for op in phase]
+    execution_phase = {
+        id(op): index for index, phase in enumerate(execution_phases) for op in phase
+    }
     pre = change_dag_compiler.preflight(dag, state, workspace_root)
     ready = change_dag_compiler.ready_run_nodes(dag, state, workspace_root)
     depths = change_dag.derived_depth(dag)
@@ -690,23 +825,11 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
         conflicts = [conflict for conflict in conflicts if conflict.path == scope]
         blocked = []
 
+    mode = "node" if node_id is not None else ("path" if path is not None else "whole_dag")
     payload = {
         "slug": slug,
-        "ops": [
-            {
-                "nodes": list(op.nodes),
-                "op": op.op,
-                "segment": segment_index.get(id(op), 0),
-                "path": op.path,
-                "from_path": op.from_path,
-                "to_path": op.to_path,
-                **({"overwrite": bool(op.overwrite)} if op.op == "move" else {}),
-                **({"content": op.content} if op.content is not None else {}),
-                **({"patch": op.patch_text} if op.patch_text is not None else {}),
-                **({"applied": op.applied} if op.applied is not None else {}),
-            }
-            for op in ops
-        ],
+        "mode": mode,
+        "ops": [_render_op(op, phase=execution_phase.get(id(op), 0)) for op in ops],
         "conflicts": [
             {"path": conflict.path, "nodes": list(conflict.nodes), "reason": conflict.reason,
              "scope": conflict.scope}
@@ -714,7 +837,10 @@ def preview(workspace_root: Path, slug: str, path: str | None = None, node_id: s
         ],
         "blocked": [{"node_id": entry.node_id, "reason": entry.reason} for entry in blocked],
         "run_barriers": ready,
-        "simulated_segments": len(segments),
+        # Keep the old field as a compatibility alias; both fields describe
+        # RUN-BARRIER execution phases, never construction frontiers.
+        "simulated_segments": len(execution_phases),
+        "simulated_execution_phases": len(execution_phases),
         "depths": depths,
         "executable": pre["executable"],
         "issues": pre["issues"],

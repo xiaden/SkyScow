@@ -442,11 +442,15 @@ const tools = {
     async execute(args, context) { return runPythonTool("common.tools.dag_remove", args, context) },
   }),
   dag_preview: tool({
-    description: "Preview compiled per-file operations, conflicts, blocked work, and run barriers without executing.",
+    description:
+      "Preview a Change DAG without executing. No args: whole-DAG inspection (all specified work simulated across run barriers). " +
+      "path only: one file's eventual compiled layers. node_id only: one node's reachable subgraph. " +
+      "path + node_id (semantic): frontier-bounded AUTHORING CONTEXT - live source plus accepted lower work strictly deeper than that semantic boundary, " +
+      "excluding same-frontier peers and shallower/future work.",
     args: {
       slug: requiredString("Change DAG slug"),
-      path: optionalString("Limit to one workspace-relative path"),
-      node_id: optionalString("Limit to one node's reachable subgraph"),
+      path: optionalString("Workspace-relative path; with node_id selects the authoring-context file"),
+      node_id: optionalString("Node ID; with path must be a semantic authoring boundary, alone limits to its reachable subgraph"),
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_preview", args, context) },
   }),

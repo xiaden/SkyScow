@@ -107,6 +107,14 @@ def _op_nodes(segments) -> set[str]:
     return {node for segment in segments for op in segment for node in op.nodes}
 
 
+def _phase_for(segments, node_id: str) -> int:
+    return next(
+        index
+        for index, phase in enumerate(segments)
+        if any(node_id in op.nodes for op in phase)
+    )
+
+
 # ---------------------------------------------------------------------------
 # 1. lower valid edit -> RUN -> higher conflicting edit
 # ---------------------------------------------------------------------------
@@ -155,8 +163,10 @@ def test_higher_edit_consuming_lower_result_is_executable_and_previewed(tmp_path
     payload = json.loads(preview(workspace, "compose")["output"])
     assert payload["executable"] is True
     assert payload["simulated_segments"] == 2
+    assert payload["simulated_execution_phases"] == 2
     previewed = next(op for op in payload["ops"] if "N7" in op["nodes"])
     assert previewed["segment"] == 1
+    assert previewed["execution_phase"] == 1
     assert previewed["applied"] == "c\n"
 
     # No run command executed and no repository write: compileall would have
@@ -166,7 +176,115 @@ def test_higher_edit_consuming_lower_result_is_executable_and_previewed(tmp_path
 
 
 # ---------------------------------------------------------------------------
-# 3. two sequential run barriers with work between/above them
+# 3. empty and consecutive execution phases are preserved
+# ---------------------------------------------------------------------------
+def test_ready_run_before_higher_edit_advances_execution_phase(tmp_path: Path):
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "f.txt").write_text("a\n")
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2"]),
+            "N2": semantic("aggregate", ["N3", "N6"]),
+            "N3": semantic("run branch", ["N4"]),
+            "N4": semantic("ready run", ["N5"]),
+            "N5": run(),
+            "N6": edit("f.txt", patch("f.txt", "a", "b")),
+        },
+        slug="ready-run",
+    )
+    write_bundle(workspace, "ready-run", dag)
+
+    segments, conflicts, blocked = compile_whole_dag(dag, {}, workspace)
+
+    assert conflicts == []
+    assert blocked == []
+    assert segments[0] == []
+    assert _phase_for(segments, "N6") == 1
+    payload = json.loads(preview(workspace, "ready-run")["output"])
+    operation = next(op for op in payload["ops"] if "N6" in op["nodes"])
+    assert operation["segment"] == 1
+    assert operation["execution_phase"] == 1
+    assert payload["simulated_segments"] == 2
+    assert payload["simulated_execution_phases"] == 2
+
+
+def test_run_run_without_mechanical_work_preserves_both_crossings(tmp_path: Path):
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "f.txt").write_text("a\n")
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2", "N10"]),
+            "N2": semantic("aggregate", ["N4"]),
+            "N4": semantic("second run parent", ["N3", "N5"]),
+            "N3": semantic("first run parent", ["N6"]),
+            "N6": run(),
+            "N5": run(),
+            "N10": edit("f.txt", patch("f.txt", "a", "b")),
+        },
+        slug="run-run",
+    )
+
+    segments, conflicts, blocked = compile_whole_dag(dag, {}, workspace)
+
+    assert conflicts == []
+    assert blocked == []
+    assert segments[:2] == [[], []]
+    assert _phase_for(segments, "N10") == 2
+    assert len(segments) == 3
+
+
+def test_two_ready_runs_share_one_execution_phase_crossing(tmp_path: Path):
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "f.txt").write_text("a\n")
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2"]),
+            "N2": semantic("aggregate", ["N3", "N9"]),
+            "N3": semantic("parallel runs", ["N4", "N6"]),
+            "N4": semantic("run one", ["N5"]),
+            "N5": run(),
+            "N6": semantic("run two", ["N7"]),
+            "N7": run(),
+            "N9": edit("f.txt", patch("f.txt", "a", "b")),
+        },
+        slug="parallel-runs",
+    )
+
+    segments, conflicts, blocked = compile_whole_dag(dag, {}, workspace)
+
+    assert conflicts == []
+    assert blocked == []
+    assert segments[0] == []
+    assert _phase_for(segments, "N9") == 1
+    assert len(segments) == 2
+
+
+def test_independent_mechanical_work_stays_in_current_execution_phase(tmp_path: Path):
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "f.txt").write_text("a\n")
+    dag = dag_with(
+        {
+            "N1": semantic("root", ["N2", "N5"]),
+            "N2": semantic("ready run", ["N3"]),
+            "N3": run(),
+            "N5": edit("f.txt", patch("f.txt", "a", "b")),
+        },
+        slug="independent-work",
+    )
+
+    segments, conflicts, blocked = compile_whole_dag(dag, {}, workspace)
+
+    assert conflicts == []
+    assert blocked == []
+    assert _phase_for(segments, "N5") == 0
+
+
+# ---------------------------------------------------------------------------
+# 4. two sequential run barriers with work between/above them
 # ---------------------------------------------------------------------------
 def test_preflight_traverses_sequential_run_barriers(tmp_path: Path):
     workspace = tmp_path / "ws"
@@ -197,11 +315,13 @@ def test_preflight_traverses_sequential_run_barriers(tmp_path: Path):
     assert conflicts == []
     assert blocked == []
     assert _op_nodes(segments) == {"N7", "N11"}
+    assert _phase_for(segments, "N11") == 0
+    assert _phase_for(segments, "N7") == 2
     assert preflight(dag, {}, workspace)["executable"] is True
 
 
 # ---------------------------------------------------------------------------
-# 4. an unresolved semantic leaf elsewhere does not make executable false
+# 5. an unresolved semantic leaf elsewhere does not make executable false
 # ---------------------------------------------------------------------------
 def test_unresolved_leaf_does_not_block_whole_dag_preflight(tmp_path: Path):
     workspace = tmp_path / "ws"
@@ -231,7 +351,7 @@ def test_unresolved_leaf_does_not_block_whole_dag_preflight(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 5. live drift in a later segment is runtime evidence, not deterministic
+# 6. live drift in a later segment is runtime evidence, not deterministic
 # ---------------------------------------------------------------------------
 def test_later_segment_live_drift_is_runtime_not_deterministic(tmp_path: Path):
     workspace = tmp_path / "ws"
@@ -254,7 +374,7 @@ def test_later_segment_live_drift_is_runtime_not_deterministic(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 6. the executor still stops at the barrier and defers higher work
+# 7. the executor still stops at the barrier and defers higher work
 # ---------------------------------------------------------------------------
 def test_executor_stops_at_barrier_and_defers_higher_work(tmp_path: Path):
     root = make_repo(tmp_path)
@@ -285,7 +405,7 @@ def test_executor_stops_at_barrier_and_defers_higher_work(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 7. preview/preflight perform zero repository writes
+# 8. preview/preflight perform zero repository writes
 # ---------------------------------------------------------------------------
 def test_preview_and_preflight_write_nothing(tmp_path: Path):
     root = make_repo(tmp_path)

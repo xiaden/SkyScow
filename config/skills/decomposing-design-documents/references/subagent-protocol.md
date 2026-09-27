@@ -11,13 +11,13 @@ The authoring entry point receives:
 3. the Change DAG graph rules and tool contract;
 4. existing accepted DD/decision context when applicable.
 
-Discovery always reads the live repository. There is no projected planning worktree; accepted lower work is read from DAG patches through `dag_preview`.
+Discovery always reads the live repository. There is no projected planning worktree; accepted lower work is read from frontier-bounded DAG views through `dag_preview(path=..., node_id=<boundary semantic node>)`, which excludes same-frontier peers and shallower/future work.
 
 ## Authoring behavior
 
 1. Generate the smallest complete **semantic** graph. Each semantic node states a condition/postcondition, not an implementation action.
 2. Submit the whole semantic graph atomically with `dag_create(slug, semantic_graph)` using creation-local handles. The service validates the graph, rejects cycles/unreachable nodes/illegal structure, records `anchor_commit` (current Git `HEAD` as a drift/provenance marker only), allocates canonical opaque node IDs, and rewrites the handles. It persists nothing if creation fails.
-3. Lower exact terminal work from the deepest construction frontier upward with `dag_add_create`, `dag_add_edit`, `dag_add_remove`, `dag_add_move`, and `dag_add_run`. Read relevant live source plus applicable accepted lower DAG patches (`dag_preview(path)`) before authoring each node.
+3. Lower exact terminal work from the deepest construction frontier upward with `dag_add_create`, `dag_add_edit`, `dag_add_remove`, `dag_add_move`, and `dag_add_run`. Read relevant live source plus applicable accepted lower DAG work (`dag_preview(path=..., node_id=<this semantic node>)`) before authoring each node.
 4. Use `dag_add_requirement` only for incremental insertion, convergence, reconciliation, or recovery — not for initial semantic construction.
 5. Correct mutable proposed nodes with the typed `dag_update_*` tools or `dag_remove`; the service owns references, cycle checks, reachability, and atomic rewrites.
 6. Every semantic child must materially refine the requirement above it. Pure paraphrase or recursive restatement is invalid decomposition. A requirement that cannot yet be lowered may remain an unresolved semantic leaf.

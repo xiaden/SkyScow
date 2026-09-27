@@ -43,7 +43,7 @@ semantic decomposition recommendation instead of loading more repository.
 
 1. Gather only materially relevant artifacts/research. Unknown repository facts may select Support-Researcher; accepted migration impact may select PatternEnforcer.
 2. Generate the smallest complete **semantic** graph (conditions/postconditions, never implementation actions) and submit it atomically with `dag_create`. Initial semantic construction is not a loop of `dag_add_requirement`.
-3. Lower exact work with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`, reading live source plus applicable accepted lower DAG patches via `dag_preview(path)`.
+3. Lower exact work with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`, reading live source plus applicable accepted lower DAG work via frontier-bounded `dag_preview(path=..., node_id=<this semantic node>)` (strictly deeper accepted work only; same-frontier peers and shallower/future work are excluded).
 4. Correct mutable nodes with the typed `dag_update_*` tools or `dag_remove`; the service owns references, cycle checks, reachability, and IDs.
 5. Run `dag_validate` and inspect with `dag_show` / `dag_preview`. Size context with `context_tokens`/`context_budget` and `config/agent-context-budgets.yaml`; never copy numeric ceilings into the DAG.
 6. If the controller selects independent review, provide the bounded node IDs, source context, observable trigger, concrete review question, and `review_kind`; route `AMEND_REQUIRED` findings back into mutable authoring and revalidate. A reviewer `PASS` is external evidence only and never execution authorization.

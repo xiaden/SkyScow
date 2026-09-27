@@ -45,7 +45,7 @@ independent post-change QA (separate lifecycle, not a DAG phase)
 2. Generate the smallest complete semantic graph. State a condition/postcondition per semantic node — never an implementation action. Pure paraphrase or recursive restatement is invalid decomposition.
 3. Submit the whole semantic graph atomically through `dag_create(slug, semantic_graph)`. Initial semantic construction is not a loop of `dag_add_requirement` calls; incremental insertion is reserved for later review, reconciliation, and recovery.
 4. Lower exact work from the deepest construction frontier upward. Terminal work node types are `create`, `edit`, `remove`, `move`, and `run`, attached with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`.
-5. For affected paths, combine live source with applicable accepted lower DAG patches through `dag_preview(path)`. New files, renamed paths, and planned-only symbols are read from DAG work, not rediscovered by repository search.
+5. For affected paths, combine live source with applicable accepted lower DAG work through frontier-bounded `dag_preview(path=..., node_id=<boundary semantic node>)` (strictly deeper accepted work only; same-frontier peers and shallower/future work are excluded). New files, renamed paths, and planned-only symbols are read from DAG work, not rediscovered by repository search.
 6. Correct proposed mutable nodes with the typed `dag_update_*` tools or `dag_remove`. `dag_add_requirement` may insert a requirement between existing parents and selected children (convergence) and is also the recovery tool.
 7. Validate with `dag_validate` and inspect with `dag_show` and `dag_preview`. Authoring stops at a validated DAG; it never edits repository source.
 

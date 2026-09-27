@@ -109,7 +109,7 @@ LIVE REPOSITORY EVIDENCE   search/read current repository state
 DAG CHANGE EVIDENCE        accepted lower work; file-scoped compiled patches; creates/removes/moves
 ```
 
-Repository search finds existing affected surfaces. When one is read, also read applicable accepted DAG patches affecting it, normally through file-scoped `dag_preview(path)`. New files, renamed paths, and symbols that exist only in planned work are read from DAG work directly rather than rediscovered by repository search.
+Repository search finds existing affected surfaces. When one is read, also read applicable accepted lower DAG work affecting it through the frontier-bounded `dag_preview(path=..., node_id=N)` for the semantic node you are authoring. That view returns live source plus accepted lower work from strictly deeper construction frontiers only — never same-frontier peers, the boundary node's own proposal, or shallower/future work. Whole-DAG `dag_preview(slug)` and file-only `dag_preview(slug, path)` are cumulative inspection views, not authoring input. New files, renamed paths, and symbols that exist only in planned work are read from the frontier-bounded DAG work directly rather than rediscovered by repository search.
 
 ## 3. Initial semantic generation
 
@@ -139,7 +139,7 @@ Select independent review for observable conditions such as shared semantic conv
 
 ## 5. Construction frontier
 
-A **construction frontier** is the set of currently deepest semantic nodes eligible for the same bounded work-generation or reconciliation pass. It is derived from the DAG — never persisted as graph state, a separate artifact, or a scheduler ownership mechanism. Node depth is the longest path from the root. Exact work is generated from the deepest frontier upward toward the root. Nodes on the same frontier receive the same accepted-lower-work context; arbitrary completion order must not make one parallel proposal silently become another's design basis.
+A **construction frontier** is the set of currently deepest semantic nodes eligible for the same bounded work-generation or reconciliation pass. It is derived from the DAG — never persisted as graph state, a separate artifact, or a scheduler ownership mechanism. Node depth is the longest path from the root. Exact work is generated from the deepest frontier upward toward the root. Nodes on the same frontier receive the same accepted-lower-work context; arbitrary completion order must not make one parallel proposal silently become another's design basis. Read that context for a boundary with `dag_preview(path=..., node_id=<boundary semantic node>)`, which exposes live source plus strictly deeper accepted work and excludes same-frontier peer proposals.
 
 ### Context partitioning (one bounded invocation per frontier)
 
@@ -162,7 +162,7 @@ Lower **one frontier per fresh bounded invocation**; do not lower the whole repo
 ```text
 1. search the live repository to locate relevant existing surfaces;
 2. read only the live source needed for that semantic requirement;
-3. read applicable accepted lower DAG patches/work affecting those surfaces;
+3. read applicable accepted lower DAG work affecting those surfaces with frontier-bounded `dag_preview(path=..., node_id=<this semantic node>)`;
 4. generate mechanically executable terminal work;
 5. return another semantic requirement instead of vague work if engineering judgment remains unresolved.
 ```
@@ -175,7 +175,7 @@ When lower work changes, do not automatically invalidate every higher node. Re-r
 
 ## 7. Patch visibility, overlap, and correction
 
-`dag_preview` is the canonical compiled-patch view and supports whole-DAG, node-scoped, and file/path-scoped inspection. For large-repository work prefer file/path-scoped preview so you can combine relevant live source plus the relevant accepted DAG patch without loading the entire change.
+`dag_preview` is the canonical compiled-patch view. `dag_preview(slug)` is whole-DAG inspection of cumulative simulated effects; `dag_preview(slug, path)` and `dag_preview(slug, node_id)` are file- and node-scoped inspection. `dag_preview(slug, path=..., node_id=<semantic node>)` is the frontier-bounded **authoring context**: the requested path's live source plus accepted lower work strictly deeper than that semantic boundary, excluding same-frontier peers, the boundary node's own work, and shallower/future work. Use the frontier-bounded form as authoring input and the inspection forms to review cumulative effects. For large-repository work prefer path-scoped preview so you can combine relevant live source plus the relevant accepted DAG patch without loading the entire change.
 
 Compatible same-file work may remain separate DAG nodes and compile into one concrete per-file operation. Generation-time write scopes are deliberately not retained — you propose patch data and never mutate repository files, so file overlap is safe to discover after proposal generation, before acceptance/execution. Incompatible overlapping proposals are a semantic/reconciliation failure, never a last-writer-wins situation.
 
