@@ -1,13 +1,13 @@
 # Change-DAG-Author
 
-Dispatch Change-DAG-Author to create or amend a Change DAG. The Change DAG is the single implementation-work authority; new work must not create task plans, `CONTRACTS.md`, or `GRAPH.json` implementation graphs.
+Dispatch Change-DAG-Author as the construction **manager** for one Change DAG. It owns construction from an accepted request/DD through semantic decomposition, the construction-frontier loop, bounded Change-DAG-Worker dispatch, frontier reconciliation, and final validation. The Change DAG is the single implementation-work authority; new work must not create task plans, `CONTRACTS.md`, or `GRAPH.json` implementation graphs.
 
 ## When to Dispatch
 
 - An accepted request or accepted/amended DD requires semantic decomposition and exact work authored as a Change DAG.
 - Execution exposes a semantic gap, hidden caller, missing prerequisite, impossible acceptance condition, or missing exact work — amend the DAG while it is stopped/not active.
 
-Do not dispatch for execution, node status changes, source mutation, QA, or a single obvious edit that needs no DAG amendment.
+Do not dispatch for execution, node status changes, source mutation, QA, or a single obvious edit that needs no DAG amendment. Do not dispatch Change-DAG-Worker directly: the Author manager owns worker dispatch internally.
 
 ## Dispatch Template
 
@@ -24,36 +24,29 @@ Task:
   slug: "[SLUG]"
   title: "[TITLE]"
   reason: "[REASON]"
-  semantic_graph: [CONDITION_POSTCONDITION_NODES]
-  semantic_scope: [ASSIGNED_FRONTIER_OR_SINGLE_SEMANTIC_NODE]
-  lower_work: [EXACT_CREATE_EDIT_REMOVE_MOVE_RUN_WORK]
-  remove_node_ids: []
+  known_scope: [OPTIONAL_BOUNDED_FAILING_SCOPE_IF_ALREADY_KNOWN]
 
-The author owns construction end-to-end: build the semantic graph, lower exact work from the deepest construction frontier upward, reconcile convergence and conflicts, validate with dag_validate/dag_show/dag_preview, and return node IDs, work applicability, provenance, and blockers. Independent Change-DAG-Reviewer review is optional and controller-selected by observable coordination or authority conditions; it is not required before lowering or before execution. The author must not edit repository source and must not execute nodes.
+The author is the construction manager: it builds the semantic graph, derives the construction frontier, dispatches one bounded Change-DAG-Worker per semantic node, reconciles the frontier, validates with dag_validate/dag_show/dag_preview, and returns a construction result. Do not supply a construction frontier or a semantic-node list; the author decides and manages internal semantic scopes. Independent Change-DAG-Reviewer review is Nyx-selected from observable triggers; the author surfaces review_triggers but never dispatches the reviewer. The author must not edit repository source and must not execute nodes.
 
-Context partitioning: dispatch one bounded author invocation per construction
-frontier (or single bounded semantic scope). Supply only the assigned semantic
-requirement(s), necessary ancestor intent, bounded live-repository evidence, and
-applicable accepted lower DAG work — never the whole repository or all prior
-branch context. When discovery expands beyond the assigned scope, return a
-semantic decomposition recommendation instead of loading more repository.
+Context partitioning: the author owns internal worker dispatch. Supply overall construction authority and source context; never require the author to receive the whole repository in one session, and never have Nyx calculate construction frontiers or dispatch node workers.
 ```
 
 ## Authoring protocol
 
 1. Gather only materially relevant artifacts/research. Unknown repository facts may select Support-Researcher; accepted migration impact may select PatternEnforcer.
 2. Generate the smallest complete **semantic** graph (conditions/postconditions, never implementation actions) and submit it atomically with `dag_create`. Initial semantic construction is not a loop of `dag_add_requirement`.
-3. Lower exact work with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`, reading live source plus applicable accepted lower DAG work via frontier-bounded `dag_preview(path=..., node_id=<this semantic node>)` (strictly deeper accepted work only; same-frontier peers and shallower/future work are excluded).
-4. Correct mutable nodes with the typed `dag_update_*` tools or `dag_remove`; the service owns references, cycle checks, reachability, and IDs.
-5. Run `dag_validate` and inspect with `dag_show` / `dag_preview`. Size context with `context_tokens`/`context_budget` and `config/agent-context-budgets.yaml`; never copy numeric ceilings into the DAG.
-6. If the controller selects independent review, provide the bounded node IDs, source context, observable trigger, concrete review question, and `review_kind`; route `AMEND_REQUIRED` findings back into mutable authoring and revalidate. A reviewer `PASS` is external evidence only and never execution authorization.
-7. Authoring stops at a validated DAG. It never edits source and never claims or executes nodes.
+3. Derive the deepest **construction frontier** and dispatch one fresh `change-dag-worker` per semantic node — concurrently when the nodes are independent. A worker lowers one node's requirement into exact terminal work (`dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`) or refines it into further semantic decomposition, reading live source plus applicable accepted lower DAG work through frontier-bounded `dag_preview(path=..., node_id=<this semantic node>)` (strictly deeper accepted work only; same-frontier peers and shallower/future work are excluded).
+4. Collect worker results and reconcile the frontier as a whole: incompatible same-file proposals, shared paths, semantic convergence, worker-discovered deeper decomposition, ordering/nesting, and compiler conflicts. When workers introduced deeper semantic requirements, recompute the frontier and descend before proceeding shallower.
+5. Correct mutable nodes with the typed `dag_update_*` tools or `dag_remove`; the service owns references, cycle checks, reachability, and IDs. Do not persist a separate frontier/worker registry or proposal artifact — the DAG is the only construction artifact.
+6. Run `dag_validate` and inspect with `dag_show` / `dag_preview`. Size context with `context_tokens`/`context_budget` and `config/agent-context-budgets.yaml`; never copy numeric ceilings into the DAG.
+7. Surface observable `review_triggers`; never dispatch `change-dag-reviewer`. A reviewer `PASS` is external evidence only and never execution authorization.
+8. Stop at a validated DAG. Never edit source, never execute nodes, and never claim execution.
 
-A running/in-progress DAG is immutable; accepted work mutation requires the DAG to be stopped/not active. Any independent review after a correction is controller-selected again from observable conditions; no persisted review state or mandatory review checkpoint exists.
+A running/in-progress DAG is immutable; accepted work mutation requires the DAG to be stopped/not active. Any independent review after a correction is Nyx-selected again from observable conditions; no persisted review state or mandatory review checkpoint exists.
 
 ## Outcomes
 
-- `DONE`: DAG created/amended, schema-valid (and executable when execution is intended), source/work evidence recorded.
+- `DONE`: the construction loop completed, the DAG was reconciled, and final validation ran. It does not authorize execution.
 - `BLOCKED`: missing source context, unresolved authority, invalid graph, or unresolved architecture.
 
 ## Expected output
@@ -62,10 +55,14 @@ A running/in-progress DAG is immutable; accepted work mutation requires the DAG 
 status: DONE | BLOCKED
 summary: "..."
 slug: "[SLUG]"
-revision: 3
-artifact: "artifacts/change-dags/pending/[SLUG]/DAG.json"
-validation: {schemaValid: true, executable: true, resolved: false}
-semanticNodes: ["N1"]
-workNodes: ["N7"]
-blockers: []
+construction:
+  complete: true | false
+  semantic_nodes_processed: ["N3", "N7"]
+  worker_invocations: ["N3", "N7"]
+  blockers: []
+validation: {schema_valid: true, executable: true, resolved: false, issues: []}
+review_triggers:
+  - kind: "..."
+    node_ids: ["N7"]
+    reason: "..."
 ```

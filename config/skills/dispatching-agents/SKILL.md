@@ -99,6 +99,7 @@ Task at hand
 │  └─ Cause is unclear → Dispatch Support-Debugger
 ├─ Requires executing an authored Change DAG? → Nyx uses `dag_start`/`dag_status`/`dag_stop`/`dag_archive` directly
 ├─ Requires creating/amending a Change DAG? → Dispatch Change-DAG-Author
+│  └─ Change-DAG-Author dispatches one bounded Change-DAG-Worker per semantic node; Nyx never dispatches Change-DAG-Worker directly
 ├─ Requires an independently justified bounded review of a Change DAG? → Dispatch Change-DAG-Reviewer
 ├─ Requires designing a feature or formal DD? → Dispatch RnD-Manager
 │  └─ RnD-Manager composes the selected DD graph and dispatches RnD-Refiner when needed
@@ -141,9 +142,10 @@ Task at hand
 | Task | Reference |
 |------|-----------|
 | Create or amend Change DAG semantic and exact-work structure | [`change-dag-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) |
+| Lower one assigned Change DAG semantic node (internal to Change-DAG-Author; not dispatched by Nyx) | [`change-dag-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) |
 | Dynamically selected bounded independent review of a Change DAG | [`change-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) |
 
-The Change DAG is the single implementation-work authority. Change-DAG-Author owns bounded discovery, semantic structure, exact work, convergence/reconciliation, preview, validation, and mutable correction without mutating source; Change-DAG-Reviewer is a dynamically selected read-only capability for a bounded independent question; Nyx owns lifecycle control through `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, while `dag_executor` performs deterministic execution and does not dispatch or record QA. Reviewer evidence is never persisted DAG state and does not authorize execution.
+The Change DAG is the single implementation-work authority. Change-DAG-Author owns bounded discovery, semantic structure, exact work, convergence/reconciliation, preview, validation, and mutable correction without mutating source; Change-DAG-Reviewer is a dynamically selected read-only capability for a bounded independent question; Nyx owns lifecycle control through `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, while `dag_executor` performs deterministic execution and does not dispatch or record QA. Reviewer evidence is never persisted DAG state and does not authorize execution. Change-DAG-Author owns the construction-frontier loop and dispatches one bounded `Change-DAG-Worker` per semantic node via native `task`; Change-DAG-Worker is a leaf construction capability and is never dispatched by Nyx for normal DAG construction.
 
 ### R&D Department
 
@@ -258,7 +260,8 @@ Spawning a manager (RnD-Manager)?
 
 - **This skill's references:** — self-contained dispatch guides, one per agent type, organized by department:
 
-  **Exec:** [`change-dag-author.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) — Change DAG creation, amendment, and exact-work authoring.
+  **Exec:** [`change-dag-author.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) — Change DAG construction management, worker dispatch, and exact-work authoring.
+  [`change-dag-worker.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) — Bounded single-semantic-node lowering/decomposition (internal to Change-DAG-Author).
   [`change-dag-reviewer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) — Dynamically selected bounded independent review of a Change DAG scope.
   `change-dag-lifecycle` skill — Nyx's lifecycle operation contract for starting, monitoring, stopping, recovering, retrying, and archiving Change DAGs.
 
@@ -303,4 +306,4 @@ Spawning a manager (RnD-Manager)?
 
 Every design, decomposition, or execution dispatch must validate DD status and requirement conformance before handing work downstream. Accept a DD only with a recognized accepted status (`Complete (accepted)`, `Approved`, or `Completed`), normalizing repository wording `Complete (accepted)` as accepted; an accepted DD intentionally held in `pending/` must name the prerequisite disposition, responsible owner, and transition condition. Reject `Draft`, `Rejected`, stale/invalid pending DDs, and any execution or archival of an unaccepted DD.
 
-For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Change-DAG-Author owns construction end-to-end; the orchestrator/controller selects Change-DAG-Reviewer only for observable coordination or authority triggers. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings and reviewer verdicts are evidence for owner/controller disposition only; `BLOCKING`, confidence, closure, PASS, and routing ownership do not authorize implementation.
+For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Change-DAG-Author owns construction end-to-end, including the construction-frontier loop, and dispatches one fresh bounded Change-DAG-Worker per semantic node; only the orchestrator/controller (Nyx) selects Change-DAG-Reviewer, and only for observable coordination or authority triggers. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings and reviewer verdicts are evidence for owner/controller disposition only; `BLOCKING`, confidence, closure, PASS, and routing ownership do not authorize implementation.

@@ -38,7 +38,8 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 | Agent | Specialty | Use For |
 |-------|-----------|---------|
-| change-dag-author | Change DAG author | Creates/amends one Change DAG — semantic decomposition, exact work, patch visibility; never writes source |
+| change-dag-author | Change DAG construction manager | Creates/amends one Change DAG — semantic decomposition, construction-frontier loop, bounded worker dispatch, reconciliation, validation; never writes source |
+| change-dag-worker | Bounded semantic-node author (internal) | Lowers one assigned semantic node into exact work or further decomposition; dispatched only by change-dag-author; leaf agent |
 | change-dag-reviewer | Dynamically selected read-only reviewer | Bounded semantic/work/conflict/run-barrier/DD-consistency judgment when an observable trigger exists; external evidence only, stored nowhere in DAG state |
 
 ### QA Department
@@ -64,7 +65,7 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 ### Dependency-ordered execution
 ```
-rnd-manager → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → change-dag-author → [optional change-dag-reviewer when an observable trigger exists] → Nyx Change DAG lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
+rnd-manager → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → change-dag-author (manager; dispatches one change-dag-worker per semantic node) → [optional change-dag-reviewer when an observable trigger exists] → Nyx Change DAG lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
 ```
 Use when: Later tasks depend on earlier results. The Manager selects the smallest
 sufficient graph; independent Librarian/Researcher work may run concurrently.

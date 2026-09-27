@@ -17,10 +17,12 @@ Discovery always reads the live repository. There is no projected planning workt
 
 1. Generate the smallest complete **semantic** graph. Each semantic node states a condition/postcondition, not an implementation action.
 2. Submit the whole semantic graph atomically with `dag_create(slug, semantic_graph)` using creation-local handles. The service validates the graph, rejects cycles/unreachable nodes/illegal structure, records `anchor_commit` (current Git `HEAD` as a drift/provenance marker only), allocates canonical opaque node IDs, and rewrites the handles. It persists nothing if creation fails.
-3. Lower exact terminal work from the deepest construction frontier upward with `dag_add_create`, `dag_add_edit`, `dag_add_remove`, `dag_add_move`, and `dag_add_run`. Read relevant live source plus applicable accepted lower DAG work (`dag_preview(path=..., node_id=<this semantic node>)`) before authoring each node.
+3. Own the construction-frontier loop: for each deepest semantic node dispatch one fresh bounded `change-dag-worker`, which lowers the node's requirement into exact terminal work with `dag_add_create`, `dag_add_edit`, `dag_add_remove`, `dag_add_move`, and `dag_add_run`, or refines it into further semantic decomposition. Each worker reads relevant live source plus applicable accepted lower DAG work (`dag_preview(path=..., node_id=<this semantic node>)`) before authoring; the manager then reconciles the frontier as a whole.
 4. Use `dag_add_requirement` only for incremental insertion, convergence, reconciliation, or recovery — not for initial semantic construction.
 5. Correct mutable proposed nodes with the typed `dag_update_*` tools or `dag_remove`; the service owns references, cycle checks, reachability, and atomic rewrites.
 6. Every semantic child must materially refine the requirement above it. Pure paraphrase or recursive restatement is invalid decomposition. A requirement that cannot yet be lowered may remain an unresolved semantic leaf.
+
+A **frontier** is the scheduling/reconciliation unit and a **semantic node** is the worker/context unit. The author manager dispatches one `change-dag-worker` per semantic node; Nyx never calculates frontiers or dispatches node workers, and a worker never spawns another worker. Same-frontier workers reason from live repository plus strictly-deeper accepted work only; peer proposals are not a design basis. No persisted frontier, worker registry, or construction-state artifact exists — the DAG is the only construction artifact.
 
 `anchor_commit` is not an execution base. A dirty working tree and `HEAD != anchor_commit` are allowed; exact work that no longer applies fails normally and is corrected through DAG recovery.
 
@@ -39,7 +41,7 @@ Prior Work Log evidence is never rewritten.
 
 ## Optional independent review
 
-The orchestrator/controller may select a bounded `change-dag-reviewer` invocation only when observable coordination or authority conditions justify independent judgment. Review is read-only (`dag_show`, `dag_preview`, `dag_validate`) and is not a mandatory handoff:
+The orchestrator/controller (Nyx) may select a bounded `change-dag-reviewer` invocation only when observable coordination or authority conditions justify independent judgment; neither the author manager nor a worker dispatches it. Review is read-only (`dag_show`, `dag_preview`, `dag_validate`) and is not a mandatory handoff:
 
 ```text
 SUFFICIENCY  would satisfying every semantic leaf satisfy the root requirement?

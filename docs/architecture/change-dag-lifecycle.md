@@ -2,13 +2,14 @@
 
 How an accepted DD becomes an executable **Change DAG**, and how that DAG is executed, recovered, and archived.
 
-Three owners, deliberately separated:
+Four roles, deliberately separated:
 
-- `change-dag-author` **constructs** the DAG and amends mutable work during recovery. It never executes.
+- `change-dag-author` **constructs** the DAG — manager role: semantic graph, construction-frontier loop, reconciliation, validation — and amends mutable work during recovery. It never executes.
+- `change-dag-worker` **lowers** one assigned semantic node into exact work or further decomposition, dispatched internally by the author manager. It never manages the frontier, mutates source, or executes.
 - `nyx` **operates** the lifecycle tools (`dag_start`, `dag_status`, `dag_stop`, `dag_archive`).
 - `dag_executor` **applies** terminal work deterministically and serially.
 
-`change-dag-reviewer` is optional, bounded, and read-only. A reviewer `PASS` is evidence only; it does not authorize execution.
+`change-dag-reviewer` is optional, bounded, and read-only, selected by Nyx. A reviewer `PASS` is evidence only; it does not authorize execution.
 
 ## Building the DAG
 
@@ -17,8 +18,9 @@ flowchart TD
     DD["Accepted Design Document"] --> S["dag_create with semantic graph"]
     S --> SEM["Semantic requirements<br/>postconditions, not actions"]
     SEM --> F{"Construction frontier<br/>deepest unresolved nodes"}
-    F --> W["Exact work nodes<br/>create • edit • remove • move • run"]
-    W --> F
+    F --> W["change-dag-worker<br/>one per semantic node"]
+    W --> X["Exact work nodes<br/>create • edit • remove • move • run"]
+    X --> F
     F -->|no frontier left| VAL["dag_validate<br/>schema-valid • executable • resolved"]
     VAL --> REV["Optional change-dag-reviewer<br/>read-only evidence"]
     REV --> AUTH["Authored Change DAG"]
@@ -28,9 +30,9 @@ flowchart TD
 ```
 
 - The initial semantic structure is submitted atomically through `dag_create(slug, semantic_graph)`. Semantic nodes express postconditions, not implementation actions.
-- Exact work is lowered one **construction frontier** at a time, from the deepest semantic nodes upward. Each frontier gets a fresh bounded author invocation; the author must not load the entire repository into one session.
+- Exact work is lowered one **construction frontier** at a time, from the deepest semantic nodes upward. The author manager dispatches one fresh bounded `change-dag-worker` per semantic node; a frontier is the scheduling/reconciliation unit and a semantic node is the worker/context unit. The author reconciles each frontier before moving shallower and must not load the entire repository into one session.
 - `dag_validate` reports `schema_valid`, `executable`, and `resolved`. A DAG can be schema-valid and still unresolved — unresolved semantic leaves do not necessarily make it non-executable.
-- Optional review may be selected for observable coordination or authority risks such as shared convergence, interface migrations, shared schemas, recovery amendments, or explicit user request.
+- Optional review may be selected by Nyx for observable coordination or authority risks such as shared convergence, interface migrations, shared schemas, recovery amendments, or explicit user request. The author surfaces `review_triggers`; neither the author nor a worker dispatches the reviewer.
 
 ## Executing the DAG
 
@@ -85,7 +87,8 @@ QA is not a Change DAG phase and is not an archive gate. A completed DAG is neve
 
 ## Canonical sources
 
-- `config/agents/change-dag-author.md` — construction, frontiers, amendment
+- `config/agents/change-dag-author.md` — construction management, frontiers, amendment
+- `config/agents/change-dag-worker.md` — bounded single-semantic-node lowering/decomposition
 - `config/skills/change-dag-lifecycle/SKILL.md` — lifecycle operation
 - `config/tools/common/tools/dag_start.py`, `dag_status.py`, `dag_stop.py`, `dag_archive.py` — lifecycle tools
 - `config/tools/common/tools/dag_executor.py`, `config/tools/common/helpers/change_dag_control.py` — execution and queue control

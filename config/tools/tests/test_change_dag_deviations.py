@@ -382,7 +382,9 @@ def test_orchestration_never_reopens_completed_dag():
     assert "A completed DAG is never amended" in orchestrate
 
 
-def test_author_contract_partitions_context_per_frontier():
+def test_author_contract_owns_frontier_loop_and_worker_dispatch():
     author = _read("config/agents/change-dag-author.md")
-    assert "fresh Change-DAG-Author invocation" in author
-    assert "one bounded invocation per frontier" in author
+    assert "change-dag-worker" in author
+    assert "construction frontier" in author
+    assert "fresh Change-DAG-Author invocation" not in author
+    assert "one bounded invocation per frontier" not in author

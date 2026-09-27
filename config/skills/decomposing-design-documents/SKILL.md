@@ -14,12 +14,14 @@ accepted request / accepted DD
         ↓
 bounded live-repository discovery
         ↓
-change-dag-author (constructs, lowers, reconciles, previews, validates)
+change-dag-author (manager: semantic graph, frontier loop, reconciliation, validation)
+        ↓
+one bounded change-dag-worker per semantic node (lower to exact work, or decompose further)
         ↓
 observable independent-review trigger?
    ├─ no → Nyx: dag_start / dag_status
    └─ yes → change-dag-reviewer (bounded external evidence)
-                     ↓
+                      ↓
                   PASS → Nyx lifecycle control
                  AMEND_REQUIRED → author correction → revalidate
         ↓
@@ -44,7 +46,7 @@ independent post-change QA (separate lifecycle, not a DAG phase)
 1. Read the authoritative request, the accepted DD when present, repository facts, and relevant live surfaces. Discovery always reads the live repository; there is no projected planning worktree.
 2. Generate the smallest complete semantic graph. State a condition/postcondition per semantic node — never an implementation action. Pure paraphrase or recursive restatement is invalid decomposition.
 3. Submit the whole semantic graph atomically through `dag_create(slug, semantic_graph)`. Initial semantic construction is not a loop of `dag_add_requirement` calls; incremental insertion is reserved for later review, reconciliation, and recovery.
-4. Lower exact work from the deepest construction frontier upward. Terminal work node types are `create`, `edit`, `remove`, `move`, and `run`, attached with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`.
+4. The author owns the construction-frontier loop: for each deepest semantic node it dispatches one fresh bounded `change-dag-worker` that lowers the node's requirement into exact terminal work (`create`, `edit`, `remove`, `move`, `run`, attached with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`) or refines it into further semantic decomposition. The author recomputes the frontier when the graph changes and reconciles each frontier as a whole.
 5. For affected paths, combine live source with applicable accepted lower DAG work through frontier-bounded `dag_preview(path=..., node_id=<boundary semantic node>)` (strictly deeper accepted work only; same-frontier peers and shallower/future work are excluded). New files, renamed paths, and planned-only symbols are read from DAG work, not rediscovered by repository search.
 6. Correct proposed mutable nodes with the typed `dag_update_*` tools or `dag_remove`. `dag_add_requirement` may insert a requirement between existing parents and selected children (convergence) and is also the recovery tool.
 7. Validate with `dag_validate` and inspect with `dag_show` and `dag_preview`. Authoring stops at a validated DAG; it never edits repository source.
@@ -52,6 +54,7 @@ independent post-change QA (separate lifecycle, not a DAG phase)
 ## Discovery and generation boundaries
 
 - Discovery remains bounded by the semantic requirement being handled. If impact keeps expanding, decompose the requirement so the new concern becomes explicit graph structure rather than loading a larger repository slice.
+- Each semantic node is lowered by one bounded `change-dag-worker` invocation reasoning from live repository plus strictly-deeper accepted work; same-frontier peer proposals are not a design basis. There is no persisted frontier, worker registry, or construction-state artifact — the DAG is the only construction artifact.
 - Exact work is authored against live repository source plus applicable accepted lower DAG patches; there is no generated write scope and no file-ownership claim system.
 - GPU/consumer contracts are not a second dependency system. Interface coherence is re-homed to semantic requirements, bounded caller/implementation discovery, and patch-aware work review.
 - A `run` node verifies or satisfies the change (tests, builds, type checks, schema checks). Publication/lifecycle commands — commit, push, PR, release, deploy — never belong in a `run` node and are excluded by the canonical argv policy.
@@ -59,7 +62,7 @@ independent post-change QA (separate lifecycle, not a DAG phase)
 
 ## Optional independent review
 
-Dispatch `change-dag-author` to create or amend the Change DAG. The author owns bounded discovery, semantic decomposition, exact-work lowering, convergence/reconciliation, `dag_preview`, `dag_validate`, and mutable correction/recovery. The author uses authoring tools only and never mutates source.
+Dispatch `change-dag-author` to create or amend the Change DAG. The author is the construction manager: it owns bounded discovery, semantic decomposition, the construction-frontier loop, per-semantic-node `change-dag-worker` dispatch, exact-work lowering, convergence/reconciliation, `dag_preview`, `dag_validate`, and mutable correction/recovery. It uses authoring tools only, never mutates source, and never dispatches `change-dag-reviewer` (it surfaces review triggers for Nyx).
 
 The orchestrator/controller selects `change-dag-reviewer` only when observable conditions justify independent judgment: shared semantic convergence, incompatible cross-branch proposals, nontrivial behavior-changing ordering, producer/consumer or interface migration, shared schema/registry/persistence/migration work, request/DD decomposition ambiguity, DD authority ambiguity, materially useful recovery amendment, or an explicit user request. Do not invoke it for node count, node types, ordinary run barriers, mechanically independent branches, or ordinary author-correctable mechanical errors.
 
@@ -93,6 +96,7 @@ A DD may be archived through `dd_archive` only after every Change DAG bundle lin
 
 - `file://config/skills/decomposing-design-documents/references/subagent-protocol.md` — Change DAG authoring and handoff protocol.
 - `file://config/skills/dispatching-agents/references/change-dag-author.md` — author dispatch contract.
+- `file://config/skills/dispatching-agents/references/change-dag-worker.md` — bounded single-node worker dispatch contract (internal to the author manager).
 - `file://config/skills/dispatching-agents/references/change-dag-reviewer.md` — read-only review dispatch contract.
 - `file://artifacts/SkyScow_Change_DAG_Agents.md` — Change DAG agent construction protocol.
 - `file://artifacts/SkyScow_Change_DAG_Toolset.md` — Change DAG tool contract.

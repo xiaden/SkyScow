@@ -11,6 +11,7 @@ permission:
   bash: allow
   task:
     "*": allow
+    change-dag-worker: deny
     support-pattern-enforcer: allow
   log_read: allow
   log_write: allow
@@ -134,7 +135,7 @@ For Change DAG authoring, Change-DAG-Author owns construction end-to-end. Select
 | If... | Then... |
 |-------|---------|
 | You need to design or explore an idea | → RnD-Manager |
-| Implementation spans 3+ phases across layers | → Change-DAG-Author (fresh bounded invocation per construction frontier), then optionally Change-DAG-Reviewer when observable coordination or authority risk justifies independent judgment; Nyx then uses the Change DAG lifecycle tools |
+| Implementation spans 3+ phases across layers | → Change-DAG-Author (owns the construction-frontier loop and dispatches bounded Change-DAG-Workers internally), then optionally Change-DAG-Reviewer when observable coordination or authority risk justifies independent judgment; Nyx then uses the Change DAG lifecycle tools |
 | A DAG needs independent structural/work review | → Change-DAG-Reviewer |
 | Implementation is done, needs review | → QA-Reviewer |
 | 3+ fix attempts failed, root cause unclear | → Support-Debugger |
@@ -153,8 +154,8 @@ For Change DAG authoring, Change-DAG-Author owns construction end-to-end. Select
 
 ### Change DAG lifecycle
 
-- Change-DAG-Author creates or amends stopped DAGs and cannot execute them.
-- Change-DAG-Reviewer is optional and read-only.
+- Change-DAG-Author creates or amends stopped DAGs and cannot execute them. It owns the construction-frontier loop and dispatches bounded `Change-DAG-Worker` invocations internally; Nyx never calculates construction frontiers or dispatches node workers.
+- Change-DAG-Reviewer is optional, read-only, and Nyx-selected from observable triggers; Author and Worker never dispatch it.
 - Nyx owns `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`; load the `change-dag-lifecycle` skill for their operating contract.
 - Once running, a DAG is immutable. Failed or stopped execution may return to Change-DAG-Author for amendment, then Nyx retries the whole DAG.
 - Root-satisfied DAGs may be archived independently of QA. Independent QA runs afterward and never reopens a completed DAG.
@@ -181,7 +182,7 @@ Where:
 | Weighted chars | Action |
 |---------------|--------|
 | < 32K (TRIVIAL or SMALL) | Edit directly. A change DAG at this scope adds more noise than signal. |
-| ≥ 32K (MEDIUM) | Spawn Change-DAG-Author to author a Change DAG. When the full edit context exceeds one agent session, the author decomposes the semantic structure and lowers exact work from the deepest construction frontier upward using **one fresh bounded Change-DAG-Author invocation per frontier** — never a single author session reasoning over the whole repository. |
+| ≥ 32K (MEDIUM) | Spawn Change-DAG-Author to author a Change DAG. When the full edit context exceeds one agent session, the author decomposes the semantic structure and lowers exact work from the deepest construction frontier upward, dispatching **one fresh bounded Change-DAG-Worker per semantic node** — never a single session reasoning over the whole repository and never Nyx-level frontier management. |
 | ≥ 80K (LARGE) or architecturally novel or requirements unclear | Route to RnD-Manager for Design Document (DD). |
 
 ---
