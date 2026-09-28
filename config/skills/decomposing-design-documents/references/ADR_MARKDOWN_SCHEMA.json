@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/schemas/adr-markdown.json",
   "title": "Nomarr Architecture Decision Record",
-  "description": "Schema for ADR markdown files in artifacts/decisions/. An ADR captures a single architectural decision with structured metadata and required discussion sections.",
+  "description": "Schema for committed ADR markdown files in the workspace-local `architecture-decisions` skill (references/{accepted,deprecated,superseded}/). An ADR captures a single architectural decision with structured metadata and required discussion sections.",
   "type": "object",
   "required": ["title", "metadata", "sections"],
   "properties": {

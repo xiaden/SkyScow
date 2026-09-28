@@ -26,13 +26,13 @@ A subsystem skill answers: **"What does a competent engineer need to know before
 - Key invariants an agent must not violate
 - Which files are canonical owners of each concern
 - How the subsystem connects to the rest of the system (entry/exit points)
-- Citations to the ADRs/DDs that motivated the design
+- Citations to the governing decisions (from the `architecture-decisions` skill) and prior design docs that motivated the design
 
 **Do not include:**
 - Implementation details that change with normal refactors (method signatures, variable names)
 - Information already obvious from reading one file
 - Anything the model already knows (Python stdlib, FastAPI patterns, etc.)
-- Episodic history ("we tried X and it failed") — that belongs in logs/ADRs
+- Episodic history ("we tried X and it failed") — that belongs in logs/process history
 
 ## The Test
 
@@ -102,14 +102,14 @@ Every skill must cite its authoritative sources. Include at the bottom:
 - DD: slug (artifacts/designs/...)
 ```
 
-If no ADR/DD exists for the design decision, that's a gap worth noting — the skill can serve as informal documentation until a proper ADR is written.
+If no governing decision or prior design doc exists for the design decision, that's a gap worth noting — the skill can serve as informal documentation until a proper record is committed through the `artifact-logging` workflow.
 
 ## Staleness Contract
 
-A skill is a *view* over ADRs/DDs. When the underlying design changes:
-- The ADR supersession and the skill update must be in the same commit
+A skill is a *view* over governing decisions and design docs. When the underlying design changes:
+- The governance-record supersession and the skill update must be in the same commit
 - If the skill becomes stale, it causes confident wrong reasoning — worse than no skill
-- Always include a `## Sources` section so future maintainers know which ADRs to check
+- Always include a `## Sources` section so future maintainers know which governance records to check
 
 ## References
 

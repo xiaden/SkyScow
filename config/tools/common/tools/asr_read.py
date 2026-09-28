@@ -7,7 +7,10 @@ from typing import Any
 
 from ..helpers.asr_md import (
     ASR_PREFIX,
-    REQUIREMENTS_DIR,
+    ASR_REFERENCES_DIR,
+    LEGACY_REQUIREMENTS_DIR,
+    find_asr_number,
+    legacy_asr_records,
     parse_asr,
 )
 
@@ -18,18 +21,11 @@ def _resolve_asr_path(name: str, workspace_root: Path) -> Path | None:
     Accepts number-only variants such as "1", "0001", "ASR-0001", and
     "ASR-0001.md".
     """
-    requirements_dir = workspace_root / REQUIREMENTS_DIR
-    if not requirements_dir.exists():
-        return None
-
-    if name.endswith(".md"):
-        name = name[:-3]
+    name = name.removesuffix(".md")
 
     stripped = name.removeprefix(ASR_PREFIX)
     if stripped.isdigit():
-        candidate = requirements_dir / f"ASR-{int(stripped):04d}.md"
-        if candidate.exists():
-            return candidate
+        return find_asr_number(workspace_root, int(stripped))
 
     return None
 
@@ -55,10 +51,21 @@ def asr_read(
 
     asr_path = _resolve_asr_path(name, workspace_root)
     if asr_path is None:
+        if legacy_asr_records(workspace_root):
+            return {
+                "error": "migration_required",
+                "message": (
+                    f"Legacy ASR corpus found under '{LEGACY_REQUIREMENTS_DIR}/' but "
+                    "no canonical records exist. Run the governance_migrate tool "
+                    "before reading or writing ASRs."
+                ),
+                "legacy_dir": LEGACY_REQUIREMENTS_DIR,
+                "searched": ASR_REFERENCES_DIR,
+            }
         return {
             "error": "asr_not_found",
             "message": f"ASR not found: {name}",
-            "searched": REQUIREMENTS_DIR,
+            "searched": ASR_REFERENCES_DIR,
         }
 
     rel_path = str(asr_path.relative_to(workspace_root)).replace("\\", "/")

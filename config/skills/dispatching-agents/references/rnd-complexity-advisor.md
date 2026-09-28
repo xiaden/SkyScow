@@ -24,7 +24,7 @@ Analyze structural complexity of [CODE AREA].
 
 Context files to read:
 - [paths to relevant code files]
-- [any relevant ADRs or design docs as reference for existing patterns]
+- [any relevant governing decisions (from the `architecture-decisions` skill) or design docs as reference for existing patterns]
 
 scope: "[files/modules/layers to analyze]"
 concerns: "[specific concerns — e.g., 'too many layers', 'unnecessary indirection', 'over-abstracted']"

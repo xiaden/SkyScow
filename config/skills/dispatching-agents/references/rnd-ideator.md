@@ -22,7 +22,7 @@ Dispatch RnD-Ideator to generate creative solutions and explore the design space
 Generate creative approaches for [PROBLEM].
 
 Context files to read:
-- [any relevant code, ADRs, or design docs]
+- [any relevant code, governing decisions (from the `architecture-decisions` skill), or design docs]
 
 problem: "[concise description]"
 constraints: "[hard boundaries — tech stack, budget, timeline]"

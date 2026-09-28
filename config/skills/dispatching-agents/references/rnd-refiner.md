@@ -44,8 +44,8 @@ later when `DD_REQUIRED`.
 |-------|-------------|---------|
 | `[FEATURE]` | Feature to design with adversarial refinement | "Real-time collaborative editing" |
 | `Requirements` | What needs to be built | "Support OAuth2 + MFA, see ASR-012" |
-| `Librarian briefing` | Artifact context | Paste briefing or "see attached context" |
-| `Prior decisions` | Key constraints from prior ADRs | "Must use existing AuthService (ADR-003)" |
+| `Librarian briefing` | Process-artifact context | Paste briefing or "see attached context" |
+| `Prior decisions` | Key constraints from governing decisions (from the `architecture-decisions` skill) | "Must use existing AuthService (ADR-003)" |
 
 The selected pair, dependency edges, `max_cycles_per_pair` contract, and Manager-return contract are **required** — RnD-Refiner executes the bounded pair and does not implement designs or invent additional nodes.
 

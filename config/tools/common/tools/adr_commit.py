@@ -8,17 +8,26 @@ from typing import Any
 
 from ..helpers.adr_md import (
     ADR,
-    DECISIONS_DIR,
     DRAFTS_DIR,
     _unescape_literal_newlines,
+    adr_number_from_token,
+    adr_status_dir,
+    find_adr_in_status_dir,
+    find_adr_number,
     generate_adr,
+    iter_adr_records,
     make_adr_filename,
     next_adr_number,
     parse_adr,
     parse_adr_metadata,
+    supersede_adr_record,
     today_iso,
     validate_source_log,
     validate_status,
+)
+from ..helpers.governance_index import (
+    GovernanceIndexError,
+    rebuild_governance_indexes,
 )
 
 _STANDARD_SECTION_NAMES: frozenset[str] = frozenset(
@@ -26,6 +35,19 @@ _STANDARD_SECTION_NAMES: frozenset[str] = frozenset(
 )
 
 _MAX_RETRIES = 3
+
+
+def _withdraw_published_adr(
+    target_path: Path, supersession_edits: list[tuple[Path, str, Path]]
+) -> None:
+    """Best-effort reversal of a published ADR and its supersession moves."""
+    for source, original_text, destination in reversed(supersession_edits):
+        with contextlib.suppress(OSError):
+            destination.unlink(missing_ok=True)
+        with contextlib.suppress(OSError):
+            source.write_text(original_text, encoding="utf-8")
+    with contextlib.suppress(OSError):
+        target_path.unlink(missing_ok=True)
 
 
 def adr_commit(
@@ -159,25 +181,64 @@ def adr_commit(
     # Check for source_log duplicates in existing ADRs
     source_log_warning: str | None = None
     if source_log:
-        target_dir = workspace_root / DECISIONS_DIR
-        if target_dir.exists():
-            for adr_file in target_dir.glob("ADR-*.md"):
-                try:
-                    content = adr_file.read_text(encoding="utf-8")
-                    meta = parse_adr_metadata(content)
-                    existing_sl = meta.get("source_log")
-                    if existing_sl and existing_sl == source_log:
-                        existing_num = meta.get("number", "?")
-                        source_log_warning = (
-                            f"source_log '{source_log}' is also used by "
-                            f"ADR-{existing_num:03d}. Consider using a unique log reference."
-                        )
-                        break
-                except (OSError, ValueError):
-                    continue
+        for adr_file in iter_adr_records(workspace_root):
+            try:
+                content = adr_file.read_text(encoding="utf-8")
+                meta = parse_adr_metadata(content)
+                existing_sl = meta.get("source_log")
+                if existing_sl and existing_sl == source_log:
+                    existing_num = meta.get("number", "?")
+                    source_log_warning = (
+                        f"source_log '{source_log}' is also used by "
+                        f"ADR-{existing_num:03d}. Consider using a unique log reference."
+                    )
+                    break
+            except (OSError, ValueError):
+                continue
 
-    # Write with retry on collision
-    target_dir = workspace_root / DECISIONS_DIR
+    # Resolve and pre-validate supersession targets before any write. A bad
+    # reference must fail the commit without leaving a partially published ADR.
+    supersede_numbers: list[int] = []
+    for token in supersedes:
+        target_number = adr_number_from_token(token)
+        if target_number is None:
+            return {
+                "error": "invalid_supersedes",
+                "message": (
+                    f"Unrecognized ADR identifier in supersedes: '{token}' "
+                    "(expected e.g. 'ADR-007')"
+                ),
+            }
+        if target_number in supersede_numbers:
+            continue
+        if find_adr_number(workspace_root, target_number) is None:
+            return {
+                "error": "supersedes_not_found",
+                "message": (
+                    f"Cannot supersede ADR-{target_number:03d}: "
+                    "no committed ADR with that ID"
+                ),
+            }
+        accepted_copy = find_adr_in_status_dir(workspace_root, "Accepted", target_number)
+        superseded_copy = find_adr_in_status_dir(
+            workspace_root, "Superseded", target_number
+        )
+        if accepted_copy is not None and superseded_copy is not None:
+            return {
+                "error": "supersedes_conflict",
+                "message": (
+                    f"ADR-{target_number:03d} has both an accepted and a superseded "
+                    "copy; resolve the duplicate before committing"
+                ),
+            }
+        supersede_numbers.append(target_number)
+
+    # Committed ADRs live under the workspace-local governance skill, in the
+    # directory for their status. "Proposed" has no committed directory.
+    try:
+        target_dir = adr_status_dir(workspace_root, status)
+    except ValueError as exc:
+        return {"error": "uncommittable_status", "message": str(exc)}
     target_dir.mkdir(parents=True, exist_ok=True)
 
     for _attempt in range(_MAX_RETRIES):
@@ -202,7 +263,7 @@ def adr_commit(
             # Atomic create — fails if file exists (exclusive mode)
             with open(target_path, "x", encoding="utf-8") as f:
                 f.write(markdown)
-            rel_path = f"{DECISIONS_DIR}/{filename}"
+            rel_path = str(target_path.relative_to(workspace_root)).replace("\\", "/")
 
             result: dict[str, Any] = {
                 "path": rel_path,
@@ -221,6 +282,55 @@ def adr_commit(
 
             if source_log_warning:
                 result["source_log_warning"] = source_log_warning
+
+            # Apply the declared supersession transition. Targets were
+            # pre-validated above; a target already outside accepted/ needs no
+            # move because it is already non-governing.
+            supersession_edits: list[tuple[Path, str, Path]] = []
+            superseded_moves: list[dict[str, Any]] = []
+            try:
+                for target_number in supersede_numbers:
+                    source = find_adr_in_status_dir(
+                        workspace_root, "Accepted", target_number
+                    )
+                    if source is None:
+                        continue
+                    original_text = source.read_text(encoding="utf-8")
+                    new_path = supersede_adr_record(workspace_root, target_number)
+                    supersession_edits.append((source, original_text, new_path))
+                    superseded_moves.append(
+                        {
+                            "number": target_number,
+                            "from": str(source.relative_to(workspace_root)).replace(
+                                "\\", "/"
+                            ),
+                            "to": str(new_path.relative_to(workspace_root)).replace(
+                                "\\", "/"
+                            ),
+                        }
+                    )
+            except OSError as exc:
+                _withdraw_published_adr(target_path, supersession_edits)
+                return {
+                    "error": "supersession_failed",
+                    "message": str(exc),
+                }
+
+            # Regenerate the governing index from the reference corpus. Fail
+            # closed: withdraw the just-published record (and reverse any
+            # supersession moves) rather than leave a knowingly stale index.
+            try:
+                index_summary = rebuild_governance_indexes(workspace_root)
+            except GovernanceIndexError as exc:
+                _withdraw_published_adr(target_path, supersession_edits)
+                return {
+                    "error": "index_rebuild_failed",
+                    "message": str(exc),
+                }
+
+            if superseded_moves:
+                result["superseded"] = superseded_moves
+            result["index"] = index_summary
 
             # Remove the staging draft now that the ADR is committed
             if _draft_file is not None:

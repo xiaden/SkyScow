@@ -85,7 +85,7 @@ Detailed lifecycle documentation:
 
 **Independent QA.** Every meaningful change gets independent correctness review, plus boundary, journey, and domain-risk lenses where the changed surface triggers them. Test and docs analyzers each inspect their own domain and dispatch a generator to repair concrete gaps. `/qa-push` is the final publication gate over a candidate commit, and `/qa-repo-review` runs a whole-tree review of a repository at an explicit GitHub ref.
 
-**Support bench.** `support-researcher` gathers codebase and external facts, `support-librarian` navigates the artifact corpus (logs, ADRs, ASRs, DDs, and prior work), `support-pattern-enforcer` maps the impact of a proposed change, and `support-debugger` traces failures to a root cause.
+**Support bench.** `support-researcher` gathers codebase and external facts, `support-librarian` navigates the process-artifact corpus (logs, dead ends, prior design docs, and prior work; governing decisions and requirements come from the workspace-local `architecture-decisions`/`system-requirements` skills), `support-pattern-enforcer` maps the impact of a proposed change, and `support-debugger` traces failures to a root cause.
 
 **Git and GitHub.** The `gg-*` skill family (`gg-router`, `gg-core`, `gg-env`, `gg-repos`, `gg-actions`, `gg-artifacts`, `gg-docs`) covers local Git, credentials, collaboration, Actions, and attested artifacts. It loads on demand.
 

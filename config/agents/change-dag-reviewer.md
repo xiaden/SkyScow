@@ -15,10 +15,8 @@ permission:
   lsp: allow
   log_read: allow
   adr_read: allow
-  adr_search: allow
   dd_read: allow
   asr_read: allow
-  asr_search: allow
   dag_show: allow
   dag_preview: allow
   dag_validate: allow

@@ -15,9 +15,7 @@ permission:
   dd_read: allow
   dd_create: deny
   adr_read: allow
-  adr_search: allow
   asr_read: allow
-  asr_search: allow
   question: allow
   todowrite: allow
   task:

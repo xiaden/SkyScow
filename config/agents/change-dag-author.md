@@ -17,10 +17,8 @@ permission:
   log_read: allow
   log_write: allow
   adr_read: allow
-  adr_search: allow
   dd_read: allow
   asr_read: allow
-  asr_search: allow
   dag_create: allow
   dag_show: allow
   dag_add_requirement: allow

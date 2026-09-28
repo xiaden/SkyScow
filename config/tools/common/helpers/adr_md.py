@@ -1,7 +1,8 @@
 """Pure functions for parsing and generating Architecture Decision Record (ADR) markdown files.
 
-This module handles markdown mechanics only — no file I/O beyond next_adr_number(),
-no logging, no MCP logic.
+This module owns ADR markdown parsing/generation plus the committed-record storage
+layout: path resolution across status directories and the supersession transition.
+It performs no logging and no MCP logic.
 
 ADR markdown format:
     # ADR-NNN: {title}
@@ -22,6 +23,7 @@ ADR markdown format:
 
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass, field
 from datetime import date
@@ -32,8 +34,35 @@ from typing import Any
 
 ADR_STATUSES: frozenset[str] = frozenset({"Proposed", "Accepted", "Deprecated", "Superseded"})
 SOURCE_LOG_PATTERN: re.Pattern[str] = re.compile(r"^[a-z][a-z0-9-]*[a-z0-9]#L\d+$")
-DECISIONS_DIR = "artifacts/decisions"
+
+# Committed ADRs are repository governance knowledge owned by a workspace-local
+# skill (not shipped harness configuration). Legacy ``artifacts/decisions`` is
+# no longer a canonical ADR store and is never read as a fallback.
+ADR_SKILL_NAME = "architecture-decisions"
+ADR_SKILL_DIR = f".opencode/skills/{ADR_SKILL_NAME}"
+ADR_REFERENCES_DIR = f"{ADR_SKILL_DIR}/references"
+
+# Deterministic status -> references/ subdirectory for committed ADRs.
+# "Proposed" is deliberately absent: an unapproved ADR is a staged draft, not
+# governing knowledge, and must never land in the skill's references.
+ADR_STATUS_DIRS: dict[str, str] = {
+    "Accepted": "accepted",
+    "Deprecated": "deprecated",
+    "Superseded": "superseded",
+}
+
+# Status applied to a governing ADR when a newer ADR supersedes it.
+ADR_SUPERSEDED_STATUS = "Superseded"
+
+# Unapproved ADR drafts are process artifacts staged outside the governance
+# skill and its governing index.
 DRAFTS_DIR = "artifacts/decisions/drafts"
+
+# Legacy pre-migration committed corpus. It is never read as a canonical
+# fallback; a legacy-only workspace must migrate explicitly (see
+# common.tools.governance_migrate).
+LEGACY_DECISIONS_DIR = "artifacts/decisions"
+
 ADR_PREFIX = "ADR-"
 
 # --- Regex patterns ---
@@ -85,6 +114,157 @@ def _unescape_literal_newlines(text: str) -> str:
     literal two-character sequence ``\\n``.
     """
     return text.replace("\\n", "\n").replace("\\t", "\t")
+
+
+# --- Canonical storage layout ---
+
+
+def adr_skill_root(workspace_root: Path) -> Path:
+    """Return the workspace-local ``architecture-decisions`` skill root."""
+    return workspace_root / ADR_SKILL_DIR
+
+
+def adr_references_root(workspace_root: Path) -> Path:
+    """Return the canonical ``references/`` root for committed ADRs."""
+    return workspace_root / ADR_REFERENCES_DIR
+
+
+def resolve_adr_status_dir(status: str) -> str:
+    """Return the references/ subdirectory name for a committed ADR status.
+
+    Raises ValueError for a status with no committed-record directory (for
+    example ``Proposed``, which is staged as a draft instead).
+    """
+    sub = ADR_STATUS_DIRS.get(status)
+    if sub is None:
+        raise ValueError(
+            f"ADR status '{status}' has no canonical storage directory "
+            f"(expected one of {sorted(ADR_STATUS_DIRS)})"
+        )
+    return sub
+
+
+def adr_status_dir(workspace_root: Path, status: str) -> Path:
+    """Resolve the canonical directory for a committed ADR with ``status``."""
+    return adr_references_root(workspace_root) / resolve_adr_status_dir(status)
+
+
+def adr_status_dirs(workspace_root: Path) -> list[Path]:
+    """Return every canonical ADR status directory in deterministic order."""
+    return [
+        adr_references_root(workspace_root) / sub
+        for sub in sorted(ADR_STATUS_DIRS.values())
+    ]
+
+
+def iter_adr_records(workspace_root: Path) -> list[Path]:
+    """Enumerate committed ADR files across every canonical status directory."""
+    records: list[Path] = []
+    for status_dir in adr_status_dirs(workspace_root):
+        if status_dir.is_dir():
+            records.extend(sorted(status_dir.glob(f"{ADR_PREFIX}*.md")))
+    return records
+
+
+def legacy_adr_records(workspace_root: Path) -> list[Path]:
+    """Enumerate the legacy ``artifacts/decisions/ADR-*.md`` corpus, if any.
+
+    This is a migration signal, not a canonical store: callers must not read
+    these records as a fallback for the governance skill references.
+    """
+    legacy_dir = workspace_root / LEGACY_DECISIONS_DIR
+    if not legacy_dir.is_dir():
+        return []
+    return sorted(legacy_dir.glob(f"{ADR_PREFIX}*.md"))
+
+
+def find_adr_in_status_dir(workspace_root: Path, status: str, number: int) -> Path | None:
+    """Locate a committed ADR by numeric ID within one status directory."""
+    status_dir = adr_status_dir(workspace_root, status)
+    if not status_dir.is_dir():
+        return None
+    matches = sorted(status_dir.glob(f"{ADR_PREFIX}{number:03d}-*.md"))
+    if matches:
+        return matches[0]
+    exact = status_dir / f"{ADR_PREFIX}{number:03d}.md"
+    return exact if exact.is_file() else None
+
+
+def find_adr_number(workspace_root: Path, number: int) -> Path | None:
+    """Locate a committed ADR by numeric ID across every status directory."""
+    for status in sorted(ADR_STATUS_DIRS):
+        found = find_adr_in_status_dir(workspace_root, status, number)
+        if found is not None:
+            return found
+    return None
+
+
+_ADR_ID_TOKEN_PATTERN: re.Pattern[str] = re.compile(
+    r"(?:ADR-)?0*(\d+)(?:-.*)?", re.IGNORECASE
+)
+_STATUS_LINE_PATTERN: re.Pattern[str] = re.compile(r"^\*\*Status:\*\*.*$", re.MULTILINE)
+
+
+def adr_number_from_token(token: str) -> int | None:
+    """Extract the numeric ADR ID from an identifier token.
+
+    Accepts ``ADR-007``, ``007``, ``7``, ``ADR-007-some-slug``, and an optional
+    trailing ``.md``. Returns ``None`` when no ADR number can be derived.
+    """
+    text = token.strip()
+    if text.lower().endswith(".md"):
+        text = text[:-3]
+    match = _ADR_ID_TOKEN_PATTERN.fullmatch(text)
+    if match is None:
+        return None
+    return int(match.group(1))
+
+
+def set_adr_status(markdown: str, status: str) -> str:
+    """Return ADR markdown with only its ``**Status:**`` metadata line replaced.
+
+    This is the minimal metadata correction used by supersession; it preserves
+    the rest of the record byte-for-byte. Raises ValueError when the record has
+    no Status metadata line.
+    """
+    if _STATUS_LINE_PATTERN.search(markdown) is None:
+        raise ValueError("ADR markdown has no '**Status:**' metadata line")
+    return _STATUS_LINE_PATTERN.sub(f"**Status:** {status}  ", markdown, count=1)
+
+
+def supersede_adr_record(workspace_root: Path, number: int) -> Path:
+    """Transition an accepted ADR to superseded, preserving its ID.
+
+    Moves ``references/accepted/ADR-NNN-*.md`` into ``references/superseded/``
+    and corrects only its ``Status`` metadata. The record is moved, never
+    copied, so exactly one canonical file remains for the ID.
+
+    Raises FileNotFoundError when no accepted ADR has ``number``, and
+    FileExistsError when a superseded record with that ID already exists.
+    """
+    source = find_adr_in_status_dir(workspace_root, "Accepted", number)
+    if source is None:
+        raise FileNotFoundError(f"No accepted ADR with number {number}")
+    superseded_dir = adr_status_dir(workspace_root, "Superseded")
+    superseded_dir.mkdir(parents=True, exist_ok=True)
+    destination = superseded_dir / source.name
+    if destination.exists():
+        raise FileExistsError(f"Superseded ADR already present: {destination.name}")
+    source.rename(destination)
+    try:
+        destination.write_text(
+            set_adr_status(
+                destination.read_text(encoding="utf-8"), ADR_SUPERSEDED_STATUS
+            ),
+            encoding="utf-8",
+        )
+    except OSError:
+        # Restore the accepted record rather than leave a moved-but-uncorrected
+        # file behind the caller's back.
+        with contextlib.suppress(OSError):
+            destination.rename(source)
+        raise
+    return destination
 
 
 # --- Validation ---
@@ -323,19 +503,12 @@ def parse_adr_metadata(markdown: str) -> dict[str, Any]:
 
 
 def next_adr_number(workspace_root: Path) -> int:
-    """Find the next ADR number by scanning existing files."""
-    decisions_dir = workspace_root / DECISIONS_DIR
-    if not decisions_dir.exists():
-        return 1
-
+    """Find the next ADR number by scanning every canonical status directory."""
     max_num = 0
-    for f in decisions_dir.glob("ADR-*.md"):
-        m = re.match(r"ADR-(\d+)", f.stem)
+    for record in iter_adr_records(workspace_root):
+        m = re.match(r"ADR-(\d+)", record.stem)
         if m:
-            num = int(m.group(1))
-            if num > max_num:
-                max_num = num
-
+            max_num = max(max_num, int(m.group(1)))
     return max_num + 1
 
 

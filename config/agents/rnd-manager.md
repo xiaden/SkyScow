@@ -84,7 +84,7 @@ capabilities whose inputs are missing or whose bounded challenge is useful. Ever
 selected or materially skipped capability gets a short rationale in the existing
 Manager-owned log/review context.
 
-- **Support-Librarian**: prior ADRs, ASRs, DDs, dead ends, or artifact history
+- **Support-Librarian**: prior process artifacts (DDs, logs, dead ends, artifact history); governing decisions/requirements come from the `architecture-decisions`/`system-requirements` skills
   materially constrain the design. It may run concurrently with independent
   repository research.
 - **Support-Researcher**: repository paths, integration points, or external/API

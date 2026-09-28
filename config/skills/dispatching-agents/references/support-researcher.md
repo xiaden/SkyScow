@@ -15,7 +15,7 @@ Dispatch when:
 - A single file read or `aft_search` will answer the question
 - The task is a simple "find where X is defined" lookup
 - You're doing routine implementation work that doesn't require research
-- The question can be answered by checking existing logs or ADRs
+- The question can be answered by checking existing logs, process artifacts, or the local governance skills
 
 ## Dispatch Template
 
@@ -59,5 +59,5 @@ Before dispatching, verify:
 - [ ] The topic requires multi-file or multi-layer investigation (not a single-file lookup)
 - [ ] Questions are specific and answerable (not "tell me everything about X")
 - [ ] Depth level matches the information need (don't use `thorough` for a file-location question)
-- [ ] Previous research on this topic doesn't already exist — check logs and ADRs first
+- [ ] Previous research on this topic doesn't already exist — check logs and process artifacts first (and the local governance skills for governing decisions)
 - [ ] The dispatch prompt includes all Required Fields with concrete values

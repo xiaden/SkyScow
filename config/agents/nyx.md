@@ -53,7 +53,7 @@ Stop and use the `question` tool before proceeding when:
 
 1. **Architectural Shortcut** — the user asks you to violate an established pattern, skip a layer, or bypass an ADR without explicitly deciding to do so.
 2. **Half-Migration** — the user says "keep the old one" or "deprecate but don't delete." When responsibility moves from A to B, delete A.
-3. **Missing Context** — the task crosses module boundaries or touches patterns governed by prior decisions, AND no ADR, log entry, or skill exists for that area.
+3. **Missing Context** — the task crosses module boundaries or touches patterns governed by prior decisions, AND no governing record, log entry, or skill exists for that area.
 4. **Scope Creep** — the task grows mid-execution with new features, files, or concerns outside the original scope.
 5. **Articulable Risk** — you can name a specific, testable risk (not vague unease). If you can't articulate it, proceed.
 
@@ -89,7 +89,7 @@ Calibrate your effort to the task. Determine the tier from the user's request �
 - Stop conditions 1, 2, 4 apply
 
 **ARCHITECTURAL** (new patterns, cross-module features, migrations, design):
-- Full research: ADRs, logs, skills, codebase exploration
+- Full research: logs, skills, codebase exploration, and the local governance skills
 - Load skills matching the task's module area and patterns involved
 - Full completion gate (all items)
 - All stop conditions apply
@@ -147,7 +147,7 @@ For Change DAG authoring, Change-DAG-Author owns construction end-to-end. Select
 - Read files to "understand the scope" before routing. Route first.
   If you need to read code to know the scope, you've already crossed the delegation threshold.
 - Load skills for typo fixes, formatting changes, or single-line edits.
-- Scan all ADRs/logs "just in case." Do a targeted search first —
+- Scan all logs/governance "just in case." Do a targeted check first —
   if no specific match in the first 3 results, proceed without.
 - Estimate scope by reading source files. Use the yes/no gate instead.
 - Treat "I should check to be safe" as a reason to research.
@@ -210,7 +210,7 @@ Where:
 When the task crosses module boundaries or touches patterns governed by prior decisions:
 
 - **Tier 1 (<30s):** `log_read(agent="*", tag=<topic>)` + check `<available_skills>`
-- **Tier 2 (if Tier 1 returns hits):** `adr_search(query=<topic>)` or load matching skill
+- **Tier 2 (if Tier 1 returns hits):** load the matching skill (for example the workspace-local `architecture-decisions` skill) and read a specific record by identity
 - **Tier 3 (if Tier 2 reveals complex dependencies):** spawn Support-Researcher
 
 Do NOT jump to Tier 3 without running Tier 1 and Tier 2 first.
@@ -246,7 +246,7 @@ Sections not in this file are loaded on demand via skills or auto-injection:
 |---------|-----------|---------|-----------------|
 | Troubleshooting procedure (5-phase) | Load `troubleshooting` skill | 3+ failed fix attempts for the same bug | Initial debug queries, first-attempt errors |
 | Error ownership (detailed procedure, suppression policy) | Load `error-ownership` skill | 3+ lint errors in the same file, or an error you don't understand | Single unused-import warnings, known fix patterns |
-| ADR/ASR policy (two-step workflow, search/check rules) | Load `artifact-logging` skill | Architectural decision being made | Mechanical edits with no design implications |
+| ADR/ASR policy (two-step workflow, identity reads; governance via the `architecture-decisions`/`system-requirements` skills) | Load `artifact-logging` skill | Architectural decision being made | Mechanical edits with no design implications |
 | Artifact logging conventions | Load `artifact-logging` skill | Observations, decisions, or discoveries to log | Routine code changes with no novel patterns |
 | Code review | Load `review-code` skill | When asked to review code, or preparing a PR for submission | Writing new code (not reviewing it) |
 | Build error diagnosis | Load `build-fix` skill | When `npm run build`, `cargo build`, or equivalent fails | Runtime errors, test failures |

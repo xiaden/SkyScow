@@ -23,7 +23,7 @@ Dispatch RnD-Architect to get implementation options and tradeoff analysis for a
 Analyze implementation approaches for [PROBLEM].
 
 Context files to read:
-- [any relevant code, ADRs, or design docs]
+- [any relevant code, governing decisions (from the `architecture-decisions` skill), or design docs]
 
 problem: "[concise description of the design problem]"
 constraints: "[any hard constraints — tech stack, budget, timeline]"
@@ -59,10 +59,10 @@ This agent is **read-only** — it returns analysis, does not execute or impleme
 ```
 Analyze implementation approaches for [PROBLEM].
 
-Context: [paste Librarian briefing or relevant ADR summaries]
+Context: [paste Librarian briefing or governing-decision summaries]
 
 problem: "[description]"
-constraints: "[constraints including prior ADR decisions]"
+constraints: "[constraints including prior governing decisions (from the `architecture-decisions` skill)]"
 evaluation criteria: "[2-4 criteria]"
 
 Return 2-4 concrete approaches with tradeoffs. Read-only.

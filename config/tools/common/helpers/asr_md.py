@@ -23,13 +23,32 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any
 
 # --- Constants ---
 
 ASR_STATUSES_EXACT: frozenset[str] = frozenset({"Active", "Archived"})
 SUPERSEDED_PATTERN: re.Pattern[str] = re.compile(r"^Superseded by ASR-\d{4}$")
-REQUIREMENTS_DIR = "artifacts/requirements"
+
+# Committed ASRs are repository governance knowledge owned by a workspace-local
+# skill (not shipped harness configuration). Legacy ``artifacts/requirements``
+# is no longer a canonical ASR store and is never read as a fallback.
+ASR_SKILL_NAME = "system-requirements"
+ASR_SKILL_DIR = f".opencode/skills/{ASR_SKILL_NAME}"
+ASR_REFERENCES_DIR = f"{ASR_SKILL_DIR}/references"
+
+# Deterministic status -> references/ subdirectory for committed ASRs. Every
+# "Superseded by ASR-NNNN" status resolves to the superseded directory.
+ASR_STATUS_DIRS: dict[str, str] = {
+    "Active": "active",
+    "Archived": "archived",
+}
+ASR_SUPERSEDED_DIR = "superseded"
+
+# Legacy pre-migration committed corpus. It is never read as a canonical
+# fallback; a legacy-only workspace must migrate explicitly (see
+# common.tools.governance_migrate).
+LEGACY_REQUIREMENTS_DIR = "artifacts/requirements"
+
 ASR_PREFIX = "ASR-"
 
 # --- Regex patterns ---
@@ -71,6 +90,78 @@ def _unescape_literal_newlines(text: str) -> str:
     literal two-character sequence ``\\n``.
     """
     return text.replace("\\n", "\n").replace("\\t", "\t")
+
+
+# --- Canonical storage layout ---
+
+
+def asr_skill_root(workspace_root: Path) -> Path:
+    """Return the workspace-local ``system-requirements`` skill root."""
+    return workspace_root / ASR_SKILL_DIR
+
+
+def asr_references_root(workspace_root: Path) -> Path:
+    """Return the canonical ``references/`` root for committed ASRs."""
+    return workspace_root / ASR_REFERENCES_DIR
+
+
+def resolve_asr_status_dir(status: str) -> str:
+    """Return the references/ subdirectory name for a committed ASR status.
+
+    ``Active``/``Archived`` map directly; every ``Superseded by ASR-NNNN``
+    status maps to ``superseded``. Raises ValueError otherwise.
+    """
+    sub = ASR_STATUS_DIRS.get(status)
+    if sub is not None:
+        return sub
+    if SUPERSEDED_PATTERN.match(status):
+        return ASR_SUPERSEDED_DIR
+    raise ValueError(
+        f"ASR status '{status}' has no canonical storage directory "
+        f"(expected one of {sorted(ASR_STATUS_DIRS)} or 'Superseded by ASR-NNNN')"
+    )
+
+
+def asr_status_dir(workspace_root: Path, status: str) -> Path:
+    """Resolve the canonical directory for a committed ASR with ``status``."""
+    return asr_references_root(workspace_root) / resolve_asr_status_dir(status)
+
+
+def asr_status_dirs(workspace_root: Path) -> list[Path]:
+    """Return every canonical ASR status directory in deterministic order."""
+    subs = sorted(set(ASR_STATUS_DIRS.values()) | {ASR_SUPERSEDED_DIR})
+    return [asr_references_root(workspace_root) / sub for sub in subs]
+
+
+def iter_asr_records(workspace_root: Path) -> list[Path]:
+    """Enumerate committed ASR files across every canonical status directory."""
+    records: list[Path] = []
+    for status_dir in asr_status_dirs(workspace_root):
+        if status_dir.is_dir():
+            records.extend(sorted(status_dir.glob(f"{ASR_PREFIX}*.md")))
+    return records
+
+
+def legacy_asr_records(workspace_root: Path) -> list[Path]:
+    """Enumerate the legacy ``artifacts/requirements/ASR-*.md`` corpus, if any.
+
+    This is a migration signal, not a canonical store: callers must not read
+    these records as a fallback for the governance skill references.
+    """
+    legacy_dir = workspace_root / LEGACY_REQUIREMENTS_DIR
+    if not legacy_dir.is_dir():
+        return []
+    return sorted(legacy_dir.glob(f"{ASR_PREFIX}*.md"))
+
+
+def find_asr_number(workspace_root: Path, number: int) -> Path | None:
+    """Locate a committed ASR by numeric ID across every status directory."""
+    filename = f"{ASR_PREFIX}{number:04d}.md"
+    for status_dir in asr_status_dirs(workspace_root):
+        candidate = status_dir / filename
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 # --- Validation ---
@@ -130,16 +221,11 @@ def make_asr_filename(number: int) -> str:
     return f"ASR-{number:04d}.md"
 
 
-def next_asr_number(requirements_dir: Path) -> int:
-    """Find the next available ASR number by scanning existing files."""
-    if not requirements_dir.exists():
-        return 1
-    existing = list(requirements_dir.glob("ASR-*.md"))
-    if not existing:
-        return 1
+def next_asr_number(workspace_root: Path) -> int:
+    """Find the next ASR number by scanning every canonical status directory."""
     numbers: list[int] = []
-    for f in existing:
-        m = re.match(r"^ASR-(\d+)\.md$", f.name)
+    for record in iter_asr_records(workspace_root):
+        m = re.match(r"^ASR-(\d+)\.md$", record.name)
         if m:
             numbers.append(int(m.group(1)))
     return max(numbers, default=0) + 1
@@ -224,47 +310,3 @@ def parse_asr(markdown: str) -> ASR:
         requirement=requirement,
         notes=notes,
     )
-
-
-def parse_asr_metadata(markdown: str) -> dict[str, Any]:
-    """Parse only the metadata header of an ASR. Faster than full parse for search/filter."""
-    markdown = markdown.replace("\r\n", "\n").replace("\r", "\n")
-    lines = markdown.split("\n")
-
-    result: dict[str, Any] = {
-        "number": 0,
-        "priority": 0,
-        "status": "",
-        "created": "",
-        "updated": "",
-    }
-
-    for line in lines:
-        if SECTION_PATTERN.match(line):
-            break
-        m = TITLE_PATTERN.match(line)
-        if m:
-            result["number"] = int(m.group(1))
-            continue
-        m = META_PATTERN.match(line)
-        if m:
-            key = m.group(1).strip()
-            val = m.group(2).strip().rstrip()
-            if val.endswith("  "):
-                val = val[:-2].rstrip()
-            if key == "Status":
-                result["status"] = val
-            elif key == "Priority":
-                try:
-                    result["priority"] = int(val)
-                except ValueError as exc:
-                    raise ValueError("Priority must be an integer") from exc
-            elif key == "Created":
-                result["created"] = val
-            elif key == "Updated":
-                result["updated"] = val
-
-    if result["number"] == 0:
-        raise ValueError("ASR number not found in markdown")
-
-    return result

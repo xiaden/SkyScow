@@ -14,9 +14,7 @@ permission:
   log_write: allow
   dd_read: allow
   adr_read: allow
-  adr_search: allow
   asr_read: allow
-  asr_search: allow
   read_module_*: allow
   question: allow
   list: allow

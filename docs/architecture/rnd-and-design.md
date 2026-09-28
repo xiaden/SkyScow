@@ -58,7 +58,7 @@ The route is not a fixed worker list. The Manager selects only capabilities whos
 
 | Capability | Selected when |
 |---|---|
-| `support-librarian` | Prior ADRs, ASRs, DDs, logs, or dead ends materially constrain the design |
+| `support-librarian` | Prior process artifacts (DDs, logs, dead ends) materially constrain the design; governing decisions/requirements come from the `architecture-decisions`/`system-requirements` skills |
 | `support-researcher` | Repository integration points or external/API facts are unknown or need verification |
 | External pair (`rnd-ideator` → `rnd-counter-ideator`) | External technology or approach space is open and consequential |
 | `rnd-architect` | Multiple credible survivors still need concrete implementation tradeoffs |

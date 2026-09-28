@@ -167,19 +167,6 @@ const tools = {
     },
   }),
 
-  adr_search: tool({
-    description: "Search Architecture Decision Records by tag, status, and/or text query.",
-    args: {
-      query: optionalString("Text to search"),
-      tag: optionalString("Filter by exact tag"),
-      status: optionalString("Filter by exact status"),
-      limit: optionalNumber("Max results, capped at 50"),
-    },
-    async execute(args: ToolArgs, context: ToolContext) {
-      return runPythonTool("common.tools.adr_search", args, context)
-    },
-  }),
-
   adr_suggest: tool({
     description: "Preview an ADR without writing to disk.",
     args: {
@@ -220,7 +207,7 @@ const tools = {
   }),
 
   asr_create: tool({
-    description: "Create a new ASR in artifacts/requirements/.",
+    description: "Create a new ASR in the workspace-local system-requirements skill, under the directory for its status.",
     args: {
       priority: requiredNumber("Priority integer"),
       requirement: requiredString("The requirement body"),
@@ -242,17 +229,14 @@ const tools = {
     },
   }),
 
-  asr_search: tool({
-    description: "Search ASRs by status, priority range, and/or text query.",
+  governance_migrate: tool({
+    description:
+      "Migrate a legacy artifacts/decisions + artifacts/requirements ADR/ASR corpus into the canonical workspace-local governance skills and regenerate both SKILL.md indexes. Explicit and all-or-nothing: any failure leaves the legacy source corpus intact.",
     args: {
-      query: optionalString("Text to search"),
-      status: optionalString("Filter by exact status"),
-      priority_min: optionalNumber("Minimum priority"),
-      priority_max: optionalNumber("Maximum priority"),
-      limit: optionalNumber("Max results, capped at 50"),
+      dry_run: optionalBoolean("Report the migration plan without mutating anything"),
     },
     async execute(args: ToolArgs, context: ToolContext) {
-      return runPythonTool("common.tools.asr_search", args, context)
+      return runPythonTool("common.tools.governance_migrate", args, context)
     },
   }),
 

@@ -7,7 +7,11 @@ from typing import Any
 
 from ..helpers.adr_md import (
     ADR_PREFIX,
-    DECISIONS_DIR,
+    ADR_REFERENCES_DIR,
+    LEGACY_DECISIONS_DIR,
+    find_adr_number,
+    iter_adr_records,
+    legacy_adr_records,
     parse_adr,
 )
 
@@ -21,34 +25,21 @@ def _resolve_adr_path(name: str, workspace_root: Path) -> Path | None:
     - Number only: "003" or "3"
     - Slug: "ADR-003"
     """
-    decisions_dir = workspace_root / DECISIONS_DIR
-    if not decisions_dir.exists():
-        return None
-
     # Strip .md
-    if name.endswith(".md"):
-        name = name[:-3]
+    name = name.removesuffix(".md")
 
-    # If purely numeric, glob for that number
+    # If purely numeric, locate that number across every status directory
     stripped = name.removeprefix(ADR_PREFIX)
     if stripped.isdigit():
-        num = int(stripped)
-        pattern = f"ADR-{num:03d}-*.md"
-        matches = list(decisions_dir.glob(pattern))
-        if len(matches) == 1:
-            return matches[0]
-        # Also try exact match
-        exact = decisions_dir / f"ADR-{num:03d}.md"
-        if exact.exists():
-            return exact
-        return None
+        return find_adr_number(workspace_root, int(stripped))
 
-    # Try exact filename
+    # Try exact filename across every status directory
     if not name.startswith(ADR_PREFIX):
         name = f"{ADR_PREFIX}{name}"
-    candidate = decisions_dir / f"{name}.md"
-    if candidate.exists():
-        return candidate
+    target_name = f"{name}.md"
+    for record in iter_adr_records(workspace_root):
+        if record.name == target_name:
+            return record
 
     return None
 
@@ -73,10 +64,21 @@ def adr_read(
 
     adr_path = _resolve_adr_path(name, workspace_root)
     if adr_path is None:
+        if legacy_adr_records(workspace_root):
+            return {
+                "error": "migration_required",
+                "message": (
+                    f"Legacy ADR corpus found under '{LEGACY_DECISIONS_DIR}/' but no "
+                    "canonical records exist. Run the governance_migrate tool before "
+                    "reading or writing ADRs."
+                ),
+                "legacy_dir": LEGACY_DECISIONS_DIR,
+                "searched": ADR_REFERENCES_DIR,
+            }
         return {
             "error": "adr_not_found",
             "message": f"ADR not found: {name}",
-            "searched": DECISIONS_DIR,
+            "searched": ADR_REFERENCES_DIR,
         }
 
     try:

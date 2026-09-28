@@ -12,9 +12,7 @@ permission:
   log_write: allow
   dd_read: allow
   adr_read: allow
-  adr_search: allow
   asr_read: allow
-  asr_search: allow
   read_module_*: allow
   question: allow
   list: allow
@@ -237,12 +235,11 @@ When an option introduces, replaces, upgrades, or questions a technology, librar
 4. **Ground in codebase.** Reference actual patterns and modules. An option that ignores how similar features are already built is an option that will fight the architecture.
 5. **Spawn Researcher for depth.** When a question about existing code would take more than a few tool calls to answer, hand it to Support-Researcher rather than guessing.
 
-## Architecture Decision Records (ADR) & ASRs
+## Architectural Governance (ADRs & ASRs)
 
-> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/nyx.md.
+> **@canonical:** Governance is a workspace-local skill capability, not a fixed directory.
 
-**Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
-ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.
+When current architectural governance is materially relevant, load the workspace-local `architecture-decisions` skill; when requirement governance is materially relevant, load `system-requirements`. Read one known record in full with `adr_read` / `asr_read` by identity. A repository without those skills has no committed governance corpus — do not create empty governance skills, and do not fabricate governance that does not exist.
 
 ## Artifact Logging & ADR Behavior
 
@@ -250,7 +247,7 @@ Your analysis directly informs architectural decisions. Log your findings so the
 
 ### Before Analyzing
 
-- `adr_search(query="topic")` — check for existing decisions that constrain the options
+- consult the workspace-local `architecture-decisions` governance skill for existing decisions that constrain the options, then `adr_read(name=...)` for a specific record
 - `log_read(agent="rnd-architect")` — review prior architecture analysis in this area
 
 ### When to Log
@@ -271,7 +268,7 @@ Log your agent name as `rnd-architect`.
 ## Verification
 ### Pre-Task Checks
 - Read relevant codebase files to ground options in reality
-- Check for prior ADRs that constrain architectural choices
+- Check the `architecture-decisions` skill for governing decisions that constrain architectural choices
 - Understand the problem fully before proposing solutions
 
 ### In-Task Validation

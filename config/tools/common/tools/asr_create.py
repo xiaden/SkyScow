@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Any
 
 from ..helpers.asr_md import (
     ASR,
-    REQUIREMENTS_DIR,
     _unescape_literal_newlines,
+    asr_status_dir,
     generate_asr,
     make_asr_filename,
     next_asr_number,
     today_iso,
     validate_priority,
     validate_status,
+)
+from ..helpers.governance_index import (
+    GovernanceIndexError,
+    rebuild_governance_indexes,
 )
 
 
@@ -57,16 +62,17 @@ def asr_create(
     requirement = _unescape_literal_newlines(requirement)
     notes = _unescape_literal_newlines(notes)
 
-    requirements_dir = workspace_root / REQUIREMENTS_DIR
-    requirements_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = asr_status_dir(workspace_root, status)
+    target_dir.mkdir(parents=True, exist_ok=True)
 
-    number = next_asr_number(requirements_dir)
+    number = next_asr_number(workspace_root)
     filename = make_asr_filename(number)
-    target_path = requirements_dir / filename
+    target_path = target_dir / filename
     if target_path.exists():
+        rel_existing = str(target_path.relative_to(workspace_root)).replace("\\", "/")
         return {
             "error": "already_exists",
-            "message": f"ASR file already exists: {REQUIREMENTS_DIR}/{filename}",
+            "message": f"ASR file already exists: {rel_existing}",
         }
 
     today = today_iso()
@@ -82,11 +88,27 @@ def asr_create(
     markdown = generate_asr(asr)
     target_path.write_text(markdown, encoding="utf-8")
 
+    # Regenerate the governing index from the reference corpus. Fail closed:
+    # withdraw the just-published record rather than leave a stale index.
+    try:
+        index_summary = rebuild_governance_indexes(workspace_root)
+    except GovernanceIndexError as exc:
+        with contextlib.suppress(OSError):
+            target_path.unlink(missing_ok=True)
+        return {"error": "index_rebuild_failed", "message": str(exc)}
+
     import json as _json
 
     rel_path = str(target_path.relative_to(workspace_root)).replace("\\", "/")
     return {
-        "output": _json.dumps({"path": rel_path, "number": number, "markdown": markdown}),
+        "output": _json.dumps(
+            {
+                "path": rel_path,
+                "number": number,
+                "markdown": markdown,
+                "index": index_summary,
+            }
+        ),
         "title": "Create ASR",
         "metadata": {"target": f"ASR-{number:04d}"},
     }

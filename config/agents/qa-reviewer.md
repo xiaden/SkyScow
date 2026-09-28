@@ -152,12 +152,11 @@ For a bounded non-DAG work item the DAG fields (`dag_slug`, `dag_path`, `executi
 
 Canonical applicability in `config/instructions/qa-applicability.md` owns lens selection from observable facts. This agent does not invent risk tiers, numeric depth scores, or subjective exemptions.
 
-## Architecture Decision Records (ADR) & ASRs
+## Architectural Governance (ADRs & ASRs)
 
-> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/nyx.md.
+> **@canonical:** Governance is a workspace-local skill capability, not a fixed directory.
 
-**Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
-ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.
+When current architectural governance is materially relevant, load the workspace-local `architecture-decisions` skill; when requirement governance is materially relevant, load `system-requirements`. Read one known record in full with `adr_read` / `asr_read` by identity. A repository without those skills has no committed governance corpus — do not create empty governance skills, and do not fabricate governance that does not exist.
 
 ## Workflow — Normal Change-DAG QA composition
 

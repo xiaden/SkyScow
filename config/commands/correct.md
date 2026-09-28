@@ -11,7 +11,7 @@ $ARGUMENTS
 Before changing code:
 
 1. Parse the issue fields (`severity`, `files`, `problem_description`, `recommended_action`, and `expected_behavior`) when present. If fields are absent, derive the same information from the request without inventing requirements.
-2. Review relevant ADRs/ASRs, durable logs, git history for affected files, applicable skills/instructions, definitions and callers, existing tests, and the complete state lifecycle involved.
+2. Review governing decisions and requirements via the workspace-local `architecture-decisions`/`system-requirements` skills, durable logs, git history for affected files, applicable skills/instructions, definitions and callers, existing tests, and the complete state lifecycle involved.
 3. Verify that the listed files own the behavior. Trace related caches, persistence, startup/reload, application facades, public contracts, and error handling rather than treating the file list or recommended action as complete architectural guidance.
 4. Classify the change as local/low-risk, standard, or high-risk. High-risk includes authentication or authorization, credentials or sessions, persistence deletion/migration, cache invalidation, startup/recovery, concurrency, cross-layer changes, public contracts, or security-sensitive data.
 
@@ -20,7 +20,7 @@ Before changing code:
 - For a genuinely local, low-risk correction with no contract or lifecycle impact, proceed with a bounded implementation through the **Direct / Bounded Edit Route** below.
 - For a correction spanning multiple layers, modules, state stores, or lifecycle boundaries, route through `Change-DAG-Author`; after optional bounded review, Nyx owns lifecycle control through the **Change DAG Route** below. The author must create or amend a verifiable Change DAG.
 - For high-risk work, require the Change DAG's requirements to include security implications, failure/partial-operation behavior, concurrency considerations, rollback or recovery semantics, and restart/reload behavior where applicable.
-- If investigation reveals an architectural mismatch, unclear ownership, missing contract, migration requirement, contradictory ADR/ASR, or an unresolved requirement that cannot be safely implemented locally, stop and escalate to `RnD-Manager` or request user clarification. Do not silently choose an architectural shortcut.
+- If investigation reveals an architectural mismatch, unclear ownership, missing contract, migration requirement, contradictory governance record, or an unresolved requirement that cannot be safely implemented locally, stop and escalate to `RnD-Manager` or request user clarification. Do not silently choose an architectural shortcut.
 
 The Change DAG (or bounded implementation) must convert `expected_behavior` into executable invariants. Include normal, negative, persistence, restart/recovery, and relevant concurrency or partial-failure tests. For example, a session-revocation fix must verify validity before reset, immediate invalidity after reset, absence from persisted storage, invalidity after restart, rejection of the old password, and successful login with the new password.
 

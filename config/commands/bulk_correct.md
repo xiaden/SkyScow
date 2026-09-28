@@ -7,7 +7,7 @@ For each issue listed below, task Nyx to execute the complete `/correct` workflo
 Each issue must:
 
 1. Preserve its complete request as an authoritative requirement ledger, including severity, affected files, problem description, recommended action, and expected behavior when supplied.
-2. Review relevant ADRs/ASRs, durable logs, git history, applicable skills/instructions, definitions and callers, tests, and the full state lifecycle before editing.
+2. Review governing decisions and requirements via the workspace-local `architecture-decisions`/`system-requirements` skills, durable logs, git history, applicable skills/instructions, definitions and callers, tests, and the full state lifecycle before editing.
 3. Verify ownership of the listed files and trace related caches, persistence, startup/reload, facades, contracts, error handling, and concurrency concerns.
 4. Be classified as local/low-risk, standard, or high-risk. Authentication, authorization, credentials, sessions, persistence deletion/migration, cache invalidation, startup/recovery, concurrency, cross-layer changes, public contracts, and security-sensitive data are high-risk.
 5. Route multi-layer or high-risk work through `Change-DAG-Author`; after optional bounded review, Nyx controls lifecycle with `dag_start`/`dag_status`/`dag_stop`/`dag_archive`. The author must create or amend a verifiable Change DAG; `dag_executor` executes it deterministically.

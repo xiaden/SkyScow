@@ -5,7 +5,7 @@ description: Procedures for logging observations, decisions, and discoveries dur
 
 # Artifact Logging
 
-**Purpose:** Procedures and conventions for logging observations, decisions, and discoveries during agent work. Covers log writing, log reading, ADR creation, and access rules.
+**Purpose:** Procedures and conventions for logging observations, decisions, and discoveries during agent work. Covers log writing, log reading, ADR proposal/approval/commit, and access rules. Committed governance records live in the workspace-local `architecture-decisions` and `system-requirements` skills.
 
 ## When to Use
 
@@ -17,8 +17,17 @@ description: Procedures for logging observations, decisions, and discoveries dur
 
 **Do NOT use this skill for:**
 - Creating design documents (use `dd_create`)
-- Writing ASRs (use `asr_create`)
+- Writing ASR records (use `asr_create`; committed records live in the `system-requirements` skill)
 - Managing Change DAGs (use `dag_*` tools)
+
+## Governance Locations
+
+Committed governance records are workspace-local skill content, not a fixed repository directory. This skill owns the **proposal, approval, and commit workflow** for them:
+
+- **ADRs** commit into the `architecture-decisions` skill's status directories (`references/{accepted,deprecated,superseded}/`) and are indexed by its generated `SKILL.md`. The two-step `adr_suggest` → `adr_commit` workflow below owns proposal and user approval; `adr_read(name)` reads one committed record by identity.
+- **ASRs** commit into the `system-requirements` skill's status directories (`references/{active,archived,superseded}/`) and are indexed by its generated `SKILL.md`; `asr_create` writes one and `asr_read(name)` reads it by identity.
+
+These skills are workspace-local capability: their existence means the repository has that governance corpus, and their absence means it does not. Do not create empty governance skills.
 
 ## When to Log
 
@@ -82,7 +91,7 @@ When you make a decision that constrains future work:
 1. **Log the reasoning first** using `log_write` with category `decision`
 2. **Create the ADR** using `adr_suggest` — reference the log entry in `source_log`
 3. **User approves** (you must ask)
-4. **Commit the ADR** using `adr_commit`
+4. **Commit the ADR** using `adr_commit` — the committed record lands in the `architecture-decisions` skill
 
 **When to create ADRs:**
 - Architectural decisions that constrain future work

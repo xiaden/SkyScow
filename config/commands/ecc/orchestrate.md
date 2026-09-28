@@ -58,7 +58,7 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 |-------|-----------|---------|
 | support-researcher | Deep research | Codebase exploration, external docs, structured findings |
 | support-debugger | Root cause analysis | Traces execution, forms hypotheses, returns diagnosis with fix |
-| support-librarian | Artifact corpus navigator | Searches ADRs, logs, design docs; returns curated context summaries |
+| support-librarian | Process-artifact navigator | Searches logs, dead ends, and prior design docs; returns curated context summaries |
 | support-pattern-enforcer | Consistency propagation | Finds all files that should adopt a pattern but haven't |
 
 ## Orchestration Patterns
@@ -149,7 +149,7 @@ These examples preserve static authority; they are not a registry or state-machi
 - **E — Unclear node failure:** select Support-Debugger; route `SIMPLE` to a bounded raw edit, `NEEDS_DAG` to Change-DAG-Author for a DAG amendment and lifecycle retry, and `INCONCLUSIVE` to escalation.
 - **F — QA `DAG_GAP`:** route by lifecycle. If the original DAG is still executing/recovering and not completed, amend it via Change-DAG-Author and re-run, then run normal QA again. If it is already completed, never reopen it: route a small/local gap to a bounded raw repair, or a substantial/cross-cutting gap to a NEW remediation Change DAG, then run normal QA again. A completed DAG is never amended; a `DAG_GAP` is never blindly forced into a raw edit.
 - **G — Accepted migration:** select PatternEnforcer only for accepted impact closure or migration scope; findings remain advisory and scope changes return to Change-DAG-Author.
-- **H — Historical artifacts:** select Support-Librarian only when ADRs, DDs, logs, or dead ends materially constrain DAG creation/routing; record a skip otherwise.
+- **H — Historical artifacts:** select Support-Librarian only when prior process artifacts (logs, DDs, dead ends) materially constrain DAG creation/routing; load the `architecture-decisions`/`system-requirements` skill for governing decisions and requirements; record a skip otherwise.
 - **I — No history:** with no relevant artifact infrastructure, skip Support-Librarian and do not manufacture a briefing.
 - **J — Architectural contradiction:** stop execution and return upstream to the accepted DD/request owner; no DAG agent invents a resolution.
 - **K — A/C with independent B:** if A produces a contract consumed by C while B has no real edge, preserve `A → C`, keep B independent, and execution remains dependency-ordered.

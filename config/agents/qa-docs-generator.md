@@ -15,10 +15,8 @@ permission:
   write: allow
   read_module_*: allow
   adr_read: allow
-  adr_search: allow
   dd_read: allow
   asr_read: allow
-  asr_search: allow
   question: allow
   list: allow
   todowrite: allow

@@ -12,10 +12,8 @@ permission:
   log_write: allow
   read_module_*: allow
   adr_read: allow
-  adr_search: allow
   dd_read: allow
   asr_read: allow
-  asr_search: allow
   question: allow
   write: allow
   list: allow
@@ -177,12 +175,11 @@ Two tools for gathering external information. Choose based on what you know goin
 - **Don't read entire files** — Use structured tools
 - **Don't skip the output format** — Callers parse your structure
 
-## Architecture Decision Records (ADR) & ASRs
+## Architectural Governance (ADRs & ASRs)
 
-> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/nyx.md.
+> **@canonical:** Governance is a workspace-local skill capability, not a fixed directory.
 
-**Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
-ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.
+When current architectural governance is materially relevant, load the workspace-local `architecture-decisions` skill; when requirement governance is materially relevant, load `system-requirements`. Read one known record in full with `adr_read` / `asr_read` by identity. A repository without those skills has no committed governance corpus — do not create empty governance skills, and do not fabricate governance that does not exist.
 
 ## Artifact Logging Behavior
 
@@ -191,7 +188,7 @@ Your research findings are some of the most valuable logs in the system. Future 
 ### Before Researching
 
 - `log_read(agent="support-researcher", tag="topic")` — check for prior research on the same topic
-- `adr_search(query="topic")` — understand existing decisions that contextualize the research
+- consult the workspace-local `architecture-decisions` governance skill for governing decisions, then `adr_read(name=...)` for a specific record
 - `log_read(category="dead-end")` — avoid paths already known to fail
 
 ### When to Log

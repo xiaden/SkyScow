@@ -107,7 +107,7 @@ Before executing any task, check this matrix. If the task matches a row, delegat
 | QA review | QA-Reviewer | Implementation complete, before merge | Full review, no edits | Review report with tiered status |
 | Root cause analysis | Support-Debugger | 3+ failed fix attempts, unexplained failure | Read-only diagnosis | Diagnosis with suggested fix |
 | Deep codebase research | Support-Researcher | Need to understand unfamiliar system (5+ files) | Read-only exploration | Structured findings with code locations |
-| Log/ADR navigation | Support-Librarian | Starting work in unfamiliar area | Read-only curation | Curated summary of relevant artifacts |
+| Process-artifact navigation | Support-Librarian | Starting work in unfamiliar area | Read-only curation | Curated summary of relevant process history |
 
 ### Autonomy Levels
 - **Atomic execution:** Delegatee follows strict specification, returns structured output. Use for
@@ -164,7 +164,7 @@ Decompose into the five REprompt components. Each component is independently aud
 - QA-Reviewer: Quality gate (post-implementation review)
 - Support-Debugger: Root cause analysis (diagnostic, not execution)
 - Support-Researcher: Deep codebase exploration (read-only)
-- Support-Librarian: Artifact navigation (ADRs, logs, design docs)
+- Support-Librarian: Process-artifact navigation (logs, dead ends, prior design docs)
 
 **Available Skills:** [list of skills with trigger conditions]
 

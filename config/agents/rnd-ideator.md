@@ -12,9 +12,7 @@ permission:
   log_write: allow
   dd_read: allow
   adr_read: allow
-  adr_search: allow
   asr_read: allow
-  asr_search: allow
   read_module_*: allow
   question: allow
   list: allow
@@ -144,12 +142,11 @@ When spawned by the Refiner, follow the selected-interaction instructions above.
 
 ### Standalone Mode (Direct)
 
-## Architecture Decision Records (ADR) & ASRs
+## Architectural Governance (ADRs & ASRs)
 
-> **@canonical:** See the authoritative ADR/ASR policy in ~/.config/opencode/agents/nyx.md.
+> **@canonical:** Governance is a workspace-local skill capability, not a fixed directory.
 
-**Before using ADR/ASR features:** Verify that `artifacts/decisions/` and/or `artifacts/requirements/` directories exist. If absent, skip all ADR/ASR workflows entirely — do not create them, do not reference them, do not suggest them.
-ADRs/ASRs are opt-in infrastructure. The user will onboard you when the project needs formal decision tracking.
+When current architectural governance is materially relevant, load the workspace-local `architecture-decisions` skill; when requirement governance is materially relevant, load `system-requirements`. Read one known record in full with `adr_read` / `asr_read` by identity. A repository without those skills has no committed governance corpus — do not create empty governance skills, and do not fabricate governance that does not exist.
 
 ### 1. Understand the Problem Space
 
@@ -158,7 +155,7 @@ Before ideating:
 - Read architectural constraints — some ideas are DOA if they violate layer rules
 - Search codebase for similar solved problems — the best idea might already exist in adjacent code
 - Identify reusable patterns and components
-- Note what's been tried before (check logs and ADRs)
+- Note what's been tried before (check logs and, where relevant, the `architecture-decisions` / `system-requirements` governance skills)
 
 ### 2. Divergent Thinking
 
@@ -275,7 +272,7 @@ Log your agent name as `rnd-ideator`.
 ## Verification
 ### Pre-Task Checks
 - Read relevant codebase files to understand the problem space
-- Check for prior ADRs that constrain the solution space
+- Check the `architecture-decisions` skill for governing decisions that constrain the solution space
 - Understand what's already been tried (logs, dead ends)
 
 ### In-Task Validation

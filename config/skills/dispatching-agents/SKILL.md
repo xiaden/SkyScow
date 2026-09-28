@@ -66,7 +66,7 @@ Do NOT: [negative constraints — what the agent must not do]
 | **List every context file.** | The agent starts with NO inherited context. It cannot see files you don't name. Every file it should read before acting must be listed, with relevant symbols or line ranges where useful. |
 | **Restate all non-file context.** | User requirements, constraints, prior decisions, hypotheses, failure output, and expected behavior must be directly stated or linked to a durable artifact. Never rely on conversation history. |
 | **Include negative constraints.** | Tell the agent what NOT to do. Research agents should not implement. Change-DAG authors should not edit source. Without this, scope bleeds. |
-| **Be specific about output.** | "Tell me what you find" is a briefing, not a dispatch. "Return an ADR in artifacts/decisions/" is a dispatch. |
+| **Be specific about output.** | "Tell me what you find" is a briefing, not a dispatch. "Read ADR-003 by identity with `adr_read(name=\"ADR-003\")`" is a dispatch. |
 | **One task per dispatch.** | "Execute the DAG AND fix the tests AND update the docs" is three dispatches. Scope-creeping dispatches produce scope-creeping output. |
 
 For design, decomposition, implementation, and QA handoffs, include the original
@@ -93,7 +93,7 @@ Task at hand
 ├─ A single file read or lookup? → Do it yourself (no dispatch)
 ├─ A trivial fix (typo, missing import)? → Fix it directly
 ├─ Requires deep multi-file investigation? → Dispatch Support-Researcher (standard depth)
-├─ Prior decisions/logs/design docs materially constrain the route? → Select Support-Librarian; otherwise record the evidence-based skip
+├─ Prior process artifacts (logs, dead ends, prior DDs) materially constrain the route? → Select Support-Librarian; for governing decisions/requirements load the `architecture-decisions`/`system-requirements` skill; otherwise record the evidence-based skip
 ├─ Requires diagnosing a failure? → Read affected files yourself first
 │  ├─ Cause is obvious after reading → Fix directly
 │  └─ Cause is unclear → Dispatch Support-Debugger
@@ -118,7 +118,7 @@ Task at hand
 
 ### Dispatch Lifecycle
 
-1. **Before dispatch:** Select and open the exact per-agent reference linked in the Agent Selection tables. Do your own investigation and check logs/ADRs so you can give the agent concrete context — not "figure out what's wrong."
+1. **Before dispatch:** Select and open the exact per-agent reference linked in the Agent Selection tables. Do your own investigation and check logs, process artifacts, and the local governance skills so you can give the agent concrete context — not "figure out what's wrong."
 2. **During dispatch:** Fill every field in that per-agent reference. List every file and artifact. Directly state every requirement, decision, constraint, hypothesis, and expected output. State what the agent must NOT do.
 3. **After dispatch:** Verify the output against the expected contract. If malformed or incomplete, re-dispatch with clarification. Log significant findings. Route results to the next step.
 
@@ -132,7 +132,7 @@ Task at hand
 | No negative constraints | Agent over-steps — researcher writes code, author implements | Always add "Do NOT" — the bolded worker-spawn blocks in manager references exist for this reason |
 | Wrong agent for the task | Output doesn't match expectations or is formatted wrong | Check the selection table. Change-DAG agents don't design. R&D agents don't execute. |
 | Too broad scope | Agent returns shallow, surface-level results | Narrow to one change, one module, one decision. Multi-part work → multiple dispatches. |
-| Missing relevant artifact context | Agent proposes patterns that contradict existing ADRs or recorded decisions | Select Support-Librarian when prior ADRs, ASRs, logs, DDs, or dead ends are relevant; otherwise record the evidence-based skip. Independent Librarian and Researcher nodes may run concurrently. |
+| Missing relevant artifact context | Agent proposes patterns that contradict prior process history or governing decisions | Select Support-Librarian when prior process artifacts (logs, DDs, dead ends) are relevant; load the `architecture-decisions`/`system-requirements` skill for governing decisions and requirements; otherwise record the evidence-based skip. Independent Librarian and Researcher nodes may run concurrently. |
 | Dispatching for a single-file read | Wasted context, slower than doing it yourself | If a `read` or `aft_search` call answers it, don't dispatch. |
 
 ## Agent Selection
@@ -203,11 +203,11 @@ QA-RepoReviewManager is the separate whole-tree GitHub review entry point, disti
 | Task | Reference |
 |------|-----------|
 | Diagnose test, runtime, lint, or behavior failures | [`support-debugger`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-debugger.md) |
-| Gather artifact context (ADRs, logs, design docs) | [`support-librarian`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) |
+| Gather process-artifact context (logs, dead ends, prior design docs) | [`support-librarian`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) |
 | Check pattern coverage and consistency | [`support-patternenforcer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-patternenforcer.md) |
 | Deep codebase or external documentation research | [`support-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) |
 
-All support agents are dispatched directly — they have no internal orchestrator. Select Support-Librarian only when prior artifacts materially constrain the route; otherwise record the evidence-based skip. Independent Librarian and Researcher work may run concurrently.
+All support agents are dispatched directly — they have no internal orchestrator. Select Support-Librarian only when prior process artifacts materially constrain the route; otherwise record the evidence-based skip. Independent Librarian and Researcher work may run concurrently.
 
 ## Cross-Cutting Concerns
 
@@ -295,7 +295,7 @@ Spawning a manager (RnD-Manager)?
    [`qa-repo-review-authorized-pilot`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-authorized-pilot.md) — Optional disposable-repository pilot checklist; no live success is implied.
 
   **Support:** [`support-debugger.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-debugger.md) — Root cause analysis for failures.
-  [`support-librarian.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) — Artifact context (ADRs, logs, design docs).
+  [`support-librarian.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) — Process-artifact context (logs, dead ends, prior design docs).
   [`support-patternenforcer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-patternenforcer.md) — Pattern coverage and consistency checks.
   [`support-researcher.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) — Deep codebase and external research.
 
