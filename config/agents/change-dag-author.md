@@ -230,10 +230,10 @@ Worker output is the input to frontier reconciliation; you do not lower the whol
 
 ```text
 1. retrieve its bounded scope with `dag_decomposition_scope(slug, node_id)`;
-2. search the live repository to locate relevant existing surfaces;
-3. read only the live source needed for that semantic requirement;
-4. read applicable accepted lower DAG work affecting those surfaces with frontier-bounded `dag_read` / `dag_grep` / `dag_search` at `node_id=<this semantic node>`;
-5. generate mechanically executable terminal work;
+2. locate relevant existing surfaces with `dag_search` / `dag_grep` at `node_id=<this semantic node>`;
+3. read only the projected source needed for that semantic requirement with `dag_read(path=..., node_id=<this semantic node>)`, which returns live source plus accepted strictly-deeper work plus the node's own persisted work;
+4. author terminal work with `dag_add_*` / `dag_update_*`, which validate locally against the semantic owner's accepted base;
+5. re-read the node's own projected result with `dag_read` to self-verify before returning;
 6. when engineering judgment remains unresolved, add further semantic decomposition instead of vague work — persist `decomposition_only=true` only when the node intentionally owns no direct terminal work, and otherwise leave it unresolved so the service returns it on a later frontier.
 ```
 

@@ -197,10 +197,10 @@ def test_update_node_satisfied_terminal_immutable_failed_mutable(workspace):
     assert rejected["error"] == "immutable_node"
 
     write_state(workspace, "demo", {"N3": "failed"})
-    allowed = update_node(workspace, "demo", "N3", path="y.txt")
+    allowed = update_node(workspace, "demo", "N3", replacements=[{"old": "b", "new": "c"}])
     assert allowed.get("output") is not None
     dag = read_json(dag_json_path(workspace, "demo"))
-    assert dag["nodes"]["N3"]["path"] == "y.txt"
+    assert "c" in dag["nodes"]["N3"]["patch"]
 
 
 # ---------------------------------------------------------------------------

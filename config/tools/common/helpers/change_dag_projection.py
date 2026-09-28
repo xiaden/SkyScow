@@ -1,18 +1,28 @@
-"""Frontier-bounded source projection for Change DAG authoring tools.
+"""Scoped projected repository views for Change DAG worker tooling.
 
-One projection facility backs ``dag_read``/``dag_grep``/``dag_search``: live
-repository content plus accepted work from construction frontiers *strictly
-deeper* than the assigned semantic boundary. Same-frontier peers, the boundary
-node's own proposal, and shallower/future work are excluded by construction.
+Two lenses share one facility:
 
-The projection deliberately reuses ``compile_lower_work``, the same lowering the
-authoring preview uses, so a worker reading through these tools sees exactly the
-projected content the preview reports.
+``BASE`` (:func:`projected_source`) -- live repository content plus accepted
+work from construction frontiers *strictly deeper* than the assigned semantic
+boundary, and nothing the boundary node itself authored. Mutation tooling
+validates a NEW or CHANGING terminal operation against this lens, so an
+operation's own work can never become its own base.
+
+``SELF`` (:func:`projected_self_source`) -- BASE plus the boundary semantic
+node's own persisted direct terminal work. This is the lens
+``dag_read``/``dag_grep``/``dag_search`` return, so a worker can verify what it
+just authored.
+
+Both lenses exclude same-frontier peers, shallower/future work, and unowned
+sibling proposals by construction. The projection deliberately reuses
+``compile_lower_work``, the same lowering the authoring preview uses, so a
+worker reading through these tools sees exactly the projected content the
+preview reports.
 
 Unresolved, non-executable, or globally conflicted DAGs still project fine:
-only conflicts in the *applicable* (strictly deeper) work surface, and those
-mark just the affected paths as unreproducible instead of silently falling back
-to stale live content.
+only conflicts in the *applicable* work surface mark paths as unreproducible
+instead of silently falling back to stale live content, and broad searches
+surface those conflicts rather than hiding them.
 """
 from __future__ import annotations
 
@@ -31,8 +41,26 @@ from .change_dag_patch import PatchError, read_text_preserving
 from .change_dag_ops_support import _error, _load
 
 
-_EXCLUDED_DIRS = {".git", ".control", "__pycache__"}
+_EXCLUDED_DIRS = {".git", ".control", "__pycache__", "change-dags", "node_modules", "vendor"}
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
+
+
+def live_paths(workspace_root: Path) -> list[str]:
+    """Deterministic workspace-relative paths of live repository files.
+
+    Shared by the projected-source tools so live scanning and projected scanning
+    walk the same file set in the same order, and so neither needs a worktree.
+    """
+    found: list[str] = []
+    for root, dirs, files in os.walk(workspace_root, topdown=True):
+        dirs[:] = sorted(name for name in dirs if name not in _EXCLUDED_DIRS)
+        for name in sorted(files):
+            target = Path(root) / name
+            try:
+                found.append(target.relative_to(workspace_root).as_posix())
+            except ValueError:
+                continue
+    return sorted(found)
 
 
 def effective_content(
@@ -94,12 +122,7 @@ class ProjectedSource:
         if self_text == "":
             return []
         relations = _line_relations(live, base, self_text)
-        attributable = [entry for entry in relations if entry[0] != "live"]
-        total = len(self_text.splitlines(keepends=True))
-        chosen = attributable or [("live", 1, total)]
-        clipped = _clip(chosen, start, end)
-        if not clipped:
-            clipped = [("live", start, end)]
+        clipped = _clip(relations, start, end)
         return [
             {
                 "lines": [low, high],
@@ -136,17 +159,38 @@ class ProjectedSource:
                 }
         return None
 
+    def affected_paths(self) -> set[str]:
+        """Paths whose truth is governed by accepted-lower or owned work.
+
+        These are the paths where live repository truth is superseded: an
+        affected path's live content and live matches are invalid, and the
+        projected content is authoritative instead. Move operators contribute
+        both sides, so a moved-away source and its destination are included.
+        """
+        return set(self.lower_path_nodes) | set(self.owned_path_nodes)
+
+    def projection_failures(self) -> list[dict[str, Any]]:
+        """Applicable self-view conflicts that make a broad read incomplete.
+
+        Only conflicts belonging to this boundary's SELF view appear here:
+        same-frontier peers and shallower/future work are excluded while the
+        projection is built, so they can never poison the result. A broad
+        search that silently skipped these paths would report a false negative,
+        so callers must surface them instead.
+        """
+        seen: dict[str, dict[str, Any]] = {}
+        for conflict in self.conflicts:
+            if conflict.path in seen:
+                continue
+            seen[conflict.path] = {
+                "path": conflict.path,
+                "nodes": list(conflict.nodes),
+                "reason": conflict.reason,
+            }
+        return [seen[path] for path in sorted(seen)]
+
     def paths(self) -> Iterator[str]:
-        live: set[str] = set()
-        for root, dirs, files in os.walk(self.workspace_root, topdown=True):
-            dirs[:] = sorted(name for name in dirs if name not in _EXCLUDED_DIRS)
-            for name in sorted(files):
-                target = Path(root) / name
-                try:
-                    live.add(target.relative_to(self.workspace_root).as_posix())
-                except ValueError:
-                    continue
-        for candidate in sorted((live | set(self.overlay)) - self.removed):
+        for candidate in sorted((set(live_paths(self.workspace_root)) | set(self.overlay)) - self.removed):
             if self.error(candidate) is None:
                 yield candidate
 

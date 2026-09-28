@@ -107,6 +107,175 @@ def _generated_edit_patch(base: str, source: str, replacements: Any, path: str) 
         return _error("edit_unrepresentable", str(exc))
 
 
+def _producer_evidence(dag: dict[str, Any], source: Any, path: str) -> list[str]:
+    """Terminal nodes that produce ``path`` but sit outside the accepted base.
+
+    Diagnostic structure only. When a mutation fails because required base state
+    is unavailable, the likeliest explanation is that another branch produces it,
+    so naming those producer IDs lets a worker return a useful ``BLOCKED``
+    result and lets the author spot a missing causal edge. Producer content is
+    never exposed, and no dependency is added.
+    """
+    visible = set(source.lower_path_nodes.get(path, []))
+    producers: list[str] = []
+    for candidate, node in change_dag.node_map(dag).items():
+        kind = node.get("type")
+        if kind == "create" and node.get("path") == path:
+            producers.append(candidate)
+        elif kind == "move" and node.get("to_path") == path:
+            producers.append(candidate)
+    return sorted(
+        (node_id for node_id in producers if node_id not in visible),
+        key=change_dag._numeric_id,
+    )
+
+
+def _unavailable(code: str, message: str, dag: dict[str, Any], source: Any, path: str) -> dict[str, Any]:
+    """An unavailable-base error, enriched with candidate producer IDs."""
+    payload = _error(code, message)
+    candidates = _producer_evidence(dag, source, path)
+    if candidates:
+        payload["candidate_producers"] = candidates
+    return payload
+
+
+def _validate_create(node: dict[str, Any], dag: dict[str, Any], source: Any) -> dict[str, Any] | None:
+    """A create is authorable only when its target is absent from BASE."""
+    path = node["path"]
+    base = _base_content(source, path)
+    if isinstance(base, dict):
+        return base
+    if base is not None:
+        return _error(
+            "create_target_exists",
+            f"create target already exists in the accepted base: {path!r}",
+        )
+    return None
+
+
+def _validate_remove(node: dict[str, Any], dag: dict[str, Any], source: Any) -> dict[str, Any] | None:
+    """A remove is authorable only when its target is present in BASE."""
+    path = node["path"]
+    base = _base_content(source, path)
+    if isinstance(base, dict):
+        return base
+    if base is None:
+        return _unavailable(
+            "remove_target_unavailable",
+            f"remove target is absent from the accepted base: {path!r}",
+            dag,
+            source,
+            path,
+        )
+    return None
+
+
+def _validate_move(node: dict[str, Any], dag: dict[str, Any], source: Any) -> dict[str, Any] | None:
+    """A move is authorable only when its whole resulting shape is.
+
+    Source presence, destination non-production by accepted lower work, and
+    destination collision under ``overwrite`` are all checked against BASE.
+    """
+    from_path = node["from_path"]
+    to_path = node["to_path"]
+    overwrite = bool(node.get("overwrite", False))
+    source_text = _base_content(source, from_path)
+    if isinstance(source_text, dict):
+        return source_text
+    if source_text is None:
+        return _unavailable(
+            "move_source_unavailable",
+            f"move source is absent from the accepted base: {from_path!r}",
+            dag,
+            source,
+            from_path,
+        )
+    destination = _base_content(source, to_path)
+    if isinstance(destination, dict):
+        return destination
+    if to_path in source.overlay:
+        return _error(
+            "move_destination_conflict",
+            f"move destination was produced by accepted lower DAG work: {to_path!r}",
+        )
+    if destination is not None and not overwrite:
+        return _error(
+            "move_destination_conflict",
+            f"move destination already exists in the accepted base: {to_path!r}",
+        )
+    return None
+
+
+def _validate_terminal(kind: str, node: dict[str, Any], dag: dict[str, Any], source: Any) -> dict[str, Any] | None:
+    """Shared authorability check for create/remove/move (``edit`` uses a patch)."""
+    if kind == "create":
+        return _validate_create(node, dag, source)
+    if kind == "remove":
+        return _validate_remove(node, dag, source)
+    if kind == "move":
+        return _validate_move(node, dag, source)
+    return None
+
+
+def _self_view(base: str, existing: dict[str, Any], path: str) -> Any:
+    """Replay an existing edit's persisted patch onto BASE, or return an error."""
+    try:
+        return apply_patches(base, parse_unified_diff(existing["patch"]), path=path)
+    except PatchError as exc:
+        return _error("edit_self_view_unavailable", str(exc))
+
+
+def _resolve_edit_update(
+    existing: dict[str, Any], provided: dict[str, Any], dag: dict[str, Any], source: Any
+) -> tuple[str | None, dict[str, Any] | None]:
+    """Resolve the resulting edit patch for an update, or return an error.
+
+    Same-path replacements are interpreted against the node's SELF view (BASE
+    plus this node's persisted edit) and consolidated into one BASE-relative
+    patch, which preserves incremental authoring. Retargeting an edit to a
+    different path is a fresh statement of intent: it requires replacements
+    interpreted against the NEW path's BASE, and the old patch is never
+    transplanted. Only one of the returned values is non-``None``.
+    """
+    old_path = existing.get("path")
+    new_path = provided.get("path", old_path)
+    replacements = provided.get("replacements")
+    changed_path = new_path != old_path
+
+    if changed_path and replacements is None:
+        return None, _error(
+            "edit_path_change_requires_replacements",
+            "changing an edit node's path requires fresh structured replacements",
+        )
+
+    base = _base_content(source, new_path)
+    if isinstance(base, dict):
+        return None, base
+    if base is None:
+        return None, _unavailable(
+            "edit_base_unavailable",
+            f"no accepted base content for {new_path!r}",
+            dag,
+            source,
+            new_path,
+        )
+
+    if changed_path:
+        interpretation: Any = base
+    else:
+        if replacements is None:
+            # Metadata-only update on the same path: keep the persisted patch.
+            return existing.get("patch"), None
+        interpretation = _self_view(base, existing, new_path)
+        if isinstance(interpretation, dict):
+            return None, interpretation
+
+    generated = _generated_edit_patch(base, interpretation, replacements, new_path)
+    if isinstance(generated, dict):
+        return None, generated
+    return generated, None
+
+
 def _semantic_owner(dag: dict[str, Any], node_id: str) -> Any:
     """Return the single semantic parent of ``node_id``, or an error payload."""
     parents = [
@@ -118,7 +287,7 @@ def _semantic_owner(dag: dict[str, Any], node_id: str) -> Any:
     if len(parents) != 1:
         return _error(
             "invalid_arguments",
-            f"edit node {node_id} must have exactly one semantic parent",
+            f"terminal node {node_id} must have exactly one semantic parent",
         )
     return parents[0]
 
@@ -317,37 +486,23 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
             return path
         node["path"] = path
         if kind == "create":
-            base = _base_content(source, path)
-            if isinstance(base, dict):
-                return base
-            if base is not None:
-                return _error(
-                    "create_target_exists",
-                    f"create target already exists in the accepted base: {path!r}",
-                )
             node["content"] = fields.get("content")
         elif kind == "edit":
             base = _base_content(source, path)
             if isinstance(base, dict):
                 return base
             if base is None:
-                return _error(
+                return _unavailable(
                     "edit_base_unavailable",
                     f"no accepted base content for {path!r}",
+                    dag,
+                    source,
+                    path,
                 )
             generated = _generated_edit_patch(base, base, fields.get("replacements"), path)
             if isinstance(generated, dict):
                 return generated
             node["patch"] = generated
-        else:  # remove
-            base = _base_content(source, path)
-            if isinstance(base, dict):
-                return base
-            if base is None:
-                return _error(
-                    "remove_target_unavailable",
-                    f"remove target is absent from the accepted base: {path!r}",
-                )
     elif kind == "move":
         from_path = _canonical_path_field(fields.get("from_path"), "from_path")
         if isinstance(from_path, dict):
@@ -358,27 +513,6 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
         overwrite = _bool_field(fields.get("overwrite"), "overwrite")
         if isinstance(overwrite, dict):
             return overwrite
-        source_text = _base_content(source, from_path)
-        if isinstance(source_text, dict):
-            return source_text
-        if source_text is None:
-            return _error(
-                "move_source_unavailable",
-                f"move source is absent from the accepted base: {from_path!r}",
-            )
-        destination = _base_content(source, to_path)
-        if isinstance(destination, dict):
-            return destination
-        if to_path in source.overlay:
-            return _error(
-                "move_destination_conflict",
-                f"move destination was produced by accepted lower DAG work: {to_path!r}",
-            )
-        if destination is not None and not overwrite:
-            return _error(
-                "move_destination_conflict",
-                f"move destination already exists in the accepted base: {to_path!r}",
-            )
         node["from_path"] = from_path
         node["to_path"] = to_path
         node["overwrite"] = overwrite
@@ -389,6 +523,13 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
             return _error("run_command_rejected", reason)
         node["command"] = list(command)
         node["exclusive"] = bool(fields.get("exclusive", False))
+
+    # ``edit`` proves authorability by generating its patch; the other terminal
+    # kinds share the update path's validator so add and update cannot diverge.
+    if kind in ("create", "remove", "move"):
+        failure = _validate_terminal(kind, node, dag, source)
+        if failure is not None:
+            return failure
 
     new_id = _peek_next_id(dag, workspace_root, slug)
     candidate = copy.deepcopy(dag)
@@ -464,39 +605,28 @@ def update_node(workspace_root: Path, slug: str, node_id: str, **fields: Any) ->
             return overwrite
         provided["overwrite"] = overwrite
 
-    if kind == "edit" and "replacements" in provided:
-        # Reinterpret the replacement request against the node's self-view
-        # (accepted base + this node's persisted edit) and regenerate ONE
-        # consolidated patch against the base. Any failure returns before the
-        # candidate is built, so the prior edit stays byte-unchanged.
+    if kind in ("create", "edit", "remove", "move"):
+        # Every terminal mutation proves the RESULTING operation against the
+        # semantic owner's accepted base before persistence -- the same check
+        # ``add_work`` performs, so add and update cannot diverge.
         owner = _semantic_owner(dag, node_id)
         if isinstance(owner, dict):
             return owner
-        target_path = provided.get("path", nodes[node_id].get("path"))
         source, projection_error = _projection(workspace_root, slug, owner)
         if source is None:
             return projection_error
-        base = _base_content(source, target_path)
-        if isinstance(base, dict):
-            return base
-        if base is None:
-            return _error(
-                "edit_base_unavailable",
-                f"no accepted base content for {target_path!r}",
-            )
-        try:
-            self_view = apply_patches(
-                base,
-                parse_unified_diff(nodes[node_id]["patch"]),
-                path=target_path,
-            )
-        except PatchError as exc:
-            return _error("edit_self_view_unavailable", str(exc))
-        generated = _generated_edit_patch(base, self_view, provided["replacements"], target_path)
-        if isinstance(generated, dict):
-            return generated
-        provided.pop("replacements")
-        provided["patch"] = generated
+        if kind == "edit":
+            patch, failure = _resolve_edit_update(nodes[node_id], provided, dag, source)
+            if failure is not None:
+                return failure
+            provided.pop("replacements", None)
+            provided["patch"] = patch
+        else:
+            result = dict(nodes[node_id])
+            result.update(provided)
+            failure = _validate_terminal(kind, result, dag, source)
+            if failure is not None:
+                return failure
 
     candidate = copy.deepcopy(dag)
     candidate["nodes"][node_id].update(provided)

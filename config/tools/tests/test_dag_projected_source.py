@@ -154,11 +154,13 @@ def test_malformed_applicable_work_is_reported_not_silently_live(tmp_path):
     assert dag_search(
         "broken", "N3", "live", path="source.txt", workspace_root=root
     )["error"] == "projection_failed"
-    # The failure is scoped to the affected path, not the whole DAG.
+    # The failure is scoped to the affected path, not the whole DAG...
     assert dag_read("broken", "N3", "other.txt", workspace_root=root)["content"] == "unrelated\n"
-    assert dag_grep("broken", "N3", "unrelated", workspace_root=root)["matches"] == [
-        {"path": "other.txt", "line": 1}
-    ]
+    # ...but a BROAD search must report that its truth is incomplete rather
+    # than silently omitting the path it could not reproduce.
+    broad = dag_grep("broken", "N3", "unrelated", workspace_root=root)
+    assert broad["error"] == "projection_failed"
+    assert [entry["path"] for entry in broad["failures"]] == ["source.txt"]
 
 
 def test_base_view_excludes_boundary_owned_work(tmp_path):

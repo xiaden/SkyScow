@@ -212,7 +212,7 @@ def test_authoring_boundary_canonicalizes_and_rejects(tmp_path):
 
 
 def test_update_node_canonicalizes_and_rejects_unusable_paths(tmp_path):
-    root = workspace(tmp_path, **{"x.py": "a\n"})
+    root = workspace(tmp_path, **{"x.py": "a\n", "y.py": "c\n"})
     assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root", "requires": ["semantic"]}, "semantic": {"requirement": "authoring"}}}
                       ).get("error") is None
     assert add_work(root, "identity", "edit", ["N2"], path="x.py",
@@ -221,10 +221,25 @@ def test_update_node_canonicalizes_and_rejects_unusable_paths(tmp_path):
     rejected = update_node(root, "identity", "N3", path="../escape.py")
     assert rejected["error"] == "invalid_path"
 
-    updated = update_node(root, "identity", "N3", path="./pkg/../y.py")
-    assert updated.get("error") is None
+    # Retargeting an edit is fresh intent, so a bare path change is refused.
+    bare = update_node(root, "identity", "N3", path="./pkg/../y.py")
+    assert bare["error"] == "edit_path_change_requires_replacements"
+
+    retargeted = update_node(
+        root,
+        "identity",
+        "N3",
+        path="./pkg/../y.py",
+        replacements=[{"old": "c", "new": "d"}],
+    )
+    assert retargeted.get("error") is None
     dag, _path, _location = change_dag.read_dag(root, "identity")
-    assert change_dag.node_map(dag)["N3"]["path"] == "y.py"
+    node = change_dag.node_map(dag)["N3"]
+    # The canonical new path is stored, and the regenerated patch targets it
+    # rather than transplanting the old file's patch.
+    assert node["path"] == "y.py"
+    assert "y.py" in node["patch"]
+    assert "x.py" not in node["patch"]
 
 
 def test_structure_validation_flags_unusable_paths(tmp_path):

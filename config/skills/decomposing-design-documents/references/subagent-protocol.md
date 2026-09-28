@@ -11,7 +11,7 @@ The authoring entry point receives:
 3. the Change DAG graph rules and tool contract;
 4. existing accepted DD/decision context when applicable.
 
-Discovery always reads the live repository. There is no projected planning worktree; accepted lower work is combined with live source through frontier-bounded `dag_read` / `dag_grep` / `dag_search` at `node_id=<boundary semantic node>`, which excludes same-frontier peers, the boundary node's own work, and shallower/future work. `dag_preview(path=..., node_id=...)` remains available for compiled operation/conflict metadata.
+Discovery always reads the live repository. There is no projected planning worktree; accepted lower work is combined with live source through `dag_read` / `dag_grep` / `dag_search` at `node_id=<boundary semantic node>`, which return that boundary's SELF view: live source, strictly-deeper accepted work, and the boundary node's own persisted terminal work, while excluding same-frontier peers and shallower/future work. The narrower BASE lens (accepted lower work only) is what a new or changing mutation is validated against, so an operation never becomes its own base. `dag_preview(path=..., node_id=...)` remains available for compiled operation/conflict metadata.
 
 ## Authoring behavior
 

@@ -494,7 +494,9 @@ const tools = {
   }),
   dag_read: tool({
     description:
-      "Read a file from live repository state plus accepted lower Change DAG work strictly deeper than a semantic authoring boundary. Excludes same-frontier peers, the boundary node's own work, and shallower/future work; returns only the requested range.",
+      "Read a file from a semantic authoring boundary's SELF view: live repository state plus accepted lower Change DAG work strictly deeper than the boundary, plus the boundary node's own persisted terminal work. " +
+      "Same-frontier peers and shallower/future work stay excluded. The narrower BASE view — accepted lower work only, without the boundary's own work — is used internally to validate a new mutation and is never returned here. " +
+      "Returns only the requested range, attributed to live/accepted_lower/owned provenance.",
     args: {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Semantic authoring boundary node ID"),
@@ -506,7 +508,9 @@ const tools = {
   }),
   dag_grep: tool({
     description:
-      "Find matching lines in live repository state plus accepted lower Change DAG work strictly deeper than a semantic authoring boundary. Excludes same-frontier peers, the boundary node's own work, and shallower/future work; returns deterministic path/line matches without snippets.",
+      "Find matching lines in a semantic authoring boundary's SELF view: live repository state plus accepted lower Change DAG work strictly deeper than the boundary, plus the boundary node's own persisted terminal work. " +
+      "Same-frontier peers and shallower/future work stay excluded. Paths touched by projected work replace live truth rather than merging with it, and an unreproducible projected path fails the call instead of silently disappearing. " +
+      "Returns deterministic path/line matches without snippets.",
     args: {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Semantic authoring boundary node ID"),
@@ -518,7 +522,8 @@ const tools = {
   }),
   dag_search: tool({
     description:
-      "Rank projected source files using deterministic textual scoring over live state plus accepted lower work strictly deeper than a semantic authoring boundary. No semantic/vector retrieval; excludes same-frontier peers, the boundary node's own work, and shallower/future work.",
+      "Rank projected source files using deterministic textual scoring over a semantic authoring boundary's SELF view: live repository state plus accepted lower work strictly deeper than the boundary, plus the boundary node's own persisted terminal work. " +
+      "Same-frontier peers and shallower/future work stay excluded; an unreproducible projected path fails the call rather than silently truncating the ranking. No semantic/vector retrieval.",
     args: {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Semantic authoring boundary node ID"),

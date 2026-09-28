@@ -62,6 +62,15 @@ def _only(ranges: list[dict]) -> dict:
     return ranges[0]
 
 
+def _relation(ranges: list[dict], relation: str) -> list[dict]:
+    """Select the ranges attributed to one lens.
+
+    Provenance now describes the whole returned window, so a mixed file reports
+    ``live`` filler around the attributable stretches.
+    """
+    return [entry for entry in ranges if entry["relation"] == relation]
+
+
 FOUR = "one\ntwo\nthree\nfour\n"
 
 
@@ -126,9 +135,9 @@ def test_owned_edit_is_attributed_without_peer_or_lower(tmp_path):
     root = _workspace(tmp_path, "self", _dag(owned=owned), {"source.txt": FOUR})
     read = dag_read("self", "N3", "source.txt", workspace_root=root)
     assert read["content"] == "one\nTWO\nthree\nfour\n"
-    assert _only(read["provenance"]) == {
-        "lines": [2, 2], "node_ids": ["N5"], "relation": "owned",
-    }
+    assert _relation(read["provenance"], "owned") == [
+        {"lines": [2, 2], "node_ids": ["N5"], "relation": "owned"},
+    ]
 
 
 def test_owned_create_is_visible(tmp_path):
@@ -215,9 +224,10 @@ def test_unowned_sibling_proposal_is_excluded(tmp_path):
                       {"source.txt": FOUR})
     read = dag_read("self", "N3", "source.txt", workspace_root=root)
     assert read["content"] == "one\nTWO\nthree\nfour\n"
-    assert _only(read["provenance"]) == {
-        "lines": [2, 2], "node_ids": ["N5"], "relation": "owned",
-    }
+    assert _relation(read["provenance"], "owned") == [
+        {"lines": [2, 2], "node_ids": ["N5"], "relation": "owned"},
+    ]
+    assert _relation(read["provenance"], "accepted_lower") == []
 
 
 # --- range clipping --------------------------------------------------------
@@ -228,9 +238,9 @@ def test_line_range_read_clips_provenance(tmp_path):
     root = _workspace(tmp_path, "self", _dag(owned=owned), {"source.txt": FOUR})
     head = dag_read("self", "N3", "source.txt", 1, 2, workspace_root=root)
     assert head["content"] == "one\nTWO\n"
-    assert _only(head["provenance"]) == {
-        "lines": [2, 2], "node_ids": ["N5"], "relation": "owned",
-    }
+    assert _relation(head["provenance"], "owned") == [
+        {"lines": [2, 2], "node_ids": ["N5"], "relation": "owned"},
+    ]
     tail = dag_read("self", "N3", "source.txt", 3, 4, workspace_root=root)
     assert tail["content"] == "three\nfour\n"
     assert _only(tail["provenance"]) == {
