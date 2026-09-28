@@ -127,3 +127,44 @@ class TestProjectedToolsRegistered:
     def test_python_modules_exist(self):
         for tool in PROJECTED_TOOLS:
             assert (TOOLS_PKG / f"{tool}.py").exists(), f"{tool}.py is missing"
+
+
+def test_malformed_applicable_work_is_reported_not_silently_live(tmp_path):
+    """When strictly-deeper work cannot be reproduced, say so.
+
+    Returning live content as if it were the accepted projection would send the
+    worker to author against text that deeper work intends to replace.
+    """
+    root = _setup(tmp_path)
+    (root / "source.txt").write_text("live\n", encoding="utf-8")
+    (root / "other.txt").write_text("unrelated\n", encoding="utf-8")
+    dag = _dag()
+    dag["nodes"]["N6"] = {"type": "edit", "path": "source.txt", "patch": "not a diff"}
+    _write_bundle(root, "broken", {**dag, "slug": "broken"})
+
+    read = dag_read("broken", "N3", "source.txt", workspace_root=root)
+    assert read["error"] == "projection_failed"
+    assert read["path"] == "source.txt"
+    assert read["nodes"] == ["N6"]
+    assert dag_grep(
+        "broken", "N3", "live", path="source.txt", workspace_root=root
+    )["error"] == "projection_failed"
+    assert dag_search(
+        "broken", "N3", "live", path="source.txt", workspace_root=root
+    )["error"] == "projection_failed"
+    # The failure is scoped to the affected path, not the whole DAG.
+    assert dag_read("broken", "N3", "other.txt", workspace_root=root)["content"] == "unrelated\n"
+    assert dag_grep("broken", "N3", "unrelated", workspace_root=root)["matches"] == [
+        {"path": "other.txt", "line": 1}
+    ]
+
+
+def test_boundary_owned_work_does_not_affect_projection(tmp_path):
+    """The boundary node's own proposal is excluded even when it is malformed."""
+    root = _setup(tmp_path)
+    (root / "source.txt").write_text("live\n", encoding="utf-8")
+    dag = _dag()
+    dag["nodes"]["N5"] = {"type": "edit", "path": "source.txt", "patch": "not a diff"}
+    _write_bundle(root, "owned", {**dag, "slug": "owned"})
+
+    assert dag_read("owned", "N3", "source.txt", workspace_root=root)["content"] == "live\n"

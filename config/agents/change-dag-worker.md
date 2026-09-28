@@ -5,6 +5,8 @@ mode: subagent
 model: omniroute/luna-combo
 variant: high
 permission:
+  read: allow
+  grep: allow
   glob: allow
   edit: deny
   write: deny
@@ -44,6 +46,8 @@ permission:
   skill: allow
   aft_search: allow
   aft_outline: allow
+  aft_zoom: allow
+  aft_inspect: allow
   aft_conflicts: allow
   ast_grep_search: allow
 ---

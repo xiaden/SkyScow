@@ -203,10 +203,10 @@ class TestWorkerAuthority:
         for tool in WORKER_TOOLS:
             assert _allowed(permission, tool), f"Worker needs {tool}"
 
-    def test_worker_uses_projected_source_for_authoring(self):
+    def test_worker_keeps_raw_inspection_and_has_projected_source_tools(self):
         permission = _permission("change-dag-worker")
         for tool in ("read", "grep", "aft_zoom", "aft_inspect"):
-            assert not _allowed(permission, tool), f"Worker must not use raw source tool {tool}"
+            assert _allowed(permission, tool), f"Worker must retain existing inspection tool {tool}"
         for path in (
             AGENTS / "change-dag-worker.md",
             SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md",

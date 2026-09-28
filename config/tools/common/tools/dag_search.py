@@ -24,6 +24,10 @@ def dag_search(
     canonical, error = canonical_query_path(path)
     if error is not None:
         return error
+    if canonical is not None:
+        failure = source.error(canonical)
+        if failure is not None:
+            return {**failure, "slug": slug, "node_id": node_id}
     candidates = [canonical] if canonical is not None else source.paths()
     results = []
     for candidate in candidates:

@@ -31,6 +31,10 @@ def dag_grep(
         compiled = re.compile(pattern, flags)
     except re.error as exc:
         return _error("invalid_pattern", str(exc))
+    if canonical is not None:
+        failure = source.error(canonical)
+        if failure is not None:
+            return {**failure, "slug": slug, "node_id": node_id}
     matches = [
         {"path": candidate, "line": line}
         for candidate, line in iter_matches(source, compiled, canonical)
