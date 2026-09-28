@@ -6,8 +6,10 @@ Dispatch Support-Librarian when materially relevant **process history** (logs, d
 
 **Use when:**
  - Before dispatching RnD-Manager or Change-DAG-Author when prior process artifacts materially constrain the route
- - Entering an unfamiliar module or subsystem where prior work history is relevant
+ - An area where prior process artifacts (logs, dead ends, prior design-doc history) materially constrain the current route
  - You need to avoid repeating a recorded dead end or contradicting prior process history
+
+**Owner selection:** whether a Support-Librarian dispatch is warranted at all is `work-routing`'s decision (prior process artifacts materially constrain the route). Unfamiliarity or session history alone is not a trigger. This reference assumes that decision was already made.
 
 **Do NOT dispatch when:**
 - The task is trivial and context is obvious from current code

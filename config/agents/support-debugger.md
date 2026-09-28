@@ -154,7 +154,7 @@ rootCause:
   explanation: "Parameter renamed in upstream method, caller not updated"
   
 fixComplexity: SIMPLE | NEEDS_DAG
-  # SIMPLE: Root cause clear, fix is a single section (function/method), weighted context < 32K chars → a bounded raw edit can handle
+  # SIMPLE: Root cause clear, fix is a single section (function/method) → a bounded raw edit can handle
   # NEEDS_DAG: Fix requires coordinated changes across multiple sections or layers → Change-DAG-Author needed
 ```
 

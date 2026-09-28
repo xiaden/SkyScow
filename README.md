@@ -82,6 +82,7 @@ Detailed lifecycle documentation:
 - [R&D and design documents](docs/architecture/rnd-and-design.md)
 - [Change DAG lifecycle](docs/architecture/change-dag-lifecycle.md)
 - [QA and publication](docs/architecture/qa-and-publication.md)
+- [Routing authority](docs/architecture/routing-authority.md)
 
 **Independent QA.** Every meaningful change gets independent correctness review, plus boundary, journey, and domain-risk lenses where the changed surface triggers them. Test and docs analyzers each inspect their own domain and dispatch a generator to repair concrete gaps. `/qa-push` is the final publication gate over a candidate commit, and `/qa-repo-review` runs a whole-tree review of a repository at an explicit GitHub ref.
 

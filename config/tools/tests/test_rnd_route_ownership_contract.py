@@ -2,7 +2,7 @@
 
 Pins one authority chain across the active R&D routing surfaces:
 
-    Nyx          -> decides whether R&D evaluation is required (never
+    work-routing -> decides whether R&D evaluation is required (never
                     predeclares DD_REQUIRED)
     RnD-Manager  -> owns the evidence-based route
                     (DAG_ONLY / DD_REQUIRED / RESEARCH_ONLY) and returns the
@@ -10,6 +10,7 @@ Pins one authority chain across the active R&D routing surfaces:
     Nyx          -> dispatches Change-DAG-Author after a successful handoff
 
 Surfaces pinned:
+    config/skills/work-routing/SKILL.md
     config/agents/nyx.md
     config/agents/rnd-manager.md
     config/skills/dispatching-agents/references/rnd-manager.md   (caller reference)
@@ -33,6 +34,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 NYX = "config/agents/nyx.md"
+ROUTING = "config/skills/work-routing/SKILL.md"
 RND = "config/agents/rnd-manager.md"
 RND_REF = "config/skills/dispatching-agents/references/rnd-manager.md"
 DISPATCH = "config/skills/dispatching-agents/SKILL.md"
@@ -64,27 +66,30 @@ class TestArchitecturalNoveltyCannotBypassEvaluation:
     """Known edit locations are discovery input, not an architectural downgrade."""
 
     def test_known_locations_never_downgrade_architectural_novelty(self):
-        text = _norm(NYX)
+        text = _norm(ROUTING)
         assert "Known edit locations are a discovery input, not a scope downgrade" in text
         assert "even when the exact files and functions are already named" in text
         assert "route to RnD-Manager for R&D evaluation" in text
         assert "may still return `DAG_ONLY`" in text
 
     def test_direct_path_requires_no_failed_architectural_condition(self):
-        assert "only if no architectural/design condition fails" in _norm(NYX)
+        assert "no architectural or design decision is required" in _norm(ROUTING)
 
     def test_evaluation_route_is_request_level_not_dd(self):
-        assert "Route to RnD-Manager for evidence-based R&D evaluation" in _norm(NYX)
+        assert "Route to RnD-Manager for evidence-based R&D evaluation" in _norm(ROUTING)
 
 
-class TestNyxDoesNotPredeclareDDRequired:
-    def test_nyx_disclaims_route_predeclaration(self):
-        text = _norm(NYX)
+class TestRouterDoesNotPredeclareDDRequired:
+    def test_router_disclaims_route_predeclaration(self):
+        text = _norm(ROUTING)
         assert "it does not predeclare the route" in text
         assert "Do not predeclare `DD_REQUIRED`" in text
 
     def test_explicit_user_dd_request_establishes_dd_required(self):
-        assert "An explicit user DD request establishes `DD_REQUIRED`" in _norm(NYX)
+        assert "An explicit user DD request establishes `DD_REQUIRED`" in _norm(ROUTING)
+
+    def test_nyx_no_longer_predeclares_the_route(self):
+        assert "does not predeclare the route" not in _norm(NYX)
 
     def test_callers_do_not_predeclare_the_route(self):
         assert "is never predeclared `DD_REQUIRED` by the caller" in _norm(RND_REF)
@@ -145,5 +150,5 @@ class TestNoStaleArchitectureReferences:
                 assert token not in text, f"{token!r} still present in {relative}"
 
     def test_readiness_is_never_a_fieldless_status(self):
-        assert "never a fieldless readiness word" in _norm(NYX)
+        assert "never a fieldless readiness word" in _norm(ROUTING)
         assert "never a fieldless word" in _norm(RND_REF)

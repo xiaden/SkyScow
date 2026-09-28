@@ -58,6 +58,7 @@ LEGACY_GATE_SURFACES = (
 # Contracts whose governance consumption must name the architecture skill.
 ARCHITECTURE_CONTRACTS = (
     "config/agents/nyx.md",
+    "config/skills/work-routing/SKILL.md",
     "config/agents/rnd-architect.md",
     "config/agents/rnd-ideator.md",
     "config/agents/qa-reviewer.md",
@@ -80,6 +81,7 @@ ARCHITECTURE_CONTRACTS = (
 # Contracts whose governance consumption must name the requirements skill.
 REQUIREMENTS_CONTRACTS = (
     "config/agents/nyx.md",
+    "config/skills/work-routing/SKILL.md",
     "config/agents/rnd-architect.md",
     "config/agents/rnd-ideator.md",
     "config/agents/qa-reviewer.md",

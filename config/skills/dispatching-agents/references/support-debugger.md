@@ -64,7 +64,7 @@ failure:
 
 | Complexity | Meaning | Action |
 |------------|---------|--------|
-| `SIMPLE` | Root cause clear, fix scoped to a single section (function/method), weighted context < 32K chars | Apply the bounded raw edit with `suggestedFix`, run lint and tests, then QA review |
+| `SIMPLE` | Root cause clear, fix scoped to a single section (function/method) | Apply the bounded raw edit with `suggestedFix`, run lint and tests, then QA review |
 | `NEEDS_DAG` | Fix requires coordinated changes across multiple sections or layers | Dispatch Change-DAG-Author to amend the stopped Change DAG with `rootCause`, re-run, then QA review |
 | `INCONCLUSIVE` | Debugger couldn't determine root cause | Escalate to Nyx with full debugger report. Do NOT attempt random fixes. |
 
@@ -168,19 +168,3 @@ failure:
 | Missing context files | Debugger wastes turns asking for files | List every file you've touched or suspect |
 | No `observedBehavior` / `expectedBehavior` for UNEXPECTED_BEHAVIOR | Debugger can't diagnose what "wrong" means | Always include both fields |
 | Dispatching for obvious typos or missing imports | Wastes Debugger context on trivial fixes | Fix typos and missing imports directly |
-
-## Dispatch Decision Tree
-
-```
-Failure encountered
-├─ Error message clearly points to a typo or missing import?
-│  └─ Fix directly (no dispatch)
-├─ Error is in code you just wrote?
-│  └─ Read the affected files yourself first
-│     ├─ Cause is obvious after reading → Fix directly
-│     └─ Cause is unclear → Dispatch Support-Debugger
-├─ Error is pre-existing (not from your changes)?
-│  └─ Dispatch Support-Debugger (don't guess at pre-existing issues)
-└─ Same fix has failed 3+ times?
-   └─ Dispatch Support-Debugger (you're in a loop)
-```

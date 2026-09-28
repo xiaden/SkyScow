@@ -17,7 +17,7 @@ Orchestrate multiple specialized agents for this complex task: $ARGUMENTS
 
 ## Available Agents
 
-Load the `dispatching-agents` skill for canonical dispatch templates and the authoritative agent selection decision tree. The table below is the complete catalog — use it to route subtasks.
+Owner selection belongs to the `work-routing` skill; load it before choosing an owner. Load the `dispatching-agents` skill for canonical dispatch templates and handoff construction. The table below is a capability catalog for building handoffs — it is not an owner-selection matrix.
 
 ### R&D Department (Design & Analysis)
 
@@ -156,8 +156,9 @@ These examples preserve static authority; they are not a registry or state-machi
 
 ## References
 
-- **`dispatching-agents` skill** — Canonical dispatch templates, agent selection decision tree, native `task` fan-out guidance, and per-agent reference files. Load this before dispatching any agent.
+- **`work-routing` skill** — Canonical owner selection (who owns the next unit of work).
+- **`dispatching-agents` skill** — Canonical dispatch templates, native `task` fan-out guidance, and per-agent reference files. After `work-routing` selects the owner, load this to construct the dispatch.
 - **`Change DAG schema/tools`** — `artifacts/change-dags/{pending|completed}/{slug}/DAG.json` is authoritative for new work; use `change-dag-author` and the `dag_*` tools rather than creating plans or graphs.
 - **Legacy task-plan and implementation-graph artifacts** — Historical compatibility only; do not create new plan or legacy implementation-graph artifacts for Change DAG work.
 
-**NOTE**: Complex tasks benefit from multi-agent orchestration. Simple tasks should use single agents directly. When in doubt, consult the `dispatching-agents` skill's decision tree.
+**NOTE**: Complex tasks benefit from multi-agent orchestration. Simple tasks should use single agents directly. When in doubt, load `work-routing` to select the owner, then `dispatching-agents` to construct the dispatch.

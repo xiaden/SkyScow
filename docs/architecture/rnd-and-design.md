@@ -87,7 +87,8 @@ An accepted DD is `Complete (accepted)`, `Approved`, or `Completed`. An accepted
 
 ## Canonical sources
 
-- `config/agents/nyx.md` — routing and the request-context gate
+- `config/agents/nyx.md` — top-level orchestration and the request-context gate
+- `config/skills/work-routing/SKILL.md` — canonical routing (owner-selection) policy
 - `config/agents/rnd-manager.md` — graph composition, dispositions, conformance gate
 - `config/agents/rnd-refiner.md` — bounded adversarial pair execution
 - `config/agents/rnd-dd-author.md` — DD authoring

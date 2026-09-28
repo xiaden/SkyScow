@@ -66,7 +66,6 @@ and verification evidence inform decisions but do not independently create
 requirements or implementation gates. Promote a finding only when it is
 explicitly adopted into the ledger, an accepted architectural invariant, or a
 necessary dependency/contract for satisfying one.
-   amendment.
 
 Once DD_REQUIRED is selected, the Manager selects only the R&D capabilities
 needed for a trustworthy DD. Selected stages are process evidence, not product
@@ -75,7 +74,7 @@ DD, routing trace, decision evidence, and requirement-conformance result. The us
 request, not an agent summary or DD, remains authoritative.
 ```
 
-5. **RnD-Manager decision gate** consumes the selected reports and any adversarial
+1. **RnD-Manager decision gate** consumes the selected reports and any adversarial
 continuation payload. Independently compare CTX, the immutable ledger, accepted
 constraints, and selected evidence. Give every material finding exactly one of
 `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER`, preserving
@@ -83,12 +82,12 @@ provenance and applicability. `implementation_authorization` may contain only
 Manager-approved `MITIGATE` entries. Return `NEEDS_DECISION` before any resume
 when authority or user choice is unresolved; never simulate this gate inside
 Refiner.
-6. **RnD-DDAuthor** records the accepted handoff in the formal DD. It preserves
+2. **RnD-DDAuthor** records the accepted handoff in the formal DD. It preserves
 requirements and provenance but does not repair, reinterpret, promote, or
 complete an incomplete handoff.
-7. **PatternEnforcer**, when selected, reports read-only impact evidence to the
+3. **PatternEnforcer**, when selected, reports read-only impact evidence to the
 owning manager/author; it is not the requirement or design decision gate.
-8. **RnD-Manager** returns to Nyx only after the independent gate, DD recording,
+4. **RnD-Manager** returns to Nyx only after the independent gate, DD recording,
 and mandatory lifecycle checks are coherent. The successful DD handoff is the
 structured tuple `route: DD_REQUIRED`, `status: DONE`,
 `phase: READY_FOR_AUTHORING`; the `DAG_ONLY` handoff is `route: DAG_ONLY`,

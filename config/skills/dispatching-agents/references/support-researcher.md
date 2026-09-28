@@ -11,13 +11,13 @@ Dispatch only when bounded local evidence establishes that unresolved substantiv
 - Complex repository behavior bounded localization cannot resolve
 - Another agent lacks information to make routing decisions
 
-**Escalation order:** bounded/local evidence first → load the relevant local skill/governance when applicable → consult targeted historical context when materially useful → dispatch Support-Researcher only when unresolved substantive investigation remains.
+**Owner selection:** whether a Support-Researcher dispatch is warranted at all is `work-routing`'s progressive-research decision. This reference assumes that decision already left unresolved substantive investigation; it does not restate the escalation policy.
 
 **Do NOT dispatch when:**
 - A single file read or `aft_search` will answer the question
 - The task is a simple "find where X is defined" lookup
 - You're doing routine implementation work that doesn't require research
-- The code is merely unfamiliar, or was not touched earlier in the session — unfamiliarity and session history are not triggers (see Nyx's Direct-Work Invariant)
+- The code is merely unfamiliar, or was not touched earlier in the session — unfamiliarity and session history are not triggers (see the `work-routing` direct-work policy)
 - The question can be answered by loading a local governance skill (for example `architecture-decisions` or `system-requirements`), checking existing logs, or consulting process artifacts
 
 ## Dispatch Template

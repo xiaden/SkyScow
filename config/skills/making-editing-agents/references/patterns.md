@@ -3,7 +3,7 @@
 ## Contents
 - [Pattern 1: Router-First Responsibilities](#pattern-1-router-first-responsibilities)
 - [Pattern 2: Conditional Section Loading](#pattern-2-conditional-section-loading)
-- [Pattern 3: Delegation Decision Matrix](#pattern-3-delegation-decision-matrix)
+- [Pattern 3: Capability Boundary Contract (not a routing matrix)](#pattern-3-capability-boundary-contract-not-a-routing-matrix)
 - [Pattern 4: REprompt Component Decomposition](#pattern-4-reprompt-component-decomposition)
 - [Pattern 5: Scope Exclusions with Positive Routing](#pattern-5-scope-exclusions-with-positive-routing)
 - [Pattern 6: Anti-Pattern Catalog](#pattern-6-anti-pattern-catalog)
@@ -34,12 +34,13 @@ Reorder so routing/delegation comes first. Frame the agent as a router.
 ```markdown
 ## Primary Responsibility: Route Before Executing
 
-This agent's first decision is always delegation: does a specialist exist for this task?
+This agent's first decision is ownership — but owner selection is global policy owned by the
+`work-routing` skill, not restated in this file.
 
-1. **Identify the right agent.** Match the task to subagent capabilities (see Delegation Matrix below).
-   If a specialist matches → delegate. If no match → proceed to execution.
-2. **Execute only what falls within scope.** Direct implementation only when no specialist exists
-   or when the task is trivial (single-file, single-concern).
+1. **Select ownership via `work-routing`.** Load that skill; do not re-encode its tiers, size
+   thresholds, or first-match specialist matrix here.
+2. **Declare this agent's capability boundary and execute only what routing leaves with it.**
+   Direct implementation only when no specialist owns the work.
 3. **Own errors within scope.** Classify and resolve lint errors, test failures, and diagnostics in
    files this agent touched per the baseline/causality rules in `validation-mandate.md`.
 ```
@@ -52,7 +53,7 @@ This agent's first decision is always delegation: does a specialist exist for th
 Monolithic agent files load all instructions into every session. Delegation rules, DAG syntax, error ownership, troubleshooting, and layer conventions all sit in context regardless of whether the task is a one-line fix or a multi-step feature.
 
 ### The Fix
-Decompose into sections with condition predicates. Always-on: identity + delegation matrix. Conditional: everything else.
+Decompose into sections with condition predicates. Always-on: identity + capability boundary. Conditional: everything else.
 
 ### Template
 ```markdown
@@ -61,8 +62,9 @@ Decompose into sections with condition predicates. Always-on: identity + delegat
 ### Identity
 [One paragraph: who this agent is, its primary responsibility]
 
-### Delegation Matrix
-[Who handles what, with what autonomy — see Pattern 3]
+### Capability Boundary
+[What THIS agent owns, its inputs, and its outputs — see Pattern 3. Global owner
+selection lives in the `work-routing` skill; do not restate it here.]
 
 ### Core Constraints
 [Hard rules that always apply: never skip context, stop on architectural concerns]
@@ -85,36 +87,47 @@ If the agent platform doesn't support runtime conditional loading natively, impl
 
 ---
 
-## Pattern 3: Delegation Decision Matrix
+## Pattern 3: Capability Boundary Contract (not a routing matrix)
 
 ### The Problem
-A single line — "Delegate specialized work to subagents" — gives the model no guidance on who handles what, with what autonomy, or how to verify completion.
+An agent file that re-states *which specialist owns which task* duplicates the global
+owner-selection policy. Duplicated policy drifts: two copies of task tiers, size thresholds, or
+support-agent selection rules diverge, and the model is unlikely to notice when they conflict. It
+also invites routing to be encoded from session-local conditions — "the area is unfamiliar" or
+"5+ files" — instead of from actual capability and evidence.
 
 ### The Fix
-A structured matrix with trigger conditions, capability matching, autonomy levels, and completion criteria.
+Separate the two concerns:
+
+- **Global owner selection** — who owns the next unit of work, task tiers, and size thresholds — is
+  centralized in the `work-routing` skill. An agent file references it; it does not restate it.
+- **Capability boundary** — what *this* agent owns, the inputs it requires, and the outputs it
+  returns — is declared in the agent file. Handoffs name the selected owner and the inputs/outputs
+  they need.
+
+Do not encode an "unfamiliarity" or "first touch this session" condition as a dispatch rule:
+session history is not a routing input, and research/support agents are selected by unresolved
+*evidence* needs (see `work-routing`), not by how new an area feels.
 
 ### Template
 ```markdown
-## Delegation Matrix
+## Capability Boundary
 
-Before executing any task, check this matrix. If the task matches a row, delegate.
+I own: [this agent's domain and the decisions it may make]
+Inputs I require: [what a caller must supply for a correct handoff]
+Outputs I return: [the artifact or contract this agent produces]
+I do NOT do: [scope exclusions — each paired with the positive route, see Pattern 5]
 
-| Task Category | Subagent | Trigger Condition | Autonomy | Completion Evidence |
-|--------------|----------|-------------------|----------|-------------------|
-| Feature design, R&D | RnD-Manager | User asks "design," "explore," "think about" | Open-ended: agent decides approach | Design doc in artifacts/designs/ |
-| Change DAG creation | Change-DAG-Author | Multi-step feature, shared writes or coordinated edits | Read-only DAG authoring | `DAG.json` under `artifacts/change-dags/pending/` |
-| Change DAG lifecycle | Nyx | Authored DAG needs execution or recovery | Use lifecycle tools and skill | Root satisfied; DAG archived or recovery routed |
-| QA review | QA-Reviewer | Implementation complete, before merge | Full review, no edits | Review report with tiered status |
-| Root cause analysis | Support-Debugger | 3+ failed fix attempts, unexplained failure | Read-only diagnosis | Diagnosis with suggested fix |
-| Deep codebase research | Support-Researcher | Need to understand unfamiliar system (5+ files) | Read-only exploration | Structured findings with code locations |
-| Process-artifact navigation | Support-Librarian | Starting work in unfamiliar area | Read-only curation | Curated summary of relevant process history |
+Global owner selection (which specialist owns the next unit of work) is owned by the
+`work-routing` skill. This file does not restate its task tiers, size thresholds, or a
+first-match specialist matrix.
+```
 
 ### Autonomy Levels
-- **Atomic execution:** Delegatee follows strict specification, returns structured output. Use for
-  well-defined subtasks (DAG authoring, review, research).
-- **Open-ended delegation:** Delegatee has authority to decompose objectives and pursue sub-goals.
-  Use for design/R&D tasks where the approach isn't known upfront.
-```
+- **Atomic execution:** The agent follows a strict specification and returns structured output. Use
+  for well-defined work (DAG authoring, review, research).
+- **Open-ended:** The agent has authority to decompose its assigned objective and pursue sub-goals.
+  Use for design/R&D work where the approach isn't known upfront.
 
 ---
 
@@ -139,7 +152,7 @@ Decompose into the five REprompt components. Each component is independently aud
 # Component 2: Knowledge
 ---
 **Project Conventions:** [link to project ADRs, layer docs, coding standards]
-**Subagent Capabilities:** See Delegation Matrix above.
+**Subagent Capabilities:** Global owner selection lives in the `work-routing` skill; declare only this agent's own capability boundary.
 **Architecture:** [layers, module boundaries, data flow — or link to capture-subsystem skills]
 
 ---
@@ -173,7 +186,7 @@ Decompose into the five REprompt components. Each component is independently aud
 ---
 | Mode | Trigger | Behavior |
 |------|---------|----------|
-| **Routing** | Task description received | Check Delegation Matrix → delegate or proceed |
+| **Routing** | Task description received | Load `work-routing` for owner selection, then execute or hand off |
 | **Execution** | No specialist matches, task is in-scope | Direct implementation with layer conventions |
 | **Diagnostic** | 3+ failed attempts, unexpected behavior | Load troubleshooting procedure, spawn Support-Debugger if needed |
 | **Decision Recording** | Architectural choice made | Create ADR via adr_suggest → adr_commit workflow |
@@ -277,7 +290,7 @@ After reading this, the model knows what it shouldn't do but has no positive ide
 should be created, and when to stop and discuss before the user makes poor architectural
 decisions. Routes complex work to specialists; executes only routine tasks directly.
 
-**Routing:** See Delegation Matrix for which specialist handles each task category.
+**Routing:** Global owner selection comes from the `work-routing` skill; this file declares only its own capability boundary.
 ```
 
 ### Anti-Pattern: Implicit Mode Switching
@@ -321,7 +334,7 @@ triggers, verification requirements. Keep under 500 tokens total.
 ## Tier 2: Token ~100+ — Task Framing & Scope
 ```
 What kinds of tasks this agent handles, scope boundaries, routing preferences.
-These can fade over long sessions — the delegation matrix (Tier 1) should already cover routing.
+These can fade over long sessions — global owner selection lives in the `work-routing` skill, not in this file.
 ```
 
 ## Tier 3: Conditional — Load on Demand
@@ -429,12 +442,12 @@ Treat agent file editing as a constraint budget. Every imperative you add consum
 
 ### Always-On Constraints (Tier 0-1, token position 1-100)
 1. [Identity] I am ${AGENT_NAME}, a {router|executor|reviewer} for {domain}.
-2. [Routing] Before executing, check: does a specialist exist? If yes → delegate.
+2. [Routing] Load `work-routing` for owner selection before executing; do not restate its policy here.
 3. [Safety] Stop and question on architectural concerns, half-migrations, scope creep.
 4. [Verification] Never claim DONE without evidence. Run linter after every edit batch.
 5. [Tools] Prefer aft_search over bash grep; aft_inspect after edits.
-6. [Delegation] Use delegation matrix (see below) — match task category to subagent.
-7. [Context] Read relevant ADRs and logs before working in unfamiliar areas.
+6. [Boundary] Declare this agent's own capability boundary and handoff inputs/outputs — never a global routing matrix.
+7. [Context] Read relevant governance/logs when they materially constrain the work — unfamiliarity alone is not a trigger.
 8. [Output] Report completion with explicit evidence, not "should work."
 9. [_empty_]
 10. [_empty_]
@@ -486,7 +499,7 @@ Re-inject critical constraints at decision points. Don't rely on the model remem
 
 | Decision Point | Re-Injected Constraint | Mechanism |
 |---------------|----------------------|-----------|
-| Before delegation | "Does a specialist exist for this task?" | Auto-injected by `task` tool wrapper |
+| Before delegation | "Has `work-routing` selected the owner?" | Auto-injected by `task` tool wrapper |
 | Before file edit | Layer-specific conventions | Auto-injected by apply-to plugin |
 | Before claiming DONE | Completion gate checklist | Loaded on demand via `skill` tool |
 | Before architectural decision | "Stop and question the user" | Triggered by "just put it in X" patterns |
@@ -497,9 +510,9 @@ Re-inject critical constraints at decision points. Don't rely on the model remem
 
 **Approach A: Tool Wrappers (Most Reliable)**
 ```markdown
-# The `task` tool wrapper auto-injects delegation rules before every call:
-"Before using this tool, verify: does the task match a specialist agent's domain?
-If yes, delegate to that specialist. If no, proceed."
+# The `task` tool wrapper auto-injects the owner-selection reminder before every call:
+"Before using this tool, load `work-routing` and follow its owner selection;
+this tool constructs the handoff but does not choose the owner."
 
 # The `edit` tool wrapper auto-injects layer conventions:
 "Editing files in {directory}. Layer conventions: {conventions}."

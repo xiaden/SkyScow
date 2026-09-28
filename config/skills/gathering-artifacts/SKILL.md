@@ -1,6 +1,6 @@
 ---
 name: gathering-artifacts
-description: Gather prior process-artifact context (logs, dead ends, prior design docs) before design, decomposition, or routing work; current governing decisions and requirements come from the workspace-local architecture-decisions and system-requirements skills. Use when entering an unfamiliar area or making a decision that constrains future work; do not use for quick facts or mechanical execution of an already-validated Change DAG.
+description: Gather prior process-artifact context (logs, dead ends, prior design docs) before design, decomposition, or routing work when those artifacts materially constrain the route; current governing decisions and requirements come from the workspace-local architecture-decisions and system-requirements skills. Use when prior process artifacts may materially constrain the work or when making a decision that constrains future work; do not use for quick facts or mechanical execution of an already-validated Change DAG.
 ---
 
 # Artifact Context Gathering

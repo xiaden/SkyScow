@@ -39,12 +39,12 @@ These principles are derived from empirical research on coding agent behavior. T
 
 **The problem:** Agent files that list "execute implementation tasks" before "delegate specialized work" prime the model to default to direct action. Multi-agent systems research shows that poorly designed delegation can be *worse* than single-agent execution — a 3-agent system on Knapsack problems started at 3% accuracy (below single-agent baseline) until the bottleneck was patched (KtR, arXiv:2505.16979).
 
-**The fix:** Reorder responsibilities so routing comes first. Frame the agent as a *router that executes only when no specialist is available*, not a *worker with delegation as a fallback*.
+**The fix:** Reorder responsibilities so ownership is decided before execution. Keep global owner selection centralized in the `work-routing` skill — do not encode it into each agent file. The agent file declares its own capability boundary and executes only what routing leaves with it.
 
 | Before (me-first) | After (router-first) |
 |---|---|
-| 1. Execute implementation tasks | 1. Identify the right agent for the task |
-| 2. Delegate specialized work | 2. Delegate when a specialist matches |
+| 1. Execute implementation tasks | 1. Select ownership via `work-routing` |
+| 2. Delegate specialized work | 2. Hand off when a specialist owns the work |
 | 3. Own all lint errors | 3. Execute only what falls within scope |
 
 ### Principle 2: Conditional Prompt Loading
@@ -59,20 +59,22 @@ See [`references/patterns.md`](file:///home/opencode/.config/opencode/skills/mak
 
 ### Principle 3: Delegation as Structured Contract
 
-> Delegation is not a bullet point. It requires capability matching, boundary specification, and trust calibration.
+> Delegation is not a bullet point. It requires a clear capability boundary and a complete handoff — but global owner selection belongs to one authority, not to every agent file.
 
-**The problem:** A single line — "Delegate specialized work to subagents" — treats delegation as an afterthought. The Intelligent AI Delegation framework (arXiv:2602.11865) defines delegation as a sequence of decisions involving: task allocation, transfer of authority, assignment of responsibility and accountability, explicit role and boundary specification, capability matching, and trust calibration.
+**The problem:** A single line — "Delegate specialized work to subagents" — treats delegation as an afterthought. The Intelligent AI Delegation framework (arXiv:2602.11865) defines delegation as a sequence of decisions involving: task allocation, transfer of authority, assignment of responsibility and accountability, explicit role and boundary specification, capability matching, and trust calibration. A second failure mode is the opposite: each agent file re-encodes the *global* owner-selection matrix, so many divergent copies of task tiers, size thresholds, and support-agent selection rules accumulate.
 
-**The fix:** Agent files need a delegation decision matrix, not a reminder. Four questions the agent must answer before executing:
+**The fix:** Separate the two concerns. Global owner selection — which specialist owns the next unit of work, task tiers, and size thresholds — is centralized in the `work-routing` skill. An agent file declares its own capability boundary and handoff contract:
 
-| Decision | What the agent file must specify |
+| Question | What the agent file must specify |
 |----------|----------------------------------|
-| **Who?** | Capability matching — which subagent type for which task category |
-| **What?** | Boundary specification — what the delegatee can and cannot do |
-| **How much?** | Autonomy calibration — atomic execution vs. open-ended delegation |
-| **Verify?** | Completion criteria — what evidence the delegatee must return |
+| **Who (global)?** | Nothing — owner selection is `work-routing`'s policy; do not restate its matrix, tiers, or thresholds |
+| **What?** | Boundary specification — what this agent owns and what it must not do |
+| **How much?** | Autonomy calibration — atomic execution vs. open-ended work |
+| **Verify?** | Completion criteria — what evidence this agent returns |
 
-See [`references/patterns.md`](file:///home/opencode/.config/opencode/skills/making-editing-agents/references/patterns.md) for a concrete delegation decision matrix template.
+Do **not** copy a global delegation matrix, task tiers, size thresholds, or Support-Researcher/Librarian selection rules into an agent file. Do not make "the area is unfamiliar" or "not touched this session" a dispatch rule — session history is not a routing input.
+
+See [`references/patterns.md`](file:///home/opencode/.config/opencode/skills/making-editing-agents/references/patterns.md) for the capability-boundary template and anti-pattern guidance.
 
 ### Principle 4: Prompt ≈ Architecture
 
@@ -213,9 +215,9 @@ The REprompt framework (arXiv:2601.16507) decomposes system prompts into five st
 | **Knowledge** | Domain information the agent must use | Project conventions, layer architecture, subagent capabilities |
 | **Available Tools** | What the agent can do, with boundaries | Tool list with explicit "use X for Y, never for Z" rules |
 | **Context Information** | Work scenario and team composition | Which agents are available, what they specialize in, how to invoke them |
-| **Work Modes** | Multiple modes and when each applies | Routing mode (delegation decisions), execution mode (direct implementation), diagnostic mode (troubleshooting) |
+| **Work Modes** | Multiple modes and when each applies | Routing mode (owner selection via `work-routing`), execution mode (direct implementation), diagnostic mode (troubleshooting) |
 
-Each component should be **independently auditable**. If you can't point to where the delegation rules live, or where the tool boundaries are specified, the decomposition is incomplete.
+Each component should be **independently auditable**. If you can't point to where this agent's capability boundary and handoff contract live, or where the tool boundaries are specified, the decomposition is incomplete. Global owner selection is not one of these components — it lives in the `work-routing` skill.
 
 ---
 
@@ -229,17 +231,17 @@ Before declaring an agent file complete, verify every item:
 - [ ] Section boundaries are explicit — identity vs. rules vs. procedures are not intermixed
 
 ### Delegation Quality
-- [ ] A delegation decision matrix exists (who handles what, with what autonomy)
-- [ ] Each subagent type has a clear trigger condition (when to use it)
-- [ ] Delegation includes completion criteria (what evidence the delegatee must return)
+- [ ] This agent's own capability boundary is explicit (what it owns, its inputs, its outputs, its autonomy)
+- [ ] Global owner selection is **not** restated — the file defers to the `work-routing` skill
+- [ ] Handoffs name the selected owner and include completion criteria (what evidence the owner must return)
 
 ### Context Efficiency
-- [ ] Always-on instructions are minimal (identity + delegation matrix + core constraints)
+- [ ] Always-on instructions are minimal (identity + capability boundary + core constraints)
 - [ ] Task-specific instructions (plan syntax, layer conventions, troubleshooting) are conditionally loaded
 - [ ] No instruction exists that duplicates what reference files or skills already provide
 
 ### Behavioral
-- [ ] The agent's first action for a complex task is "identify the right agent," not "open the file"
+- [ ] The agent's first action for a complex task is to load `work-routing` for owner selection, not to open the file
 - [ ] The agent knows when to stop and question (architectural shortcuts, half-migrations, scope creep)
 - [ ] Error ownership is scoped — "fix lint errors" applies to the agent's own domain, not universally
 
@@ -254,6 +256,7 @@ Before declaring an agent file complete, verify every item:
 - [ ] No single instruction block bundles 4+ constraints — split multi-constraint rules
 - [ ] Event-driven re-injection exists for constraints that must hold across long tool-call sequences (15+ calls)
 - [ ] Contradiction audit completed before shipping: all imperative pairs within the same scope domain checked for direct conflicts
+- [ ] No duplicated global routing policy — no task tiers, size thresholds, first-match specialist matrix, or unfamiliarity/session-history dispatch rules in the agent file (those live in `work-routing`)
 
 ---
 
@@ -264,5 +267,6 @@ Before declaring an agent file complete, verify every item:
 - **Related skills:**
   - `making-editing-skills` — for writing SKILL.md files (different format, different rules)
   - `customize-opencode` — for opencode.json agent registration and configuration
-  - `dispatching-agents` — for the delegation dispatch templates that agents should use
+  - `work-routing` — canonical owner-selection policy; agent files defer to it and must not restate it
+  - `dispatching-agents` — for the delegation dispatch templates that agents should use after `work-routing` selects the owner
   - `capture-subsystem` — for documenting codebase architecture (the "Knowledge" component of REprompt)

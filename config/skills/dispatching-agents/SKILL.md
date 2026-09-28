@@ -1,11 +1,28 @@
 ---
 name: dispatching-agents
-description: Prepare and route subagent dispatches using canonical agent templates and handoff contracts. Use when spawning a subagent with native task; do not use for single-file lookups, trivial fixes, or work you can do directly.
+description: Construct a correct handoff for an already-selected agent using its per-agent dispatch reference and output contract. Use after work-routing has selected the owner; do not use to choose which specialist owns the work.
 ---
 
 # Dispatching Agents
 
-Produce dispatch prompts that give subagents everything they need in a single pass.
+Given an agent whose owner has already been selected, this skill constructs the
+dispatch prompt that gives it everything it needs in a single pass.
+
+## Skill Precondition — Owner First
+
+The caller must already have selected the owner using the **`work-routing`** skill
+or another explicit authoritative workflow. This skill owns **dispatch mechanics**:
+given a selected agent X, **how** do I dispatch X correctly? It does **not** answer
+**who** owns the next step.
+
+- Do not use this skill to decide direct-versus-delegated work, which specialist
+  should own a task, R&D / Change DAG / QA ownership, or Support-Librarian /
+  Support-Researcher selection. That policy lives in `work-routing`.
+- This skill must not silently reroute the task. If the requested agent conflicts
+  with a hard capability or permission constraint, report the mismatch and the
+  constraint — do not substitute a different owner on your own.
+- Selecting the owner and constructing the dispatch are separate steps. Follow the
+  selection you were given.
 
 ## Non-Negotiable Context Boundary
 
@@ -20,23 +37,9 @@ itself, or link to a specific file, artifact, Change DAG, symbol, or line range 
 agent must read. Never write "as discussed," "the above," "use the context,"
 or "you know the codebase": those references do not exist for the new agent.
 
-The per-agent reference is the authority for that dispatch. This skill routes
-to it; it does not replace it.
-
-## When NOT to Dispatch
-
-These hard stops are the dispatch-side face of Nyx's **Direct-Work Invariant**: a task that qualifies here is done directly, and no first-match specialist row overrides it. Session history — whether a module was touched earlier in the session — is never a dispatch reason.
-
-Do NOT use this skill — do the work directly — when:
-
-| Skip dispatch when... | Do this instead |
-|-----------------------|-----------------|
-| A single file read or lookup is enough | Use `read` or `aft_search` directly |
-| The fix is trivial (typo, missing import, one-line change) | Fix it yourself — faster than the dispatch overhead |
-| You can diagnose a failure from reading 2–3 files | Read the files and fix directly |
-| You're just exploring code structure | Use `aft_outline` / `aft_zoom` yourself |
-
-Dispatching for anything in the left column wastes context and turns. The decision tree below covers when to dispatch — these are the hard stops, and they take precedence over a first-match routing row.
+The per-agent reference is the authority for that dispatch's required fields and
+output contract. This skill selects and extends that reference; it does not
+replace it.
 
 ## Universal Dispatch Skeleton
 
@@ -77,7 +80,9 @@ arrived only as a user message; do not assume a `task.md` file exists. The
 ledger must identify mandatory capabilities, behaviors, CLI semantics, defaults,
 safety rules, and definition-of-done items. Downstream agents must compare their
 output against it. Summaries and derived artifacts never replace the original
-request.
+request. Link governing decisions and requirements through the workspace-local
+`architecture-decisions` and `system-requirements` skills (read a specific record
+by identity) instead of restating or paraphrasing them.
 
 For DD creation/amendment and Change DAG create/amend, the handoff must also
 include a readable `request_context.path` to an `artifacts/requests/CTX_*.md`
@@ -88,47 +93,9 @@ blocking dispatch failure. Nyx must capture the relevant conversation before
 routing these authoring operations; downstream agents must read and preserve the
 reference.
 
-### Dispatch Decision Tree
-
-Apply the Direct-Work Invariant before this tree: MECHANICAL and genuinely bounded STANDARD work stays direct when the surface is known or bounded-localizable; an unknown location permits a bounded localization pass, not a dispatch; session history never forces a dispatch.
-
-### Research Escalation (Support-Researcher)
-
-Support-Researcher is not the default for unfamiliar code. This is the same escalation rule as Nyx's **Progressive Research**: bounded/local evidence first → load the relevant local skill/governance when applicable → consult targeted historical context when materially useful → Support-Researcher only when unresolved substantive investigation remains. Governance skills are direct knowledge sources (read them); they are not a Librarian or Researcher dispatch.
-
-Dispatch Support-Researcher only when bounded local evidence establishes that substantive investigation is actually needed — deep multi-file dependency tracing, unclear integration ownership, external/API facts needing verification, or complex repository behavior that bounded localization cannot resolve. Unfamiliarity or session history is never a trigger.
-
-```
-Task at hand
-├─ A single file read or lookup? → Do it yourself (no dispatch)
-├─ A trivial fix (typo, missing import)? → Fix it directly
-├─ Unresolved substantive investigation remains after bounded/local evidence and a skill/governance check? → Dispatch Support-Researcher (standard depth)
-├─ Prior process artifacts (logs, dead ends, prior DDs) materially constrain the route? → Select Support-Librarian; for governing decisions/requirements load the `architecture-decisions`/`system-requirements` skill; otherwise record the evidence-based skip
-├─ Requires diagnosing a failure? → Read affected files yourself first
-│  ├─ Cause is obvious after reading → Fix directly
-│  └─ Cause is unclear → Dispatch Support-Debugger
-├─ Requires executing an authored Change DAG? → Nyx uses `dag_start`/`dag_status`/`dag_stop`/`dag_archive` directly
-├─ Requires creating/amending a Change DAG? → Dispatch Change-DAG-Author
-│  └─ Change-DAG-Author queries `dag_decomposition_frontier` and dispatches one bounded Change-DAG-Worker per returned semantic node; Nyx never dispatches Change-DAG-Worker directly
-├─ Requires an independently justified bounded review of a Change DAG? → Dispatch Change-DAG-Reviewer
-├─ Requires R&D evaluation (architectural novelty, unclear architectural requirements, design uncertainty, large scope) or an explicit formal DD? → Dispatch RnD-Manager
-│  └─ RnD-Manager owns the DAG_ONLY / DD_REQUIRED / RESEARCH_ONLY route and returns it to Nyx; it composes the selected DD graph and dispatches RnD-Refiner when a DD graph is needed
-├─ Requires focused R&D analysis (not full design)?
-│  ├─ Implementation options + tradeoffs → RnD-Architect
-│  ├─ Creative brainstorming → RnD-Ideator
-│  ├─ Effort sizing → RnD-Estimator
-│  ├─ Complexity/over-engineering audit → RnD-ComplexityAdvisor
-│  └─ Code improvement suggestions → RnD-Improver
-├─ Requires checking pattern consistency? → Dispatch Support-PatternEnforcer
-├─ Requires reviewing a whole GitHub tree (not a push)? → Dispatch QA-RepoReviewManager
-├─ Requires candidate push-gate validation/publication? → Dispatch QA-PushManager
-├─ Requires post-change QA before publication? → Dispatch QA-Reviewer
-└─ Requires reasserting QA before publication? → Dispatch QA-PushManager / QA-Reviewer
-```
-
 ### Dispatch Lifecycle
 
-1. **Before dispatch:** Select and open the exact per-agent reference linked in the Agent Selection tables, and produce a complete handoff: every agent-specific field, every context file, and all already-known requirements, constraints, decisions, and evidence. A complete handoff means nothing the agent needs is missing — it does **not** mean duplicating the selected specialist's core investigation. When the specialist owns discovery of the evidence it needs (for example RnD-Manager owns the design-evidence graph), pass what you already know and let it select the rest; never force the caller to redo that discovery first.
+1. **Before dispatch:** Open the exact per-agent reference linked in the department indexes below, and produce a complete handoff: every agent-specific field, every context file, and all already-known requirements, constraints, decisions, and evidence. A complete handoff means nothing the agent needs is missing — it does **not** mean duplicating the selected specialist's core investigation. When the specialist owns discovery of the evidence it needs (for example RnD-Manager owns the design-evidence graph), pass what you already know and let it select the rest; never force the caller to redo that discovery first.
 2. **During dispatch:** Fill every field in that per-agent reference. List every file and artifact. Directly state every requirement, decision, constraint, hypothesis, and expected output. State what the agent must NOT do.
 3. **After dispatch:** Verify the output against the expected contract. If malformed or incomplete, re-dispatch with clarification. Log significant findings. Route results to the next step.
 
@@ -140,91 +107,147 @@ Task at hand
 | Missing context files | Agent wastes turns asking for files or reads the wrong ones | List every file the agent needs. Check: would YOU know what to read from this prompt? |
 | Implicit parent context | Agent assumes facts, decisions, or prior tool output that were only present in the caller's session | Restate it in the prompt or link a durable artifact; assume the agent knows nothing |
 | No negative constraints | Agent over-steps — researcher writes code, author implements | Always add "Do NOT" — the bolded worker-spawn blocks in manager references exist for this reason |
-| Wrong agent for the task | Output doesn't match expectations or is formatted wrong | Check the selection table. Change-DAG agents don't design. R&D agents don't execute. |
 | Too broad scope | Agent returns shallow, surface-level results | Narrow to one change, one module, one decision. Multi-part work → multiple dispatches. |
-| Missing relevant artifact context | Agent proposes patterns that contradict prior process history or governing decisions | Select Support-Librarian when prior process artifacts (logs, DDs, dead ends) are relevant; load the `architecture-decisions`/`system-requirements` skill for governing decisions and requirements; otherwise record the evidence-based skip. Independent Librarian and Researcher nodes may run concurrently. |
-| Dispatching for a single-file read | Wasted context, slower than doing it yourself | If a `read` or `aft_search` call answers it, don't dispatch. |
+| Rerouting a selected owner | Caller silently substitutes a different agent than the one routing selected | Owner selection is `work-routing`'s policy. Dispatch the selected agent; if a hard capability/permission constraint conflicts, report the mismatch instead of substituting |
 
-## Agent Selection
+## Dispatch Mechanics by Department
 
-### Change DAG Department
+The indexes below map each dispatched agent to its reference file and its dispatch
+role or boundary. They are a reference index, not an owner-selection matrix — the
+choice of which agent to dispatch comes from `work-routing`.
 
-| Task | Reference |
-|------|-----------|
-| Create or amend Change DAG semantic and exact-work structure | [`change-dag-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) |
-| Lower one assigned Change DAG semantic node (internal to Change-DAG-Author; not dispatched by Nyx) | [`change-dag-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) |
-| Dynamically selected bounded independent review of a Change DAG | [`change-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) |
+### Change DAG Dispatch
 
-The Change DAG is the single implementation-work authority. Change-DAG-Author owns bounded discovery, semantic structure, exact work, convergence/reconciliation, preview, validation, and mutable correction without mutating source; Change-DAG-Reviewer is a dynamically selected read-only capability for a bounded independent question; Nyx owns lifecycle control through `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, while `dag_executor` performs deterministic execution and does not dispatch or record QA. Reviewer evidence is never persisted DAG state and does not authorize execution. Change-DAG-Author owns the service-derived decomposition-frontier loop (`dag_decomposition_frontier`) and dispatches one bounded `Change-DAG-Worker` per returned semantic node via native `task`; the Worker retrieves its own scope with `dag_decomposition_scope`. Change-DAG-Worker is a leaf construction capability and is never dispatched by Nyx for normal DAG construction.
+Change-DAG-Author owns construction end-to-end: bounded discovery, semantic
+structure, exact work, the service-derived decomposition-frontier loop
+(`dag_decomposition_frontier`), convergence/reconciliation, preview, validation,
+and mutable correction without mutating source. It dispatches one bounded
+`change-dag-worker` per returned semantic node via native `task`; the Worker
+retrieves its own scope with `dag_decomposition_scope`. Change-DAG-Worker is a leaf
+construction capability — **Nyx never dispatches Change-DAG-Worker directly** for
+normal DAG construction. Only the orchestrator/controller (Nyx) selects
+Change-DAG-Reviewer, and only for observable coordination or authority triggers;
+reviewer evidence is never persisted DAG state and does not authorize execution.
+Nyx owns Change DAG lifecycle control through `dag_start`, `dag_status`,
+`dag_stop`, and `dag_archive`; `dag_executor` performs deterministic execution and
+does not dispatch or record QA.
 
-### R&D Department
+| Agent | Dispatch reference | Dispatch role / boundary |
+|-------|--------------------|--------------------------|
+| `change-dag-author` | [`change-dag-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) | Construction manager; owns the decomposition-frontier loop and internal worker dispatch |
+| `change-dag-worker` | [`change-dag-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) | Bounded single-semantic-node lowering; dispatched only by Change-DAG-Author |
+| `change-dag-reviewer` | [`change-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) | Dynamically selected read-only review; selected by Nyx only for observable triggers |
 
-| Task | Reference |
-|------|-----------|
-| R&D graph composition and DD authoring | [`rnd-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) |
-| Bounded adversarial pair (only from RnD-Manager) | [`rnd-refiner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) |
-| Create or refine a design document (only from RnD-Manager) | [`rnd-dd-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-dd-author.md) |
-| Implementation options + tradeoffs | [`rnd-architect`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-architect.md) |
-| Creative solution generation | [`rnd-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-ideator.md) |
-| Effort sizing (TRIVIAL→EPIC) | [`rnd-estimator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-estimator.md) |
-| Complexity/over-engineering audit | [`rnd-complexity-advisor`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-complexity-advisor.md) |
-| Code improvement suggestions | [`rnd-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-improver.md) |
+### R&D Dispatch
 
-RnD-Manager is the sole orchestrator for a formal DD. RnD-Manager owns the
-evidence-based route (`DAG_ONLY` / `DD_REQUIRED` / `RESEARCH_ONLY`) and the
-selection of the design-evidence graph, and returns the structured result to Nyx;
-it never dispatches the downstream
-`change-dag-author` — Nyx does, only after `status: DONE` and
-`phase: READY_FOR_AUTHORING`. The caller passes any governing constraint it
-already holds; neither side is required to independently read the same
-governance corpus. It composes the smallest
+RnD-Manager is the sole orchestrator for a formal DD. It owns the evidence-based
+route (`DAG_ONLY` / `DD_REQUIRED` / `RESEARCH_ONLY`) and the **selection of the
+design-evidence graph**, and returns the structured result to Nyx; it never
+dispatches the downstream `change-dag-author` — Nyx does, only after
+`status: DONE` and `phase: READY_FOR_AUTHORING`. It composes the smallest
 sufficient graph from Librarian, Researcher, Refiner, Architect,
 ComplexityAdvisor, Estimator, DDAuthor, and PatternEnforcer capabilities. It may
 fan out independent work and must preserve dependency order and static authority.
-RnD-Refiner executes only one Manager-selected bounded external or repository
-pair per invocation. Ideator/Counter-Ideator challenge external assumptions; Improver/
-Counter-Improver challenge repository fit. Counter agents may return a
-substantiated `NO_MATERIAL_CONCERNS` / `GOOD_ENOUGH` result, which terminates
-that pair. DDAuthor never orchestrates other agents. Direct leaf dispatch is
-valid only for focused analysis outside a formal DD workflow.
+The caller passes any governing constraint it already holds; neither side is
+required to independently read the same governance corpus. RnD-Refiner executes
+only one Manager-selected bounded external or repository pair per invocation.
+DDAuthor never orchestrates other agents. Direct leaf dispatch is valid only for
+focused analysis outside a formal DD workflow.
 
 The adversarial critique agents ([`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) and [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md)) are spawned by RnD-Refiner only in a selected external or repository pair. Counter-Ideator tests external/architectural assumptions and real-world evidence; Counter-Improver tests actual repository paths, ownership, lifecycle, runtime boundaries, and unnecessary mechanisms. Neither is required to discover a defect. Both may validate a proposal when credible examination finds no material applicable concern. Direct dispatch is rare.
 
-### QA Department
+| Agent | Dispatch reference | Dispatch role / boundary |
+|-------|--------------------|--------------------------|
+| `rnd-manager` | [`rnd-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) | Sole formal-DD orchestrator; owns the route and the design-evidence graph |
+| `rnd-refiner` | [`rnd-refiner`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) | Executes one Manager-selected adversarial pair per invocation |
+| `rnd-dd-author` | [`rnd-dd-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-dd-author.md) | Records the accepted handoff in the DD; never orchestrates other agents |
+| `rnd-architect` | [`rnd-architect`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-architect.md) | Implementation options + tradeoffs |
+| `rnd-ideator` | [`rnd-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-ideator.md) | Creative solution generation |
+| `rnd-estimator` | [`rnd-estimator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-estimator.md) | Effort sizing (TRIVIAL→EPIC) |
+| `rnd-complexity-advisor` | [`rnd-complexity-advisor`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-complexity-advisor.md) | Complexity / over-engineering audit |
+| `rnd-improver` | [`rnd-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-improver.md) | Code improvement suggestions; repository-native realization |
+| `rnd-counter-ideator` | [`rnd-counter-ideator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) | Adversarial approach critique; spawned by RnD-Refiner only |
+| `rnd-counter-improver` | [`rnd-counter-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md) | Adversarial repository-fit critique; spawned by RnD-Refiner only |
 
-| Task | Agent | Reference |
-|------|-------|-----------|
-| Final publication gate: validate an isolated candidate snapshot, adversarially review, and push only the exact validated SHA when authorized | `qa-push-manager` | [`qa-push-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-push-manager.md) |
-| Full quality gate review (all checks) | `qa-reviewer` | [`qa-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer.md) |
-| Independent correctness and contract review | `qa-reviewer-correctness` | [`qa-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-correctness.md) |
-| Independent boundary and failure review | `qa-reviewer-boundary` | [`qa-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-boundary.md) |
-| Independent end-to-end journey review | `qa-reviewer-journey` | [`qa-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-journey.md) |
-| Independent review for one explicitly assigned technical risk lens (one invocation per lens) | `qa-reviewer-domainrisk` | [`qa-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-domainrisk.md) |
-| One-shot whole-tree GitHub review: resolve an explicit full tree URL to an exact ref, review the complete current-head tree from an immutable detached snapshot, dispatch read-only reviewers in canonical batched parallel groups, and fail closed on collection failure | `qa-repo-review-manager` | [`qa-repo-review-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-manager.md) |
-| Whole-tree correctness and contract review (permanent lens) | `qa-repo-reviewer-correctness` | [`qa-repo-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-correctness.md) |
-| Whole-tree boundary and failure review (dispatched when the tree contains boundary surfaces per the canonical applicability reference) | `qa-repo-reviewer-boundary` | [`qa-repo-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-boundary.md) |
-| Whole-tree end-to-end journey review (dispatched when the tree contains journey surfaces per the canonical applicability reference) | `qa-repo-reviewer-journey` | [`qa-repo-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-journey.md) |
-| Whole-tree review for one explicitly assigned technical risk lens (exactly one lens per invocation; batching and the concurrency cap are owned by the canonical applicability reference) | `qa-repo-reviewer-domainrisk` | [`qa-repo-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-domainrisk.md) |
-| Test coverage and quality analysis | `qa-test-analyzer` | [`qa-test-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-analyzer.md) |
-| Generate tests from coverage gaps | `qa-test-generator` | [`qa-test-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-generator.md) |
-| Documentation coverage analysis | `qa-docs-analyzer` | [`qa-docs-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-analyzer.md) |
-| Generate documentation from gaps | `qa-docs-generator` | [`qa-docs-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-generator.md) |
-| Reassert QA gate when skipped | `qa-reassertion` | [`qa-reassertion`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reassertion.md) |
+### QA Dispatch
 
-QA-Reviewer is the primary post-change QA entry point. QA is independent of Change DAG execution and archival: it is not stored in `EXECUTION_STATE`, is not a DAG phase, and does not gate `dag_archive`. `qa-push-manager` is the final publication gate for a candidate commit: it validates an isolated disposable snapshot of the candidate at the candidate SHA and, only after deterministic validation is green, spawns the read-only reviewers selected per `/home/opencode/.config/opencode/instructions/qa-applicability.md` — correctness always, plus boundary, journey, and every matched domain-risk lens, dispatched in the canonical lens order and 0 / 1–3 / >3 batching rule owned there — with each DomainRisk invocation confined to its `assigned_lens`. The adversarial reviewers are read-only, work from the same immutable candidate context, never consume each other's findings, and must not be dispatched before deterministic validation is green. Reviewer infrastructure failure fails closed (REVIEW INFRASTRUCTURE FAILURE). QA-PushManager pushes only the exact validated commit object and only when explicitly authorized; otherwise it reports the validated candidate without pushing. QA-TestAnalyzer and QA-DocsAnalyzer are spawned by QA-Reviewer when their canonical applicability triggers fire; each first inspects current state and produces its own candidate findings, then spawns QA-TestGenerator or QA-DocsGenerator for every surviving generator-owned candidate (`MINOR_DISPATCH` or `MAJOR_DISPATCH`), exactly once. A `PASS` run (no candidate at all) and a `MINOR_PASS` run (every candidate closed by validated current reconciliation, never a discretionary too-minor bypass) dispatch no generator, and an implementation/systemic escalation runs no generator. Tier-to-generator routing is owned by the "Analyzer and generator contract" section of `/home/opencode/.config/opencode/instructions/qa-applicability.md`. Direct dispatch of leaf QA agents is valid for standalone assessment when the owning manager is not required.
+QA is independent of Change DAG execution and archival: it is not stored in
+`EXECUTION_STATE`, is not a DAG phase, and does not gate `dag_archive`.
+`qa-push-manager` is the final publication gate for a candidate commit: it
+validates an isolated disposable snapshot of the candidate at the candidate SHA
+and, only after deterministic validation is green, spawns the read-only reviewers
+selected per `/home/opencode/.config/opencode/instructions/qa-applicability.md` —
+correctness always, plus boundary, journey, and every matched domain-risk lens,
+dispatched in the canonical lens order and 0 / 1–3 / >3 batching rule owned there
+— with each DomainRisk invocation confined to its `assigned_lens`. The adversarial
+reviewers are read-only, work from the same immutable candidate context, never
+consume each other's findings, and must not be dispatched before deterministic
+validation is green. Reviewer infrastructure failure fails closed (REVIEW
+INFRASTRUCTURE FAILURE). QA-PushManager pushes only the exact validated commit
+object and only when explicitly authorized; otherwise it reports the validated
+candidate without pushing.
 
-QA-RepoReviewManager is the separate whole-tree GitHub review entry point, distinct from the standalone code-review gate (`qa-reviewer`) and the push/publication `qa-push-manager`. It accepts exactly one explicit full HTTPS GitHub tree URL (`https://github.com/<owner>/<repository>/tree/<exact-ref>`), resolves the named ref to its run-start head, materializes the complete current-head tree as an immutable detached snapshot, and reviews that complete tree — never a diff and never a candidate commit; the resolved SHA is provenance only. It never pushes, never operates a push gate, and shares no mutable state with the push suite. Its read-only reviewers (`qa-repo-reviewer-correctness`, `qa-repo-reviewer-boundary`, `qa-repo-reviewer-journey`, plus `qa-repo-reviewer-domainrisk` once per matched lens, dispatched in the canonical order and concurrency/batching rule owned by the canonical applicability reference) are dispatched in canonical batched parallel groups with one immutable review context and never consume one another's output; collection fails closed as `REVIEW_INFRASTRUCTURE_FAILURE`. Before any manager GitHub operation, load and apply the applicable guidance selected through `gg-router` (`gg-repos`, `gg-env`, `gg-core`, `ggt-conventions`); never improvise GitHub or Git behavior from memory. Direct dispatch of the whole-tree reviewers outside QA-RepoReviewManager is not valid.
+QA-Reviewer composes the normal post-change QA pass. It spawns QA-TestAnalyzer and
+QA-DocsAnalyzer when their canonical applicability triggers fire; each first
+inspects current state and produces its own candidate findings, then spawns
+QA-TestGenerator or QA-DocsGenerator for every surviving generator-owned candidate
+(`MINOR_DISPATCH` or `MAJOR_DISPATCH`), exactly once. A `PASS` run (no candidate at
+all) and a `MINOR_PASS` run (every candidate closed by validated current
+reconciliation, never a discretionary too-minor bypass) dispatch no generator, and
+an implementation/systemic escalation runs no generator. Tier-to-generator routing
+is owned by the "Analyzer and generator contract" section of
+`/home/opencode/.config/opencode/instructions/qa-applicability.md`.
 
-### Support Department
+QA-RepoReviewManager is the separate whole-tree GitHub review entry point, distinct
+from the standalone code-review gate (`qa-reviewer`) and the push/publication
+`qa-push-manager`. It accepts exactly one explicit full HTTPS GitHub tree URL
+(`https://github.com/<owner>/<repository>/tree/<exact-ref>`), resolves the named
+ref to its run-start head, materializes the complete current-head tree as an
+immutable detached snapshot, and reviews that complete tree — never a diff and
+never a candidate commit; the resolved SHA is provenance only. It never pushes,
+never operates a push gate, and shares no mutable state with the push suite. Its
+read-only reviewers (`qa-repo-reviewer-correctness`, `qa-repo-reviewer-boundary`,
+`qa-repo-reviewer-journey`, plus `qa-repo-reviewer-domainrisk` once per matched
+lens, dispatched in the canonical order and concurrency/batching rule owned by the
+canonical applicability reference) are dispatched in canonical batched parallel
+groups with one immutable review context and never consume one another's output;
+collection fails closed as `REVIEW_INFRASTRUCTURE_FAILURE`. Before any manager
+GitHub operation, load and apply the applicable guidance selected through
+`gg-router` (`gg-repos`, `gg-env`, `gg-core`, `ggt-conventions`); never improvise
+GitHub or Git behavior from memory. Direct dispatch of the whole-tree reviewers
+outside QA-RepoReviewManager is not valid.
 
-| Task | Reference |
-|------|-----------|
-| Diagnose test, runtime, lint, or behavior failures | [`support-debugger`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-debugger.md) |
-| Gather process-artifact context (logs, dead ends, prior design docs) | [`support-librarian`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) |
-| Check pattern coverage and consistency | [`support-patternenforcer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-patternenforcer.md) |
-| Deep codebase or external documentation research | [`support-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) |
+| Agent | Dispatch reference | Dispatch role / boundary |
+|-------|--------------------|--------------------------|
+| `qa-push-manager` | [`qa-push-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-push-manager.md) | Final publication gate; spawns read-only reviewers after deterministic validation |
+| `qa-reviewer` | [`qa-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer.md) | Composes the normal post-change QA pass; full quality gate in one round |
+| `qa-reviewer-correctness` | [`qa-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-correctness.md) | Independent correctness and contract review |
+| `qa-reviewer-boundary` | [`qa-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-boundary.md) | Independent boundary and failure review |
+| `qa-reviewer-journey` | [`qa-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-journey.md) | Independent end-to-end journey review |
+| `qa-reviewer-domainrisk` | [`qa-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-domainrisk.md) | Assigned technical risk lens; one invocation per lens |
+| `qa-repo-review-manager` | [`qa-repo-review-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-manager.md) | One-shot whole-tree GitHub review manager; never a push gate |
+| `qa-repo-reviewer-correctness` | [`qa-repo-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-correctness.md) | Whole-tree correctness reviewer (permanent lens) |
+| `qa-repo-reviewer-boundary` | [`qa-repo-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-boundary.md) | Whole-tree boundary/failure reviewer |
+| `qa-repo-reviewer-journey` | [`qa-repo-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-journey.md) | Whole-tree end-to-end journey reviewer |
+| `qa-repo-reviewer-domainrisk` | [`qa-repo-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-domainrisk.md) | Whole-tree single assigned-lens specialist reviewer |
+| `qa-repo-review-authorized-pilot` | [`qa-repo-review-authorized-pilot`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-authorized-pilot.md) | Optional disposable-repository pilot checklist; no live success is implied |
+| `qa-test-analyzer` | [`qa-test-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-analyzer.md) | Test coverage and quality analysis |
+| `qa-test-generator` | [`qa-test-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-generator.md) | Generates tests from coverage gaps |
+| `qa-docs-analyzer` | [`qa-docs-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-analyzer.md) | Documentation coverage analysis |
+| `qa-docs-generator` | [`qa-docs-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-generator.md) | Generates documentation from gaps |
+| `qa-reassertion` | [`qa-reassertion`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reassertion.md) | Reasserts the QA gate when skipped |
 
-All support agents are dispatched directly — they have no internal orchestrator. Select Support-Librarian only when prior process artifacts materially constrain the route; otherwise record the evidence-based skip. Independent Librarian and Researcher work may run concurrently.
+### Support Dispatch
+
+All support agents are dispatched directly — they have no internal orchestrator.
+Independent Librarian and Researcher work may run concurrently.
+
+| Agent | Dispatch reference | Dispatch role / boundary |
+|-------|--------------------|--------------------------|
+| `support-debugger` | [`support-debugger`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-debugger.md) | Root cause analysis for failures |
+| `support-librarian` | [`support-librarian`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) | Process-artifact context (logs, dead ends, prior design docs) |
+| `support-patternenforcer` | [`support-patternenforcer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-patternenforcer.md) | Pattern coverage and consistency checks |
+| `support-researcher` | [`support-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) | Deep codebase and external research |
 
 ## Cross-Cutting Concerns
 
@@ -273,54 +296,14 @@ Spawning a manager (RnD-Manager)?
 └─ task (managers spawn workers and retain the session tree)
 ```
 
-## References
-
-- **This skill's references:** — self-contained dispatch guides, one per agent type, organized by department:
-
-  **Exec:** [`change-dag-author.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) — Change DAG construction management, worker dispatch, and exact-work authoring.
-  [`change-dag-worker.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) — Bounded single-semantic-node lowering/decomposition (internal to Change-DAG-Author).
-  [`change-dag-reviewer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) — Dynamically selected bounded independent review of a Change DAG scope.
-  `change-dag-lifecycle` skill — Nyx's lifecycle operation contract for starting, monitoring, stopping, recovering, retrying, and archiving Change DAGs.
-
-  **R&D:** [`rnd-manager.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-manager.md) — Feature design, R&D, tradeoff analysis (orchestrator).
-  [`rnd-refiner.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-refiner.md) — Adversarial design refinement pipeline.
-  [`rnd-dd-author.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-dd-author.md) — Design document creation.
-  [`rnd-architect.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-architect.md) — Implementation options + tradeoffs.
-  [`rnd-ideator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-ideator.md) — Creative solution generation.
-  [`rnd-estimator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-estimator.md) — Effort sizing.
-  [`rnd-complexity-advisor.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-complexity-advisor.md) — Complexity/over-engineering audit.
-  [`rnd-improver.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-improver.md) — Evidence-backed repository-native architecture adaptation.
-  [`rnd-counter-ideator.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-ideator.md) — Adversarial approach critique.
-  [`rnd-counter-improver.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-counter-improver.md) — Adversarial repository-fit critique.
-
-  **QA:** [`qa-push-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-push-manager.md) — Final validation and publication gate.
-  [`qa-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-correctness.md) — Correctness, contract, and regression review.
-  [`qa-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-boundary.md) — Boundary, degraded-state, and failure review.
-  [`qa-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-journey.md) — End-to-end journey review.
-  [`qa-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer-domainrisk.md) — Assigned technical risk review.
-  [`qa-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reviewer.md) — Full quality gate review.
-  [`qa-test-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-analyzer.md) — Test coverage analysis.
-  [`qa-test-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-test-generator.md) — Test generation from gaps.
-  [`qa-docs-analyzer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-analyzer.md) — Documentation coverage analysis.
-  [`qa-docs-generator`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-docs-generator.md) — Documentation generation from gaps.
-  [`qa-reassertion`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-reassertion.md) — Reassert QA gate when skipped.
-  [`qa-repo-review-manager`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-manager.md) — One-shot whole-tree GitHub review manager (explicit tree URL; never a push gate).
-  [`qa-repo-reviewer-correctness`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-correctness.md) — Whole-tree correctness reviewer (permanent lens).
-  [`qa-repo-reviewer-boundary`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-boundary.md) — Whole-tree boundary/failure reviewer (dispatched when boundary surfaces are present).
-  [`qa-repo-reviewer-journey`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-journey.md) — Whole-tree end-to-end journey reviewer (dispatched when journey surfaces are present).
-  [`qa-repo-reviewer-domainrisk`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-reviewer-domainrisk.md) — Whole-tree single assigned-lens specialist reviewer.
-   [`qa-repo-review-authorized-pilot`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/qa-repo-review-authorized-pilot.md) — Optional disposable-repository pilot checklist; no live success is implied.
-
-  **Support:** [`support-debugger.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-debugger.md) — Root cause analysis for failures.
-  [`support-librarian.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-librarian.md) — Process-artifact context (logs, dead ends, prior design docs).
-  [`support-patternenforcer.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-patternenforcer.md) — Pattern coverage and consistency checks.
-  [`support-researcher.md`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/support-researcher.md) — Deep codebase and external research.
-
-- **Related skills:** `capture-subsystem` (codebase research skills)
-
-
 ## Lifecycle Validation Before Dispatch
 
 Every design, decomposition, or execution dispatch must validate DD status and requirement conformance before handing work downstream. Accept a DD only with a recognized accepted status (`Complete (accepted)`, `Approved`, or `Completed`), normalizing repository wording `Complete (accepted)` as accepted; an accepted DD intentionally held in `pending/` must name the prerequisite disposition, responsible owner, and transition condition. Reject `Draft`, `Rejected`, stale/invalid pending DDs, and any execution or archival of an unaccepted DD.
 
 For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Change-DAG-Author owns construction end-to-end, including the service-derived decomposition-frontier loop, and dispatches one fresh bounded Change-DAG-Worker per returned frontier node; only the orchestrator/controller (Nyx) selects Change-DAG-Reviewer, and only for observable coordination or authority triggers. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings and reviewer verdicts are evidence for owner/controller disposition only; `BLOCKING`, confidence, closure, PASS, and routing ownership do not authorize implementation.
+
+## Related Skills
+
+- `work-routing` — canonical owner-selection policy (who owns the next step). Load it before choosing an owner; this skill begins after that choice.
+- `change-dag-lifecycle` — Nyx's Change DAG lifecycle operation contract for starting, monitoring, stopping, recovering, retrying, and archiving Change DAGs.
+- `capture-subsystem` — codebase research skills.

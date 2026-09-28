@@ -7,15 +7,17 @@ Pins one coherent rule across the active routing/dispatch surfaces:
     config/skills/dispatching-agents/references/rnd-manager.md
     docs/architecture/rnd-and-design.md
 
-The rule: Nyx routes architectural work to RnD-Manager for R&D evaluation
-*without* first completing a broad repository/history/API discovery pass.
-Nyx's pre-R&D responsibility is bounded — recognize R&D evaluation is warranted,
-preserve the authoritative request, capture request_context, pass already-known
-constraints/evidence, and surface a concrete blocker/user decision. RnD-Manager
-owns selection of the design-evidence graph (governance skills, Support-Librarian,
-Support-Researcher, other R&D capabilities). Already-known evidence is passed
-downstream rather than discarded, and no active universal rule requires the
-caller to duplicate the selected specialist's pre-dispatch investigation.
+The rule: the routing authority (`work-routing`) routes architectural work to
+RnD-Manager for R&D evaluation *without* first completing a broad
+repository/history/API discovery pass. Its pre-R&D responsibility is bounded —
+recognize R&D evaluation is warranted, preserve the authoritative request, capture
+request_context, pass already-known constraints/evidence, and surface a concrete
+blocker/user decision. RnD-Manager owns selection of the design-evidence graph
+(governance skills, Support-Librarian, Support-Researcher, other R&D
+capabilities). Nyx no longer carries this policy; it binds to `work-routing`.
+Already-known evidence is passed downstream rather than discarded, and no active
+universal rule requires the caller to duplicate the selected specialist's
+pre-dispatch investigation.
 
 These tests fail loudly if any surface reintroduces an unconditional
 "caller must investigate everything / inspect logs before every dispatch"
@@ -29,6 +31,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NYX = "config/agents/nyx.md"
+ROUTING = "config/skills/work-routing/SKILL.md"
 DISPATCH = "config/skills/dispatching-agents/SKILL.md"
 RND_REF = "config/skills/dispatching-agents/references/rnd-manager.md"
 DOC = "docs/architecture/rnd-and-design.md"
@@ -48,36 +51,36 @@ class TestArchitecturalTierRoutesInsteadOfResearching:
     """A request can be dispatched to RnD-Manager without a broad pass first."""
 
     def test_architectural_tier_is_evaluation_depth_not_full_research(self):
-        text = _norm(NYX)
+        text = _norm(ROUTING)
         assert "R&D evaluation depth, not a duplicate discovery pass" in text
         assert "route to RnD-Manager, which owns the selected design-evidence graph" in text
-        assert (
-            "Do not complete broad repository/history/API research before the handoff"
-            in text
-        )
+        assert "external/API research before RnD-Manager" in text
 
     def test_nyx_no_longer_owns_full_research_for_architectural_work(self):
         text = _raw(NYX)
         assert "Full research: logs, skills, codebase exploration" not in text
 
+    def test_nyx_no_longer_defines_the_architectural_tier(self):
+        assert "R&D evaluation depth, not a duplicate discovery pass" not in _norm(NYX)
+
     def test_matrix_row_states_evidence_graph_ownership(self):
-        assert "selects the design-evidence graph" in _norm(NYX)
+        assert "selects the design-evidence graph" in _norm(ROUTING)
 
 
 class TestPreRndResponsibilityIsBounded:
     def test_pre_rnd_responsibility_section_exists(self):
-        assert "Pre-R&D Responsibility" in _raw(NYX)
+        assert "Pre-R&D Responsibility" in _raw(ROUTING)
 
     def test_five_bounded_obligations_are_named(self):
-        text = _norm(NYX)
+        text = _norm(ROUTING)
         assert "recognize that R&D evaluation is warranted" in text
         assert "preserve the authoritative user request" in text
         assert "capture the required `request_context`" in text
         assert "pass already-known constraints and evidence" in text
         assert "identify a concrete blocker or user decision if one exists" in text
 
-    def test_nyx_is_not_required_to_pre_complete_discovery(self):
-        text = _norm(NYX)
+    def test_router_is_not_required_to_pre_complete_discovery(self):
+        text = _norm(ROUTING)
         assert (
             "does **not** need to independently complete broad repository exploration"
             in text
@@ -86,10 +89,19 @@ class TestPreRndResponsibilityIsBounded:
         assert "full integration tracing" in text
         assert "external/API research before RnD-Manager" in text
 
+    def test_nyx_no_longer_owns_a_pre_rnd_obligations_block(self):
+        assert "Pre-R&D Responsibility" not in _norm(NYX)
+
 
 class TestCompleteHandoffStillCarriesRequestAndContext:
-    def test_nyx_preserves_request_and_captures_context(self):
+    def test_nyx_still_owns_the_capture_operation(self):
         text = _norm(NYX)
+        assert "capture_request_context" in text
+        assert "request_context" in text
+        assert "Nyx owns the capture operation" in text
+
+    def test_routing_preserves_request_and_requires_context(self):
+        text = _norm(ROUTING)
         assert "preserve the authoritative user request" in text
         assert "capture the required `request_context`" in text
 
@@ -127,8 +139,8 @@ class TestAlreadyKnownEvidenceIsPassedNotDiscarded:
         assert "Already-known caller evidence is an input" in text
         assert "must not discard it" in text
 
-    def test_nyx_rule_is_no_duplicate_discovery_not_hidden_context(self):
-        text = _norm(NYX)
+    def test_routing_rule_is_no_duplicate_discovery_not_hidden_context(self):
+        text = _norm(ROUTING)
         assert "do not require duplicate discovery" in text
         assert "not hide useful context" in text
 
@@ -149,11 +161,16 @@ class TestNoUniversalDuplicatedPreDispatchDiscovery:
         )
         assert "pass what you already know" in text
 
-    def test_all_surfaces_agree_governance_is_loaded_once(self):
-        for relative in ACTIVE_SURFACES:
+    def test_remaining_surfaces_agree_governance_is_loaded_once(self):
+        # Nyx no longer duplicates this handoff rule; it is owned where the
+        # dispatch is constructed and by the routing authority's
+        # "no duplicate discovery" rule.
+        for relative in (DISPATCH, RND_REF, DOC):
             assert "independently read the same governance corpus" in _norm(relative), (
                 f"governance single-load rule missing from {relative}"
             )
+        assert "do not require duplicate discovery" in _norm(ROUTING)
+        assert "independently read the same governance corpus" not in _norm(NYX)
 
     def test_no_caller_investigate_everything_rule_remains(self):
         for relative in ACTIVE_SURFACES:
