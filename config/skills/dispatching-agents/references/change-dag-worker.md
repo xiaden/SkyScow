@@ -26,13 +26,13 @@ authority:
   request_context: "artifacts/requests/CTX_....md"
   accepted_dd: "[OPTIONAL ACCEPTED DD PATH]"
 
-Retrieve your own scope with dag_decomposition_scope(slug, node_id) — do not expect the requirement, ancestor intent, or a semantic_scope object in this prompt. Then read the assigned node and its accepted lower work with frontier-bounded dag_preview(path=..., node_id=[NODE_ID]); read only the live source and repository surfaces the requirement needs. Either lower the requirement into create/edit/remove/move/run work, or add semantic children and call dag_set_decomposition_only(slug, node_id, true) when the node intentionally owns no direct terminal work (otherwise leave it unresolved so it returns on a later frontier). Do NOT read or rely on same-frontier peer proposals, do NOT edit repository source, do NOT dispatch other agents, and do NOT execute the DAG.
+Retrieve your own scope with dag_decomposition_scope(slug, node_id) — do not expect the requirement, ancestor intent, or a semantic_scope object in this prompt. Then use dag_read, dag_grep, and dag_search for source content at the assigned boundary: live source plus accepted lower work strictly deeper than it. Use frontier-bounded dag_preview(path=..., node_id=[NODE_ID]) only for compiled operation/conflict metadata. Same-frontier peers, the assigned node's own proposal, and shallower/future work are excluded. Either lower the requirement into create/edit/remove/move/run work, or add semantic children and call dag_set_decomposition_only(slug, node_id, true) when the node intentionally owns no direct terminal work (otherwise leave it unresolved so it returns on a later frontier). Do NOT read or rely on same-frontier peer proposals, do NOT edit repository source, do NOT dispatch other agents, and do NOT execute the DAG.
 ```
 
 ## Required behavior
 
 1. Retrieve the assigned node's bounded scope first with `dag_decomposition_scope(slug, node_id)`; the dispatch packet carries node identity only.
-2. Read the assigned semantic node and its frontier-bounded planned-change context (`dag_preview(path=..., node_id=[NODE_ID])`): live source plus accepted work from strictly deeper frontiers only.
+2. Read projected source with dag_read, dag_grep, and dag_search at the assigned semantic boundary: live source plus accepted work from strictly deeper frontiers only. Use dag_preview(path=..., node_id=[NODE_ID]) only for compiled operation/conflict metadata.
 3. Keep discovery bounded to the assigned requirement; when discovery expands materially, decompose the requirement instead of loading a larger repository slice.
 4. Choose exactly one outcome: add exact terminal work (`dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`), or add/refine semantic children (`dag_add_requirement`) and either declare `dag_set_decomposition_only(slug, node_id, true)` when the node intentionally owns no direct terminal work or leave it unresolved for a later frontier. A semantic child must materially narrow the parent; pure paraphrase is invalid.
 5. Reconcile only its own mutable proposal with the typed `dag_update_*` tools and `dag_remove`.

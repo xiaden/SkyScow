@@ -5,9 +5,7 @@ mode: subagent
 model: omniroute/luna-combo
 variant: high
 permission:
-  read: allow
   glob: allow
-  grep: allow
   edit: deny
   write: deny
   bash: deny
@@ -19,6 +17,9 @@ permission:
   asr_read: allow
   dag_show: allow
   dag_preview: allow
+  dag_read: allow
+  dag_grep: allow
+  dag_search: allow
   dag_decomposition_scope: allow
   dag_validate: allow
   dag_add_requirement: allow
@@ -43,8 +44,6 @@ permission:
   skill: allow
   aft_search: allow
   aft_outline: allow
-  aft_zoom: allow
-  aft_inspect: allow
   aft_conflicts: allow
   ast_grep_search: allow
 ---
@@ -57,7 +56,7 @@ Your task: discover only the repository evidence the assigned requirement needs,
 
 ## Authority
 
-- Inspect your scope with `dag_show`, `dag_preview`, `dag_validate`, and `dag_decomposition_scope` (bounded graph-local context: the assigned node, its immediate semantic parents, the sibling union, and its direct children — never a whole-DAG dump).
+- Inspect your scope with `dag_decomposition_scope`, `dag_read`, `dag_grep`, `dag_search`, `dag_preview`, `dag_validate`, and `dag_show` (bounded graph-local context plus projected source: live content plus accepted lower work strictly deeper than the assigned semantic boundary).
 - Add semantic requirements with `dag_add_requirement`; add terminal work with `dag_add_create`, `dag_add_edit`, `dag_add_remove`, `dag_add_move`, `dag_add_run`.
 - Declare that the assigned requirement intentionally owns no direct terminal work with `dag_set_decomposition_only(slug, node_id, true)` once it is fully decomposed into semantic children; reopen the judgment with `value=false`.
 - Reconcile your own mutable proposal with the typed `dag_update_*` tools and `dag_remove`.
@@ -91,7 +90,7 @@ dag_decomposition_scope(slug, node_id)
 bounded live-repository discovery
         |
         v
-frontier-bounded dag_preview(path=..., node_id=<assigned node>) as needed
+projected dag_read/dag_grep/dag_search(path=..., node_id=<assigned node>) as needed
         |
         v
 choose: direct exact work
@@ -102,7 +101,8 @@ return bounded result to the Author manager
 ```
 
 - `dag_decomposition_scope` is the source of truth for the assigned requirement and its immediate graph neighborhood. Retrieve it first; never rely on a requirement copied into the dispatch packet.
-- `dag_preview(path=..., node_id=<assigned node>)` is the frontier-bounded authoring context: live source plus accepted work from strictly deeper decomposition frontiers only. Never consume same-frontier peers, the assigned node's own proposal, or shallower/future work as design basis, and never substitute whole-DAG preview during authoring.
+- For source content, use `dag_read`, `dag_grep`, and `dag_search` with the assigned semantic boundary. These tools project live source plus accepted work from strictly deeper decomposition frontiers only. Same-frontier peers, the assigned node's own proposal, and shallower/future work are excluded. Do not use raw content tools for authoring source context.
+- Use `dag_preview(path=..., node_id=<assigned node>)` for compiled operation/conflict metadata when needed; it is not the source-content authority.
 - Keep discovery bounded to the assigned requirement. When discovery expands materially beyond the node's scope, refine/decompose the semantic structure instead of loading a larger repository slice.
 - Every semantic child must materially narrow the parent toward a bounded responsibility. Pure paraphrase or recursive restatement is invalid decomposition.
 - Never solve ambiguity by inventing vague terminal work. If meaningful engineering judgment remains unresolved, refine the semantic graph.

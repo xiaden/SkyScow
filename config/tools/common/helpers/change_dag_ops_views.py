@@ -21,6 +21,7 @@ from . import change_dag_compiler_graph as compiler_graph
 from . import change_dag_compiler_phase as compiler_phase
 from .change_dag_ops_support import _error, _load, _numeric
 from .change_dag_patch import PatchError, read_text_preserving
+from .change_dag_projection import effective_content
 
 
 def _reachable_subgraph(dag: dict[str, Any], node_id: str) -> set[str]:
@@ -127,12 +128,7 @@ def _authoring_preview(
     ]
 
     live_source = _read_live_source(workspace_root, scope)
-    if scope in overlay:
-        effective_source = overlay[scope]
-    elif scope in removed:
-        effective_source = None
-    else:
-        effective_source = live_source
+    effective_source = effective_content(workspace_root, scope, overlay, removed)
 
     frontiers = compiler_graph.lower_work_frontiers(dag)
     frontier_counts = {

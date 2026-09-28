@@ -54,6 +54,9 @@ WORKER_TOOLS = (
     "dag_show",
     "dag_preview",
     "dag_validate",
+    "dag_read",
+    "dag_grep",
+    "dag_search",
     "dag_add_requirement",
     "dag_add_create",
     "dag_add_edit",
@@ -199,6 +202,18 @@ class TestWorkerAuthority:
         permission = _permission("change-dag-worker")
         for tool in WORKER_TOOLS:
             assert _allowed(permission, tool), f"Worker needs {tool}"
+
+    def test_worker_uses_projected_source_for_authoring(self):
+        permission = _permission("change-dag-worker")
+        for tool in ("read", "grep", "aft_zoom", "aft_inspect"):
+            assert not _allowed(permission, tool), f"Worker must not use raw source tool {tool}"
+        for path in (
+            AGENTS / "change-dag-worker.md",
+            SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md",
+        ):
+            text = path.read_text(encoding="utf-8")
+            assert "dag_read" in text and "dag_grep" in text and "dag_search" in text
+            assert "source content" in text
 
     def test_lowered_wording_describes_authoring_not_runtime(self):
         # Adding exact work resolves the node's authoring obligation; runtime

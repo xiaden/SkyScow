@@ -479,6 +479,42 @@ const tools = {
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_scope", args, context) },
   }),
+  dag_read: tool({
+    description:
+      "Read a file from live repository state plus accepted lower Change DAG work strictly deeper than a semantic authoring boundary. Excludes same-frontier peers, the boundary node's own work, and shallower/future work; returns only the requested range.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Semantic authoring boundary node ID"),
+      path: requiredString("Workspace-relative projected file path"),
+      start_line: optionalNumber("1-indexed inclusive start line"),
+      end_line: optionalNumber("1-indexed inclusive end line"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_read", args, context) },
+  }),
+  dag_grep: tool({
+    description:
+      "Find matching lines in live repository state plus accepted lower Change DAG work strictly deeper than a semantic authoring boundary. Excludes same-frontier peers, the boundary node's own work, and shallower/future work; returns deterministic path/line matches without snippets.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Semantic authoring boundary node ID"),
+      pattern: requiredString("Regular expression to match"),
+      path: optionalString("Optional workspace-relative projected file path"),
+      ignore_case: optionalBoolean("Case-insensitive matching"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_grep", args, context) },
+  }),
+  dag_search: tool({
+    description:
+      "Rank projected source files using deterministic textual scoring over live state plus accepted lower work strictly deeper than a semantic authoring boundary. No semantic/vector retrieval; excludes same-frontier peers, the boundary node's own work, and shallower/future work.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_id: requiredString("Semantic authoring boundary node ID"),
+      query: requiredString("Text query"),
+      path: optionalString("Optional workspace-relative projected file path"),
+      limit: optionalNumber("Maximum result count"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_search", args, context) },
+  }),
   dag_start: tool({
     description: "Execute a Change DAG, optionally retrying previously failed nodes.",
     args: {
