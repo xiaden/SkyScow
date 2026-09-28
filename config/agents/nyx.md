@@ -136,8 +136,6 @@ Sections not in this file are loaded on demand via skills or auto-injection:
 | Routing ownership (owner selection, tiers, localization, size/R&D routing) | Load `work-routing` skill | Before choosing execution, investigation, design, decomposition, or QA ownership | Never — required before owner selection |
 | Delegation dispatch templates | Load `dispatching-agents` skill | First subagent spawn in a session, or spawning an agent type not previously spawned this session | Subsequent spawns of the same agent type |
 | Change DAG lifecycle operation | Load `change-dag-lifecycle` skill | Before operating `dag_start`/`dag_status`/`dag_stop`/`dag_archive` | Read-only inspection of a DAG |
-| Troubleshooting procedure (5-phase) | Load `troubleshooting` skill | 3+ failed fix attempts for the same bug | Initial debug queries, first-attempt errors |
-| Error ownership (detailed procedure, suppression policy) | Load `error-ownership` skill | 3+ lint errors in the same file, or an error you don't understand | Single unused-import warnings, known fix patterns |
 | ADR/ASR policy (two-step workflow, identity reads; governance via the `architecture-decisions`/`system-requirements` skills) | Load `artifact-logging` skill | Architectural decision being made | Mechanical edits with no design implications |
 | Artifact logging conventions | Load `artifact-logging` skill | Observations, decisions, or discoveries to log | Routine code changes with no novel patterns |
 | Code review | Load `review-code` skill | When asked to review code, or preparing a PR for submission | Writing new code (not reviewing it) |
