@@ -11,8 +11,8 @@ def _one(slug: str, root: Path) -> dict:
             from .dag_executor import reconcile_interrupted
             reconcile_interrupted(root, marker["slug"])
         control.remove_marker(root)
-    dag, _, _ = change_dag.read_dag(root, slug)
-    state = state_helper.state_with_defaults(dag, state_helper.read_state(root, slug))
+    dag, _, location = change_dag.read_dag(root, slug)
+    state = state_helper.state_with_defaults(dag, state_helper.read_state(root, slug, archived=(location == "archived")))
     sat = change_dag.derived_satisfaction(dag, state)
     queued = control.queue_list(root)
     queue_pos = next((i + 1 for i, item in enumerate(queued) if item["slug"] == slug), None)

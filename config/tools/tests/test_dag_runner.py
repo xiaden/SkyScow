@@ -173,7 +173,10 @@ def test_stale_marker_reconciles_and_archive(tmp_path: Path):
     status = dag_status("stale", workspace_root=root)
     assert status["state"] == "idle"
     assert not control.marker_path(root).exists()
-    assert dag_archive("stale", workspace_root=root)["error"] == "incomplete_dag"
+    # Archival is not a correctness gate: an unsatisfied DAG is still archivable.
+    archived = dag_archive("stale", "abandoned after upstream design changed", workspace_root=root)
+    assert archived["archived"] is True
+    assert archived["state_at_archive"]["root_satisfied"] is False
 
 
 def test_interrupted_run_fails(tmp_path: Path):
@@ -189,9 +192,11 @@ def test_archive_after_satisfaction(tmp_path: Path):
     write_dag(root, "archive")
     assert dag_start("archive", workspace_root=root)["state"] == "running"
     assert wait_root(root, "archive")["root_satisfied"]
-    archived = dag_archive("archive", workspace_root=root)
+    archived = dag_archive("archive", "execution completed and artifact retired", workspace_root=root)
     assert archived["archived"]
-    assert (root / "artifacts/change-dags/completed/archive/DAG.json").exists()
+    assert archived["state_at_archive"]["root_satisfied"] is True
+    assert (root / "artifacts/change-dags/archived/archive/DAG.json").exists()
+    assert (root / "artifacts/change-dags/archived/archive/ARCHIVE.json").exists()
 
 
 def test_dag_start_rejects_non_executable_dag(tmp_path: Path):

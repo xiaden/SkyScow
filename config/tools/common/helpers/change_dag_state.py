@@ -19,8 +19,8 @@ def _valid_value(value: str) -> None:
         raise ValueError(f"invalid terminal state: {value!r}")
 
 
-def read_state(workspace_root: Path, slug: str, completed: bool = False) -> dict[str, str]:
-    path = change_dag.state_json_path(workspace_root, slug, completed)
+def read_state(workspace_root: Path, slug: str, archived: bool = False) -> dict[str, str]:
+    path = change_dag.state_json_path(workspace_root, slug, archived)
     if not path.exists():
         return {}
     try:
@@ -37,13 +37,13 @@ def read_state(workspace_root: Path, slug: str, completed: bool = False) -> dict
     return result
 
 
-def write_state(workspace_root: Path, slug: str, state: dict[str, str], completed: bool = False) -> None:
+def write_state(workspace_root: Path, slug: str, state: dict[str, str], archived: bool = False) -> None:
     if not isinstance(state, dict):
         raise ValueError("state must be a dictionary")
     for node_id, status in state.items():
         _valid_node(node_id)
         _valid_value(status)
-    change_dag.atomic_write_json(change_dag.state_json_path(workspace_root, slug, completed), dict(state))
+    change_dag.atomic_write_json(change_dag.state_json_path(workspace_root, slug, archived), dict(state))
 
 
 def set_node_state(state: dict[str, str], node_id: str, value: str) -> None:
@@ -56,18 +56,18 @@ def state_with_defaults(dag: dict[str, Any], state: dict[str, str]) -> dict[str,
     return {node_id: state.get(node_id, "not_satisfied") for node_id in change_dag.reachable_from_root(dag)}
 
 
-def append_work_log(workspace_root: Path, slug: str, entry: dict[str, Any], completed: bool = False) -> None:
+def append_work_log(workspace_root: Path, slug: str, entry: dict[str, Any], archived: bool = False) -> None:
     if not isinstance(entry, dict):
         raise ValueError("work-log entry must be an object")
-    path = change_dag.work_log_path(workspace_root, slug, completed)
+    path = change_dag.work_log_path(workspace_root, slug, archived)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n")
         stream.flush()
 
 
-def read_work_log(workspace_root: Path, slug: str, completed: bool = False) -> list[dict[str, Any]]:
-    path = change_dag.work_log_path(workspace_root, slug, completed)
+def read_work_log(workspace_root: Path, slug: str, archived: bool = False) -> list[dict[str, Any]]:
+    path = change_dag.work_log_path(workspace_root, slug, archived)
     if not path.exists():
         return []
     result: list[dict[str, Any]] = []

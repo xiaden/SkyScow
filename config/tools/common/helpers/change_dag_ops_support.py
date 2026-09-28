@@ -35,7 +35,7 @@ def _load(workspace_root: Path, slug: str) -> tuple[dict[str, Any] | None, dict[
     except ValueError as exc:
         return None, None, None, _error("dag_read_failed", str(exc))
     try:
-        state = change_dag_state.read_state(workspace_root, slug, completed=(location == "completed"))
+        state = change_dag_state.read_state(workspace_root, slug, archived=(location == "archived"))
     except ValueError as exc:
         return None, None, None, _error("state_read_failed", str(exc))
     return dag, state, location, None

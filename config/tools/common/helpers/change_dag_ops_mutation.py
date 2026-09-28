@@ -96,7 +96,7 @@ def _mutation_context(workspace_root: Path, slug: str) -> tuple[dict[str, Any] |
     if location != "pending":
         return None, None, _error(
             "dag_not_pending",
-            f"change dag {slug!r} is archived in completed/ and is immutable",
+            f"change dag {slug!r} is archived in {change_dag.ARCHIVED_DIR} and is immutable",
         )
     running = _running_error(workspace_root, slug)
     if running is not None:

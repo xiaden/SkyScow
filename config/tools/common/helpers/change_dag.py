@@ -22,7 +22,7 @@ from typing import Any
 
 CHANGE_DAGS_DIR = "artifacts/change-dags"
 PENDING_DIR = "artifacts/change-dags/pending"
-COMPLETED_DIR = "artifacts/change-dags/completed"
+ARCHIVED_DIR = "artifacts/change-dags/archived"
 DAG_FILENAME = "DAG.json"
 STATE_FILENAME = "EXECUTION_STATE.json"
 WORK_LOG_FILENAME = "WORK_LOG.jsonl"
@@ -126,31 +126,37 @@ def _safe_slug(slug: Any) -> str:
     return slug
 
 
-def bundle_dir(workspace_root: Path, slug: str, completed: bool = False) -> Path:
+def bundle_dir(workspace_root: Path, slug: str, archived: bool = False) -> Path:
     safe = _safe_slug(slug)
-    base = COMPLETED_DIR if completed else PENDING_DIR
+    base = ARCHIVED_DIR if archived else PENDING_DIR
     return Path(workspace_root) / base / safe
 
 
-def dag_json_path(workspace_root: Path, slug: str, completed: bool = False) -> Path:
-    return bundle_dir(workspace_root, slug, completed) / DAG_FILENAME
+def dag_json_path(workspace_root: Path, slug: str, archived: bool = False) -> Path:
+    return bundle_dir(workspace_root, slug, archived) / DAG_FILENAME
 
 
-def state_json_path(workspace_root: Path, slug: str, completed: bool = False) -> Path:
-    return bundle_dir(workspace_root, slug, completed) / STATE_FILENAME
+def state_json_path(workspace_root: Path, slug: str, archived: bool = False) -> Path:
+    return bundle_dir(workspace_root, slug, archived) / STATE_FILENAME
 
 
-def work_log_path(workspace_root: Path, slug: str, completed: bool = False) -> Path:
-    return bundle_dir(workspace_root, slug, completed) / WORK_LOG_FILENAME
+def work_log_path(workspace_root: Path, slug: str, archived: bool = False) -> Path:
+    return bundle_dir(workspace_root, slug, archived) / WORK_LOG_FILENAME
 
 
 def locate_dag(workspace_root: Path, slug: str) -> tuple[Path | None, str | None]:
+    """Locate a DAG bundle as ``pending`` or ``archived``.
+
+    The archive location means only that the bundle was retired from the pending
+    working set. It is deliberately not named "completed": membership in the
+    archive is not evidence that execution succeeded or was verified.
+    """
     pending = dag_json_path(workspace_root, slug, False)
     if pending.is_file():
         return pending, "pending"
-    completed = dag_json_path(workspace_root, slug, True)
-    if completed.is_file():
-        return completed, "completed"
+    archived = dag_json_path(workspace_root, slug, True)
+    if archived.is_file():
+        return archived, "archived"
     return None, None
 
 

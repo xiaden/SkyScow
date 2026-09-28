@@ -261,7 +261,7 @@ def test_apply_compiled_create_does_not_overwrite(tmp_path: Path):
 # ---------------------------------------------------------------------------
 # preflight
 # ---------------------------------------------------------------------------
-def test_preflight_executable_with_unresolved_semantic_node_and_dirty_tree(tmp_path: Path):
+def test_preflight_unresolved_semantic_node_blocks_admission_with_dirty_tree(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     _write(workspace, "f.txt", "a\nb\nc\n")
@@ -277,8 +277,11 @@ def test_preflight_executable_with_unresolved_semantic_node_and_dirty_tree(tmp_p
     )
     assert unresolved_semantic_nodes(dag) == ["N2"]
     result = preflight(dag, {}, workspace)
-    assert result["executable"] is True
-    assert result["issues"] == []
+    # Unresolved authoring state is an admission blocker; the dirty tree is not.
+    assert result["executable"] is False
+    unresolved = [issue for issue in result["issues"] if issue["kind"] == "unresolved"]
+    assert len(unresolved) == 1
+    assert unresolved[0]["nodes"] == ["N2"]
     assert result["conflicts"] == []
 
 
@@ -312,13 +315,15 @@ def test_preflight_not_executable_on_structure_error(tmp_path: Path):
     assert any(issue["kind"] == "structure" for issue in result["issues"])
 
 
-def test_preflight_allows_unresolved_semantic_nodes(tmp_path: Path):
+def test_preflight_blocks_unresolved_semantic_nodes(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     dag = dag_with({"N1": semantic("root", ["N2"]), "N2": semantic("undecided")})
     result = preflight(dag, {}, workspace)
-    assert result["executable"] is True
-    assert result["issues"] == []
+    assert result["executable"] is False
+    unresolved = [issue for issue in result["issues"] if issue["kind"] == "unresolved"]
+    assert len(unresolved) == 1
+    assert unresolved[0]["nodes"] == ["N2"]
 
 
 # ---------------------------------------------------------------------------

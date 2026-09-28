@@ -12,7 +12,7 @@ Nyx owns lifecycle control. `dag_executor` owns deterministic application. Chang
 1. Confirm the DAG is present, schema-valid, and executable through the lifecycle tools.
 2. Call `dag_start(slug, retry?)` for whole-DAG execution only.
 3. Interpret `running` as executor launched and `queued` as waiting for the workspace execution slot.
-4. Unresolved semantic nodes may remain. A known deterministic non-executable DAG is refused by `dag_start` according to current runtime semantics.
+4. Unresolved semantic nodes may remain while authoring, but such a DAG is not executable: `dag_start` refuses any non-executable DAG — unresolved semantic state or a deterministic compiler/context conflict — surfacing all admission issues.
 5. `anchor_commit` is provenance, not a commit binding. Live repository drift can produce ordinary terminal failure and recovery.
 
 ## Status
@@ -30,7 +30,8 @@ Poll `dag_status(slug?)` until the DAG is `root_satisfied` or idle/not active. I
 ## Completion and archive
 
 - When the root becomes satisfied, the executor records inherited starting-worktree evidence, creates the executor-owned local checkpoint, and records it in the Work Log. Nyx does not stage or create this checkpoint manually; it is not publication.
-- Call `dag_archive(slug)` only after execution completion/root satisfaction under the current tool contract. Archival does not depend on QA.
+- Call `dag_archive(slug, reason)` when retiring a DAG from the pending working set. `reason` is required and non-empty; the bundle gains an `ARCHIVE.json` disposition record (`archived_at`, `reason`, `state_at_archive`, `artifacts_moved`) and moves to `artifacts/change-dags/archived/`.
+- Archival is cleanup, not certification: a DAG may be archived after success, failure, abandonment, supersession, or cancellation. It does not require resolution, executability, root satisfaction, a failure-free state, or QA. Only operational safety applies: stop a running DAG first, and cancel a queued DAG with `dag_stop`. Read the disposition record for the outcome; archive location is not success evidence.
 
 ## QA boundary
 

@@ -68,7 +68,7 @@ def barrier_dag(lower_patch: str, higher_patch: str, command=None,
         {
             "N1": semantic("root", ["N2"]),
             "N2": semantic("aggregate", ["N3", "N7"]),
-            "N3": semantic("verified", ["N4"]),
+            "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"], "decomposition_only": True},
             "N4": semantic("inner", ["N5", "N6"]),
             "N5": run(command),
             "N6": semantic("lower", ["N8"]),
@@ -297,10 +297,10 @@ def test_preflight_traverses_sequential_run_barriers(tmp_path: Path):
         {
             "N1": semantic("root", ["N2"]),
             "N2": semantic("aggregate", ["N3", "N7"]),
-            "N3": semantic("stage1", ["N4"]),
+            "N3": {"type": "semantic", "requirement": "stage1", "requires": ["N4"], "decomposition_only": True},
             "N4": semantic("stage2", ["N5", "N6"]),
             "N5": run(),                      # runA
-            "N6": semantic("stage3", ["N8"]),
+            "N6": {"type": "semantic", "requirement": "stage3", "requires": ["N8"], "decomposition_only": True},
             "N8": semantic("stage4", ["N9", "N10"]),
             "N9": run(),                      # runB, after stage3
             "N10": semantic("stage5", ["N11"]),
@@ -323,9 +323,9 @@ def test_preflight_traverses_sequential_run_barriers(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 5. an unresolved semantic node elsewhere does not make executable false
+# 5. an unresolved semantic node makes the whole DAG non-executable
 # ---------------------------------------------------------------------------
-def test_unresolved_semantic_node_does_not_block_whole_dag_preflight(tmp_path: Path):
+def test_unresolved_semantic_node_makes_whole_dag_non_executable(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     (workspace / "f.txt").write_text("a\n")
@@ -342,16 +342,21 @@ def test_unresolved_semantic_node_does_not_block_whole_dag_preflight(tmp_path: P
             "N7": edit("f.txt", patch("f.txt", "b", "c")),
         }
     )
-    # The root is always decomposition_only and therefore locally resolved; N3
-    # still has only semantic children without the decomposition flag.
+    # The root is always decomposition_only and therefore locally resolved; N2 and
+    # N3 remain unresolved semantic requirements.
     assert change_dag.unresolved_semantic_nodes(dag) == ["N2", "N3"]
 
     segments, conflicts, _blocked = compile_whole_dag(dag, {}, workspace)
     assert conflicts == []
     assert _op_nodes(segments) == {"N7", "N8"}
     result = preflight(dag, {}, workspace)
-    assert result["executable"] is True
-    assert result["issues"] == []
+    # Unresolved authoring state blocks admission, but compiler analysis still runs
+    # in the same pass (no compilation conflict exists here, so none is reported).
+    assert result["executable"] is False
+    assert result["runtime_failures"] == []
+    unresolved = [issue for issue in result["issues"] if issue["kind"] == "unresolved"]
+    assert len(unresolved) == 1
+    assert unresolved[0]["nodes"] == ["N2", "N3"]
 
 
 # ---------------------------------------------------------------------------

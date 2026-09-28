@@ -33,7 +33,7 @@ flowchart TD
 - The DAG's only edge is `requires`, and it is ALL-of: `requires` expresses what must become true for a semantic requirement to be fulfilled. A semantic node is satisfied only when every node it directly requires is satisfied. Nodes on the same semantic frontier assert authoring independence; the frontier service derives the frontier from `requires` edges only and never infers a missing causal relationship. Semantic siblings imply no authoring dependency through each other; if correct authoring of B requires accepted work from A, B must have a `requires` path to A rather than being represented as an independent sibling.
 - Exact work is lowered one **decomposition frontier** at a time, from the deepest semantic nodes upward. The author manager queries `dag_decomposition_frontier(slug)` and dispatches one fresh bounded `change-dag-worker` per returned node; a frontier is the service-derived scheduling/reconciliation unit and a semantic node is the worker/context unit. The Worker retrieves its own scope with `dag_decomposition_scope(slug, node_id)`. The author reconciles only when results or conflicts require it, re-queries the frontier rather than tracking progress locally, and must not load the entire repository into one session.
 - A semantic node may record persisted authoring intent with `dag_set_decomposition_only(slug, node_id, true)` when its obligation is fully decomposed into the semantic requirements it directly `requires` and it intentionally owns no direct terminal work. It is semantic-only: the node must directly require at least one semantic child, and a direct create/edit/remove/move/run child makes the DAG structurally invalid. `value=false` reopens the judgment. The field never affects runtime satisfaction, which still derives only from the satisfaction of `requires` children; only a bounded worker may call the setter.
-- `dag_validate` reports `schema_valid`, `executable`, and `resolved`. A semantic node is locally resolved when it directly requires at least one terminal work node, or when it declares `decomposition_only=true` over semantic children only; `resolved` means every reachable semantic node is locally resolved. A DAG can be schema-valid and still unresolved — unresolved semantic nodes do not necessarily make it non-executable.
+- `dag_validate` reports `schema_valid`, `executable`, and `resolved`. A semantic node is locally resolved when it directly requires at least one terminal work node, or when it declares `decomposition_only=true` over semantic children only; `resolved` means every reachable semantic node is locally resolved. `executable` is the aggregate execution-admission/lint result: a DAG is executable only when it is structurally valid, `resolved`, and free of deterministic compiler/context admission conflicts. A DAG can be schema-valid and still unresolved; unresolved DAGs are valid authoring artifacts but are not executable.
 - Optional review may be selected by Nyx for observable coordination or authority risks such as shared convergence, interface migrations, shared schemas, recovery amendments, or explicit user request. The author surfaces `review_triggers`; neither the author nor a worker dispatches the reviewer.
 
 ## Executing the DAG
@@ -57,7 +57,7 @@ flowchart TD
 
     REC --> AMEND["change-dag-author amends mutable region"]
     AMEND --> START
-    CKPT --> ARCH["dag_archive(slug)"]
+    CKPT --> ARCH["dag_archive(slug, reason)"]
 ```
 
 Key runtime facts:
@@ -81,11 +81,13 @@ Status values are `queued`, `running`, `root_satisfied`, and `idle`. There is no
 
 When the root becomes satisfied, the executor records inherited starting-worktree evidence and creates an executor-owned local checkpoint in the Work Log. Nyx does not create this checkpoint manually, and it is not publication.
 
-`dag_archive(slug)` requires the DAG to be pending, root-satisfied, and free of failed or in-progress terminal nodes. Archival does **not** depend on QA.
+`dag_archive(slug, reason)` retires a pending bundle into `artifacts/change-dags/archived/` and writes an `ARCHIVE.json` disposition record (`archived_at`, `reason`, `state_at_archive`, `artifacts_moved`) before the move.
+
+Archival is lifecycle cleanup, not certification: a DAG may be archived after success, failure, abandonment, supersession, or cancellation, and the move implies none of those. It does **not** require `resolved`, `executable`, root satisfaction, an absence of failed nodes, or QA. Only operational-integrity gates apply: a running DAG must be stopped first, and a queued DAG must be cancelled with `dag_stop` before it can be archived. Derive whether execution completed from the recorded state, never from archive membership.
 
 ## QA boundary
 
-QA is not a Change DAG phase and is not an archive gate. A completed DAG is never reopened for QA: use a bounded raw repair for a small defect, or a new remediation Change DAG for a substantial or cross-cutting defect.
+QA is not a Change DAG phase and is not an archive gate. An archived DAG is never reopened for QA: use a bounded raw repair for a small defect, or a new remediation Change DAG for a substantial or cross-cutting defect.
 
 ## Canonical sources
 

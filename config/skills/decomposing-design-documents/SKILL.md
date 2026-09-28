@@ -33,13 +33,13 @@ independent post-change QA (separate lifecycle, not a DAG phase)
 ## Graph model
 
 - `requires` is the only edge; it is ALL-of and expresses what must become true for a semantic requirement to be fulfilled — a semantic node is satisfied only when every node it directly requires is satisfied.
-- A semantic node with no `requires` is an unresolved semantic node and is not satisfied; unresolved semantic nodes are legal graph state. A semantic node is locally resolved when it directly requires at least one terminal work node, or declares `decomposition_only=true` over semantic children only.
+- A semantic node with no `requires` is an unresolved semantic node and is not satisfied; unresolved semantic nodes are legal graph state. A semantic node is locally resolved when it directly requires at least one terminal work node, or declares `decomposition_only=true` over semantic children only. Unresolved DAGs are valid authoring artifacts but are not executable.
 - Shared descendants are legal: multiple parents may reference one child identity, and that child is executed or satisfied once.
 - Semantic siblings imply no authoring dependency through each other. Nodes on the same semantic frontier assert authoring independence; the frontier service derives the frontier from `requires` edges only and never infers a missing causal relationship. If correct authoring of B requires accepted work from A, B must have a `requires` path to A rather than being represented as an independent sibling.
 - Node IDs are opaque, service-assigned, and monotonic (`^N[0-9]+$`); agents never allocate IDs.
 - Depth is derived from the longest path from root and is never persisted.
 - A `run` child is the only non-semantic child of its semantic parent (run-barrier invariant); a semantic node has at most one direct `run` child.
-- `schema_valid`, `executable`, and `resolved` are independent derived properties. `executable` is a pre-execution conflict/applicability check, not a progress measure.
+- `schema_valid`, `executable`, and `resolved` are distinct derived properties. `executable` is the aggregate execution-admission/lint result: it requires structural validity, `resolved`, and no deterministic compiler/context admission conflict. Recoverable live-applicability failures stay reported as `runtime_failures`, not admission blockers.
 - A running/in-progress DAG is immutable; repair requires execution to stop/fail or `dag_stop`, then the stopped mutable region may be edited before `dag_start(retry=true)`.
 
 ## Authoring a Change DAG
@@ -77,11 +77,11 @@ Authoring ends at a validated DAG; optional independent review is a controller-s
 - `dag_status(slug?)` is the canonical completion poll until the DAG is `root_satisfied` or idle/not active. There is no durable `quiescent` state; a stopped DAG with failed/unresolved blockers is reported descriptively.
 - `dag_stop(slug)` stops a queued or running DAG; it is recovery, not rollback.
 - On successful root satisfaction the executor records inherited starting-worktree state, runs `git add -A`, and creates a local checkpoint commit. That checkpoint is not publication and is not a DAG `run` node.
-- `dag_archive(slug)` moves a pending bundle to completed when execution is complete (root satisfied; no failed or `in_progress` terminal nodes) and does not depend on QA. Load `change-dag-lifecycle` for the concise operating contract.
+- `dag_archive(slug, reason)` retires a pending bundle into `artifacts/change-dags/archived/` with a required reason and an `ARCHIVE.json` disposition record. It is lifecycle cleanup: it does not require resolution, executability, root satisfaction, absence of failures, or QA. A running DAG must be stopped first; a queued DAG must be cancelled with `dag_stop`. Load `change-dag-lifecycle` for the concise operating contract.
 
 ## DD lifecycle
 
-A DD may be archived through `dd_archive` only after every Change DAG bundle linked from its Related Documents (or referenced from its Change DAG section) is completed in `artifacts/change-dags/` (artifact lifecycle). `dd_archive` evaluates both linked Change DAG completion and any declared non-DAG prerequisite gate. A declared prerequisite must be satisfied or explicitly migrated before archival; ordinary DDs with no declared prerequisite are not subject to an invented prerequisite gate. Archival does not depend on independent Change-DAG QA or `final_qa` PASS. QA-before-publication remains enforced by the separate `qa-push-manager` publication gate.
+A DD may be archived through `dd_archive` only after every Change DAG bundle linked from its Related Documents (or referenced from its Change DAG section) has been retired into `artifacts/change-dags/archived/` (artifact lifecycle). Retirement is not success: consult the Change DAG's `ARCHIVE.json` for the recorded outcome. `dd_archive` evaluates both linked Change DAG completion and any declared non-DAG prerequisite gate. A declared prerequisite must be satisfied or explicitly migrated before archival; ordinary DDs with no declared prerequisite are not subject to an invented prerequisite gate. Archival does not depend on independent Change-DAG QA or `final_qa` PASS. QA-before-publication remains enforced by the separate `qa-push-manager` publication gate.
 
 ## Validation checklist
 

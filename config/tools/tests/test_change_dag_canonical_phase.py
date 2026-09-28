@@ -67,7 +67,7 @@ def barrier_dag(lower_patch: str, higher_patch: str, slug: str = "demo") -> dict
         {
             "N1": semantic("root", ["N2"]),
             "N2": semantic("aggregate", ["N3", "N7"]),
-            "N3": semantic("verified", ["N4"]),
+            "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"], "decomposition_only": True},
             "N4": semantic("inner", ["N5", "N6"]),
             "N5": run(),
             "N6": semantic("lower", ["N8"]),
@@ -89,7 +89,7 @@ def independent_barrier_dag(slug: str = "demo") -> dict:
         {
             "N1": semantic("root", ["N2"]),
             "N2": semantic("aggregate", ["N3", "N6"]),
-            "N3": semantic("verified", ["N4"]),
+            "N3": {"type": "semantic", "requirement": "verified", "requires": ["N4"], "decomposition_only": True},
             "N4": semantic("inner", ["N5", "N8"]),
             "N5": run(),
             "N8": edit("f.txt", patch("f.txt", "a", "b")),

@@ -16,9 +16,11 @@ def dag_start(slug: str, retry: bool = False, *, workspace_root: Path) -> dict:
     global SYNCHRONOUS_FALLBACK_USED
     root = Path(workspace_root)
     try:
-        dag, _, _ = change_dag.read_dag(root, slug)
+        dag, _, location = change_dag.read_dag(root, slug)
     except (FileNotFoundError, ValueError) as exc:
         return {"error": "invalid_dag", "message": str(exc)}
+    if location != "pending":
+        return {"error": "dag_archived", "message": f"change dag {slug!r} is archived and cannot be executed"}
     errors = change_dag.validate_dag(dag)
     if errors:
         return {"error": "invalid_dag", "issues": errors}

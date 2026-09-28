@@ -76,10 +76,14 @@ def _prerequisite_terminal(workspace_root: Path, slug: str, prerequisite_text: s
 
 
 def _dag_terminal(workspace_root: Path, dag_slug: str) -> tuple[bool, str]:
+    # The DD gate requires the linked Change DAG to have been retired from the
+    # pending working set -- not to have succeeded. "Archived" means inactive;
+    # the archive disposition record (reason + state_at_archive) carries whether
+    # execution actually completed.
     _path, location = locate_dag(workspace_root, dag_slug)
     if location is None:
         return False, f"change dag not found: {dag_slug}"
-    if location != "completed":
+    if location != "archived":
         return False, f"change dag is not archived: {dag_slug}"
     return True, ""
 

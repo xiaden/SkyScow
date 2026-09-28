@@ -262,6 +262,7 @@ def validate(workspace_root: Path, slug: str) -> dict[str, Any]:
         "schema_valid": not schema,
         "executable": pre["executable"],
         "resolved": change_dag.is_resolved(dag),
+        "unresolved_semantic_nodes": change_dag.unresolved_semantic_nodes(dag),
         "issues": issues,
         "runtime_failures": pre.get("runtime_failures", []),
     }

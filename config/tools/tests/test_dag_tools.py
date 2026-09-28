@@ -285,8 +285,12 @@ def test_validate_reports_derived_schema_executable_resolved(workspace):
 
     first = _payload(validate(workspace, "demo"))
     assert first["schema_valid"] is True
-    assert first["executable"] is True
+    assert first["executable"] is False
     assert first["resolved"] is False
+    assert first["unresolved_semantic_nodes"] == ["N2"]
+    unresolved = [issue for issue in first["issues"] if issue["kind"] == "unresolved"]
+    assert len(unresolved) == 1
+    assert unresolved[0]["nodes"] == ["N2"]
 
     add_work(workspace, "demo", "create", ["N3"], path="new.txt", content="y\n")
     second = _payload(validate(workspace, "demo"))
@@ -466,9 +470,9 @@ def test_dag_show_tool_module_delegates_to_ops(workspace):
 
 
 # ---------------------------------------------------------------------------
-# completed/ archived bundles are immutable
+# archived bundles are immutable
 # ---------------------------------------------------------------------------
-def _completed_dag(workspace, slug: str) -> dict:
+def _archived_dag(workspace, slug: str) -> dict:
     dag = {
         "slug": slug,
         "anchor_commit": "a" * 40,
@@ -479,12 +483,12 @@ def _completed_dag(workspace, slug: str) -> dict:
         },
     }
     atomic_write_json(dag_json_path(workspace, slug, True), dag)
-    write_state(workspace, slug, {"N2": "satisfied"}, completed=True)
+    write_state(workspace, slug, {"N2": "satisfied"}, archived=True)
     return dag
 
 
-def test_mutations_of_completed_dag_are_rejected_and_write_nothing(workspace):
-    dag = _completed_dag(workspace, "archived")
+def test_mutations_of_archived_dag_are_rejected_and_write_nothing(workspace):
+    dag = _archived_dag(workspace, "archived")
 
     add_work_result = add_work(workspace, "archived", "edit", ["N1"], path="y.txt", patch=PATCH)
     assert add_work_result["error"] == "dag_not_pending"
@@ -598,8 +602,8 @@ def test_set_decomposition_only_rejects_terminal_child(workspace):
     assert "decomposition_only" not in read_json(dag_json_path(workspace, "demo"))["nodes"]["N2"]
 
 
-def test_set_decomposition_only_rejects_completed_dag(workspace):
-    _completed_dag(workspace, "archived")
+def test_set_decomposition_only_rejects_archived_dag(workspace):
+    _archived_dag(workspace, "archived")
     result = set_decomposition_only(workspace, "archived", "N1", True)
     assert result["error"] == "dag_not_pending"
 

@@ -61,7 +61,7 @@ Nyx owns execution admission and artifact lifecycle through the public lifecycle
 - `dag_start(slug, retry?)` returns `running` (executor launched) or `queued` with a queue position.
 - `dag_status(slug?)` is the canonical completion poll until `root_satisfied` or idle/not active.
 - `dag_stop(slug)` stops a queued or running DAG and reconciles interrupted work.
-- `dag_archive(slug)` moves a pending bundle to completed when execution is complete (root satisfied; no failed or `in_progress` terminal nodes).
+- `dag_archive(slug, reason)` retires a pending bundle into `artifacts/change-dags/archived/`, recording the reason and the state at archive; it does not require resolution, executability, root satisfaction, or a failure-free state.
 
 On successful root satisfaction the executor records inherited starting-worktree state, runs `git add -A`, and creates a local checkpoint commit (preformatted Change-DAG message; SHA/evidence recorded in the Work Log). That checkpoint is executor lifecycle behavior, not a `run` node and not publication.
 

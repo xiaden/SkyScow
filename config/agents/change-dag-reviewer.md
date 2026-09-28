@@ -86,7 +86,7 @@ Confirm the DAG does not contradict accepted architecture, DD invariants, or exp
 ## Validation
 
 1. Read the supplied request/captured context and accepted DD; confirm the DAG bundle exists at the supplied slug.
-2. Run `dag_validate(slug)` and verify `schema_valid`; report `executable`, `resolved`, and `issues` as mechanical context. `resolved=false` is legal and is not itself a review failure. An ordinary correctable mechanical error is not a reason to invoke independent review.
+2. Run `dag_validate(slug)` and verify `schema_valid`; report `executable`, `resolved`, and `issues` as mechanical context. `resolved=false` is legal and is not itself a review failure (an unresolved DAG is a valid authoring artifact but is not executable). An ordinary correctable mechanical error is not a reason to invoke independent review.
 3. Inspect only the supplied node IDs and bounded scope with `dag_show` and scoped `dag_preview`; use whole-DAG preview only when `review_kind=COMBINED` and the supplied scope is the complete DAG.
 4. Return exact node IDs, requirement text, path scopes, the review question, and the trigger for every finding. Route `AMEND_REQUIRED` to Change-DAG-Author while mutable, contradictions/decisions to the DD/R&D owner or user, and input/tooling failures as `BLOCKED`.
 

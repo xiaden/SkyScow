@@ -518,9 +518,10 @@ const tools = {
     async execute(args, context) { return runPythonTool("common.tools.dag_status", args, context) },
   }),
   dag_archive: tool({
-    description: "Archive a resolved Change DAG from pending to completed.",
+    description: "Retire a Change DAG from the pending working set, recording why it left and the state it was in. Archival is lifecycle cleanup: it does not certify resolution, executability, successful execution, or QA.",
     args: {
       slug: requiredString("Change DAG slug"),
+      reason: requiredString("Why this DAG is leaving the pending working set (for example: execution completed and artifact retired)"),
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_archive", args, context) },
   }),

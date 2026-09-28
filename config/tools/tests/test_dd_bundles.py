@@ -87,8 +87,8 @@ def test_archive_rejects_pending_dag_and_accepts_completed_dag(workspace):
     assert rejected["linked_dags"] == ["linked"]
     assert (workspace / "artifacts/designs/pending/sample-dd/DD.md").is_file()
 
-    (workspace / "artifacts/change-dags/completed").mkdir(parents=True, exist_ok=True)
-    dag.parent.rename(workspace / "artifacts/change-dags/completed/linked")
+    (workspace / "artifacts/change-dags/archived").mkdir(parents=True, exist_ok=True)
+    dag.parent.rename(workspace / "artifacts/change-dags/archived/linked")
 
     archived = dd_archive("sample-dd", workspace_root=workspace)
     assert json.loads(archived["output"])["archived"] is True
@@ -343,8 +343,38 @@ def test_archive_requires_shared_slug_dag_then_accepts_completed(workspace):
     assert blocked["error"] == "linked_dags_incomplete"
     assert (workspace / "artifacts/designs/pending" / slug).is_dir()
 
-    dag = workspace / "artifacts/change-dags/completed" / slug / "DAG.json"
+    dag = workspace / "artifacts/change-dags/archived" / slug / "DAG.json"
     dag.parent.mkdir(parents=True)
     dag.write_text("{}", encoding="utf-8")
+    archived = dd_archive(slug, workspace_root=workspace)
+    assert json.loads(archived["output"])["archived"] is True
+
+
+def test_dd_archive_gate_uses_retirement_not_success(workspace):
+    """The linked-DAG gate keys on retirement, not on successful execution.
+
+    The gate previously read the ``completed/`` location as proof that the
+    linked Change DAG had finished successfully. Now that archival is decoupled
+    from outcome, a retired DAG with a recorded failure still satisfies the gate;
+    success is read from the disposition record, not from directory membership.
+    """
+    slug = "retired-dd"
+    related = [{"title": "DAG", "path": f"artifacts/change-dags/pending/{slug}/DAG.json", "description": "execution"}]
+    dd_create(**create_args(workspace, slug), related_documents=related)
+
+    bundle = workspace / "artifacts/change-dags/archived" / slug
+    bundle.mkdir(parents=True)
+    (bundle / "DAG.json").write_text("{}", encoding="utf-8")
+    (bundle / "ARCHIVE.json").write_text(
+        json.dumps(
+            {
+                "archived_at": "2026-01-01T00:00:00Z",
+                "reason": "abandoned after upstream design changed",
+                "state_at_archive": {"root_satisfied": False, "failed_nodes": ["N2"]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
     archived = dd_archive(slug, workspace_root=workspace)
     assert json.loads(archived["output"])["archived"] is True

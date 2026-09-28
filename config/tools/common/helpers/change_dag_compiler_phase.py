@@ -194,12 +194,14 @@ def preflight(
     mismatches — a patch that no longer applies because the repository drifted,
     an edit target another work item removed, a create target another work item
     created — are reported as ``runtime_failures`` and handled as ordinary
-    recoverable terminal-node failures when reached. Unresolved semantic nodes,
-    a dirty tree, HEAD drift, and blocked branch-local work are not issues.
+    recoverable terminal-node failures when reached. Unresolved semantic nodes
+    ARE an admission blocker: ``executable`` also requires ``resolved``. A dirty
+    tree, HEAD drift, and blocked branch-local work are not issues.
 
-    ``executable`` is answered by :func:`compile_whole_dag`: it reflects whether
-    *all* currently specified work lowers deterministically, not merely the first
-    execution segment before the next unsatisfied run barrier. A caller that has
+    ``executable`` is the aggregate admission/lint result: it is true only when
+    the DAG is structurally valid, ``resolved``, and *all* currently specified
+    work lowers deterministically — not merely the first execution segment before
+    the next unsatisfied run barrier. A caller that has
     already compiled the DAG passes ``compilation`` to reuse that result, so
     preview and validation derive their report from one compilation, not two.
     """
@@ -213,6 +215,19 @@ def preflight(
         for message in structural:
             issues.append({"kind": "structure", "message": message})
         return {"executable": False, "issues": issues, "runtime_failures": [], "conflicts": [], "blocked": []}
+
+    # Unresolved authoring state blocks execution, but it never short-circuits the
+    # compiler analysis below: one pass reports every independently discoverable
+    # admission reason together so the author can fix the DAG in fewer iterations.
+    unresolved = change_dag.unresolved_semantic_nodes(dag)
+    if unresolved:
+        issues.append(
+            {
+                "kind": "unresolved",
+                "nodes": unresolved,
+                "message": "Change DAG contains unresolved semantic requirements",
+            }
+        )
 
     if compilation is None:
         try:

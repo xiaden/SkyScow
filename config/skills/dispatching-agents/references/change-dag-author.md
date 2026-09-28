@@ -59,7 +59,7 @@ construction:
   complete: true | false
   dispatched_nodes: ["N3", "N7"]   # report only; the frontier service is the progress authority
   blockers: []
-validation: {schema_valid: true, executable: true, resolved: false, issues: []}
+validation: {schema_valid: true, executable: true, resolved: true, issues: []}
 review_triggers:
   - kind: "..."
     node_ids: ["N7"]
