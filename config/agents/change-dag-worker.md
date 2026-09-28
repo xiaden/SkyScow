@@ -145,7 +145,7 @@ blockers: []
 review_triggers: []
 ```
 
-- `LOWERED`: exact mechanical work now satisfies the assigned requirement.
+- `LOWERED`: exact mechanical work now locally resolves the assigned node's authoring obligation.
 - `DECOMPOSED`: you added or refined semantic requirements beneath the assigned scope. The node is either marked `decomposition_only` (intentionally owning no direct terminal work) or left unresolved so the service returns it on a later frontier; the Author re-queries the frontier rather than tracking this node in session memory.
 - `RECONCILED`: you corrected mutable work in the assigned scope.
 - `BLOCKED`: a missing authority/source/decision/tooling condition prevents completing the assigned scope.

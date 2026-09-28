@@ -200,6 +200,18 @@ class TestWorkerAuthority:
         for tool in WORKER_TOOLS:
             assert _allowed(permission, tool), f"Worker needs {tool}"
 
+    def test_lowered_wording_describes_authoring_not_runtime(self):
+        # Adding exact work resolves the node's authoring obligation; runtime
+        # execution is what satisfies it. Pin both active worker surfaces.
+        surfaces = (
+            AGENTS / "change-dag-worker.md",
+            SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md",
+        )
+        for path in surfaces:
+            text = path.read_text(encoding="utf-8")
+            assert "locally resolves the assigned node's authoring obligation" in text
+            assert "satisfies the assigned requirement" not in text
+
 
 class TestDecompositionOnlyAuthority:
     def test_worker_alone_may_set_decomposition_only(self):

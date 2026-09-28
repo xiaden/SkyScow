@@ -365,11 +365,15 @@ def set_decomposition_only(
     invariant that the node directly requires at least one semantic child and no
     terminal child; setting ``false`` lets a worker reopen an earlier judgment
     and preserves the node's existing child structure.
+
+    Like the other DAG mutations, the setter consults canonical node mutability:
+    a semantic subtree whose required work is already runtime-satisfied is
+    immutable, so every setter call against it is rejected.
     """
     workspace_root = Path(workspace_root)
     if not isinstance(value, bool):
         return _error("invalid_arguments", "value must be a boolean")
-    dag, _state, err = _mutation_context(workspace_root, slug)
+    dag, state, err = _mutation_context(workspace_root, slug)
     if err is not None:
         return err
     assert dag is not None
@@ -387,6 +391,14 @@ def set_decomposition_only(
             "invalid_node",
             f"node {node_id} is not semantic; decomposition_only is semantic-only",
         )
+
+    # decomposition_only is mutation authority, not an idempotent read/check: a
+    # runtime-satisfied semantic subtree rejects every setter call, including
+    # apparent no-ops. Reuse the canonical mutability rule rather than
+    # duplicating its satisfaction logic here.
+    mutable, reason = change_dag.mutability(dag, state, node_id)
+    if not mutable:
+        return _error("immutable_node", reason)
 
     candidate = copy.deepcopy(dag)
     candidate["nodes"][node_id]["decomposition_only"] = value

@@ -660,3 +660,62 @@ def test_add_requirement_non_root_semantic_has_no_decomposition_flag(workspace):
     dag = read_json(dag_json_path(workspace, "demo"))
     assert dag["nodes"][node_id]["type"] == "semantic"
     assert "decomposition_only" not in dag["nodes"][node_id]
+
+
+# ---------------------------------------------------------------------------
+# decomposition_only mutation authority (canonical change_dag.mutability)
+# ---------------------------------------------------------------------------
+def _dag_json(workspace) -> dict:
+    return read_json(dag_json_path(workspace, "demo"))
+
+
+def _semantic_with_satisfied_terminal(workspace) -> tuple[str, str]:
+    """N1(root) -> N2(semantic) -> N3(edit), with N3 satisfied at runtime.
+
+    Returns ``(semantic_id, terminal_id)``.
+    """
+    _two_node_dag(workspace)
+    added = add_work(workspace, "demo", "edit", ["N2"], path="f.txt", patch=PATCH)
+    terminal_id = _payload(added)["node_id"]
+    write_state(workspace, "demo", {terminal_id: "satisfied"})
+    return "N2", terminal_id
+
+
+def test_set_decomposition_only_allows_unsatisfied_non_root_semantic(workspace):
+    _two_node_dag(workspace)
+    add_requirement(workspace, "demo", "child", ["N2"])
+
+    assert set_decomposition_only(workspace, "demo", "N2", True).get("error") is None
+    assert _dag_json(workspace)["nodes"]["N2"]["decomposition_only"] is True
+
+    # true -> false reopens the judgment and preserves the existing children.
+    assert set_decomposition_only(workspace, "demo", "N2", False).get("error") is None
+    dag = _dag_json(workspace)
+    assert dag["nodes"]["N2"]["decomposition_only"] is False
+    assert dag["nodes"]["N2"]["requires"] == ["N3"]
+
+
+def test_set_decomposition_only_rejects_satisfied_semantic_subtree(workspace):
+    semantic_id, _terminal = _semantic_with_satisfied_terminal(workspace)
+    before = _dag_json(workspace)
+
+    # Mutability is consulted before the value is even considered, so every call
+    # is rejected -- including apparent no-ops. This tool is mutation authority,
+    # not an idempotent read/check.
+    for value in (True, True, False, False):
+        result = set_decomposition_only(workspace, "demo", semantic_id, value)
+        assert result["error"] == "immutable_node"
+        assert result["message"] == "semantic subtree fully satisfied"
+        assert _dag_json(workspace) == before
+
+
+def test_set_decomposition_only_failed_region_remains_mutable(workspace):
+    _two_node_dag(workspace)
+    added = add_work(workspace, "demo", "edit", ["N2"], path="f.txt", patch=PATCH)
+    terminal_id = _payload(added)["node_id"]
+    write_state(workspace, "demo", {terminal_id: "failed"})
+
+    # A failed (unsatisfied) subtree stays mutable under canonical semantics, so
+    # the failure is not the setter's mutability error.
+    assert set_decomposition_only(workspace, "demo", "N2", False).get("error") is None
+    assert _dag_json(workspace)["nodes"]["N2"]["decomposition_only"] is False

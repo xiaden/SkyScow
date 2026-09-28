@@ -42,7 +42,7 @@ Retrieve your own scope with dag_decomposition_scope(slug, node_id) — do not e
 
 | Result | Meaning |
 |---|---|
-| `LOWERED` | Exact mechanical work now satisfies the assigned requirement. |
+| `LOWERED` | Exact mechanical work now locally resolves the assigned node's authoring obligation. |
 | `DECOMPOSED` | Deeper semantic requirements were added; the node is either marked `decomposition_only` or left unresolved for a later frontier, and the manager re-queries the frontier. |
 | `RECONCILED` | Mutable work in the assigned scope was corrected. |
 | `BLOCKED` | A missing authority/source/decision/tooling condition prevents completion. |
