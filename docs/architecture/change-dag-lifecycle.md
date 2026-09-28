@@ -42,7 +42,9 @@ flowchart TD
 flowchart TD
     START["dag_start(slug, retry?)"] --> PF["Parse + schema validate + compiler preflight"]
     PF -->|non-executable| REFUSE["Refused"]
-    PF -->|executable| SLOT{"Workspace execution slot free?"}
+    PF -->|executable| SAT{"Root already satisfied?"}
+    SAT -->|yes| DONE["Idempotent root_satisfied<br/>no queue, lock, marker, launch, or checkpoint"]
+    SAT -->|no| SLOT{"Workspace execution slot free?"}
 
     SLOT -->|no| Q["FIFO queue<br/>position reported as queued"]
     SLOT -->|yes| RUN["Detached dag_executor launches"]
@@ -63,6 +65,7 @@ flowchart TD
 Key runtime facts:
 
 - **One active executor per workspace.** The workspace execution lock is authoritative ownership/liveness; the PID is advisory control metadata. When the slot is busy, `dag_start` returns `queued` with a position.
+- **An already-satisfied pending DAG is never relaunched.** When the root is already runtime-satisfied, `dag_start` returns an idempotent `root_satisfied` result before queueing, ownership, launch, or checkpointing. `retry=true` does not override it. Re-admitting a completed DAG would otherwise reach the executor-owned checkpoint path a second time and stage unrelated working-tree changes.
 - **The queue is FIFO and duplicate-safe.** A slug already queued keeps its original position and request; it is not re-added.
 - **Launch handoff is atomic.** Head selection, child launch, marker creation, and removal of exactly that entry happen under a short-lived queue lock, ordered after the execution lock, so a concurrent `dag_stop` cannot cause a removed DAG to launch or a different DAG to be dequeued.
 - **`run` nodes are verification barriers.** They must not contain commit, push, PR, release, deploy, or other publication/lifecycle commands.

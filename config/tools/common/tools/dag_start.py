@@ -35,6 +35,16 @@ def dag_start(slug: str, retry: bool = False, *, workspace_root: Path) -> dict:
     preflight = compiler_phase.preflight(dag, effective_state, root)
     if not preflight["executable"]:
         return {"error": "not_executable", "issues": preflight["issues"]}
+    # An already-satisfied pending DAG is complete from the executor's point of
+    # view. Admitting it again would reacquire execution ownership and reach the
+    # executor-owned checkpoint path, which stages the whole working tree with
+    # ``git add -A`` — sweeping in unrelated changes made after the original run.
+    # Return the idempotent result instead: nothing is enqueued, locked, marked,
+    # launched, reset, or checkpointed. ``retry`` cannot override this; its
+    # failed -> not_satisfied reset only moves work between unsatisfied states,
+    # so it can never manufacture a satisfied root.
+    if change_dag.derived_satisfaction(dag, effective_state).get(dag["root"], False):
+        return {"state": "root_satisfied", "dag": slug, "root_satisfied": True, "idempotent": True}
     active = control.active_dag(root)
     if active == slug:
         marker = control.read_marker(root) or {}

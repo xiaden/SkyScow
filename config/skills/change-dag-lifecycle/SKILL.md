@@ -11,9 +11,10 @@ Nyx owns lifecycle control. `dag_executor` owns deterministic application. Chang
 
 1. Confirm the DAG is present, schema-valid, and executable through the lifecycle tools.
 2. Call `dag_start(slug, retry?)` for whole-DAG execution only.
-3. Interpret `running` as executor launched and `queued` as waiting for the workspace execution slot.
-4. Unresolved semantic nodes may remain while authoring, but such a DAG is not executable: `dag_start` refuses any non-executable DAG — unresolved semantic state or a deterministic compiler/context conflict — surfacing all admission issues.
-5. `anchor_commit` is provenance, not a commit binding. Live repository drift can produce ordinary terminal failure and recovery.
+3. If the root is already runtime-satisfied, `dag_start` returns an idempotent `root_satisfied` result instead of launching: no queue entry, execution lock, marker, launch, or checkpoint. `retry=true` never relaunches a satisfied DAG.
+4. Interpret `running` as executor launched and `queued` as waiting for the workspace execution slot.
+5. Unresolved semantic nodes may remain while authoring, but such a DAG is not executable: `dag_start` refuses any non-executable DAG — unresolved semantic state or a deterministic compiler/context conflict — surfacing all admission issues.
+6. `anchor_commit` is provenance, not a commit binding. Live repository drift can produce ordinary terminal failure and recovery.
 
 ## Status
 
