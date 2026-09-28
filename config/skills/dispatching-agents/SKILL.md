@@ -25,6 +25,8 @@ to it; it does not replace it.
 
 ## When NOT to Dispatch
 
+These hard stops are the dispatch-side face of Nyx's **Direct-Work Invariant**: a task that qualifies here is done directly, and no first-match specialist row overrides it. Session history — whether a module was touched earlier in the session — is never a dispatch reason.
+
 Do NOT use this skill — do the work directly — when:
 
 | Skip dispatch when... | Do this instead |
@@ -34,7 +36,7 @@ Do NOT use this skill — do the work directly — when:
 | You can diagnose a failure from reading 2–3 files | Read the files and fix directly |
 | You're just exploring code structure | Use `aft_outline` / `aft_zoom` yourself |
 
-Dispatching for anything in the left column wastes context and turns. The decision tree below covers when to dispatch — these are the hard stops.
+Dispatching for anything in the left column wastes context and turns. The decision tree below covers when to dispatch — these are the hard stops, and they take precedence over a first-match routing row.
 
 ## Universal Dispatch Skeleton
 
@@ -88,11 +90,19 @@ reference.
 
 ### Dispatch Decision Tree
 
+Apply the Direct-Work Invariant before this tree: MECHANICAL and genuinely bounded STANDARD work stays direct when the surface is known or bounded-localizable; an unknown location permits a bounded localization pass, not a dispatch; session history never forces a dispatch.
+
+### Research Escalation (Support-Researcher)
+
+Support-Researcher is not the default for unfamiliar code. This is the same escalation rule as Nyx's **Progressive Research**: bounded/local evidence first → load the relevant local skill/governance when applicable → consult targeted historical context when materially useful → Support-Researcher only when unresolved substantive investigation remains. Governance skills are direct knowledge sources (read them); they are not a Librarian or Researcher dispatch.
+
+Dispatch Support-Researcher only when bounded local evidence establishes that substantive investigation is actually needed — deep multi-file dependency tracing, unclear integration ownership, external/API facts needing verification, or complex repository behavior that bounded localization cannot resolve. Unfamiliarity or session history is never a trigger.
+
 ```
 Task at hand
 ├─ A single file read or lookup? → Do it yourself (no dispatch)
 ├─ A trivial fix (typo, missing import)? → Fix it directly
-├─ Requires deep multi-file investigation? → Dispatch Support-Researcher (standard depth)
+├─ Unresolved substantive investigation remains after bounded/local evidence and a skill/governance check? → Dispatch Support-Researcher (standard depth)
 ├─ Prior process artifacts (logs, dead ends, prior DDs) materially constrain the route? → Select Support-Librarian; for governing decisions/requirements load the `architecture-decisions`/`system-requirements` skill; otherwise record the evidence-based skip
 ├─ Requires diagnosing a failure? → Read affected files yourself first
 │  ├─ Cause is obvious after reading → Fix directly
@@ -101,8 +111,8 @@ Task at hand
 ├─ Requires creating/amending a Change DAG? → Dispatch Change-DAG-Author
 │  └─ Change-DAG-Author queries `dag_decomposition_frontier` and dispatches one bounded Change-DAG-Worker per returned semantic node; Nyx never dispatches Change-DAG-Worker directly
 ├─ Requires an independently justified bounded review of a Change DAG? → Dispatch Change-DAG-Reviewer
-├─ Requires designing a feature or formal DD? → Dispatch RnD-Manager
-│  └─ RnD-Manager composes the selected DD graph and dispatches RnD-Refiner when needed
+├─ Requires R&D evaluation (architectural novelty, unclear architectural requirements, design uncertainty, large scope) or an explicit formal DD? → Dispatch RnD-Manager
+│  └─ RnD-Manager owns the DAG_ONLY / DD_REQUIRED / RESEARCH_ONLY route and returns it to Nyx; it composes the selected DD graph and dispatches RnD-Refiner when a DD graph is needed
 ├─ Requires focused R&D analysis (not full design)?
 │  ├─ Implementation options + tradeoffs → RnD-Architect
 │  ├─ Creative brainstorming → RnD-Ideator
@@ -118,7 +128,7 @@ Task at hand
 
 ### Dispatch Lifecycle
 
-1. **Before dispatch:** Select and open the exact per-agent reference linked in the Agent Selection tables. Do your own investigation and check logs, process artifacts, and the local governance skills so you can give the agent concrete context — not "figure out what's wrong."
+1. **Before dispatch:** Select and open the exact per-agent reference linked in the Agent Selection tables, and produce a complete handoff: every agent-specific field, every context file, and all already-known requirements, constraints, decisions, and evidence. A complete handoff means nothing the agent needs is missing — it does **not** mean duplicating the selected specialist's core investigation. When the specialist owns discovery of the evidence it needs (for example RnD-Manager owns the design-evidence graph), pass what you already know and let it select the rest; never force the caller to redo that discovery first.
 2. **During dispatch:** Fill every field in that per-agent reference. List every file and artifact. Directly state every requirement, decision, constraint, hypothesis, and expected output. State what the agent must NOT do.
 3. **After dispatch:** Verify the output against the expected contract. If malformed or incomplete, re-dispatch with clarification. Log significant findings. Route results to the next step.
 
@@ -160,7 +170,14 @@ The Change DAG is the single implementation-work authority. Change-DAG-Author ow
 | Complexity/over-engineering audit | [`rnd-complexity-advisor`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-complexity-advisor.md) |
 | Code improvement suggestions | [`rnd-improver`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/rnd-improver.md) |
 
-RnD-Manager is the sole orchestrator for a formal DD. It composes the smallest
+RnD-Manager is the sole orchestrator for a formal DD. RnD-Manager owns the
+evidence-based route (`DAG_ONLY` / `DD_REQUIRED` / `RESEARCH_ONLY`) and the
+selection of the design-evidence graph, and returns the structured result to Nyx;
+it never dispatches the downstream
+`change-dag-author` — Nyx does, only after `status: DONE` and
+`phase: READY_FOR_AUTHORING`. The caller passes any governing constraint it
+already holds; neither side is required to independently read the same
+governance corpus. It composes the smallest
 sufficient graph from Librarian, Researcher, Refiner, Architect,
 ComplexityAdvisor, Estimator, DDAuthor, and PatternEnforcer capabilities. It may
 fan out independent work and must preserve dependency order and static authority.

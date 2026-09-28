@@ -4,6 +4,44 @@ Dispatch RnD-Manager when a request needs architectural design, a formal DD,
 options and tradeoffs, or R&D scope validation. RnD-Manager is the sole owner
 of the selected DD graph and must orchestrate only the capabilities it selects.
 
+## Route ownership and return
+
+RnD-Manager owns the evidence-based route for a new design request —
+`DAG_ONLY`, `DD_REQUIRED`, or `RESEARCH_ONLY` — and the selection of the
+design-evidence graph, and returns that structured result to **Nyx**. It never
+dispatches the downstream authoring peer
+(`Change-DAG-Author`); Nyx owns that dispatch, and only after a `DAG_ONLY` or
+`DD_REQUIRED` result with `status: DONE` and `phase: READY_FOR_AUTHORING`.
+`RESEARCH_ONLY` returns bounded analysis only and authorizes neither a DD nor a
+Change DAG.
+
+An explicit user DD request establishes `DD_REQUIRED`. A non-explicit request is
+evaluated by RnD-Manager's estimator gate and is never predeclared `DD_REQUIRED`
+by the caller. Architectural novelty routes to RnD-Manager for evaluation even
+when the exact edit locations are already known.
+
+The caller consumes the exact `route` / `status` / `phase` tuple; readiness is
+never a fieldless word. `status` is `DONE | BLOCKED | NEEDS_DECISION`; readiness
+lives only in `phase` (`... | READY_FOR_AUTHORING`).
+
+## Evidence selection ownership
+
+RnD-Manager owns selection of the design-evidence graph: the local governance
+skills, Support-Librarian when historical/process context matters,
+Support-Researcher when repository/API facts are missing, and other R&D
+capabilities as the design requires.
+
+The caller is **not** required to complete broad repository exploration,
+historical log/DD discovery, full integration tracing, or external/API research
+before this dispatch. The caller supplies a complete handoff — the authoritative
+user request, `request_context.path`, and all already-known constraints and
+evidence — and RnD-Manager selects whatever additional evidence the design needs.
+
+Already-known caller evidence is an input, never a requirement to duplicate
+discovery: the caller passes what it has and must not discard it. If the caller
+already holds a directly applicable governing constraint, it is passed here;
+neither side is required to independently read the same governance corpus.
+
 ## Formal DD dispatch
 
 ```text
@@ -50,8 +88,13 @@ requirements and provenance but does not repair, reinterpret, promote, or
 complete an incomplete handoff.
 7. **PatternEnforcer**, when selected, reports read-only impact evidence to the
 owning manager/author; it is not the requirement or design decision gate.
-8. **RnD-Manager** returns `READY_FOR_DECOMPOSITION` only after the independent gate,
-DD recording, and mandatory lifecycle checks are coherent.
+8. **RnD-Manager** returns to Nyx only after the independent gate, DD recording,
+and mandatory lifecycle checks are coherent. The successful DD handoff is the
+structured tuple `route: DD_REQUIRED`, `status: DONE`,
+`phase: READY_FOR_AUTHORING`; the `DAG_ONLY` handoff is `route: DAG_ONLY`,
+`status: DONE`, `phase: READY_FOR_AUTHORING`. Nyx then owns the
+`Change-DAG-Author` dispatch. Readiness is never a status or a bare word — always
+read the `route` / `status` / `phase` fields.
 
 ## Research-only dispatch
 

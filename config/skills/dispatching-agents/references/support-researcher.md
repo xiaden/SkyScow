@@ -4,18 +4,21 @@ Dispatch Support-Researcher for deep, multi-file codebase investigation or exter
 
 ## When to Dispatch
 
-Dispatch when:
-- You need to understand how a subsystem or feature works across files
-- You need to trace call chains or dependency graphs through multiple layers
-- You need external library documentation, API references, or version-specific behavior
-- You need to compare implementation patterns across several modules
+Dispatch only when bounded local evidence establishes that unresolved substantive investigation remains, for example:
+- Deep multi-file dependency tracing (call chains or dependency graphs across layers)
+- Unclear integration ownership
+- External library documentation, API references, or version-specific behavior that must be verified
+- Complex repository behavior bounded localization cannot resolve
 - Another agent lacks information to make routing decisions
+
+**Escalation order:** bounded/local evidence first → load the relevant local skill/governance when applicable → consult targeted historical context when materially useful → dispatch Support-Researcher only when unresolved substantive investigation remains.
 
 **Do NOT dispatch when:**
 - A single file read or `aft_search` will answer the question
 - The task is a simple "find where X is defined" lookup
 - You're doing routine implementation work that doesn't require research
-- The question can be answered by checking existing logs, process artifacts, or the local governance skills
+- The code is merely unfamiliar, or was not touched earlier in the session — unfamiliarity and session history are not triggers (see Nyx's Direct-Work Invariant)
+- The question can be answered by loading a local governance skill (for example `architecture-decisions` or `system-requirements`), checking existing logs, or consulting process artifacts
 
 ## Dispatch Template
 
@@ -45,10 +48,11 @@ Support-Researcher returns:
 - File paths and line numbers for all code references
 - Code snippets where relevant
 - Summary of key insights
+- A named `scope_signal` (`WITHIN_BRIEF` / `BROADER_SAME_REQUIREMENT` / `NEW_REQUIREMENT`) the caller consumes deterministically
 
 ## After Research
 
-- Use findings to make routing and implementation decisions
+- Use findings to make routing and implementation decisions; consume `scope_signal` per the caller's contract (broader same-requirement surface → re-evaluate routing/tier; new requirement → user decision)
 - Pass relevant findings to downstream agents in their dispatch prompts
 - Log significant discoveries (`log_write`) if they reveal architectural patterns or dead-ends
 - Store reusable knowledge as a subsystem skill if the area is stable and frequently referenced

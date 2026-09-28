@@ -23,7 +23,7 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 | Agent | Specialty | Use For |
 |-------|-----------|---------|
-| rnd-manager | R&D department head | Feature design dispatch, owns the "thinking" phase |
+| rnd-manager | R&D department head | Owns the evidence-based DAG_ONLY/DD_REQUIRED/RESEARCH_ONLY route and the DD workflow; returns the result to Nyx |
 | rnd-dd-author | Design lead | Creates/refines design documents from requirements |
 | rnd-refiner | Adversarial design executor | Runs one Manager-selected bounded external or repository pair |
 | rnd-ideator | Creative solution generator | Explores design space, ranked ideas with feasibility |
@@ -65,7 +65,7 @@ Load the `dispatching-agents` skill for canonical dispatch templates and the aut
 
 ### Dependency-ordered execution
 ```
-rnd-manager → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → change-dag-author (manager; queries dag_decomposition_frontier and dispatches one change-dag-worker per returned node) → [optional change-dag-reviewer when an observable trigger exists] → Nyx Change DAG lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
+rnd-manager (owns DAG_ONLY/DD_REQUIRED/RESEARCH_ONLY) → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → Nyx (reads route/status/phase; dispatches change-dag-author only on DONE + READY_FOR_AUTHORING) → change-dag-author (manager; queries dag_decomposition_frontier and dispatches one change-dag-worker per returned node) → [optional change-dag-reviewer when an observable trigger exists] → Nyx Change DAG lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
 ```
 Use when: Later tasks depend on earlier results. The Manager selects the smallest
 sufficient graph; independent Librarian/Researcher work may run concurrently.
@@ -108,8 +108,8 @@ Use when: Multiple perspectives needed
 
 The Manager records the observed condition, selected and skipped capabilities, dependency/concurrency shape, terminal reason, and DD eligibility in the routing trace. These cases are acceptance examples, not a new registry or state-machine DSL:
 
-- **A — Trivial local change:** a single well-understood module and no open external or architectural question. Select only route/sizing evidence needed for authoring; skip Librarian, Researcher, Refiner, Architect, ComplexityAdvisor, and DDAuthor with evidence-based reasons. Terminal: `DAG_ONLY`; no DD artifacts.
-- **B — Open Nomarr backend choice:** backend alternatives are consequential and repository integration facts are unknown. Select independent Librarian/Researcher work, then external and repository Refiner pairs; select Architect only if multiple survivors still require tradeoffs. Preserve Manager/user decision authority before authoring. Terminal: `DD_REQUIRED` only after dispositions and an accepted direction.
+- **A — Trivial local change:** a single well-understood module and no open external or architectural question. Select only route/sizing evidence needed for authoring; skip Librarian, Researcher, Refiner, Architect, ComplexityAdvisor, and DDAuthor with evidence-based reasons. Terminal: returns `DAG_ONLY` to Nyx; no DD artifacts.
+- **B — Open Nomarr backend choice:** backend alternatives are consequential and repository integration facts are unknown. Select independent Librarian/Researcher work, then external and repository Refiner pairs; select Architect only if multiple survivors still require tradeoffs. Preserve Manager/user decision authority before authoring. Terminal: returns `DD_REQUIRED` to Nyx only after dispositions and an accepted direction.
 - **C — Accepted architecture, unclear integration:** architecture is accepted but local runtime or ownership paths are unknown. Skip external Ideator/Counter-Ideator and Architect; select Researcher and, when repository adaptation is material, Improver/Counter-Improver. Terminal: selected evidence or Manager disposition; no redundant external exploration.
 - **D — Greenfield alternatives:** no accepted direction exists and multiple credible designs may survive. Select Architect for explicit tradeoffs and require Manager or user resolution at the decision boundary; an advisory agent never chooses.
 - **E — Evaluator is good enough:** a selected Counter returns credible `GOOD_ENOUGH` or `NO_MATERIAL_CONCERNS` with evidence, assumptions, failure modes, and applicability. Terminate that pair immediately; do not add a historical pass.

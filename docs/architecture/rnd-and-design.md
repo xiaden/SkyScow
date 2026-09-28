@@ -2,15 +2,15 @@
 
 How an idea or architectural problem becomes a **Design Document (DD)**.
 
-Nyx owns routing into R&D. `rnd-manager` owns the R&D graph, the requirement ledger, risk dispositions, and DD acceptance. `rnd-dd-author` writes the DD but does not orchestrate, reinterpret, or repair earlier decisions.
+Nyx decides whether R&D evaluation is required; it does not predeclare the route. `rnd-manager` owns the evidence-based route (`DAG_ONLY` / `DD_REQUIRED` / `RESEARCH_ONLY`), the R&D graph, the requirement ledger, risk dispositions, and DD acceptance, and returns the structured result to Nyx. Nyx owns the downstream `change-dag-author` dispatch. `rnd-dd-author` writes the DD but does not orchestrate, reinterpret, or repair earlier decisions.
 
 ```mermaid
 flowchart TD
     U["Idea or architectural problem"] --> C["Nyx captures request context (CTX)"]
-    C --> R["rnd-estimator route decision"]
+    C --> R["RnD-Manager evidence-based route decision"]
 
-    R -->|RESEARCH_ONLY| RO["Bounded research only"]
-    R -->|DAG_ONLY| DAGO["Change-DAG-Author — no DD"]
+    R -->|RESEARCH_ONLY| RO["Return bounded analysis to Nyx"]
+    R -->|DAG_ONLY| DAGO["Return to Nyx — Nyx owns change-dag-author dispatch, no DD"]
     R -->|DD_REQUIRED| G["Manager-composed R&D graph"]
 
     G --> EV["Evidence<br/>librarian • researcher"]
@@ -30,7 +30,7 @@ flowchart TD
     M -->|no design needed| DONE["Return to Nyx"]
 
     DD --> V{"Manager conformance gate"}
-    V -->|PASS| ACC["Accepted DD"]
+    V -->|PASS| ACC["Accepted DD — returns to Nyx, change-dag-author dispatch owned by Nyx"]
     V -->|Gap| M
 ```
 
@@ -41,16 +41,17 @@ flowchart TD
 - `rnd-refiner` runs exactly one Manager-selected adversarial pair per invocation. It does not choose the architecture, decide dispositions, or authorize implementation.
 - Material adversarial findings return to the Manager, which assigns exactly one disposition: `MITIGATE`, `ACCEPT_RISK`, `NOT_APPLICABLE`, or `DEFER_TO_OWNER`. Only `MITIGATE` authorizes a bounded correction.
 - `support-pattern-enforcer` output is advisory evidence; it does not authorize implementation.
+- Nyx's pre-dispatch responsibility is bounded: recognize that R&D evaluation is warranted, preserve the authoritative request, capture `request_context`, and pass already-known constraints and evidence. RnD-Manager owns selection of the design-evidence graph (governance skills, librarian, researcher, and other R&D capabilities); Nyx does not complete a duplicate broad discovery pass first, already-known evidence is passed rather than discarded, and neither side is required to independently read the same governance corpus.
 
 ## Route decision
 
-For a new design request, `rnd-estimator` runs first unless the user explicitly asks for a DD:
+For a new design request, `rnd-estimator` runs first unless the user explicitly asks for a DD. Nyx routes the request to `rnd-manager` for evaluation without predeclaring the route; architectural novelty routes here even when exact edit locations are already known:
 
 | Route | Meaning |
 |---|---|
-| `DAG_ONLY` | Route to `change-dag-author`; do not create a DD. |
-| `DD_REQUIRED` | Compose a DD graph. An explicit DD request selects this directly. |
-| `RESEARCH_ONLY` | Dispatch bounded research and stop — no partial DD. |
+| `DAG_ONLY` | Return to Nyx; do not create a DD. Nyx dispatches `change-dag-author`. Success handoff: `status: DONE`, `phase: READY_FOR_AUTHORING`. |
+| `DD_REQUIRED` | Compose a DD graph; an explicit DD request selects this directly. A completed DD returns to Nyx as `status: DONE`, `phase: READY_FOR_AUTHORING`; Nyx dispatches `change-dag-author` with the accepted DD context. |
+| `RESEARCH_ONLY` | Return bounded analysis to Nyx and stop — no partial DD, and no DD, Change DAG, or implementation-authorization implication. |
 
 The route is not a fixed worker list. The Manager selects only capabilities whose inputs are missing or whose bounded challenge is useful, and records a short rationale for each selected or materially skipped capability.
 
