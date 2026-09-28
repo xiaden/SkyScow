@@ -160,7 +160,49 @@ def test_archive_record_captures_state_truthfully(tmp_path: Path):
     assert record["state_at_archive"]["root_satisfied"] is False
     assert record["state_at_archive"]["resolved"] is True
     assert record["state_at_archive"]["failed_nodes"] == ["N3"]
-    assert record["state_at_archive"]["not_satisfied_nodes"] == ["N1", "N2"]
+    # Semantic nodes never appear in terminal execution-state lists.
+    assert record["state_at_archive"]["not_satisfied_nodes"] == []
+
+
+def test_archive_of_satisfied_dag_has_no_semantic_terminal_entries(tmp_path: Path):
+    dag, state = _satisfied_dag("done")
+    write_bundle(tmp_path, "done", dag, state)
+    result = dag_archive("done", "execution completed and artifact retired", workspace_root=tmp_path)
+
+    # root_satisfied is derived independently; the terminal-state lists must not
+    # contradict it by listing semantic root/parent nodes as not_satisfied.
+    summary = result["state_at_archive"]
+    assert summary["root_satisfied"] is True
+    assert summary["failed_nodes"] == []
+    assert summary["in_progress_nodes"] == []
+    assert summary["not_satisfied_nodes"] == []
+
+
+def test_archive_terminal_lists_exclude_semantic_nodes(tmp_path: Path):
+    dag = _dag("mixed", {
+        "N1": _semantic("root", ["N2"], decomposition_only=True),
+        "N2": _semantic("implementation is complete", ["N3", "N4", "N5", "N6"]),
+        "N3": _edit(),
+        "N4": _create("new.txt", "x\n"),
+        "N5": _edit("g.txt"),
+        "N6": {"type": "remove", "path": "gone.txt"},
+    })
+    # The raw state deliberately carries illegal semantic entries too: they must
+    # be dropped, not projected into terminal execution-state lists.
+    write_bundle(tmp_path, "mixed", dag, {
+        "N1": "failed",
+        "N2": "in_progress",
+        "N3": "failed",
+        "N4": "in_progress",
+        "N5": "satisfied",
+    })
+    result = dag_archive("mixed", "abandoned after upstream design changed", workspace_root=tmp_path)
+
+    summary = result["state_at_archive"]
+    assert summary["failed_nodes"] == ["N3"]
+    assert summary["in_progress_nodes"] == ["N4"]
+    assert summary["not_satisfied_nodes"] == ["N6"]
+    assert summary["root_satisfied"] is False
 
 
 def test_archive_record_lists_moved_artifacts(tmp_path: Path):

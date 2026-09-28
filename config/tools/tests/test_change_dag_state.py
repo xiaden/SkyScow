@@ -15,6 +15,22 @@ def dag() -> dict:
     return {"root": "N1", "nodes": {"N1": {"type": "semantic", "requires": ["N2"]}, "N2": {"type": "edit", "path": "x", "patch": "p"}}}
 
 
+def terminal_dag() -> dict:
+    return {
+        "root": "N1",
+        "nodes": {
+            "N1": {"type": "semantic", "requires": ["N2"]},
+            "N2": {"type": "semantic", "requires": ["N3", "N4", "N5", "N6", "N7"]},
+            "N3": {"type": "create", "path": "a.txt"},
+            "N4": {"type": "edit", "path": "b.txt", "patch": "p"},
+            "N5": {"type": "remove", "path": "c.txt"},
+            "N6": {"type": "move", "from_path": "d.txt", "to_path": "e.txt"},
+            "N7": {"type": "run", "command": ["true"]},
+            "N8": {"type": "edit", "path": "unreachable.txt", "patch": "p"},
+        },
+    }
+
+
 def test_state_round_trip_and_validation(tmp_path: Path):
     assert read_state(tmp_path, "x") == {}
     write_state(tmp_path, "x", {"N2": "satisfied"})
@@ -26,7 +42,8 @@ def test_state_round_trip_and_validation(tmp_path: Path):
 
 
 def test_defaults_and_log_append(tmp_path: Path):
-    assert state_with_defaults(dag(), {"N2": "satisfied"}) == {"N1": "not_satisfied", "N2": "satisfied"}
+    # EXECUTION_STATE models terminal work only: the semantic N1 never appears.
+    assert state_with_defaults(dag(), {"N2": "satisfied"}) == {"N2": "satisfied"}
     append_work_log(tmp_path, "x", {"n": 1})
     append_work_log(tmp_path, "x", {"n": 2})
     assert read_work_log(tmp_path, "x") == [{"n": 1}, {"n": 2}]
@@ -34,6 +51,31 @@ def test_defaults_and_log_append(tmp_path: Path):
         f.write("broken\n")
     with pytest.raises(ValueError, match="line 3"):
         read_work_log(tmp_path, "x")
+
+
+def test_state_with_defaults_projects_terminal_nodes_only():
+    # Raw state may carry semantic entries; they are dropped, not preserved.
+    projected = state_with_defaults(terminal_dag(), {"N1": "failed", "N2": "satisfied", "N3": "satisfied"})
+    assert projected == {
+        "N3": "satisfied",
+        "N4": "not_satisfied",
+        "N5": "not_satisfied",
+        "N6": "not_satisfied",
+        "N7": "not_satisfied",
+    }
+    # Every canonical terminal type is represented; semantic nodes (N1, N2) and
+    # the unreachable terminal N8 never appear.
+    assert set(projected) == {"N3", "N4", "N5", "N6", "N7"}
+
+
+def test_state_with_defaults_defaults_missing_reachable_terminals():
+    assert state_with_defaults(terminal_dag(), {}) == {
+        "N3": "not_satisfied",
+        "N4": "not_satisfied",
+        "N5": "not_satisfied",
+        "N6": "not_satisfied",
+        "N7": "not_satisfied",
+    }
 
 
 def test_log_builders_shapes():

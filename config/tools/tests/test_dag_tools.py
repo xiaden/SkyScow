@@ -343,6 +343,23 @@ def test_dag_status_reports_unresolved_semantic_nodes(workspace):
     assert payload["unresolved_semantic_nodes"] == []
 
 
+def test_dag_status_terminal_map_contains_terminal_nodes_only(workspace):
+    _two_node_dag(workspace)
+    # BFS: root=N1, impl=N2; the terminal edit lands under N2 as N3.
+    added = _payload(add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH))
+    terminal_id = added["node_id"]
+    # A raw state may carry semantic entries; the projection must drop them.
+    write_state(workspace, "demo", {"N1": "failed", "N2": "not_satisfied", terminal_id: "satisfied"})
+
+    payload = dag_status("demo", workspace_root=workspace)
+
+    assert payload["terminal"] == {terminal_id: "satisfied"}
+    assert payload["failed"] == []
+    assert payload["reachable"] == ["N1", "N2", terminal_id]
+    # Semantic satisfaction stays derived, not projected as terminal state.
+    assert payload["root_satisfied"] is True
+
+
 # ---------------------------------------------------------------------------
 # Running immutability
 # ---------------------------------------------------------------------------

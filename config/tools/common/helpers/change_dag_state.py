@@ -53,7 +53,19 @@ def set_node_state(state: dict[str, str], node_id: str, value: str) -> None:
 
 
 def state_with_defaults(dag: dict[str, Any], state: dict[str, str]) -> dict[str, str]:
-    return {node_id: state.get(node_id, "not_satisfied") for node_id in change_dag.reachable_from_root(dag)}
+    """Project execution state onto the reachable terminal nodes.
+
+    ``EXECUTION_STATE`` models terminal work only: semantic nodes never carry
+    persisted terminal state, because their satisfaction is derived from the
+    nodes they require. Semantic entries present in the supplied raw state are
+    dropped so every consumer sees the same canonical terminal-only view;
+    unreachable nodes are dropped as well.
+    """
+    return {
+        node_id: state.get(node_id, "not_satisfied")
+        for node_id in change_dag.reachable_from_root(dag)
+        if change_dag.node_type(dag, node_id) in change_dag.TERMINAL_TYPES
+    }
 
 
 def append_work_log(workspace_root: Path, slug: str, entry: dict[str, Any], archived: bool = False) -> None:
