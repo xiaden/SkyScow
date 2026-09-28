@@ -7,6 +7,7 @@ import json
 
 from common.helpers.change_dag import atomic_write_json
 from common.helpers.change_dag_ops_views import preview
+from common.helpers.change_dag_projection import projected_source
 from common.tools.dag_grep import dag_grep
 from common.tools.dag_read import dag_read
 from common.tools.dag_search import dag_search
@@ -48,7 +49,7 @@ def test_projected_tools_expose_only_deeper_work(tmp_path):
     read = dag_read("demo", "N3", "generated.txt", workspace_root=root)
     assert read["present"] is True
     assert read["content"] == "lower\n"
-    assert dag_read("demo", "N3", "assigned.txt", workspace_root=root)["present"] is False
+    assert dag_read("demo", "N3", "assigned.txt", workspace_root=root)["present"] is True
 
 
 def test_read_range_and_grep_are_compact(tmp_path):
@@ -57,7 +58,8 @@ def test_read_range_and_grep_are_compact(tmp_path):
     read = dag_read("demo", "N3", "source.txt", 2, 2, workspace_root=root)
     assert read == {
         "slug": "demo", "node_id": "N3", "path": "source.txt", "present": True,
-        "start_line": 2, "end_line": 2, "content": "target here\n",
+         "start_line": 2, "end_line": 2, "content": "target here\n",
+         "provenance": [{"lines": [2, 2], "node_ids": [], "relation": "live"}],
     }
     grep = dag_grep("demo", "N3", "target", workspace_root=root)
     assert grep["matches"] == [{"path": "source.txt", "line": 2}]
@@ -159,12 +161,17 @@ def test_malformed_applicable_work_is_reported_not_silently_live(tmp_path):
     ]
 
 
-def test_boundary_owned_work_does_not_affect_projection(tmp_path):
-    """The boundary node's own proposal is excluded even when it is malformed."""
+def test_base_view_excludes_boundary_owned_work(tmp_path):
+    """BASE projection ignores the boundary's own work; the self view does not."""
     root = _setup(tmp_path)
     (root / "source.txt").write_text("live\n", encoding="utf-8")
     dag = _dag()
     dag["nodes"]["N5"] = {"type": "edit", "path": "source.txt", "patch": "not a diff"}
     _write_bundle(root, "owned", {**dag, "slug": "owned"})
 
-    assert dag_read("owned", "N3", "source.txt", workspace_root=root)["content"] == "live\n"
+    base, error = projected_source(root, "owned", "N3")
+    assert error is None and base is not None
+    assert base.content("source.txt") == "live\n"
+    # The self view includes that malformed proposal, so it reports the failure
+    # rather than returning live content as if it were the self projection.
+    assert dag_read("owned", "N3", "source.txt", workspace_root=root)["error"] == "projection_failed"

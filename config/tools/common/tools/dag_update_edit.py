@@ -12,11 +12,11 @@ def dag_update_edit(
     slug: str,
     node_id: str,
     path: str | None = None,
-    patch: str | None = None,
+    replacements: list[dict[str, str]] | None = None,
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
-    return update_node(workspace_root, slug, node_id, path=path, patch=patch)
+    return update_node(workspace_root, slug, node_id, path=path, replacements=replacements)
 
 
 if __name__ == "__main__":
@@ -27,7 +27,7 @@ if __name__ == "__main__":
                 args["slug"],
                 args["node_id"],
                 args.get("path"),
-                args.get("patch"),
+                args.get("replacements"),
                 workspace_root=Path(args["workspace_root"]),
             )
         )

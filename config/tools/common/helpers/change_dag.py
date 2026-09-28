@@ -32,6 +32,11 @@ NODE_ID_PATTERN = re.compile(r"^N[0-9]+$")
 ANCHOR_COMMIT_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 TERMINAL_STATES = ("not_satisfied", "in_progress", "satisfied", "failed")
 TERMINAL_TYPES = ("create", "edit", "remove", "move", "run")
+# Direct terminal children that are exclusive: when a semantic node owns any of
+# these, it may own no other terminal child. ``edit`` is composable and is not
+# listed here. This is authoring structure only and grants no runtime
+# run-barrier semantics to create/move/remove.
+EXCLUSIVE_TERMINAL_TYPES = ("create", "remove", "move", "run")
 SEMANTIC_TYPE = "semantic"
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "CHANGE_DAG_SCHEMA.json"
@@ -452,29 +457,70 @@ def root_invariant_errors(dag: Any) -> list[str]:
     return errors
 
 
-def run_barrier_errors(dag: Any) -> list[str]:
+def direct_terminal_errors(dag: Any) -> list[str]:
+    """Direct-terminal composition invariant for every semantic node.
+
+    Over a semantic node's *direct* children:
+
+    * semantic children are always allowed, in any number;
+    * ``edit`` children are composable: any number may coexist with each other
+      and with semantic children;
+    * ``create``, ``remove``, ``move`` and ``run`` are *exclusive*: when a
+      semantic node has any exclusive terminal child, that child must be its
+      only terminal child.
+
+    So ``edit + edit``, ``create + semantic``, ``run + semantic`` and
+    ``edit + semantic`` validate, while ``create + edit``, ``run + edit``,
+    ``create + create`` and ``move + remove`` do not. This is an authoring
+    structural rule only; it grants no runtime run-barrier semantics to
+    ``create``/``remove``/``move``.
+    """
     errors: list[str] = []
     nodes = node_map(dag)
     for node_id in sorted(nodes):
         if node_type(dag, node_id) != SEMANTIC_TYPE:
             continue
         children = direct_children(dag, node_id)
-        run_children = [child for child in children if node_type(dag, child) == "run"]
-        if not run_children:
+        terminal_children = [
+            child for child in children if node_type(dag, child) in TERMINAL_TYPES
+        ]
+        exclusive_children = [
+            child
+            for child in terminal_children
+            if node_type(dag, child) in EXCLUSIVE_TERMINAL_TYPES
+        ]
+        if not exclusive_children or len(terminal_children) == 1:
             continue
+        run_children = [child for child in terminal_children if node_type(dag, child) == "run"]
         if len(run_children) > 1:
             errors.append(
                 f"semantic node {node_id} has multiple direct run children: {', '.join(run_children)}"
             )
-        for child in children:
-            if child in run_children:
-                continue
-            child_type = node_type(dag, child)
-            if child_type is not None and child_type != SEMANTIC_TYPE:
-                errors.append(
-                    f"semantic node {node_id} has a non-semantic child beside a run child: {child} ({child_type})"
-                )
-    return errors
+        for exclusive in exclusive_children:
+            exclusive_type = node_type(dag, exclusive)
+            for child in terminal_children:
+                if child == exclusive:
+                    continue
+                child_type = node_type(dag, child)
+                if exclusive_type == "run" and child_type == "run":
+                    continue  # reported once as multiple direct run children
+                if exclusive_type == "run":
+                    errors.append(
+                        f"semantic node {node_id} has a non-semantic child beside a run child: "
+                        f"{child} ({child_type})"
+                    )
+                else:
+                    errors.append(
+                        f"semantic node {node_id} has exclusive terminal child {exclusive} "
+                        f"({exclusive_type}) beside sibling terminal {child} ({child_type})"
+                    )
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for error in errors:
+        if error not in seen:
+            seen.add(error)
+            deduped.append(error)
+    return deduped
 
 
 def allocate_node_id(dag: Any, workspace_root: Path, slug: str, completed: bool = False) -> str:
@@ -730,7 +776,7 @@ def structure_errors(dag: Any) -> list[str]:
                     f"node {node_id} {field} is not a usable workspace-relative path: {exc}"
                 )
 
-    errors.extend(run_barrier_errors(dag))
+    errors.extend(direct_terminal_errors(dag))
     errors.extend(decomposition_only_errors(dag))
     errors.extend(root_invariant_errors(dag))
     return errors

@@ -12,11 +12,11 @@ def dag_add_edit(
     slug: str,
     parent_ids: list[str],
     path: str,
-    patch: str,
+    replacements: list[dict[str, str]],
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
-    return add_work(workspace_root, slug, "edit", parent_ids, path=path, patch=patch)
+    return add_work(workspace_root, slug, "edit", parent_ids, path=path, replacements=replacements)
 
 
 if __name__ == "__main__":
@@ -27,7 +27,7 @@ if __name__ == "__main__":
                 args["slug"],
                 args["parent_ids"],
                 args["path"],
-                args["patch"],
+                args["replacements"],
                 workspace_root=Path(args["workspace_root"]),
             )
         )

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..helpers.change_dag_projection import canonical_query_path, line_content, projected_source
+from ..helpers.change_dag_projection import canonical_query_path, line_content, projected_self_source
 
 
 def dag_read(
@@ -17,7 +17,7 @@ def dag_read(
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
-    source, error = projected_source(workspace_root, slug, node_id)
+    source, error = projected_self_source(workspace_root, slug, node_id)
     if error is not None:
         return error
     assert source is not None
@@ -40,6 +40,7 @@ def dag_read(
         "start_line": start,
         "end_line": end,
         "content": selected,
+        "provenance": source.provenance(canonical, start, end),
     }
 
 

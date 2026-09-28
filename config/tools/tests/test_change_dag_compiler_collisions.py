@@ -166,11 +166,11 @@ def test_preview_uses_same_intra_dag_classification_as_preflight(workspace):
             },
         },
     )["output"]
-    first = patch("f.txt", "foo", "bar")
-    second = patch("f.txt", "foo", "baz")
     (workspace / "f.txt").write_text("foo\n", encoding="utf-8")
-    add_work(workspace, "collision", "edit", ["N2"], path="f.txt", patch=first)
-    add_work(workspace, "collision", "edit", ["N2"], path="f.txt", patch=second)
+    add_work(workspace, "collision", "edit", ["N2"], path="f.txt",
+             replacements=[{"old": "foo", "new": "bar"}])
+    add_work(workspace, "collision", "edit", ["N2"], path="f.txt",
+             replacements=[{"old": "foo", "new": "baz"}])
 
     payload = json.loads(preview(workspace, "collision")["output"])
 

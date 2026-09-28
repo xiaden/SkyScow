@@ -105,9 +105,11 @@ def test_resolved_dag_with_compile_conflict_is_not_executable(tmp_path: Path):
     dag = dag_with(
         {
             "N1": semantic("root", ["N2"]),
-            "N2": semantic("implementation", ["N3", "N4"]),
-            "N3": create("new.txt", "x\n"),
-            "N4": create("new.txt", "y\n"),
+            "N2": {**semantic("implementation", ["N3", "N4"]), "decomposition_only": True},
+            "N3": semantic("create new.txt one", ["N5"]),
+            "N4": semantic("create new.txt two", ["N6"]),
+            "N5": create("new.txt", "x\n"),
+            "N6": create("new.txt", "y\n"),
         }
     )
     assert change_dag.is_resolved(dag) is True
@@ -125,9 +127,11 @@ def test_unresolved_and_compile_conflict_are_reported_together(tmp_path: Path):
         {
             "N1": semantic("root", ["N2", "N5"]),
             "N2": semantic("undecided"),                       # unresolved
-            "N5": semantic("implementation", ["N3", "N4"]),
-            "N3": create("new.txt", "x\n"),
-            "N4": create("new.txt", "y\n"),
+            "N5": {**semantic("implementation", ["N3", "N4"]), "decomposition_only": True},
+            "N3": semantic("create new.txt one", ["N6"]),
+            "N4": semantic("create new.txt two", ["N7"]),
+            "N6": create("new.txt", "x\n"),
+            "N7": create("new.txt", "y\n"),
         }
     )
     assert change_dag.is_resolved(dag) is False

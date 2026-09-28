@@ -34,6 +34,20 @@ from common.tools.dag_set_decomposition_only import dag_set_decomposition_only
 PATCH = "@@ -1 +1 @@\n-a\n+b\n"
 
 
+def _seed(workspace, rel: str, text: str = "a\n") -> None:
+    path = workspace / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def _add_edit(workspace, slug, parent_ids, path, *, old="a", new="b"):
+    """Seed the accepted base, then attach an edit via structured replacements."""
+    _seed(workspace, path)
+    return add_work(
+        workspace, slug, "edit", parent_ids, path=path, replacements=[{"old": old, "new": new}]
+    )
+
+
 def _payload(result: dict) -> dict:
     return json.loads(result["output"])
 
@@ -145,7 +159,7 @@ def test_add_requirement_unresolved_leaf_and_insert_between_rewiring(workspace):
 
 def test_add_requirement_rejects_bad_child_and_non_semantic_parent(workspace):
     _two_node_dag(workspace)
-    add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH)
+    _add_edit(workspace, "demo", ["N2"], "x.txt")
 
     bad_child = add_requirement(workspace, "demo", "r", ["N1"], ["N3"])
     assert bad_child["error"] == "invalid_child"
@@ -158,7 +172,7 @@ def test_add_requirement_rejects_bad_child_and_non_semantic_parent(workspace):
 # ---------------------------------------------------------------------------
 def test_add_work_run_barrier_rejection(workspace):
     _two_node_dag(workspace)
-    assert add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH).get("error") is None
+    assert _add_edit(workspace, "demo", ["N2"], "x.txt").get("error") is None
 
     outcome = add_work(workspace, "demo", "run", ["N2"], command=["pytest"])
     assert outcome["error"] == "invalid_graph"
@@ -176,7 +190,7 @@ def test_add_work_run_command_policy_rejection(workspace):
 # ---------------------------------------------------------------------------
 def test_update_node_satisfied_terminal_immutable_failed_mutable(workspace):
     _two_node_dag(workspace)
-    add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH)
+    _add_edit(workspace, "demo", ["N2"], "x.txt")
 
     write_state(workspace, "demo", {"N3": "satisfied"})
     rejected = update_node(workspace, "demo", "N3", path="y.txt")
@@ -207,7 +221,7 @@ def test_remove_node_preserves_shared_descendants(workspace):
         },
     )
     # BFS canonical IDs: root=N1, left=N2, right=N3, shared=N4.
-    add_work(workspace, "demo", "edit", ["N4"], path="x.txt", patch=PATCH)
+    _add_edit(workspace, "demo", ["N4"], "x.txt")
 
     result = remove_node(workspace, "demo", "N2")
     payload = _payload(result)
@@ -255,14 +269,19 @@ def test_remove_node_rejects_root(workspace):
 # ---------------------------------------------------------------------------
 def test_preview_reports_compile_conflict_with_both_node_ids(workspace):
     _two_node_dag(workspace)
+    # An exclusive terminal may not share a semantic parent with another
+    # terminal, so each create gets its own semantic obligation. The conflict is
+    # still detected across the semantic boundary.
+    host = _payload(add_requirement(workspace, "demo", "second create host", ["N2"]))["node_id"]
+    assert host == "N3"
     add_work(workspace, "demo", "create", ["N2"], path="new.txt", content="one\n")
-    add_work(workspace, "demo", "create", ["N2"], path="new.txt", content="two\n")
+    add_work(workspace, "demo", "create", [host], path="new.txt", content="two\n")
 
     result = preview(workspace, "demo")
     payload = _payload(result)
     assert payload["conflicts"], payload
     conflict = payload["conflicts"][0]
-    assert set(conflict["nodes"]) == {"N3", "N4"}
+    assert set(conflict["nodes"]) == {"N4", "N5"}
     assert conflict["reason"].startswith("compile_conflict:")
     assert payload["executable"] is False
 
@@ -292,7 +311,10 @@ def test_validate_reports_derived_schema_executable_resolved(workspace):
     assert len(unresolved) == 1
     assert unresolved[0]["nodes"] == ["N2"]
 
-    add_work(workspace, "demo", "create", ["N3"], path="new.txt", content="y\n")
+    # The second create needs its own semantic obligation; the compile conflict
+    # is still detected across the semantic boundary.
+    host = _payload(add_requirement(workspace, "demo", "second create host", ["N3"]))["node_id"]
+    add_work(workspace, "demo", "create", [host], path="new.txt", content="y\n")
     second = _payload(validate(workspace, "demo"))
     assert second["schema_valid"] is True
     assert second["executable"] is False
@@ -346,7 +368,7 @@ def test_dag_status_reports_unresolved_semantic_nodes(workspace):
 def test_dag_status_terminal_map_contains_terminal_nodes_only(workspace):
     _two_node_dag(workspace)
     # BFS: root=N1, impl=N2; the terminal edit lands under N2 as N3.
-    added = _payload(add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH))
+    added = _payload(_add_edit(workspace, "demo", ["N2"], "x.txt"))
     terminal_id = added["node_id"]
     # A raw state may carry semantic entries; the projection must drop them.
     write_state(workspace, "demo", {"N1": "failed", "N2": "not_satisfied", terminal_id: "satisfied"})
@@ -369,7 +391,7 @@ def test_mutations_rejected_while_dag_running(workspace):
     assert acquired
     try:
         write_marker(workspace, "demo", 99999999)
-        assert add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH)["error"] == "dag_running_immutable"
+        assert _add_edit(workspace, "demo", ["N2"], "x.txt")["error"] == "dag_running_immutable"
         assert add_requirement(workspace, "demo", "r", ["N2"])["error"] == "dag_running_immutable"
         assert remove_node(workspace, "demo", "N2")["error"] == "dag_running_immutable"
         assert update_node(workspace, "demo", "N2", requirement="changed")["error"] == "dag_running_immutable"
@@ -416,7 +438,9 @@ def test_node_ids_are_canonical_and_monotonic(workspace):
 
     previous = 3
     for index in range(4):
-        result = add_work(workspace, "demo", "create", ["N3"], path=f"f{index}.txt", content="x\n")
+        # Each create needs its own exclusive semantic obligation.
+        host = _payload(add_requirement(workspace, "demo", f"create host {index}", ["N3"]))["node_id"]
+        result = add_work(workspace, "demo", "create", [host], path=f"f{index}.txt", content="x\n")
         node_id = _payload(result)["node_id"]
         assert NODE_ID_PATTERN.fullmatch(node_id)
         numeric = int(node_id[1:])
@@ -434,7 +458,7 @@ def test_node_ids_are_canonical_and_monotonic(workspace):
 # ---------------------------------------------------------------------------
 def test_show_full_view_lists_every_node_with_derived_depth(workspace):
     _three_level_dag(workspace)
-    add_work(workspace, "demo", "edit", ["N3"], path="x.txt", patch=PATCH)
+    _add_edit(workspace, "demo", ["N3"], "x.txt")
 
     payload = _payload(show(workspace, "demo"))
     assert payload["slug"] == "demo"
@@ -461,7 +485,7 @@ def test_show_node_scoped_view_selects_only_that_node(workspace):
 
 def test_show_include_ancestors_and_descendants(workspace):
     _three_level_dag(workspace)
-    add_work(workspace, "demo", "edit", ["N3"], path="x.txt", patch=PATCH)
+    _add_edit(workspace, "demo", ["N3"], "x.txt")
 
     ancestors = _payload(show(workspace, "demo", node_id="N2", include_ancestors=True))
     assert [node["id"] for node in ancestors["nodes"]] == ["N1", "N2"]
@@ -507,7 +531,7 @@ def _archived_dag(workspace, slug: str) -> dict:
 def test_mutations_of_archived_dag_are_rejected_and_write_nothing(workspace):
     dag = _archived_dag(workspace, "archived")
 
-    add_work_result = add_work(workspace, "archived", "edit", ["N1"], path="y.txt", patch=PATCH)
+    add_work_result = _add_edit(workspace, "archived", ["N1"], "y.txt")
     assert add_work_result["error"] == "dag_not_pending"
     assert "immutable" in add_work_result["message"]
 
@@ -565,7 +589,7 @@ def test_update_node_rejects_disallowed_run_command(workspace):
 
 def test_update_node_rejects_field_not_valid_for_kind(workspace):
     _two_node_dag(workspace)
-    add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH)
+    _add_edit(workspace, "demo", ["N2"], "x.txt")
     assert update_node(workspace, "demo", "N3", command=["pytest"])["error"] == "invalid_field"
 
 
@@ -602,7 +626,7 @@ def test_set_decomposition_only_true_then_false_roundtrip(workspace):
 
 def test_set_decomposition_only_rejects_non_semantic_unknown_and_non_boolean(workspace):
     _two_node_dag(workspace)
-    add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH)
+    _add_edit(workspace, "demo", ["N2"], "x.txt")
 
     assert set_decomposition_only(workspace, "demo", "N3", True)["error"] == "invalid_node"
     assert set_decomposition_only(workspace, "demo", "N99", True)["error"] == "unknown_node"
@@ -611,7 +635,7 @@ def test_set_decomposition_only_rejects_non_semantic_unknown_and_non_boolean(wor
 
 def test_set_decomposition_only_rejects_terminal_child(workspace):
     _two_node_dag(workspace)
-    add_work(workspace, "demo", "edit", ["N2"], path="x.txt", patch=PATCH)
+    _add_edit(workspace, "demo", ["N2"], "x.txt")
 
     result = set_decomposition_only(workspace, "demo", "N2", True)
     assert result["error"] == "invalid_graph"
@@ -692,7 +716,7 @@ def _semantic_with_satisfied_terminal(workspace) -> tuple[str, str]:
     Returns ``(semantic_id, terminal_id)``.
     """
     _two_node_dag(workspace)
-    added = add_work(workspace, "demo", "edit", ["N2"], path="f.txt", patch=PATCH)
+    added = _add_edit(workspace, "demo", ["N2"], "f.txt")
     terminal_id = _payload(added)["node_id"]
     write_state(workspace, "demo", {terminal_id: "satisfied"})
     return "N2", terminal_id
@@ -728,7 +752,7 @@ def test_set_decomposition_only_rejects_satisfied_semantic_subtree(workspace):
 
 def test_set_decomposition_only_failed_region_remains_mutable(workspace):
     _two_node_dag(workspace)
-    added = add_work(workspace, "demo", "edit", ["N2"], path="f.txt", patch=PATCH)
+    added = _add_edit(workspace, "demo", ["N2"], "f.txt")
     terminal_id = _payload(added)["node_id"]
     write_state(workspace, "demo", {terminal_id: "failed"})
 

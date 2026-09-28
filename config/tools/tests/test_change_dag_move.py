@@ -160,6 +160,7 @@ def test_schema_and_typed_authoring_default_and_validate_overwrite(tmp_path: Pat
     root = tmp_path / "workspace"
     root.mkdir()
     _dag(root)
+    _write(root, "old.txt", "source\n")
     added = add_work(root, "move", "move", ["N2"], from_path="old.txt", to_path="new.txt")
     assert "error" not in added
     dag = change_dag.read_dag(root, "move")[0]

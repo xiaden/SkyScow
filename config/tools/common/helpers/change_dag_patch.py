@@ -10,6 +10,7 @@ Line numbers in a unified diff always refer to the LF-normalized original text.
 """
 from __future__ import annotations
 
+import difflib
 import os
 import re
 import stat
@@ -30,6 +31,8 @@ __all__ = [
     "apply_patches",
     "atomic_replace",
     "read_text_preserving",
+    "apply_structured_replacements",
+    "generate_unified_diff",
 ]
 
 _HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
@@ -40,6 +43,15 @@ class PatchError(Exception):
     """Base class for patch parse/application failures."""
 
 
+class StructuredReplacementError(PatchError):
+    """A structured exact replacement cannot be applied."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
 class PatchContextError(PatchError):
     """A context/removed line did not exactly match the target text."""
 
@@ -48,6 +60,82 @@ class PatchContextError(PatchError):
         self.path = path
         self.hunk_index = hunk_index
         self.message = message
+
+
+def apply_structured_replacements(text: str, replacements: object) -> str:
+    """Apply ordered, zero-fuzz exact replacements to ``text``.
+
+    Each ``old`` value must be a non-empty string occurring exactly once in the
+    text produced by the preceding replacement.  The returned text is the
+    worker's desired self-view; no diff syntax is accepted here.
+    """
+    if not isinstance(replacements, list) or not replacements:
+        raise StructuredReplacementError(
+            "invalid_replacements", "replacements must be a non-empty array"
+        )
+    current = text
+    for index, replacement in enumerate(replacements):
+        if not isinstance(replacement, dict):
+            raise StructuredReplacementError(
+                "invalid_replacements", f"replacement {index} must be an object"
+            )
+        old = replacement.get("old")
+        new = replacement.get("new")
+        if not isinstance(old, str) or not old:
+            raise StructuredReplacementError(
+                "invalid_replacements", f"replacement {index}.old must be a non-empty string"
+            )
+        if not isinstance(new, str):
+            raise StructuredReplacementError(
+                "invalid_replacements", f"replacement {index}.new must be a string"
+            )
+        count = current.count(old)
+        if count == 0:
+            raise StructuredReplacementError(
+                "edit_context_missing", f"replacement {index}.old was not found"
+            )
+        if count != 1:
+            raise StructuredReplacementError(
+                "edit_context_ambiguous",
+                f"replacement {index}.old occurs {count} times; expected exactly once",
+            )
+        current = current.replace(old, new, 1)
+    if current == text:
+        raise StructuredReplacementError(
+            "edit_no_change", "structured replacements produce no change"
+        )
+    return current
+
+
+def _diff_lines(text: str) -> list[str]:
+    """LF-normalized lines matching the patch parser's coordinate model."""
+    lines = normalize_eol(text).split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    return lines
+
+
+def generate_unified_diff(base: str, desired: str, path: str) -> str:
+    """Generate and self-validate one canonical internal edit patch."""
+    if not isinstance(path, str) or not path:
+        raise PatchError("edit path must be a non-empty string")
+    diff = difflib.unified_diff(
+        _diff_lines(base),
+        _diff_lines(desired),
+        fromfile=f"a/{path}",
+        tofile=f"b/{path}",
+        lineterm="\n",
+    )
+    patch = "".join(line if line.endswith("\n") else line + "\n" for line in diff)
+    if not patch:
+        raise PatchError("generated diff is empty")
+    parsed = parse_unified_diff(patch)
+    if len(parsed) != 1 or parsed[0].path != path:
+        raise PatchError("generated diff target does not match declared path")
+    validate_hunk_ranges(parsed[0], path=path)
+    if apply_patches(base, parsed, path=path) != desired:
+        raise PatchError("generated diff does not round-trip to desired content")
+    return patch
 
 
 def detect_eol(text: str) -> str:

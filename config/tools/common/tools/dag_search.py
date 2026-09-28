@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..helpers.change_dag_projection import canonical_query_path, projected_source, search_score
+from ..helpers.change_dag_projection import canonical_query_path, projected_self_source, search_score
 
 
 def dag_search(
@@ -17,7 +17,7 @@ def dag_search(
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
-    source, error = projected_source(workspace_root, slug, node_id)
+    source, error = projected_self_source(workspace_root, slug, node_id)
     if error is not None:
         return error
     assert source is not None

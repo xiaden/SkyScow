@@ -206,12 +206,14 @@ def test_dag_start_rejects_non_executable_dag(tmp_path: Path):
         "anchor_commit": "a" * 40,
         "root": "N1",
         "nodes": {
-            # Structurally valid root so the refusal reason is the authored
-            # defect below (two creates for one path), not root invalidity.
+            # Structurally valid graph so the refusal reason is the authored
+            # defect below (two creates for one path), not structural invalidity.
             "N1": {"type": "semantic", "requirement": "complete", "requires": ["N4"], "decomposition_only": True},
-            "N4": {"type": "semantic", "requirement": "two files that conflict", "requires": ["N2", "N3"]},
-            "N2": {"type": "create", "path": "dup.txt", "content": "one\n"},
-            "N3": {"type": "create", "path": "dup.txt", "content": "two\n"},
+            "N4": {"type": "semantic", "requirement": "two files that conflict", "requires": ["N2", "N3"], "decomposition_only": True},
+            "N2": {"type": "semantic", "requirement": "create dup one", "requires": ["N5"]},
+            "N3": {"type": "semantic", "requirement": "create dup two", "requires": ["N6"]},
+            "N5": {"type": "create", "path": "dup.txt", "content": "one\n"},
+            "N6": {"type": "create", "path": "dup.txt", "content": "two\n"},
         },
     })
     result = dag_start("blocked", workspace_root=root)

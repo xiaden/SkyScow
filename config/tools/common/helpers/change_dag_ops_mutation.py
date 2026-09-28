@@ -25,13 +25,22 @@ from . import change_dag
 from . import change_dag_control
 from . import change_dag_policy
 from .change_dag_ops_support import _error, _load, _locked_mutation, _numeric, _persist
+from .change_dag_patch import (
+    PatchError,
+    StructuredReplacementError,
+    apply_patches,
+    apply_structured_replacements,
+    generate_unified_diff,
+    parse_unified_diff,
+)
+from .change_dag_projection import projected_source
 
 WORK_KINDS = ("create", "edit", "remove", "move", "run")
 
 _ALLOWED_UPDATE_FIELDS: dict[str, set[str]] = {
     change_dag.SEMANTIC_TYPE: {"requirement"},
     "create": {"path", "content"},
-    "edit": {"path", "patch"},
+    "edit": {"path", "replacements"},
     "remove": {"path"},
     "move": {"from_path", "to_path", "overwrite"},
     "run": {"command", "exclusive"},
@@ -57,6 +66,61 @@ def _bool_field(raw: Any, field: str) -> Any:
     if not isinstance(raw, bool):
         return _error("invalid_field", f"{field} must be a boolean")
     return raw
+
+
+def _projection(workspace_root: Path, slug: str, owner: str) -> tuple[Any, dict[str, Any] | None]:
+    """Project the semantic owner's accepted base, or return an error payload."""
+    source, error = projected_source(workspace_root, slug, owner)
+    if source is None:
+        return None, error or _error(
+            "projection_failed", f"cannot project the accepted base for {owner}"
+        )
+    return source, None
+
+
+def _base_content(source: Any, path: str) -> Any:
+    """Accepted base content for ``path``.
+
+    Returns the text (possibly empty), ``None`` when the path is absent from the
+    accepted base, or a ``projection_failed`` payload when applicable lower work
+    cannot be reproduced.
+    """
+    conflict = source.error(path)
+    if conflict is not None:
+        return conflict
+    return source.content(path)
+
+
+def _generated_edit_patch(base: str, source: str, replacements: Any, path: str) -> Any:
+    """Generate one internal edit patch from structured replacements, or error.
+
+    ``replacements`` apply to ``source`` -- the accepted base for a fresh edit,
+    or the node's self-view for an update. The generated diff is always against
+    ``base`` so a consolidated patch stays a single base-relative edit.
+    """
+    try:
+        desired = apply_structured_replacements(source, replacements)
+        return generate_unified_diff(base, desired, path)
+    except StructuredReplacementError as exc:
+        return _error(exc.code, exc.message)
+    except PatchError as exc:
+        return _error("edit_unrepresentable", str(exc))
+
+
+def _semantic_owner(dag: dict[str, Any], node_id: str) -> Any:
+    """Return the single semantic parent of ``node_id``, or an error payload."""
+    parents = [
+        candidate
+        for candidate, node in change_dag.node_map(dag).items()
+        if node.get("type") == change_dag.SEMANTIC_TYPE
+        and node_id in change_dag.direct_children(dag, candidate)
+    ]
+    if len(parents) != 1:
+        return _error(
+            "invalid_arguments",
+            f"edit node {node_id} must have exactly one semantic parent",
+        )
+    return parents[0]
 
 
 def _peek_next_id(dag: dict[str, Any], workspace_root: Path, slug: str) -> str:
@@ -235,15 +299,55 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
             return _error("invalid_parent", f"parent is not semantic: {parent}")
 
     node: dict[str, Any] = {"type": kind}
+    source: Any = None
+    if kind in ("create", "edit", "remove", "move"):
+        # Terminal authorability is proven locally against the semantic owner's
+        # accepted base. Same-frontier peer proposals are deliberately invisible.
+        if len(parents) != 1:
+            return _error(
+                "invalid_arguments",
+                f"{kind} work requires exactly one semantic parent",
+            )
+        source, projection_error = _projection(workspace_root, slug, parents[0])
+        if source is None:
+            return projection_error
     if kind in ("create", "edit", "remove"):
         path = _canonical_path_field(fields.get("path"), "path")
         if isinstance(path, dict):
             return path
         node["path"] = path
         if kind == "create":
+            base = _base_content(source, path)
+            if isinstance(base, dict):
+                return base
+            if base is not None:
+                return _error(
+                    "create_target_exists",
+                    f"create target already exists in the accepted base: {path!r}",
+                )
             node["content"] = fields.get("content")
         elif kind == "edit":
-            node["patch"] = fields.get("patch")
+            base = _base_content(source, path)
+            if isinstance(base, dict):
+                return base
+            if base is None:
+                return _error(
+                    "edit_base_unavailable",
+                    f"no accepted base content for {path!r}",
+                )
+            generated = _generated_edit_patch(base, base, fields.get("replacements"), path)
+            if isinstance(generated, dict):
+                return generated
+            node["patch"] = generated
+        else:  # remove
+            base = _base_content(source, path)
+            if isinstance(base, dict):
+                return base
+            if base is None:
+                return _error(
+                    "remove_target_unavailable",
+                    f"remove target is absent from the accepted base: {path!r}",
+                )
     elif kind == "move":
         from_path = _canonical_path_field(fields.get("from_path"), "from_path")
         if isinstance(from_path, dict):
@@ -251,11 +355,32 @@ def add_work(workspace_root: Path, slug: str, kind: str, parent_ids: Any, **fiel
         to_path = _canonical_path_field(fields.get("to_path"), "to_path")
         if isinstance(to_path, dict):
             return to_path
-        node["from_path"] = from_path
-        node["to_path"] = to_path
         overwrite = _bool_field(fields.get("overwrite"), "overwrite")
         if isinstance(overwrite, dict):
             return overwrite
+        source_text = _base_content(source, from_path)
+        if isinstance(source_text, dict):
+            return source_text
+        if source_text is None:
+            return _error(
+                "move_source_unavailable",
+                f"move source is absent from the accepted base: {from_path!r}",
+            )
+        destination = _base_content(source, to_path)
+        if isinstance(destination, dict):
+            return destination
+        if to_path in source.overlay:
+            return _error(
+                "move_destination_conflict",
+                f"move destination was produced by accepted lower DAG work: {to_path!r}",
+            )
+        if destination is not None and not overwrite:
+            return _error(
+                "move_destination_conflict",
+                f"move destination already exists in the accepted base: {to_path!r}",
+            )
+        node["from_path"] = from_path
+        node["to_path"] = to_path
         node["overwrite"] = overwrite
     elif kind == "run":
         command = fields.get("command")
@@ -338,6 +463,40 @@ def update_node(workspace_root: Path, slug: str, node_id: str, **fields: Any) ->
         if isinstance(overwrite, dict):
             return overwrite
         provided["overwrite"] = overwrite
+
+    if kind == "edit" and "replacements" in provided:
+        # Reinterpret the replacement request against the node's self-view
+        # (accepted base + this node's persisted edit) and regenerate ONE
+        # consolidated patch against the base. Any failure returns before the
+        # candidate is built, so the prior edit stays byte-unchanged.
+        owner = _semantic_owner(dag, node_id)
+        if isinstance(owner, dict):
+            return owner
+        target_path = provided.get("path", nodes[node_id].get("path"))
+        source, projection_error = _projection(workspace_root, slug, owner)
+        if source is None:
+            return projection_error
+        base = _base_content(source, target_path)
+        if isinstance(base, dict):
+            return base
+        if base is None:
+            return _error(
+                "edit_base_unavailable",
+                f"no accepted base content for {target_path!r}",
+            )
+        try:
+            self_view = apply_patches(
+                base,
+                parse_unified_diff(nodes[node_id]["patch"]),
+                path=target_path,
+            )
+        except PatchError as exc:
+            return _error("edit_self_view_unavailable", str(exc))
+        generated = _generated_edit_patch(base, self_view, provided["replacements"], target_path)
+        if isinstance(generated, dict):
+            return generated
+        provided.pop("replacements")
+        provided["patch"] = generated
 
     candidate = copy.deepcopy(dag)
     candidate["nodes"][node_id].update(provided)

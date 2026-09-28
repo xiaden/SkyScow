@@ -60,6 +60,19 @@ const fileRangeSchema = tool.schema.object({
   end_line: tool.schema.number().describe("1-indexed inclusive end line"),
 })
 
+const replacementSchema = tool.schema.object({
+  old: tool.schema.string().describe("Exact existing text that must occur exactly once in the applicable source"),
+  new: tool.schema.string().describe("Replacement text; an empty string deletes the matched text"),
+})
+
+function replacementArray(description: string) {
+  return tool.schema.array(replacementSchema).describe(description)
+}
+
+function optionalReplacementArray(description: string) {
+  return tool.schema.array(replacementSchema).optional().describe(description)
+}
+
 const semanticNodeSchema = tool.schema.object({
   requirement: tool.schema.string().describe("Requirement statement that must be satisfied"),
   requires: tool.schema
@@ -328,7 +341,7 @@ const tools = {
       slug: requiredString("Change DAG slug"),
       parent_ids: stringArray("Semantic parent node IDs"),
       path: requiredString("Workspace-relative path to edit"),
-      patch: requiredString("Unified diff patch"),
+      replacements: replacementArray("Ordered exact replacements applied sequentially against the accepted base"),
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_add_edit", args, context) },
   }),
@@ -387,7 +400,7 @@ const tools = {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Node ID"),
       path: optionalString("Replacement path"),
-      patch: optionalString("Replacement unified diff"),
+      replacements: optionalReplacementArray("Exact replacements reinterpreted against the node's current self-view"),
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_update_edit", args, context) },
   }),

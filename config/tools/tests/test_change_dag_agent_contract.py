@@ -51,12 +51,10 @@ MUTATION_TOOLS = (
     "dag_remove",
 )
 WORKER_TOOLS = (
-    "dag_show",
-    "dag_preview",
-    "dag_validate",
     "dag_read",
     "dag_grep",
     "dag_search",
+    "dag_decomposition_scope",
     "dag_add_requirement",
     "dag_add_create",
     "dag_add_edit",
@@ -71,6 +69,28 @@ WORKER_TOOLS = (
     "dag_update_run",
     "dag_remove",
     "dag_set_decomposition_only",
+)
+
+# Tools the Worker must NOT own: whole-DAG structure/validation belongs to the
+# Author, and the projected DAG lens replaces raw whole-repository inspection.
+WORKER_DENIED_TOOLS = (
+    "dag_show",
+    "dag_preview",
+    "dag_validate",
+    "read",
+    "grep",
+    "glob",
+    "aft_search",
+    "aft_outline",
+    "aft_zoom",
+    "aft_inspect",
+    "aft_conflicts",
+    "ast_grep_search",
+)
+
+WORKER_SURFACES = (
+    AGENTS / "change-dag-worker.md",
+    SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md",
 )
 
 RUNNER_STEMS = ("change-dag-runner", "Change-DAG-Runner")
@@ -181,6 +201,32 @@ class TestAuthorAuthority:
         specific = {key for key in _task_map("change-dag-author") if key != "*"}
         assert specific == {"change-dag-worker"}, specific
 
+    def test_author_retains_whole_dag_validate(self):
+        permission = _permission("change-dag-author")
+        assert _allowed(permission, "dag_validate"), (
+            "Author owns final whole-DAG validation"
+        )
+        text = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+        assert "Final whole-DAG `dag_validate`" in text
+
+    def test_author_owns_blocked_worker_causal_repair(self):
+        author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+        assert "edit_base_unavailable" in author
+        assert "lacks a causal edge" in author
+        assert "Do NOT solve it by exposing peer work" in author
+        reference = (
+            SKILLS / "dispatching-agents" / "references" / "change-dag-author.md"
+        ).read_text(encoding="utf-8")
+        assert "edit_base_unavailable" in reference
+        assert "causal edge" in reference
+
+    def test_author_contract_teaches_exclusive_terminals(self):
+        author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+        assert "`edit` is composable" in author
+        assert "exclusive" in author
+        # the run invariant is retained under the broader exclusive-terminal rule
+        assert "no `create`/`edit`/`remove`/`move` siblings" in author
+
 
 class TestWorkerAuthority:
     def test_worker_agent_file_exists(self):
@@ -203,17 +249,45 @@ class TestWorkerAuthority:
         for tool in WORKER_TOOLS:
             assert _allowed(permission, tool), f"Worker needs {tool}"
 
-    def test_worker_keeps_raw_inspection_and_has_projected_source_tools(self):
+    def test_worker_has_dag_read_lens_and_lacks_raw_or_whole_dag_tools(self):
         permission = _permission("change-dag-worker")
-        for tool in ("read", "grep", "aft_zoom", "aft_inspect"):
-            assert _allowed(permission, tool), f"Worker must retain existing inspection tool {tool}"
-        for path in (
-            AGENTS / "change-dag-worker.md",
-            SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md",
-        ):
+        for tool in ("dag_read", "dag_grep", "dag_search", "dag_decomposition_scope"):
+            assert _allowed(permission, tool), f"Worker needs DAG read lens {tool}"
+        for tool in WORKER_DENIED_TOOLS:
+            assert not _allowed(permission, tool), f"Worker must not own {tool}"
+        for path in WORKER_SURFACES:
             text = path.read_text(encoding="utf-8")
             assert "dag_read" in text and "dag_grep" in text and "dag_search" in text
-            assert "source content" in text
+
+    def test_worker_cannot_whole_dag_inspect_through_dag_show(self):
+        permission = _permission("change-dag-worker")
+        assert not _allowed(permission, "dag_show"), "Worker must not whole-DAG inspect"
+        assert not _allowed(permission, "dag_validate")
+        assert not _allowed(permission, "dag_preview")
+
+    def test_worker_contract_requires_self_verification_through_dag_read(self):
+        agent = (AGENTS / "change-dag-worker.md").read_text(encoding="utf-8")
+        assert "self-verification is re-reading your own projected work through `dag_read`" in agent
+        reference = (
+            SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md"
+        ).read_text(encoding="utf-8")
+        assert "Self-verify by re-reading your own projected result with `dag_read`" in reference
+        assert "never through `dag_validate`" in reference
+
+    def test_worker_contract_describes_exclusive_terminals(self):
+        for path in WORKER_SURFACES:
+            text = path.read_text(encoding="utf-8")
+            assert "composable" in text, path
+            assert "exclusive" in text, path
+
+    def test_worker_contract_never_instructs_hand_authored_unified_diff(self):
+        for path in WORKER_SURFACES:
+            text = path.read_text(encoding="utf-8")
+            lowered = text.lower()
+            assert "replacements" in text, path
+            assert "unified diff" in lowered, path
+            assert "not write unified diff" in lowered or "never unified diff syntax" in lowered, path
+            assert "*** Begin Patch" in text, path
 
     def test_lowered_wording_describes_authoring_not_runtime(self):
         # Adding exact work resolves the node's authoring obligation; runtime

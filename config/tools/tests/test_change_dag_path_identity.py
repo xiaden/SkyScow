@@ -196,8 +196,9 @@ def test_authoring_boundary_canonicalizes_and_rejects(tmp_path):
     assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root", "requires": ["semantic"]}, "semantic": {"requirement": "authoring"}}}
                       ).get("error") is None
 
+    (tmp_path / "foo.py").write_text("a\n", encoding="utf-8")
     assert add_work(root, "identity", "edit", ["N2"], path="./src/../foo.py",
-                    patch=patch("foo.py", "a", "b")).get("error") is None
+                    replacements=[{"old": "a", "new": "b"}]).get("error") is None
     dag, _path, _location = change_dag.read_dag(root, "identity")
     assert change_dag.node_map(dag)["N3"]["path"] == "foo.py"
 
@@ -215,7 +216,7 @@ def test_update_node_canonicalizes_and_rejects_unusable_paths(tmp_path):
     assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root", "requires": ["semantic"]}, "semantic": {"requirement": "authoring"}}}
                       ).get("error") is None
     assert add_work(root, "identity", "edit", ["N2"], path="x.py",
-                    patch=patch("x.py", "a", "b")).get("error") is None
+                    replacements=[{"old": "a", "new": "b"}]).get("error") is None
 
     rejected = update_node(root, "identity", "N3", path="../escape.py")
     assert rejected["error"] == "invalid_path"
@@ -259,8 +260,10 @@ def test_preview_uses_canonical_identity_and_does_not_duplicate(tmp_path):
     root = workspace(tmp_path, **{"foo.py": "a\nb\n"})
     assert create_dag(root, "identity", {"root": "r", "nodes": {"r": {"requirement": "root", "requires": ["semantic"]}, "semantic": {"requirement": "authoring"}}}
                       ).get("error") is None
-    add_work(root, "identity", "edit", ["N2"], path="foo.py", patch=patch("foo.py", "a", "A"))
-    add_work(root, "identity", "edit", ["N2"], path="./foo.py", patch=patch("./foo.py", "b", "B", line=2))
+    add_work(root, "identity", "edit", ["N2"], path="foo.py",
+             replacements=[{"old": "a", "new": "A"}])
+    add_work(root, "identity", "edit", ["N2"], path="./foo.py",
+             replacements=[{"old": "b", "new": "B"}])
 
     payload = json.loads(preview(root, "identity")["output"])
     assert [op["path"] for op in payload["ops"]] == ["foo.py"]
