@@ -484,6 +484,10 @@ HEALTHCHECK \
     --timeout=5s \
     --start-period=30s \
     --retries=3 \
-    CMD curl -sf http://localhost:4096/ || exit 1
+    CMD if [ -n "${OPENCODE_SERVER_PASSWORD:-}" ]; then \
+            curl -fsS --user "${OPENCODE_SERVER_USERNAME:-opencode}:${OPENCODE_SERVER_PASSWORD}" http://localhost:4096/global/health >/dev/null; \
+        else \
+            curl -fsS http://localhost:4096/global/health >/dev/null; \
+        fi
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
