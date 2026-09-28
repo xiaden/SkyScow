@@ -325,7 +325,7 @@ services:
       - PUID=1000                # Match your host UID for file permissions
       - PGID=1000                # Match your host GID for file permissions
 
-      # --- Git identity (used on first boot) ---
+      # --- Git identity (optional; overrides persisted git config) ---
       # - GIT_USER_NAME=Your Name
       # - GIT_USER_EMAIL=you@example.com
 
@@ -373,8 +373,8 @@ The port mapping is loopback-only by default; widen it only together with `OPENC
 |----------|---------|---------|
 | `PUID` | `1000` | Container user UID, match your host for correct file ownership |
 | `PGID` | `1000` | Container user GID, match your host for correct file ownership |
-| `GIT_USER_NAME` | `SkyScow User` | Git identity configured on first boot |
-| `GIT_USER_EMAIL` | `noreply@skyscow.local` | Git identity configured on first boot |
+| `GIT_USER_NAME` | `SkyScow User` | Git identity override; when unset, an existing `user.name` is preserved and the default initializes only a missing value |
+| `GIT_USER_EMAIL` | `noreply@skyscow.local` | Git identity override; when unset, an existing `user.email` is preserved and the default initializes only a missing value |
 | `ANTHROPIC_API_KEY` | (none) | Anthropic Claude |
 | `OPENAI_API_KEY` | (none) | OpenAI GPT models |
 | `GEMINI_API_KEY` | (none) | Google Gemini |
@@ -396,7 +396,7 @@ The port mapping is loopback-only by default; widen it only together with `OPENC
 
 > `OPENCODE_DISABLE_AUTOUPDATE` and `OPENCODE_DISABLE_TERMINAL_TITLE` are set to `true` by default in the Docker image. You can override them if needed.
 
-> `GIT_USER_NAME` and `GIT_USER_EMAIL` are only applied on first boot. To re-apply, delete the sentinel file and restart: `docker exec skyscow rm /home/opencode/.config/opencode/.skyscow-bootstrapped` then `docker compose restart`.
+> Git identity is reconciled on every start from persisted state. An explicitly set `GIT_USER_NAME`/`GIT_USER_EMAIL` is authoritative and reapplied at each start; when a variable is unset, an existing `user.name`/`user.email` in the container's global git config is preserved and the SkyScow default initializes only a missing value. Identity changed inside the container (`git config --global user.name ...`) survives restarts.
 
 
 

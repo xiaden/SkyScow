@@ -476,12 +476,27 @@ write_state_manifest() {
 
 configure_git_identity() {
     [[ "${SKYSCOW_SKIP_GIT_CONFIG:-0}" == 1 ]] && return 0
-    local git_user_name="${GIT_USER_NAME:-SkyScow User}"
-    local git_user_email="${GIT_USER_EMAIL:-noreply@skyscow.local}"
     # safe.directory is a multi-valued setting. Preserve existing entries and
     # add /workspace only when it is not already present.
     if ! runuser -u "$OC_USER" -- git config --global --get-all safe.directory '^/workspace$' >/dev/null 2>&1; then
         runuser -u "$OC_USER" -- git config --global --add safe.directory /workspace
+    fi
+    # Identity is reconciled from persisted Git state, not from a sentinel: an
+    # explicit environment value is authoritative; otherwise an existing global
+    # value is preserved and only a missing value is initialized to the
+    # SkyScow default. user.name and user.email are reconciled independently.
+    local git_user_name git_user_email
+    if [[ -n "${GIT_USER_NAME:-}" ]]; then
+        git_user_name="$GIT_USER_NAME"
+    else
+        git_user_name="$(runuser -u "$OC_USER" -- git config --global --get user.name || true)"
+        [[ -n "$git_user_name" ]] || git_user_name="SkyScow User"
+    fi
+    if [[ -n "${GIT_USER_EMAIL:-}" ]]; then
+        git_user_email="$GIT_USER_EMAIL"
+    else
+        git_user_email="$(runuser -u "$OC_USER" -- git config --global --get user.email || true)"
+        [[ -n "$git_user_email" ]] || git_user_email="noreply@skyscow.local"
     fi
     runuser -u "$OC_USER" -- git config --global user.name "$git_user_name"
     runuser -u "$OC_USER" -- git config --global user.email "$git_user_email"

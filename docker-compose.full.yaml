@@ -53,7 +53,7 @@ services:
       - TISSUE_MODERATION_DIR=/tissue-moderation
       # - SLEEV_VERSION=1.6.16 # Override; startup fetches/verifies CLI + gateway
 
-      # --- Git identity (used on first boot) ---
+      # --- Git identity (optional; overrides persisted git config) ---
       # - GIT_USER_NAME=Your Name
       # - GIT_USER_EMAIL=you@example.com
 
