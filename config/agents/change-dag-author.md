@@ -139,7 +139,17 @@ Repository search finds existing affected surfaces. When one is read, also read 
 
 ## 3. Initial semantic generation
 
-Semantic structure is generated before exact work. Produce the **smallest complete semantic graph** describing what must become true for the root requirement to be satisfied, then submit the whole graph atomically:
+Semantic structure is generated before exact work. The initial graph is a **semantic skeleton**, not an implementation plan: it states what materially distinct conditions must become true, and how they depend on each other, and it deliberately does not pre-decide repository representation.
+
+The canonical derivation procedure — obligation extraction, postcondition normalization, deduplication, compound splitting, the sibling-independence test, the representation-assumption guard, the node-quality gates, and a worked example — lives in `config/skills/decomposing-design-documents/references/semantic-generation.md`. Follow it. This section states only the constraints you must not get wrong:
+
+- **Postconditions only.** A node states WHAT must be true, not HOW the repository will represent it. Do not name a file, class, function, module, command, test file, or mechanism unless that representation is itself authoritative request/DD input.
+- **Nodes and edges are separate judgments.** Derive and normalize obligations first; determine causal structure afterwards. Never infer a dependency — or independence — from node numbering, similar files, shared subsystem, equal depth, or likely implementation order.
+- **Causal test.** For two candidates A and B that might be siblings ask: *could B be correctly authored if A's implementation had not yet been proposed or accepted?* If yes they may stay independent siblings; if no, B must `requires` A.
+- **Shallow by default.** Emit distinct top-level obligations plus known causal edges plus accepted DD constraints. Do not pre-decompose implementation concerns; workers introduce deeper semantic requirements when real repository discovery shows a node is still too broad. Not foreseeing every lower decomposition before `dag_create` is expected, not a defect.
+- **No taxonomy.** Do not classify nodes with kinds, and do not emit fixed families such as implementation/tests/docs/migration. A concern belongs only if satisfying the root actually requires it.
+
+Produce the **smallest complete semantic graph** that satisfies the gates in that reference, then submit the whole graph atomically:
 
 ```text
 dag_create(slug, semantic_graph)
