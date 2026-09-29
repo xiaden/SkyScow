@@ -10,6 +10,7 @@ Line numbers in a unified diff always refer to the LF-normalized original text.
 """
 from __future__ import annotations
 
+import codecs
 import difflib
 import os
 import re
@@ -31,12 +32,17 @@ __all__ = [
     "apply_patches",
     "atomic_replace",
     "read_text_preserving",
+    "classify_file",
+    "MAX_MATERIALIZED_TEXT_BYTES",
     "apply_structured_replacements",
     "generate_unified_diff",
 ]
 
 _HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 _BINARY_PROBE_BYTES = 8192
+# Whole-file text materialization is deliberately bounded. Callers that need
+# larger files can use the classification result and choose a streaming path.
+MAX_MATERIALIZED_TEXT_BYTES = 16 * 1024 * 1024
 
 
 class PatchError(Exception):
@@ -464,21 +470,76 @@ def atomic_replace(path: Path, data: bytes) -> None:
                 pass
 
 
-def read_text_preserving(path: Path) -> str:
-    """Read UTF-8 text without universal-newline translation.
+def classify_file(path: Path) -> str:
+    """Classify a filesystem path without unbounded materialization.
 
-    Raises :class:`PatchError` when the file is missing, undecodable, or looks
-    binary (a NUL byte in the first 8 KiB).
+    The result is one of ``missing``, ``directory``, ``oversized``, ``binary``,
+    ``invalid_utf8`` or ``text``. Classification stats the path first and only
+    probes the first bounded prefix, so a large file is never read wholesale.
     """
     path = Path(path)
     try:
-        data = path.read_bytes()
+        metadata = path.stat()
+    except FileNotFoundError:
+        return "missing"
+    except OSError:
+        return "missing"
+    if not stat.S_ISREG(metadata.st_mode):
+        return "directory"
+    try:
+        with path.open("rb") as stream:
+            probe = stream.read(_BINARY_PROBE_BYTES)
+    except OSError:
+        return "missing"
+    if b"\x00" in probe:
+        return "binary"
+    try:
+        decoder = codecs.getincrementaldecoder("utf-8")()
+        decoder.decode(probe, final=False)
+    except UnicodeDecodeError:
+        return "invalid_utf8"
+    if metadata.st_size > MAX_MATERIALIZED_TEXT_BYTES:
+        return "oversized"
+    return "text"
+
+
+def read_text_preserving(path: Path) -> str:
+    """Read bounded UTF-8 text without universal-newline translation.
+
+    Raises :class:`PatchError` when the file is missing, oversized,
+    undecodable, or looks binary (a NUL byte in the first 8 KiB).
+    """
+    path = Path(path)
+    try:
+        metadata = path.stat()
     except FileNotFoundError as exc:
         raise PatchError(f"file does not exist: {path}") from exc
     except OSError as exc:
         raise PatchError(f"cannot read file {path}: {exc}") from exc
-    if b"\x00" in data[:_BINARY_PROBE_BYTES]:
-        raise PatchError(f"refusing to read binary file: {path}")
+    if not stat.S_ISREG(metadata.st_mode):
+        raise PatchError(f"file is not a regular file: {path}")
+    if metadata.st_size > MAX_MATERIALIZED_TEXT_BYTES:
+        raise PatchError(
+            f"file exceeds maximum materialized text size of "
+            f"{MAX_MATERIALIZED_TEXT_BYTES} bytes: {path}"
+        )
+    try:
+        with path.open("rb") as stream:
+            probe = stream.read(_BINARY_PROBE_BYTES)
+            if b"\x00" in probe:
+                raise PatchError(f"refusing to read binary file: {path}")
+            data = probe + stream.read(MAX_MATERIALIZED_TEXT_BYTES - len(probe) + 1)
+    except FileNotFoundError as exc:
+        raise PatchError(f"file does not exist: {path}") from exc
+    except PatchError:
+        raise
+    except OSError as exc:
+        raise PatchError(f"cannot read file {path}: {exc}") from exc
+    if len(data) > MAX_MATERIALIZED_TEXT_BYTES:
+        raise PatchError(
+            f"file exceeds maximum materialized text size of "
+            f"{MAX_MATERIALIZED_TEXT_BYTES} bytes: {path}"
+        )
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError as exc:

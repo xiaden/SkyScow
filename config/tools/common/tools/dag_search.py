@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..helpers import change_dag_patch
 from ..helpers.change_dag_projection import (
     canonical_query_path,
     effective_content,
@@ -53,10 +54,26 @@ def dag_search(
 
     results: list[dict[str, Any]] = []
     for candidate in candidates:
+        candidate_path = workspace_root / candidate
+        content: str | None = None
+        if candidate in source.removed:
+            continue
         if candidate in affected:
             content = source.content(candidate)
-        else:
+            if content is not None and len(content.encode("utf-8")) > change_dag_patch.MAX_MATERIALIZED_TEXT_BYTES:
+                return {"error": "search_incomplete", "slug": slug, "node_id": node_id,
+                        "path": candidate, "size": len(content.encode("utf-8")),
+                        "reason": "oversized projected content cannot be safely scored"}
+        elif change_dag_patch.classify_file(candidate_path) == "oversized":
+            return {"error": "search_incomplete", "slug": slug, "node_id": node_id,
+                    "path": candidate, "size": candidate_path.stat().st_size,
+                    "reason": "oversized candidate cannot be scored without full materialization"}
+        elif candidate not in affected:
             content = effective_content(workspace_root, candidate, {}, set())
+        if content is not None and len(content.encode("utf-8")) > change_dag_patch.MAX_MATERIALIZED_TEXT_BYTES:
+            return {"error": "search_incomplete", "slug": slug, "node_id": node_id,
+                    "path": candidate, "size": len(content.encode("utf-8")),
+                    "reason": "oversized projected content cannot be safely scored"}
         if content is None:
             continue
         score = search_score(content, candidate, query)

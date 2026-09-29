@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..helpers.change_dag_ops_support import _error
+from ..helpers import change_dag_patch
 from ..helpers.change_dag_projection import (
     canonical_query_path,
     effective_content,
@@ -16,11 +17,12 @@ from ..helpers.change_dag_projection import (
 
 
 def _matching_lines(content: str, pattern: re.Pattern[str]) -> list[int]:
-    return [
-        number
-        for number, line in enumerate(content.splitlines(), 1)
-        if pattern.search(line)
-    ]
+    return [number for number, line in enumerate(content.splitlines(), 1) if pattern.search(line)]
+
+
+def _stream_matching_lines(path: Path, pattern: re.Pattern[str]) -> list[int]:
+    with path.open("r", encoding="utf-8", newline="") as stream:
+        return [number for number, line in enumerate(stream, 1) if pattern.search(line)]
 
 
 def dag_grep(
@@ -51,11 +53,14 @@ def dag_grep(
         if failure is not None:
             return {**failure, "slug": slug, "node_id": node_id}
         content = source.content(canonical)
-        matches = (
-            []
-            if content is None
-            else [{"path": canonical, "line": number} for number in _matching_lines(content, compiled)]
-        )
+        if content is None and canonical not in source.affected_paths() and change_dag_patch.classify_file(workspace_root / canonical) == "oversized":
+            try:
+                lines = _stream_matching_lines(workspace_root / canonical, compiled)
+            except (OSError, UnicodeError) as exc:
+                return {"error": "search_incomplete", "path": canonical, "reason": str(exc)}
+            matches = [{"path": canonical, "line": number} for number in lines]
+        else:
+            matches = ([] if content is None else [{"path": canonical, "line": number} for number in _matching_lines(content, compiled)])
         return {"slug": slug, "node_id": node_id, "pattern": pattern, "matches": matches}
 
     # A broad search reads the WHOLE projected reality, so a path that cannot be
@@ -77,21 +82,28 @@ def dag_grep(
     for candidate in live_paths(workspace_root):
         if candidate in affected:
             continue
+        candidate_path = workspace_root / candidate
+        if change_dag_patch.classify_file(candidate_path) == "oversized":
+            try:
+                lines = _stream_matching_lines(candidate_path, compiled)
+            except (OSError, UnicodeError) as exc:
+                return {"error": "search_incomplete", "path": candidate, "size": candidate_path.stat().st_size, "reason": str(exc)}
+            matches.extend({"path": candidate, "line": number} for number in lines)
+            continue
         content = effective_content(workspace_root, candidate, {}, set())
         if content is None:
             continue
-        matches.extend(
-            {"path": candidate, "line": number}
-            for number in _matching_lines(content, compiled)
-        )
+        matches.extend({"path": candidate, "line": number} for number in _matching_lines(content, compiled))
     for candidate in sorted(affected):
         content = source.content(candidate)
         if content is None:
+            if candidate in source.removed:
+                continue
+            candidate_path = workspace_root / candidate
+            if change_dag_patch.classify_file(candidate_path) == "oversized":
+                return {"error": "search_incomplete", "path": candidate, "size": candidate_path.stat().st_size, "reason": "oversized projected content cannot be safely inspected"}
             continue
-        matches.extend(
-            {"path": candidate, "line": number}
-            for number in _matching_lines(content, compiled)
-        )
+        matches.extend({"path": candidate, "line": number} for number in _matching_lines(content, compiled))
     matches.sort(key=lambda entry: (entry["path"], entry["line"]))
     return {"slug": slug, "node_id": node_id, "pattern": pattern, "matches": matches}
 

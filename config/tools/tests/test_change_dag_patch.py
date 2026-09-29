@@ -9,6 +9,8 @@ from common.helpers.change_dag_patch import (
     FilePatch,
     PatchContextError,
     PatchError,
+    MAX_MATERIALIZED_TEXT_BYTES,
+    classify_file,
     apply_file_patch,
     apply_patches,
     atomic_replace,
@@ -143,6 +145,34 @@ def test_atomic_replace_overwrites_existing(tmp_path: Path):
     names = [entry.name for entry in tmp_path.iterdir()]
     assert "f.txt" in names
     assert not any(name.endswith(".tmp") for name in names)
+
+
+def test_classify_file_uses_bounded_utf8_probe(tmp_path: Path):
+    target = tmp_path / "split.txt"
+    target.write_bytes(("a" * 8191).encode() + "é".encode())
+    assert classify_file(target) == "text"
+
+
+def test_classify_file_distinguishes_binary_and_invalid_utf8(tmp_path: Path):
+    binary = tmp_path / "blob.bin"
+    binary.write_bytes(b"ab\x00cd")
+    invalid = tmp_path / "invalid.txt"
+    invalid.write_bytes(b"\xff")
+    assert classify_file(binary) == "binary"
+    assert classify_file(invalid) == "invalid_utf8"
+
+
+def test_read_text_preserving_oversized_fails_before_read_bytes(tmp_path: Path, monkeypatch):
+    target = tmp_path / "large.txt"
+    with target.open("wb") as stream:
+        stream.truncate(MAX_MATERIALIZED_TEXT_BYTES + 1)
+
+    def fail_read_bytes(_self):
+        raise AssertionError("oversized files must not call read_bytes")
+
+    monkeypatch.setattr(Path, "read_bytes", fail_read_bytes)
+    with pytest.raises(PatchError, match="maximum materialized text size"):
+        read_text_preserving(target)
 
 
 def test_read_text_preserving_missing_raises(tmp_path: Path):

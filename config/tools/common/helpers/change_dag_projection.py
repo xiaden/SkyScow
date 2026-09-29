@@ -29,6 +29,7 @@ from __future__ import annotations
 import difflib
 import os
 import re
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
@@ -45,19 +46,46 @@ _EXCLUDED_DIRS = {".git", ".control", "__pycache__", "change-dags", "node_module
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 
 
-def live_paths(workspace_root: Path) -> list[str]:
-    """Deterministic workspace-relative paths of live repository files.
+def _git_live_paths(workspace_root: Path) -> list[str] | None:
+    """Return Git's tracked and nonignored-untracked file set, if available."""
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            cwd=workspace_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            shell=False,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    paths = {
+        value.decode("utf-8")
+        for value in result.stdout.split(b"\0")
+        if value
+    }
+    return sorted(paths)
 
-    Shared by the projected-source tools so live scanning and projected scanning
-    walk the same file set in the same order, and so neither needs a worktree.
+
+def live_paths(workspace_root: Path) -> list[str]:
+    """Deterministic Git-aware workspace-relative paths of live files.
+
+    Git supplies tracked and nonignored untracked paths. The fallback is only for
+    non-Git workspaces and remains conservative about tool metadata.
     """
+    root = Path(workspace_root)
+    git_paths = _git_live_paths(root)
+    if git_paths is not None:
+        return git_paths
     found: list[str] = []
-    for root, dirs, files in os.walk(workspace_root, topdown=True):
+    for current, dirs, files in os.walk(root, topdown=True):
         dirs[:] = sorted(name for name in dirs if name not in _EXCLUDED_DIRS)
         for name in sorted(files):
-            target = Path(root) / name
+            target = Path(current) / name
             try:
-                found.append(target.relative_to(workspace_root).as_posix())
+                found.append(target.relative_to(root).as_posix())
             except ValueError:
                 continue
     return sorted(found)
@@ -190,7 +218,12 @@ class ProjectedSource:
         return [seen[path] for path in sorted(seen)]
 
     def paths(self) -> Iterator[str]:
-        for candidate in sorted((set(live_paths(self.workspace_root)) | set(self.overlay)) - self.removed):
+        # Include every projected path, including move destinations and removed
+        # sources, before applying removals. This keeps authoritative projection
+        # metadata visible to callers instead of losing it during live scanning.
+        projected = set(self.overlay) | set(self.lower_path_nodes) | set(self.owned_path_nodes)
+        candidates = set(live_paths(self.workspace_root)) | projected
+        for candidate in sorted(candidates - self.removed):
             if self.error(candidate) is None:
                 yield candidate
 

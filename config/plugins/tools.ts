@@ -531,7 +531,7 @@ const tools = {
     description:
       "Read a file from a semantic authoring boundary's SELF view: live repository state plus accepted lower Change DAG work strictly deeper than the boundary, plus the boundary node's own persisted terminal work. " +
       "Same-frontier peers and shallower/future work stay excluded. The narrower BASE view — accepted lower work only, without the boundary's own work — is used internally to validate a new mutation and is never returned here. " +
-      "Returns only the requested range, attributed to live/accepted_lower/owned provenance.",
+      "Returns only the requested range, attributed to live/accepted_lower/owned provenance; an end beyond EOF is clamped, while unbounded oversized reads require a bounded range.",
     args: {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Semantic authoring boundary node ID"),
@@ -545,7 +545,7 @@ const tools = {
     description:
       "Find matching lines in a semantic authoring boundary's SELF view: live repository state plus accepted lower Change DAG work strictly deeper than the boundary, plus the boundary node's own persisted terminal work. " +
       "Same-frontier peers and shallower/future work stay excluded. Paths touched by projected work replace live truth rather than merging with it, and an unreproducible projected path fails the call instead of silently disappearing. " +
-      "Returns deterministic path/line matches without snippets.",
+      "Returns deterministic path/line matches without snippets; broad results reconcile live-unaffected and projected-affected truth and report incomplete oversized inspection explicitly.",
     args: {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Semantic authoring boundary node ID"),
@@ -558,7 +558,7 @@ const tools = {
   dag_search: tool({
     description:
       "Rank projected source files using deterministic textual scoring over a semantic authoring boundary's SELF view: live repository state plus accepted lower work strictly deeper than the boundary, plus the boundary node's own persisted terminal work. " +
-      "Same-frontier peers and shallower/future work stay excluded; an unreproducible projected path fails the call rather than silently truncating the ranking. No semantic/vector retrieval.",
+      "Same-frontier peers and shallower/future work stay excluded; an unreproducible projected path or unsafe oversized candidate fails explicitly rather than silently truncating the ranking. No semantic/vector retrieval.",
     args: {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Semantic authoring boundary node ID"),
