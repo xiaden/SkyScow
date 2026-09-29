@@ -28,7 +28,7 @@ observable independent-review trigger?
 independent post-change QA (separate lifecycle, not a DAG phase)
 ```
 
-`DAG.json` is declarative structure only: the semantic requirements and the exact terminal work that must satisfy them. It contains no runtime status and no execution history. `EXECUTION_STATE.json` records terminal-node execution state for resumability, and `WORK_LOG.jsonl` is append-only evidence.
+The Change DAG bundle keeps construction and execution records separate: `DAG.json` is current declarative construction state; `DAG_MUTATIONS.jsonl`, when present, is append-only construction provenance; `EXECUTION_STATE.json` records terminal-node execution lifecycle state for resumability; and `WORK_LOG.jsonl` is append-only execution evidence. Archival moves these bundle files as-is and does not merge mutation provenance into the Work Log.
 
 ## Graph model
 

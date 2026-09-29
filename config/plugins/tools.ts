@@ -305,6 +305,16 @@ const tools = {
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_create", args, context) },
   }),
+  dag_mutation_log: tool({
+    description:
+      "Read a bounded, newest-first slice of a Change DAG mutation log without mutating or exposing unbounded file contents.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      offset: optionalNumber("Number of newest entries to skip (nonnegative)"),
+      limit: optionalNumber("Maximum entries to return (positive, capped at 50)"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_mutation_log", args, context) },
+  }),
   dag_show: tool({
     description: "Show the whole Change DAG or a bounded centered view around one node.",
     args: {

@@ -90,41 +90,48 @@ def dag_archive(slug: str, reason: str, force: bool = False, *, workspace_root: 
         return {"error": "already_archived", "message": f"change dag {slug!r} is already archived"}
 
     # Operational-integrity gates only. Never move a bundle while an executor can
-    # still write into it...
+    # still write into it or while a queued admission can launch it.
     if control.active_dag(root) == slug:
         return {"error": "dag_running", "message": f"change dag {slug!r} is currently executing; call dag_stop before archiving"}
-    # ...and never race a queued admission that could still launch this bundle.
     if any(entry["slug"] == slug for entry in control.queue_list(root)):
         return {"error": "dag_queued", "message": f"change dag {slug!r} is queued behind another execution; call dag_stop to cancel it before archiving"}
 
-    bundle = path.parent
-    destination = root / change_dag.ARCHIVED_DIR / change_dag._safe_slug(slug)
-    if destination.exists() and not force:
-        return {"error": "already_exists", "message": str(destination)}
+    # Serialize retirement against the same per-DAG lock used by construction
+    # mutations. This prevents a mutation from persisting into a recreated
+    # pending bundle while archive moves the original bundle.
+    with control.mutation_lock(root, slug):
+        current_path, current_location = change_dag.locate_dag(root, slug)
+        if current_path is None or current_location != "pending":
+            return {"error": "already_archived", "message": f"change dag {slug!r} is no longer pending"}
+        path = current_path
+        bundle = path.parent
+        destination = root / change_dag.ARCHIVED_DIR / change_dag._safe_slug(slug)
+        if destination.exists() and not force:
+            return {"error": "already_exists", "message": str(destination)}
 
-    state_at_archive = _state_at_archive(path, root, slug)
-    artifacts_moved = sorted(
-        {entry.name for entry in bundle.iterdir() if entry.is_file()} | {ARCHIVE_RECORD_FILENAME}
-    )
-    record = {
-        "archived_at": _utc_timestamp(),
-        "reason": reason.strip(),
-        "state_at_archive": state_at_archive,
-        "artifacts_moved": artifacts_moved,
-    }
-    change_dag.atomic_write_json(bundle / ARCHIVE_RECORD_FILENAME, record)
+        state_at_archive = _state_at_archive(path, root, slug)
+        artifacts_moved = sorted(
+            {entry.name for entry in bundle.iterdir() if entry.is_file()} | {ARCHIVE_RECORD_FILENAME}
+        )
+        record = {
+            "archived_at": _utc_timestamp(),
+            "reason": reason.strip(),
+            "state_at_archive": state_at_archive,
+            "artifacts_moved": artifacts_moved,
+        }
+        change_dag.atomic_write_json(bundle / ARCHIVE_RECORD_FILENAME, record)
 
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        shutil.rmtree(destination)
-    shutil.move(str(bundle), str(destination))
-    return {
-        "archived": True,
-        "path": str(destination.relative_to(root)),
-        "reason": record["reason"],
-        "state_at_archive": state_at_archive,
-        "artifacts_moved": artifacts_moved,
-    }
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists():
+            shutil.rmtree(destination)
+        shutil.move(str(bundle), str(destination))
+        return {
+            "archived": True,
+            "path": str(destination.relative_to(root)),
+            "reason": record["reason"],
+            "state_at_archive": state_at_archive,
+            "artifacts_moved": artifacts_moved,
+        }
 
 
 if __name__ == "__main__":

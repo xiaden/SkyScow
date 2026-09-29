@@ -15,6 +15,7 @@ from typing import Any
 from . import change_dag
 from . import change_dag_control
 from . import change_dag_state
+from .change_dag_mutation_log import append_mutation_event
 
 
 def _error(code: str, message: str, **extra: Any) -> dict[str, Any]:
@@ -56,11 +57,51 @@ def _locked_mutation(func):
     @functools.wraps(func)
     def wrapper(workspace_root: Path, slug: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
         root = Path(workspace_root)
+
+        def invoke() -> dict[str, Any]:
+            before: dict[str, Any] | None = None
+            try:
+                before, _path, _location = change_dag.read_dag(root, slug)
+            except (FileNotFoundError, ValueError):
+                pass
+            result = func(root, slug, *args, **kwargs)
+            success = isinstance(result, dict) and "error" not in result
+            after: dict[str, Any] | None = None
+            if success:
+                try:
+                    after, _path, _location = change_dag.read_dag(root, slug)
+                except (FileNotFoundError, ValueError) as exc:
+                    raise RuntimeError("mutation succeeded but DAG could not be re-read for provenance") from exc
+            # A failed call against a nonexistent or malformed DAG is not a
+            # mutation of an existing bundle; do not create an orphan log-only
+            # directory. Successful creation still has no pre-state and is
+            # intentionally recorded as the first event.
+            should_log = before is not None or success
+            try:
+                if should_log:
+                    append_mutation_event(
+                        root,
+                        slug,
+                        operation=func.__name__,
+                        success=success,
+                        before=before,
+                        after=after,
+                        args=args,
+                        kwargs=kwargs,
+                        error=result if not success else None,
+                    )
+            except (OSError, ValueError) as exc:
+                if success:
+                    raise RuntimeError("mutation persisted but provenance logging failed") from exc
+                # A failed mutation must retain its original tool result if the
+                # optional failure record cannot be written.
+            return result
+
         try:
             lock = change_dag_control.mutation_lock(root, slug)
         except ValueError:
-            return func(root, slug, *args, **kwargs)
+            return invoke()
         with lock:
-            return func(root, slug, *args, **kwargs)
+            return invoke()
 
     return wrapper

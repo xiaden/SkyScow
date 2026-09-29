@@ -31,7 +31,7 @@ Poll `dag_status(slug?)` until the DAG is `root_satisfied` or idle/not active. I
 ## Completion and archive
 
 - When the root becomes satisfied, the executor records inherited starting-worktree evidence, creates the executor-owned local checkpoint, and records it in the Work Log. Nyx does not stage or create this checkpoint manually; it is not publication.
-- Call `dag_archive(slug, reason)` when retiring a DAG from the pending working set. `reason` is required and non-empty; the bundle gains an `ARCHIVE.json` disposition record (`archived_at`, `reason`, `state_at_archive`, `artifacts_moved`) and moves to `artifacts/change-dags/archived/`.
+- Call `dag_archive(slug, reason)` when retiring a DAG from the pending working set. `reason` is required and non-empty. The bundle separates `DAG.json` (current construction state), optional `DAG_MUTATIONS.jsonl` (construction provenance), `EXECUTION_STATE.json` (execution lifecycle), and `WORK_LOG.jsonl` (execution evidence); archival moves all of them as-is, adds an `ARCHIVE.json` disposition record (`archived_at`, `reason`, `state_at_archive`, `artifacts_moved`), and moves the bundle to `artifacts/change-dags/archived/`. Construction provenance is not merged into the Work Log.
 - Archival is cleanup, not certification: a DAG may be archived after success, failure, abandonment, supersession, or cancellation. It does not require resolution, executability, root satisfaction, a failure-free state, or QA. Only operational safety applies: stop a running DAG first, and cancel a queued DAG with `dag_stop`. Read the disposition record for the outcome; archive location is not success evidence.
 
 ## QA boundary

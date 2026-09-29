@@ -56,6 +56,21 @@ def write_bundle(root: Path, slug: str, dag: dict, state: dict | None = None) ->
     return bundle
 
 
+def test_archive_moves_mutation_provenance_with_bundle(tmp_path: Path):
+    dag, state = _satisfied_dag("provenance")
+    bundle = write_bundle(tmp_path, "provenance", dag, state)
+    mutation_log = bundle / "DAG_MUTATIONS.jsonl"
+    mutation_log.write_text('{"sequence": 1, "operation": "create_dag"}\n', encoding="utf-8")
+    mutation_content = mutation_log.read_text(encoding="utf-8")
+
+    result = dag_archive("provenance", "execution completed and artifact retired", workspace_root=tmp_path)
+
+    assert result["archived"] is True
+    assert "DAG_MUTATIONS.jsonl" in result["artifacts_moved"]
+    archived_log = tmp_path / change_dag.ARCHIVED_DIR / "provenance" / "DAG_MUTATIONS.jsonl"
+    assert archived_log.read_text(encoding="utf-8") == mutation_content
+
+
 def _satisfied_dag(slug: str) -> tuple[dict, dict]:
     dag = _dag(slug, {
         "N1": _semantic("root", ["N2"], decomposition_only=True),
