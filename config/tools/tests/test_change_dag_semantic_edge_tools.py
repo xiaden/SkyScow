@@ -2,7 +2,8 @@
 
 ``dag_link_requirement`` / ``dag_unlink_requirement`` are the Author's
 one-edge-at-a-time graph-surgery tools. They add or remove exactly one causal
-``requires`` edge between two already-existing semantic nodes, running through
+``requires`` edge from an existing semantic parent to an existing semantic or
+terminal child, running through
 the same candidate/validate/persist pipeline as every other DAG mutation. These
 tests pin that behavior, its precise errors, byte-for-byte atomicity, the
 link/unlink round trip, the author/worker permission split, and that the bulk
@@ -12,6 +13,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
+import pytest
 
 import yaml
 
@@ -101,6 +104,8 @@ def _chain(workspace) -> None:
     )
 
 
+
+
 def _with_terminal(workspace) -> str:
     # BFS canonical IDs: root=N1, impl=N2; the create terminal lands as N3.
     create_dag(
@@ -162,7 +167,8 @@ def test_link_terminal_endpoint_is_rejected_and_writes_nothing(workspace):
     before = _text(workspace)
 
     as_child = link_requirement(workspace, "demo", "N1", terminal_id)
-    assert as_child["error"] == "invalid_node"
+    assert as_child["error"] == "invalid_graph"
+    assert any("root" in error for error in as_child["errors"])
     assert _text(workspace) == before
 
     as_parent = link_requirement(workspace, "demo", terminal_id, "N1")
@@ -187,6 +193,40 @@ def test_link_unknown_endpoint_is_rejected_and_writes_nothing(workspace):
     assert link_requirement(workspace, "demo", "N1", "N99")["error"] == "unknown_node"
     assert _text(workspace) == before
     assert link_requirement(workspace, "demo", "N99", "N1")["error"] == "unknown_node"
+    assert _text(workspace) == before
+
+
+@pytest.mark.parametrize(
+    ("kind", "fields"),
+    [
+        ("edit", {"path": "base.txt", "replacements": [{"old": "a", "new": "b"}]}),
+        ("create", {"path": "created.txt", "content": "x\n"}),
+        ("remove", {"path": "removable.txt"}),
+        ("move", {"from_path": "source.txt", "to_path": "target.txt"}),
+        ("run", {"command": ["python3", "-m", "compileall", "-q", "."]}),
+    ],
+)
+def test_link_accepts_each_terminal_child_kind_when_structurally_legal(workspace, kind, fields):
+    _siblings(workspace)
+    if kind in {"edit", "remove"}:
+        (workspace / fields["path"]).write_text("a\n", encoding="utf-8")
+    if kind == "move":
+        (workspace / fields["from_path"]).write_text("a\n", encoding="utf-8")
+    terminal = _payload(add_work(workspace, "demo", kind, ["N2"], **fields))["node_id"]
+    linked = link_requirement(workspace, "demo", "N3", terminal)
+    assert "error" not in linked
+    assert terminal in _dag(workspace)["nodes"]["N3"]["requires"]
+
+
+def test_shared_terminal_owner_is_valid_graph_but_ambiguous_for_owner_mutation(workspace):
+    _siblings(workspace)
+    terminal = _payload(
+        add_work(workspace, "demo", "create", ["N2"], path="shared.txt", content="x\n")
+    )["node_id"]
+    assert "error" not in link_requirement(workspace, "demo", "N3", terminal)
+    before = _text(workspace)
+    result = update_node(workspace, "demo", terminal, content="changed\n")
+    assert result["error"] == "ambiguous_terminal_owner"
     assert _text(workspace) == before
 
 

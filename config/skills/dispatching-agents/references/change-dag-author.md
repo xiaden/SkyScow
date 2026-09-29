@@ -48,7 +48,7 @@ A running/in-progress DAG is immutable; accepted work mutation requires the DAG 
 
 The Author owns the initial semantic skeleton, causal `requires` relationships, global semantic reconciliation, cross-branch convergence, repair when a Worker discovers existing semantic ownership elsewhere, repair of missing causal prerequisites, and final whole-DAG validation. The Worker owns local exact lowering, local semantic refinement, lossless scale decomposition beneath its assigned scope, and selective dispatch of its two read-only researchers. Worker `BLOCKED` results and signals such as `semantic gap`, `duplicate ownership`, `cross-branch relationship`, and `missing prerequisite` are graph-reconciliation evidence, not mechanical instructions.
 
-Adding or removing one causal `requires` edge between two existing semantic nodes is Author-only reconciliation, performed one edge at a time with `dag_link_requirement` / `dag_unlink_requirement`. There is intentionally no tool that rewrites an entire `requires` array, and these tools are not Worker tools.
+Adding or removing one causal `requires` edge from an existing semantic parent to an existing semantic or terminal child is Author-only reconciliation, performed one edge at a time with `dag_link_requirement` / `dag_unlink_requirement`. There is intentionally no tool that rewrites an entire `requires` array, and these tools are not Worker tools.
 
 ## Outcomes
 

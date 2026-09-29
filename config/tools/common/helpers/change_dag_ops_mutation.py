@@ -277,7 +277,12 @@ def _resolve_edit_update(
 
 
 def _semantic_owner(dag: dict[str, Any], node_id: str) -> Any:
-    """Return the single semantic parent of ``node_id``, or an error payload."""
+    """Return the unique semantic authoring owner, or an ambiguity error.
+
+    Shared terminal descendants are valid graph structure. Owner-relative
+    mutation, however, needs one BASE boundary and therefore rejects a shared
+    terminal only when a mutation attempts to modify it.
+    """
     parents = [
         candidate
         for candidate, node in change_dag.node_map(dag).items()
@@ -286,8 +291,8 @@ def _semantic_owner(dag: dict[str, Any], node_id: str) -> Any:
     ]
     if len(parents) != 1:
         return _error(
-            "invalid_arguments",
-            f"terminal node {node_id} must have exactly one semantic parent",
+            "ambiguous_terminal_owner",
+            f"terminal node {node_id} has multiple semantic owners; owner-relative mutation requires a unique owner",
         )
     return parents[0]
 
@@ -768,15 +773,11 @@ def remove_node(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any]
 def link_requirement(
     workspace_root: Path, slug: str, parent_id: str, child_id: str
 ) -> dict[str, Any]:
-    """Add exactly one causal ``requires`` edge between existing semantic nodes.
+    """Add one ``requires`` edge from a semantic parent to any valid child.
 
-    Author graph-surgery reconciliation: it edits a single edge on the persisted
-    semantic graph and never replaces a whole ``requires`` array. Both endpoints
-    must already exist and be semantic, the edge must not already exist, and the
-    candidate must not introduce a self-reference or cycle. Every structural
-    invariant (root, exclusive-terminal, reachability, ID/path usability) is
-    enforced by ``change_dag.validate_dag`` on the candidate before persistence,
-    so a rejected link leaves ``DAG.json`` byte-for-byte unchanged.
+    The parent must be semantic; the child may be semantic or terminal. The
+    candidate is validated before persistence so canonical graph invariants
+    remain the authority and rejected links leave ``DAG.json`` unchanged.
     """
     workspace_root = Path(workspace_root)
     dag, _state, err = _mutation_context(workspace_root, slug)
@@ -793,12 +794,11 @@ def link_requirement(
             "self_reference",
             f"cannot link {parent_id} to itself; requires edges relate distinct nodes",
         )
-    for endpoint in (parent_id, child_id):
-        if change_dag.node_type(dag, endpoint) != change_dag.SEMANTIC_TYPE:
-            return _error(
-                "invalid_node",
-                f"node {endpoint} is not semantic; requires edges are semantic-to-semantic",
-            )
+    if change_dag.node_type(dag, parent_id) != change_dag.SEMANTIC_TYPE:
+        return _error(
+            "invalid_node",
+            f"node {parent_id} is not semantic; requires edges must originate from a semantic node",
+        )
     if child_id in change_dag.direct_children(dag, parent_id):
         return _error("duplicate_edge", f"edge already exists: {parent_id} -> {child_id}")
 
@@ -806,15 +806,11 @@ def link_requirement(
     refs = list(candidate["nodes"][parent_id].get("requires", []))
     refs.append(child_id)
     candidate["nodes"][parent_id]["requires"] = refs
-
-    # Surface the cycle precisely; the validator would otherwise only report the
-    # graph as invalid, and the Author needs to know which edge is the cause.
     if not change_dag.is_acyclic(candidate):
         return _error(
             "cycle_detected",
             f"linking {parent_id} -> {child_id} would create a requires cycle",
         )
-
     errors = change_dag.validate_dag(candidate)
     if errors:
         return _error("invalid_graph", "; ".join(errors), errors=errors)
@@ -831,16 +827,7 @@ def link_requirement(
 def unlink_requirement(
     workspace_root: Path, slug: str, parent_id: str, child_id: str
 ) -> dict[str, Any]:
-    """Remove exactly one causal ``requires`` edge between existing semantic nodes.
-
-    The mirror of :func:`link_requirement`: one edge at a time, never a whole
-    array. Both endpoints must already exist and be semantic and the edge must
-    currently exist. Removing the last edge pops ``requires`` so the node becomes
-    an unresolved semantic node -- the same behavior as :func:`remove_node`'s
-    reference filtering. A removal that would strand a node or otherwise
-    invalidate the graph is rejected by the candidate validator before
-    persistence, so a rejected unlink leaves ``DAG.json`` byte-for-byte unchanged.
-    """
+    """Remove one edge from a semantic parent to a semantic or terminal child."""
     workspace_root = Path(workspace_root)
     dag, _state, err = _mutation_context(workspace_root, slug)
     if err is not None:
@@ -856,26 +843,22 @@ def unlink_requirement(
             "self_reference",
             f"cannot unlink {parent_id} from itself; requires edges relate distinct nodes",
         )
-    for endpoint in (parent_id, child_id):
-        if change_dag.node_type(dag, endpoint) != change_dag.SEMANTIC_TYPE:
-            return _error(
-                "invalid_node",
-                f"node {endpoint} is not semantic; requires edges are semantic-to-semantic",
-            )
+    if change_dag.node_type(dag, parent_id) != change_dag.SEMANTIC_TYPE:
+        return _error(
+            "invalid_node",
+            f"node {parent_id} is not semantic; requires edges must originate from a semantic node",
+        )
     if child_id not in change_dag.direct_children(dag, parent_id):
         return _error("unknown_edge", f"no requires edge {parent_id} -> {child_id}")
 
     candidate = copy.deepcopy(dag)
     refs = [
-        ref
-        for ref in candidate["nodes"][parent_id].get("requires", [])
-        if ref != child_id
+        ref for ref in candidate["nodes"][parent_id].get("requires", []) if ref != child_id
     ]
     if refs:
         candidate["nodes"][parent_id]["requires"] = refs
     else:
         candidate["nodes"][parent_id].pop("requires", None)
-
     errors = change_dag.validate_dag(candidate)
     if errors:
         return _error("invalid_graph", "; ".join(errors), errors=errors)

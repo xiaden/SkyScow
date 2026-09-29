@@ -453,20 +453,20 @@ const tools = {
     async execute(args, context) { return runPythonTool("common.tools.dag_remove", args, context) },
   }),
   dag_link_requirement: tool({
-    description: "Add exactly one causal requires edge from an existing semantic parent to an existing semantic child. Rejects terminal endpoints, duplicate edges, self-edges, and cycles.",
+    description: "Add exactly one requires edge from an existing semantic parent to an existing required child node. The child may be semantic or terminal; the resulting DAG must satisfy all canonical structural invariants.",
     args: {
       slug: requiredString("Change DAG slug"),
       parent_id: requiredString("Existing semantic parent node ID"),
-      child_id: requiredString("Existing semantic child node ID"),
+      child_id: requiredString("Existing required child node ID"),
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_link_requirement", args, context) },
   }),
   dag_unlink_requirement: tool({
-    description: "Remove exactly one causal requires edge between two existing semantic nodes. Pops the requires field when it was the last edge; rejects an edge that would strand a node or invalidate the graph.",
+    description: "Remove exactly one requires edge from a semantic parent to a semantic or terminal child. Pops requires when it was the last edge; rejects a result that strands work or invalidates the DAG.",
     args: {
       slug: requiredString("Change DAG slug"),
       parent_id: requiredString("Existing semantic parent node ID"),
-      child_id: requiredString("Existing semantic child node ID"),
+      child_id: requiredString("Existing required child node ID"),
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_unlink_requirement", args, context) },
   }),

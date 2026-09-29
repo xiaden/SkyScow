@@ -103,7 +103,7 @@ A Worker that reports `edit_base_unavailable` for a file **another branch produc
 
 ### Author-only causal-edge reconciliation
 
-Adding or removing ONE causal `requires` edge between two existing semantic nodes is done with `dag_link_requirement` / `dag_unlink_requirement`, one edge at a time, for reconciliation and causal repair. There is intentionally no tool that rewrites an entire `requires` array, and these tools are not available to Workers.
+Adding or removing ONE causal `requires` edge from an existing semantic parent to an existing semantic or terminal child is done with `dag_link_requirement` / `dag_unlink_requirement`, one edge at a time, for reconciliation and causal repair. There is intentionally no tool that rewrites an entire `requires` array, and these tools are not available to Workers.
 
 ### Authoring drift rule
 
