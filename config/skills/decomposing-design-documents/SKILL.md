@@ -23,7 +23,7 @@ observable independent-review trigger?
    └─ yes → change-dag-reviewer (bounded external evidence)
                       ↓
                   PASS → Nyx lifecycle control
-                 AMEND_REQUIRED → author correction → revalidate
+                 FINDINGS → route by category: Fixer for exact work, Author for semantic/graph, upstream for authority
         ↓
 independent post-change QA (separate lifecycle, not a DAG phase)
 ```
@@ -69,7 +69,7 @@ Dispatch `change-dag-author` to create or amend the Change DAG. The author is th
 
 The orchestrator/controller selects `change-dag-reviewer` only when observable conditions justify independent judgment: shared semantic convergence, incompatible cross-branch proposals, nontrivial behavior-changing ordering, producer/consumer or interface migration, shared schema/registry/persistence/migration work, request/DD decomposition ambiguity, DD authority ambiguity, materially useful recovery amendment, or an explicit user request. Do not invoke it for node count, node types, ordinary run barriers, mechanically independent branches, or ordinary author-correctable mechanical errors.
 
-Reviewer input includes the DAG slug, relevant node IDs/bounded scope, source context, a concrete review question, the observable trigger, and `review_kind` (`SEMANTIC`, `EXACT_WORK`, `DD_CONSISTENCY`, or `COMBINED`). The reviewer is read-only (`dag_show`, `dag_preview`, `dag_validate`). `PASS` means only that the requested scope found no material issue; it is not persisted DAG state, execution authorization, or a mandatory lifecycle transition. `AMEND_REQUIRED` returns a bounded finding to the mutable author; `DD_CONTRADICTION` and `NEEDS_DECISION` route upstream.
+Reviewer input includes the DAG slug, relevant node IDs/bounded scope, source context, a concrete review question, the observable trigger, and `review_kind` (`SEMANTIC`, `EXACT_WORK`, `DD_CONSISTENCY`, or `COMBINED`). The reviewer is read-only (`dag_show`, `dag_preview`, `dag_validate`). `PASS` means only that the requested scope found no material issue; it is not persisted DAG state, execution authorization, or a mandatory lifecycle transition. Final review uses `BLOCK_RUN`, `ALLOW_WITH_FOLLOWUP`, or `ALLOW`: Nyx routes exact-work defects to `change-dag-fixer`, semantic/graph defects to the Author, and authority issues upstream. `ALLOW_WITH_FOLLOWUP` preserves evidence for post-run QA or follow-on repair; ordinary repairable correctness defects do not automatically block execution.
 
 ## Lifecycle boundary
 

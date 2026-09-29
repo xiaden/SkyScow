@@ -102,6 +102,10 @@ The `work-routing` skill owns when request context is required; Nyx owns the cap
 
 Nyx owns `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, and loads the `change-dag-lifecycle` skill before operating them; the detailed lifecycle procedure lives there, not here. Nyx never authors or mutates a DAG: Change-DAG-Author owns construction and amendment and cannot execute it. Once running, a DAG is immutable; failed or stopped execution returns to Change-DAG-Author for amendment, then Nyx retries. Independent QA runs afterward and never reopens a completed DAG.
 
+Construction dispatch is authority-bound: Change-DAG-Author may dispatch bounded `change-dag-worker` instances for new semantic work, optionally dispatch `incomplete-dag-reviewer` for a trigger-driven construction question, and route a known exact-work defect to `change-dag-fixer`. Nyx must not dispatch the internal Worker or either Worker-only researcher directly. Nyx alone selects the final `change-dag-reviewer`, and only for a completed, resolved, executable DAG when an observable coordination or authority trigger exists; final review is not mandatory at every frontier.
+
+Consume final-review evidence explicitly. A `BLOCK_RUN` finding routes a known exact-work defect to `change-dag-fixer` when semantic and graph validity remain intact; semantic or graph defects return to Change-DAG-Author; authority, DD, or architectural contradictions return upstream to the governing DD/R&D/user owner. Do not start execution until a `BLOCK_RUN` disposition is resolved and any required revalidation is complete. `ALLOW_WITH_FOLLOWUP` permits execution, preserves the review evidence, and schedules normal post-run QA/follow-on repair against the real repository. `ALLOW` is informational and does not require repair. After execution, route follow-on repair through normal work-routing: small/local work may be direct, larger or cross-layer work requires a new Change DAG, and architectural work requires R&D evaluation.
+
 ---
 
 ## Priority 2: QUALITY GATES — Check Before DONE

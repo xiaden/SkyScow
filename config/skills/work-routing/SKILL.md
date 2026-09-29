@@ -164,11 +164,18 @@ Support-Researcher returns a named `scope_signal`. Consume it deterministically 
 
 A user question is also appropriate for `BROADER_SAME_REQUIREMENT` when the discovery creates an actual architectural choice, authority gap, or articulable risk that requires the user's decision.
 
+## Change DAG review and repair routing
+
+- Change-DAG-Author owns construction and may dispatch `change-dag-worker` for new semantic work, optionally dispatch `incomplete-dag-reviewer` for a trigger-driven construction question, and route known exact-work defects to `change-dag-fixer`.
+- Nyx remains the top-level controller and lifecycle owner. Nyx alone selects the final `change-dag-reviewer`; it is optional and applies only to a completed, resolved, executable DAG when an observable coordination or authority trigger exists. It is not a mandatory review at every frontier, and Nyx never directly dispatches the internal Worker or Worker-only researchers.
+- Final-review dispositions are consumed by Nyx: `BLOCK_RUN` sends exact-work defects to `change-dag-fixer`, semantic/graph defects to Change-DAG-Author, and authority/DD/architectural contradictions upstream; `ALLOW_WITH_FOLLOWUP` permits execution while preserving evidence for post-run QA/follow-on repair; `ALLOW` is informational.
+- Follow-on repair after the execution boundary is routed normally against the real repository: small/local work may be direct, larger or cross-layer work starts a new Change DAG, and architectural work routes to R&D evaluation. Independent QA remains separate and never reopens a completed DAG.
+
 ## QA / Support Owner Selection
 
 - **QA-Reviewer** is the primary post-change QA owner.
 - **QA-PushManager** is the final publication gate for a candidate commit.
-- **Change-DAG-Reviewer** is optional, read-only, and selected only from observable coordination or authority triggers.
+- **Change-DAG-Reviewer** is optional, read-only, and selected only from observable coordination or authority triggers by Nyx.
 - **Support-Debugger** owns root-cause analysis when 3+ fix attempts failed and the root cause is unclear.
 - **Support-Researcher** owns deep codebase/external research (see escalation above).
 - **Support-Librarian** owns historical/process-artifact navigation only.

@@ -58,7 +58,7 @@ COVERAGE     are caller, migration, verification, documentation, and cross-cutti
 WORK         is exact work valid against live source plus applicable lower patches; is overlap compatible?
 ```
 
-A reviewer verdict is external evidence consumed by the controller. `PASS` means only that the requested scope found no material issue; it is not persisted DAG state, execution authorization, or a mandatory lifecycle transition. `AMEND_REQUIRED` returns a bounded finding to Change-DAG-Author while the DAG is stopped/not active. Because a running DAG is immutable, accepted work mutation happens while the DAG is stopped/not active; any later review is selected again from observable conditions.
+A reviewer verdict is external evidence consumed by the controller. Incomplete construction review returns `PASS`, `FINDINGS`, or `BLOCKED`; unresolved or non-executable state and missing future work are normal incomplete state, not automatic findings. Final review returns `BLOCK_RUN`, `ALLOW_WITH_FOLLOWUP`, or `ALLOW`; Nyx routes exact-work findings to `change-dag-fixer`, semantic/graph findings to Change-DAG-Author, and authority issues upstream. `ALLOW_WITH_FOLLOWUP` preserves evidence for post-run QA or follow-on repair, while ordinary repairable correctness defects do not automatically block execution. Because a running DAG is immutable, accepted work mutation happens while the DAG is stopped/not active; any later review is selected again from observable conditions.
 
 ## Execution handoff
 

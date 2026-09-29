@@ -205,11 +205,14 @@ class TestAuthorAuthority:
         for tool in ("edit", "write", "bash"):
             assert not _allowed(permission, tool), f"Author must not own {tool}"
 
-    def test_author_spawns_only_workers(self):
-        assert _can_spawn("change-dag-author", "change-dag-worker")
+    def test_author_task_map_allows_worker_optional_review_and_fixer(self):
+        assert _task_map("change-dag-author") == {
+            "*": "deny",
+            "change-dag-worker": "allow",
+            "incomplete-dag-reviewer": "allow",
+            "change-dag-fixer": "allow",
+        }
         assert not _can_spawn("change-dag-author", "change-dag-reviewer")
-        specific = {key for key in _task_map("change-dag-author") if key != "*"}
-        assert specific == {"change-dag-worker"}, specific
 
     def test_author_retains_whole_dag_validate(self):
         permission = _permission("change-dag-author")
@@ -288,6 +291,14 @@ class TestWorkerAuthority:
         assert "Self-verify by re-reading your own projected result with `dag_read`" in reference
         assert "never through `dag_validate`" in reference
 
+    def test_worker_contract_is_new_work_only(self):
+        for path in WORKER_SURFACES:
+            text = path.read_text(encoding="utf-8")
+            assert "NEW WORK ONLY" in text or "new-work lowering only" in text
+            assert "RECONCILE" not in text
+            assert "RECONCILED" not in text
+            assert "Change-DAG-Fixer" in text
+
     def test_worker_contract_describes_exclusive_terminals(self):
         for path in WORKER_SURFACES:
             text = path.read_text(encoding="utf-8")
@@ -349,6 +360,46 @@ class TestReviewerAuthority:
         assert not _can_spawn("change-dag-worker", "change-dag-reviewer")
         assert "change-dag-reviewer" not in _task_map("change-dag-worker")
 
+    def test_final_reviewer_is_completed_dag_safe_to_run_contract(self):
+        text = (AGENTS / "change-dag-reviewer.md").read_text(encoding="utf-8")
+        reference = (
+            SKILLS / "dispatching-agents" / "references" / "change-dag-reviewer.md"
+        ).read_text(encoding="utf-8")
+        for surface in (text, reference):
+            assert "completed" in surface.lower()
+            assert "resolved=true" in surface
+            assert "executable=true" in surface
+            assert "BLOCK_RUN" in surface
+            assert "ALLOW_WITH_FOLLOWUP" in surface
+            assert "ALLOW" in surface
+            assert "execution consequence" in surface.lower()
+            assert "route" in surface.lower()
+            assert "perfection gate" in surface.lower()
+
+    def test_final_reviewer_does_not_make_ordinary_defects_automatic_blocks(self):
+        text = (AGENTS / "change-dag-reviewer.md").read_text(encoding="utf-8")
+        assert "safely repairable against the real repository after execution" in text
+        assert "Do not turn an ordinary correctness defect" in text
+        assert "invalid lower assumptions/dependency" in text
+        assert "dangerous destructive/irreversible behavior" in text
+        assert "materially worsening safety/repairability" in text
+
+    def test_final_reviewer_preserves_external_read_only_boundary(self):
+        text = (AGENTS / "change-dag-reviewer.md").read_text(encoding="utf-8")
+        reference = (
+            SKILLS / "dispatching-agents" / "references" / "change-dag-reviewer.md"
+        ).read_text(encoding="utf-8")
+        for surface in (text, reference):
+            assert "Nyx" in surface
+            assert "independent" in surface
+            assert (
+                "never spawns" in surface
+                or "never spawn" in surface
+                or "no spawning" in surface
+            )
+            assert "never write" in surface.lower() or "never stored" in surface.lower()
+            assert "gate archival" in surface
+
 
 class TestRunnerRemoval:
     def test_runner_agent_file_removed(self):
@@ -387,10 +438,14 @@ class TestManagerWorkerRouting:
         assert "change-dag-worker" in text
         assert "Nyx never dispatches Change-DAG-Worker directly" in text
 
-    def test_author_contract_names_worker_and_review_trigger(self):
+    def test_author_contract_names_worker_optional_review_and_fixer(self):
         text = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
         assert "change-dag-worker" in text
+        assert "incomplete-dag-reviewer" in text
+        assert "change-dag-fixer" in text
         assert "review_trigger" in text
+        assert "final/controller-selected `change-dag-reviewer`" in text
+        assert "semantic/graph correction" in text
 
     def test_no_stale_single_session_frontier_wording(self):
         offenders: list[str] = []

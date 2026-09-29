@@ -41,8 +41,10 @@ Owner selection belongs to the `work-routing` skill; load it before choosing an 
 | change-dag-author | Change DAG construction manager | Creates/amends one Change DAG — semantic decomposition, service-derived decomposition-frontier loop, bounded worker dispatch, reconciliation, validation; never writes source |
 | change-dag-worker | Bounded semantic-node author (internal) | Lowers one assigned semantic node into exact work, meaning/scale decomposition, or selective dispatch of its two read-only researchers; dispatched only by change-dag-author |
 | change-dag-reviewer | Dynamically selected read-only reviewer | Bounded semantic/work/conflict/run-barrier/DD-consistency judgment when an observable trigger exists; external evidence only, stored nowhere in DAG state |
+| incomplete-dag-reviewer | Author-callable bounded construction reviewer | Reviews one construction question at any point; unresolved/non-executable state is normal, and findings return to Change-DAG-Author |
 | change-dag-semantic-researcher | Read-only semantic researcher | Dispatched only by change-dag-worker; answers one concrete semantic-graph question for context compression; semantic graph only |
 | change-dag-file-researcher | Read-only repository researcher | Dispatched only by change-dag-worker; answers one concrete repository-discovery question for context compression; DAG-projected source is authoritative |
+| change-dag-fixer | Bounded terminal-work repair leaf | Repairs known defects in mutable terminal work; preserves semantic intent and escalates semantic/graph changes to change-dag-author |
 
 ### QA Department
 
@@ -67,7 +69,7 @@ Owner selection belongs to the `work-routing` skill; load it before choosing an 
 
 ### Dependency-ordered execution
 ```
-rnd-manager (owns DAG_ONLY/DD_REQUIRED/RESEARCH_ONLY) → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → Nyx (reads route/status/phase; dispatches change-dag-author only on DONE + READY_FOR_AUTHORING) → change-dag-author (manager; queries dag_decomposition_frontier and dispatches one change-dag-worker per returned node) → [optional change-dag-reviewer when an observable trigger exists] → Nyx Change DAG lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
+rnd-manager (owns DAG_ONLY/DD_REQUIRED/RESEARCH_ONLY) → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → Nyx (reads route/status/phase; dispatches change-dag-author only on DONE + READY_FOR_AUTHORING) → change-dag-author (manager; queries dag_decomposition_frontier, dispatches one change-dag-worker per returned node, and may trigger incomplete-dag-reviewer or change-dag-fixer) → [optional final change-dag-reviewer selected by Nyx for a completed executable DAG when triggered] → Nyx consumes disposition and owns lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
 ```
 Use when: Later tasks depend on earlier results. The Manager selects the smallest
 sufficient graph; independent Librarian/Researcher work may run concurrently.
@@ -146,8 +148,9 @@ These examples preserve static authority; they are not a registry or state-machi
 
 - **A — Straightforward DAG:** author/validate `DAG.json` and route directly to execution; skip reviewer and support capabilities without observable triggers. Mechanical `dag_start` admission and normal independent QA still apply.
 - **B — Independent branches:** multiple independent DAG nodes do not trigger review by count; execution is serialized by the single-DAG lock and runs in dependency order.
-- **C — Coupled producer/consumer:** select the change-dag-reviewer for a real cross-node contract, shared semantic convergence, incompatible proposals, shared write/schema/migration/registry, nontrivial ordering, DD ambiguity, recovery amendment, or explicit user request. The review receives a bounded scope/question and `review_kind`; PASS is evidence only, not execution authorization. The controller may start lifecycle execution after PASS or directly when no review is selected.
-- **D — Obvious node defect:** apply a bounded raw edit directly, or author a remediation DAG when the defect is substantial; do not invoke Debugger.
+- **C — Coupled producer/consumer:** select the final `change-dag-reviewer` only for a completed, resolved, executable DAG with a real cross-node contract, shared semantic convergence, incompatible proposals, shared write/schema/migration/registry, nontrivial ordering, DD ambiguity, recovery amendment, or explicit user request. It is not a mandatory every-frontier review. Nyx consumes the result: `BLOCK_RUN` routes exact-work defects to `change-dag-fixer`, semantic/graph defects to Change-DAG-Author, and authority/DD problems upstream; `ALLOW_WITH_FOLLOWUP` permits execution and preserves evidence for post-run QA/follow-on repair; `ALLOW` is informational.
+- **D — Obvious node defect:** during construction, Author may route a known defect in mutable terminal work to `change-dag-fixer`; if semantic/graph work or new terminal work is needed, escalate to Change-DAG-Author. Do not invoke Debugger for an obvious bounded defect. Nyx must not dispatch the internal Worker or Worker-only researchers.
+- **D1 — Post-execution follow-up:** route against the real repository through normal work-routing: small/local repair may be direct, larger or cross-layer repair starts a new Change DAG, and architectural repair routes to R&D. Completed DAGs are not reopened.
 - **E — Unclear node failure:** select Support-Debugger; route `SIMPLE` to a bounded raw edit, `NEEDS_DAG` to Change-DAG-Author for a DAG amendment and lifecycle retry, and `INCONCLUSIVE` to escalation.
 - **F — QA `DAG_GAP`:** route by lifecycle. If the original DAG is still executing/recovering and not completed, amend it via Change-DAG-Author and re-run, then run normal QA again. If it is already completed, never reopen it: route a small/local gap to a bounded raw repair, or a substantial/cross-cutting gap to a NEW remediation Change DAG, then run normal QA again. A completed DAG is never amended; a `DAG_GAP` is never blindly forced into a raw edit.
 - **G — Accepted migration:** select PatternEnforcer only for accepted impact closure or migration scope; findings remain advisory and scope changes return to Change-DAG-Author.

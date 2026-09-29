@@ -9,7 +9,7 @@ Four roles, deliberately separated:
 - `nyx` **operates** the lifecycle tools (`dag_start`, `dag_status`, `dag_stop`, `dag_archive`).
 - `dag_executor` **applies** terminal work deterministically and serially.
 
-`change-dag-reviewer` is optional, bounded, and read-only, selected by Nyx. A reviewer `PASS` is evidence only; it does not authorize execution.
+`incomplete-dag-reviewer` is optional, bounded, read-only, and may be selected by Change-DAG-Author for a trigger-driven construction question; it is not a mandatory review at every frontier. `change-dag-fixer` may be routed by Author for a known exact-work defect in mutable terminal work. The final `change-dag-reviewer` is optional, bounded, read-only, and selected by Nyx only for a completed, resolved, executable DAG when an observable coordination or authority trigger exists. Its evidence does not become DAG state. Nyx consumes its disposition: `BLOCK_RUN` routes exact-work defects to Fixer, semantic/graph defects to Author, and authority/DD problems upstream; `ALLOW_WITH_FOLLOWUP` permits execution while preserving evidence for post-run QA/follow-on repair; `ALLOW` is informational.
 
 ## Building the DAG
 
@@ -24,8 +24,9 @@ flowchart TD
     W --> X["Exact work nodes<br/>create • edit • remove • move • run"]
     X --> F
     F -->|no frontier left| VAL["dag_validate<br/>schema-valid • executable • resolved"]
-    VAL --> REV["Optional change-dag-reviewer<br/>read-only evidence"]
-    REV --> AUTH["Authored Change DAG"]
+    VAL --> REV["Optional final change-dag-reviewer<br/>Nyx-selected, completed DAG"]
+    REV --> DISP["Nyx consumes BLOCK_RUN / ALLOW_WITH_FOLLOWUP / ALLOW"]
+    DISP --> AUTH["Authored Change DAG"]
     VAL --> AUTH
 
     CTX["Bounded repository evidence<br/>live source • DD • request context"] -.-> F
@@ -36,7 +37,7 @@ flowchart TD
 - Exact work is lowered one **decomposition frontier** at a time, from the deepest semantic nodes upward. The author manager queries `dag_decomposition_frontier(slug)` and dispatches one fresh bounded `change-dag-worker` per returned node; a frontier is the service-derived scheduling/reconciliation unit and a semantic node is the worker/context unit. The Worker retrieves its own scope with `dag_decomposition_scope(slug, node_id)`. The author reconciles only when results or conflicts require it, re-queries the frontier rather than tracking progress locally, and must not load the entire repository into one session.
 - A semantic node may record persisted authoring intent with `dag_set_decomposition_only(slug, node_id, true)` when its obligation is fully decomposed into the semantic requirements it directly `requires` and it intentionally owns no direct terminal work. It is semantic-only: the node must directly require at least one semantic child, and a direct create/edit/remove/move/run child makes the DAG structurally invalid. `value=false` reopens the judgment. The field never affects runtime satisfaction, which still derives only from the satisfaction of `requires` children; only a bounded worker may call the setter.
 - `dag_validate` reports `schema_valid`, `executable`, and `resolved`. A semantic node is locally resolved when it directly requires at least one terminal work node, or when it declares `decomposition_only=true` over semantic children only; `resolved` means every reachable semantic node is locally resolved. `executable` is the aggregate execution-admission/lint result: a DAG is executable only when it is structurally valid, `resolved`, and free of deterministic compiler/context admission conflicts. A DAG can be schema-valid and still unresolved; unresolved DAGs are valid authoring artifacts but are not executable.
-- Optional review may be selected by Nyx for observable coordination or authority risks such as shared convergence, interface migrations, shared schemas, recovery amendments, or explicit user request. The author surfaces `review_triggers`; neither the author nor a worker dispatches the reviewer.
+- Final review is trigger-driven, not a mandatory every-frontier stage. Nyx may select it for observable coordination or authority risks such as shared convergence, interface migrations, shared schemas, recovery amendments, or explicit user request. The Author surfaces `review_triggers`; neither the Author nor a Worker dispatches the final reviewer. Author may separately select the incomplete reviewer for one bounded construction question and may route Fixer for known exact-work defects.
 
 ## Executing the DAG
 
@@ -59,7 +60,7 @@ flowchart TD
     STATE -->|stopped or failed| REC["Reconcile interrupted work<br/>satisfied work preserved • interrupted run becomes failed"]
     STATE -->|yes| CKPT["Executor-owned local checkpoint<br/>starting-worktree evidence in Work Log (not publication)"]
 
-    REC --> AMEND["change-dag-author amends mutable region"]
+    REC --> AMEND["change-dag-author amends semantic/graph region or routes Fixer for exact work"]
     AMEND --> START
     CKPT --> ARCH["dag_archive(slug, reason)"]
 ```
@@ -79,7 +80,7 @@ Status values are `queued`, `running`, `root_satisfied`, and `idle`. There is no
 
 - `dag_stop(slug)` is lifecycle control, not rollback. Satisfied work remains satisfied; a queued DAG can be removed. Interrupted mechanical work is reconciled; an interrupted `run` becomes failed.
 - **A running DAG is immutable.** Do not mutate nodes or work while it runs.
-- Recovery sequence: execution stops or fails → the executor reconciles interrupted work → `change-dag-author` amends the mutable failed/unresolved region → `dag_validate` → `dag_start(slug, retry=true)` retries the whole DAG. There is no node- or subgraph-execution mode.
+- Recovery sequence: execution stops or fails → the executor reconciles interrupted work → Author amends the mutable semantic/graph region or routes Fixer for known exact-work repair → `dag_validate` → `dag_start(slug, retry=true)` retries the whole DAG. There is no node- or subgraph-execution mode. Follow-on repair after the execution boundary is not a DAG amendment: normal work-routing sends small/local work direct, larger or cross-layer work to a new Change DAG, and architectural work to R&D.
 - `anchor_commit` is provenance, not a commit binding. Live repository drift can produce ordinary terminal failure and recovery.
 
 ## Completion and archive

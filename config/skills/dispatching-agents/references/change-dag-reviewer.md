@@ -1,10 +1,10 @@
 # Change-DAG-Reviewer
-Dispatch Change-DAG-Reviewer as a dynamically selected, read-only reviewer for a bounded Change DAG scope when observable coordination or authority conditions justify independent judgment.
+Dispatch Change-DAG-Reviewer as Nyx's dynamically selected, independent, read-only final reviewer for a completed Change DAG when observable coordination or authority conditions justify an execution-safety judgment.
 
 ## When to Dispatch
 
-- Change-DAG-Author is constructing or has amended a DAG with an observable trigger such as cross-node shared writes/schemas/migrations/registries, nontrivial behavior-changing ordering, migration scope, shared semantic convergence, incompatible proposals, request/DD ambiguity, recovery risk, or explicit user request.
-- A materially changed DAG or accepted DD/source context creates a new observable reason for independent review; the controller may reselect review before execution or during recovery.
+- A completed, resolved, executable DAG has an observable trigger such as cross-node shared writes/schemas/migrations/registries, nontrivial behavior-changing ordering, migration scope, shared semantic convergence, incompatible proposals, request/DD ambiguity, recovery risk, or explicit user request.
+- A materially changed completed DAG or accepted DD/source context creates a new observable reason for independent final review; Nyx may reselect review before execution or during recovery.
 
 **Do NOT dispatch when:**
 - The DAG has no observable coordination risk; record the review outcome with rationale without a gate dispatch.
@@ -15,7 +15,7 @@ Dispatch Change-DAG-Reviewer as a dynamically selected, read-only reviewer for a
 ## Dispatch Template
 
 ```text
-Review the requested Change DAG scope [SLUG]. Do not assume a complete-DAG review or a pre-execution gate unless the supplied scope and trigger explicitly require it.
+Review the completed Change DAG [SLUG] for safe-to-run execution consequences. The supplied scope and trigger define the question; do not turn the review into a perfection gate or post-execution QA.
 
 Context:
 - [DAG_PATH]
@@ -35,21 +35,22 @@ task:
 ## Required Checks
 
 1. Supplied source request or accepted/amended DD is readable and retained in DAG provenance.
-2. The supplied `DAG.json` exists at the revision and passes `dag_validate` as mechanical context; a bounded review may occur during mutable authoring or after a complete DAG is assembled.
-3. Review only the supplied `node_ids`, `bounded_scope`, and `review_question`; assess semantic sufficiency, exact-work compatibility, DD consistency, or the combined complete DAG according to `review_kind`.
-4. For `COMBINED`, inspect the complete DAG's semantic sufficiency, exact work, nesting/order, run-barrier legality, and DD consistency.
-5. Surface missing prerequisites, duplicate ownership, contradictions, incompatible overlap, and unowned gaps within the requested scope.
-6. Downstream-owned intermediate incompleteness is allowed when a present, non-superseded node owns the later integration.
+2. The supplied `DAG.json` exists at the revision and passes `dag_validate` with `resolved=true` and `executable=true`; incomplete or unresolved authoring state is not a final-review success context.
+3. Review the complete supplied DAG, `bounded_scope`, and `review_question`; assess semantic sufficiency, exact-work compatibility, DD consistency, or the combined complete DAG according to `review_kind`.
+4. For `COMBINED`, inspect the complete DAG's semantic sufficiency, exact work, nesting/order, run-barrier legality, and DD consistency without imposing perfection.
+5. Surface only material execution consequences: invalid lower assumptions/dependencies, mechanical incoherence, dangerous destructive/irreversible behavior, material request/DD contradiction, materially worse safety/repairability, or bounded defects safely repairable after execution.
+6. Every finding includes an execution disposition, category, evidence, and route guidance. Do not persist a verdict or lifecycle decision.
 
 ## Routing
 
 | Verdict | Next action |
 |---|---|
-| `PASS` | Return external evidence to the controller; it may start lifecycle execution, but PASS is not execution authorization or a lifecycle transition |
-| `AMEND_REQUIRED` | Return the bounded finding to Change-DAG-Author while the DAG is stopped/not active; revalidate and optionally reselect review from current triggers |
-| `DD_CONTRADICTION` | Escalate to DD/R&D owner or user |
-| `MISSING_ARTIFACT` | Halt until source/DAG context is restored |
-| `NEEDS_DECISION` | Halt and ask for an explicit decision |
-| `BLOCKED` | Halt and report the input/tooling failure |
+| `PASS` / `ALLOW` | Return external evidence; the controller may consider execution, but this is not persisted lifecycle authorization |
+| `FINDINGS` / `ALLOW_WITH_FOLLOWUP` | Return the bounded repairable finding and route it to the named post-execution owner |
+| `FINDINGS` / `BLOCK_RUN` | Do not start execution; route exact-work defects to Change-DAG-Fixer, semantic/graph defects to Change-DAG-Author, authority issues to DD/R&D owner or user, and safety/repairability issues to the controller/owner |
+| `DD_CONTRADICTION` | Normally `BLOCK_RUN`; escalate to DD/R&D owner or user |
+| `MISSING_ARTIFACT` | `BLOCK_RUN` until source/DAG/completion context is restored |
+| `NEEDS_DECISION` | `BLOCK_RUN` and ask for an explicit decision |
+| `BLOCKED` | `BLOCK_RUN`; halt and report the input/tooling or completion-verification failure |
 
-The reviewer is read-only (`dag_show`, `dag_preview`, `dag_validate`). A review verdict is external evidence consumed by the controller; it is never stored in Change DAG or execution state, does not gate archival, and does not create a mandatory checkpoint.
+The reviewer is read-only (`dag_show`, `dag_preview`, `dag_validate`). It remains independent and Nyx-selected, never spawns another agent, mutates, executes, or controls lifecycle. A review verdict is external evidence consumed by the controller; it is never stored in Change DAG or execution state, does not gate archival, and does not create a mandatory checkpoint.

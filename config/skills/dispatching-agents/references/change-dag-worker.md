@@ -1,12 +1,12 @@
 # Change-DAG-Worker
 
-Dispatch Change-DAG-Worker to lower **exactly one** assigned semantic node of an existing Change DAG. It is a bounded single-semantic-node construction capability owned by Change-DAG-Author; Nyx never dispatches it for normal DAG construction. The worker retrieves its own scope with `dag_decomposition_scope`, discovers only the repository evidence its requirement needs, and either lowers the requirement into exact terminal work or refines it into further semantic decomposition.
+Dispatch Change-DAG-Worker to lower **exactly one** assigned semantic node of an existing Change DAG as NEW WORK ONLY. It is a bounded single-semantic-node construction capability owned by Change-DAG-Author; Nyx never dispatches it for normal DAG construction. The worker retrieves its own scope with `dag_decomposition_scope`, discovers only the repository evidence its requirement needs, and either lowers the requirement into exact terminal work or refines it into further semantic decomposition.
 
 The Worker keeps ordinary local discovery (`dag_search` / `dag_grep` / `dag_read` at its boundary) and may **selectively** dispatch its two read-only researchers into disposable contexts: `change-dag-semantic-researcher` (semantic-graph questions only) and `change-dag-file-researcher` (repository discovery at the boundary, projected source authoritative). Delegation is selective — a child is not required for every node.
 
 ## When to Dispatch
 
-- **From Change-DAG-Author only**, once per semantic node returned by `dag_decomposition_frontier`, when the node's requirement must be lowered into exact work or reconciled.
+- **From Change-DAG-Author only**, once per semantic node returned by `dag_decomposition_frontier`, when the node's requirement must be lowered into new exact work.
 - A worker returns `DECOMPOSED` when it introduces deeper semantic requirements; the manager then re-queries `dag_decomposition_frontier`.
 
 **Do NOT dispatch when:**
@@ -21,7 +21,7 @@ The Worker keeps ordinary local discovery (`dag_search` / `dag_grep` / `dag_read
 Lower one assigned semantic node of Change DAG [SLUG].
 
 task:
-  type: LOWER | RECONCILE
+  type: LOWER
   slug: "[SLUG]"
   node_id: "[NODE_ID]"
 authority:
@@ -50,7 +50,7 @@ Retrieve your own scope with dag_decomposition_scope(slug, node_id) — do not e
 9. On a locally correctable mutation failure, correct ONCE using the precise error (`edit_base_unavailable`, `edit_context_missing`, `edit_context_ambiguous`, `edit_no_change`, `invalid_replacements`, `create_target_exists`, `remove_target_unavailable`, `move_source_unavailable`, `move_destination_conflict`). On a missing authoritative base / missing causal relationship / peer-produced prerequisite, return `BLOCKED` with a review trigger to the Author — never loop on `dag_validate`.
 10. Self-verify by re-reading your own projected result with `dag_read`; never through `dag_validate`.
 11. Reconcile only its own mutable proposal with the typed `dag_update_*` tools and `dag_remove`.
-12. Return one bounded result; never claim construction completion and never run final validation (the Author manager owns both).
+12. Return one bounded result; never claim construction completion and never run final validation (the Author manager owns both). Typed update tools are limited to correcting work authored during this lowering invocation. A later review-discovered exact-work defect is escalated to Change-DAG-Fixer; semantic or graph defects are escalated to Change-DAG-Author.
 
 ## Child research model (Cases B and C)
 
@@ -100,7 +100,6 @@ Node kinds are fixed by the DAG schema and `change-dag-semantics`; never introdu
 |---|---|
 | `LOWERED` | Exact mechanical work now locally resolves the assigned node's authoring obligation. |
 | `DECOMPOSED` | Deeper semantic requirements were added; the node is either marked `decomposition_only` or left unresolved for a later frontier, and the manager re-queries the frontier. |
-| `RECONCILED` | Mutable work in the assigned scope was corrected. |
 | `BLOCKED` | A missing authority/source/decision/tooling condition prevents completion. |
 
 ## Expected output
@@ -109,11 +108,11 @@ Node kinds are fixed by the DAG schema and `change-dag-semantics`; never introdu
 status: DONE | BLOCKED
 slug: "[SLUG]"
 semantic_node_id: "[NODE_ID]"
-result: LOWERED | DECOMPOSED | RECONCILED
+result: LOWERED | DECOMPOSED
 affected_node_ids: ["[NODE_ID]"]
 summary: "..."
 blockers: []
 review_triggers: []
 ```
 
-A worker never spawns another worker, never mutates repository source, never creates the DAG, and never operates the lifecycle. It may dispatch only its two read-only researchers. It inspects only through the DAG lens (`dag_decomposition_scope` / `dag_search` / `dag_grep` / `dag_read`) and never through raw whole-repository content tools or whole-DAG inspection. It surfaces observable `review_triggers` but never dispatches Change-DAG-Reviewer.
+A worker never spawns another worker, never mutates repository source, never creates the DAG, and never operates the lifecycle. It performs new-work lowering only: it must not repair later review findings, and must escalate exact-work defects to Change-DAG-Fixer or semantic/graph defects to Change-DAG-Author. It may dispatch only its two read-only researchers. It inspects only through the DAG lens (`dag_decomposition_scope` / `dag_search` / `dag_grep` / `dag_read`) and never through raw whole-repository content tools or whole-DAG inspection. It surfaces observable `review_triggers` but never dispatches Change-DAG-Reviewer.

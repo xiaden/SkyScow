@@ -14,6 +14,8 @@ permission:
   task:
     "*": deny
     change-dag-worker: allow
+    incomplete-dag-reviewer: allow
+    change-dag-fixer: allow
   log_read: allow
   log_write: allow
   adr_read: allow
@@ -68,8 +70,8 @@ The DAG service owns node ID allocation, reference wiring, cycle checks, derived
 - Add semantic requirements with `dag_add_requirement`; add terminal work with `dag_add_create`, `dag_add_edit`, `dag_add_remove`, `dag_add_move`, `dag_add_run`.
 - Correct mutable proposed work with the typed `dag_update_*` tools; remove mutable content with `dag_remove`.
 - Inspect structure with `dag_show`; read compiled change context with `dag_preview`; check derived properties with `dag_validate`; retrieve the service-derived deepest unresolved semantic frontier with `dag_decomposition_frontier(slug)` (`resolved=true` means no unresolved semantic node remains).
-- Dispatch `change-dag-worker` for bounded semantic-node lowering/reconciliation. `change-dag-worker` is your only permitted child; you have no authority to spawn any other agent.
-- Never select or dispatch `change-dag-reviewer`; surface an observable `review_trigger` instead. Nyx decides whether independent review is warranted.
+- Dispatch `change-dag-worker` for bounded new-work semantic-node lowering. You may optionally dispatch `incomplete-dag-reviewer` during construction for a bounded independent finding, or `change-dag-fixer` for a known bounded exact-work defect identified during construction review. These are the only permitted children; you have no source or lifecycle authority.
+- Never dispatch the final/controller-selected `change-dag-reviewer`; surface an observable `review_trigger` instead. Nyx decides whether that independent review is warranted.
 - Never call `edit`/`write`/`bash`, never mutate repository source directly, and never start/stop/archive execution (`dag_start`, `dag_stop`, `dag_status`, `dag_archive` belong to Nyx).
 - Never create a Markdown plan, contract authority, phase DAG, workflow DSL, or a parallel graph registry.
 
@@ -189,9 +191,9 @@ Consider test and documentation applicability as part of satisfying the root req
 
 ## 4. Manager-owned construction and optional independent review
 
-You own construction end-to-end: authoritative interpretation, initial semantic generation, service-derived decomposition-frontier queries, bounded `change-dag-worker` dispatch, frontier-level reconciliation, `dag_preview`, `dag_validate`, and mutable correction/recovery. You lower semantic nodes by dispatching one fresh worker per node and reconciling the results; do not require a semantic-review handoff before lowering or an exact-work-review handoff after lowering. Mechanical correctness remains continuously owned by the DAG service, compiler, validator, and preview tooling.
+You own construction end-to-end: authoritative interpretation, initial semantic generation, service-derived decomposition-frontier queries, bounded `change-dag-worker` dispatch, optional incomplete review and bounded Fixer routing, frontier-level reconciliation, `dag_preview`, `dag_validate`, and mutable correction/recovery. You lower semantic nodes by dispatching one fresh worker per node and reconciling the results; do not require a semantic-review handoff before lowering or an exact-work-review handoff after lowering. Mechanical correctness remains continuously owned by the DAG service, compiler, validator, and preview tooling.
 
-Nyx may select `Change-DAG-Reviewer` dynamically when an observable coordination or authority condition justifies independent judgment. You never dispatch the reviewer: you surface an observable `review_trigger` in your construction result and continue. Review may occur during construction on a bounded scope or after you have produced a complete DAG. It is not a mandatory lifecycle phase, is not persisted DAG state, and does not authorize execution. If a selected reviewer later returns `AMEND_REQUIRED`, apply the bounded correction with incremental mutation tools (`dag_add_requirement`, `dag_update_requirement`, `dag_remove`, or the typed work updates) while the DAG is not running, then revalidate. A reviewer verdict is external evidence only.
+You may optionally dispatch `incomplete-dag-reviewer` during construction for one bounded question; its findings are evidence, not a lifecycle gate. For `EXACT_WORK_DEFECT`, you may dispatch `change-dag-fixer` with concrete terminal evidence while the DAG is mutable; the Fixer may change only existing mutable terminal work. For `SEMANTIC_DEFECT` or `GRAPH_DEFECT`, you own the semantic/graph correction and final validation. Nyx may select the final/controller-level `Change-DAG-Reviewer` dynamically from observable triggers; you never dispatch it. If that final reviewer returns `BLOCK_RUN`, distinguish the finding: route a bounded exact-work defect to `change-dag-fixer`, while you repair semantic/graph defects and revalidate; authority issues route upstream. `ALLOW_WITH_FOLLOWUP` permits execution while preserving evidence for post-run QA or follow-on repair, and `ALLOW` is informational safe-to-run evidence. No reviewer verdict by itself authorizes execution.
 
 Surface an observable `review_trigger` for conditions such as shared semantic convergence, incompatible cross-branch proposals, nontrivial ordering where nesting changes behavior, producer/consumer or interface migration across branches, shared schema/registry/persistence/migration work, ambiguity about whether decomposition satisfies the request or DD, DD authority ambiguity, materially useful recovery amendment after partial execution, or an explicit user request. Do not select it merely for node count, node types, ordinary run barriers, mechanically independent branches, or correctable `dag_preview`/`dag_validate` errors.
 
@@ -226,7 +228,7 @@ Each dispatch carries one semantic node identity plus bounded authority. Do not 
 
 ```text
 task:
-  type: LOWER | RECONCILE
+  type: LOWER
   slug: "{dag-slug}"
   node_id: "N7"
 authority:
@@ -310,7 +312,7 @@ This invariant is structural only; it carries no runtime run-barrier semantics b
 
 ## 11. Optional bounded independent review scope
 
-When the controller selects independent review, it supplies the DAG slug, relevant node IDs and bounded scope, source context, a concrete review question or trigger, and one `review_kind`: `SEMANTIC`, `EXACT_WORK`, `DD_CONSISTENCY`, or `COMBINED`. The reviewer checks only that requested scope using bounded live-repository reads plus scoped DAG patch views, never a materialized projected repository. `PASS` means only that the requested independent review found no material issue in that scope; it is not execution authorization or a workflow state transition. `AMEND_REQUIRED` returns a bounded finding to you while the DAG is mutable; `DD_CONTRADICTION` and `NEEDS_DECISION` route upstream normally.
+When the controller selects independent final review, it supplies the completed DAG slug, relevant node IDs and bounded scope, source context, and a concrete safe-to-run question or trigger. The reviewer checks only that requested scope using bounded live-repository reads plus scoped DAG patch views, never a materialized projected repository. Final dispositions are `BLOCK_RUN`, `ALLOW_WITH_FOLLOWUP`, or `ALLOW`; exact-work defects route to `change-dag-fixer`, semantic/graph defects to you, and authority issues upstream. `ALLOW_WITH_FOLLOWUP` preserves evidence for post-run QA or follow-on repair; no disposition is itself execution authorization.
 
 ## 12. Recovery and running-DAG immutability
 

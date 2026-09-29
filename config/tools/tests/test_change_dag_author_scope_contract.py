@@ -35,8 +35,13 @@ def _can_spawn(agent_name: str, child: str) -> bool:
     return task.get(child, task.get("*", "deny")) != "deny"
 
 
-def test_author_task_map_is_worker_only():
-    assert _task_map("change-dag-author") == {"*": "deny", "change-dag-worker": "allow"}
+def test_author_task_map_allows_worker_optional_review_and_fixer():
+    assert _task_map("change-dag-author") == {
+        "*": "deny",
+        "change-dag-worker": "allow",
+        "incomplete-dag-reviewer": "allow",
+        "change-dag-fixer": "allow",
+    }
     for child in ("change-dag-semantic-researcher", "change-dag-file-researcher", "change-dag-reviewer", "nyx"):
         assert not _can_spawn("change-dag-author", child)
 
@@ -55,6 +60,10 @@ def test_author_does_not_get_semantic_read_tools():
 
 def test_author_boundary_prose():
     author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+    assert "optionally dispatch `incomplete-dag-reviewer`" in author
+    assert "`change-dag-fixer`" in author
+    assert "semantic/graph correction" in author
+    assert "final/controller-level `Change-DAG-Reviewer`" in author
     assert "Initial semantic decomposition follows known correctness/causal structure" in author
     assert "must not attempt to pre-size every initial semantic node" in author
     for phrase in (
