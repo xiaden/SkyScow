@@ -13,6 +13,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import yaml
+
 TOOLS = Path(__file__).resolve().parents[1]
 REPO_ROOT = TOOLS.parents[1]
 
@@ -23,7 +25,26 @@ PROTOCOL = REPO_ROOT / "config" / "skills" / "decomposing-design-documents" / "r
 DISPATCH = REPO_ROOT / "config" / "skills" / "dispatching-agents" / "references" / "change-dag-author.md"
 SCHEMA = REPO_ROOT / "config" / "tools" / "common" / "schemas" / "CHANGE_DAG_SCHEMA.json"
 
+SEMANTIC_SKILL = REPO_ROOT / "config" / "skills" / "change-dag-semantics" / "SKILL.md"
+WORKER = REPO_ROOT / "config" / "agents" / "change-dag-worker.md"
+WORKER_DISPATCH = REPO_ROOT / "config" / "skills" / "dispatching-agents" / "references" / "change-dag-worker.md"
+RESEARCHER = REPO_ROOT / "config" / "agents" / "change-dag-semantic-researcher.md"
+RESEARCHER_DISPATCH = REPO_ROOT / "config" / "skills" / "dispatching-agents" / "references" / "change-dag-semantic-researcher.md"
+
 SURFACES = (AUTHOR, SKILL, PROTOCOL, DISPATCH)
+
+# Every authoring surface that governs semantic structure must link the single
+# canonical `change-dag-semantics` skill rather than restating divergent doctrine.
+SEMANTIC_LINK_SURFACES = (
+    AUTHOR,
+    SKILL,
+    PROTOCOL,
+    DISPATCH,
+    WORKER,
+    WORKER_DISPATCH,
+    RESEARCHER,
+    RESEARCHER_DISPATCH,
+)
 
 
 def _read(path: Path) -> str:
@@ -246,3 +267,27 @@ def test_base_and_self_lenses_are_distinguished():
         text = _norm(_read(path))
         assert "reason from live repository plus strictly-deeper accepted work only" not in text, path
         assert "reasoning from live repository plus strictly-deeper accepted work;" not in text, path
+
+
+# ---------------------------------------------------------------------------
+# the canonical semantic-node skill is governed, not silently duplicated
+# ---------------------------------------------------------------------------
+def test_canonical_semantic_skill_exists_and_names_itself():
+    assert SEMANTIC_SKILL.is_file()
+    frontmatter = yaml.safe_load(_read(SEMANTIC_SKILL).split("---", 2)[1])
+    assert frontmatter["name"] == "change-dag-semantics"
+    assert isinstance(frontmatter.get("description"), str)
+
+
+def test_authoring_surfaces_link_the_canonical_semantic_skill():
+    for path in SEMANTIC_LINK_SURFACES:
+        assert "change-dag-semantics" in _read(path), path
+
+
+def test_canonical_semantic_skill_does_not_carry_the_staged_generation_procedure():
+    """The staged pipeline stays in semantic-generation.md; the canonical skill
+    states the node model, not the Author-specific derivation procedure."""
+    text = _norm(_read(SEMANTIC_SKILL))
+    assert "normalize each obligation into a postcondition" not in text
+    assert "remove duplicates and accidental restatements" not in text
+    assert "split compound obligations" not in text

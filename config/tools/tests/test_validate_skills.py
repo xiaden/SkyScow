@@ -54,9 +54,10 @@ class TestShippedSkills:
         # removed with the Change DAG replacement. 29 -> 30: `change-dag-lifecycle`
         # was added when Change-DAG-Runner was removed and Nyx took over lifecycle
         # control. 30 -> 31: `work-routing` was added as the canonical routing
-        # ownership authority. Pinning the exact count still catches accidental
-        # skill loss (or unplanned additions) in the shipped set.
-        assert len(list(SHIPPED_SKILLS.glob("*/SKILL.md"))) == 31
+# ownership authority. 31 -> 32: `change-dag-semantics` was added as the
+         # canonical semantic-node doctrine. Pinning the exact count still catches
+         # accidental skill loss (or unplanned additions) in the shipped set.
+         assert len(list(SHIPPED_SKILLS.glob("*/SKILL.md"))) == 32
 
     def test_gg_core_and_gg_repos_descriptions_are_parseable(self):
         """The two skills this regression was filed against must load."""

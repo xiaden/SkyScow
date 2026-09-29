@@ -120,7 +120,7 @@ return bounded result to the Author manager
 - `dag_decomposition_scope` is the source of truth for the assigned requirement and its immediate graph neighborhood. Retrieve it first; never rely on a requirement copied into the dispatch packet.
 - For source content, use `dag_read`, `dag_grep`, and `dag_search` with the assigned semantic boundary. These tools project live source plus accepted work from strictly deeper decomposition frontiers only, plus the boundary node's own persisted terminal work. Same-frontier peers, shallower/future work, and unowned sibling proposals are excluded. Read the applicable range with `dag_read` and use its `provenance` ranges to attribute each region to `live`, `accepted_lower`, or `owned`.
 - After authoring, inspect your own projected result the same way: re-read the affected paths with `dag_read` at the assigned boundary and confirm they now show your work as `owned`.
-- Every semantic child must materially narrow the parent toward a bounded responsibility. Pure paraphrase or recursive restatement is invalid decomposition.
+- Every semantic child must materially refine the parent — a distinct required state for MEANING, or the same predicate under a narrower subject scope for SCALE. Pure paraphrase or recursive restatement is invalid decomposition.
 - Never solve ambiguity by inventing vague terminal work. If meaningful engineering judgment remains unresolved, refine the semantic graph.
 
 ### Decision model
@@ -153,12 +153,14 @@ scope -> local dag_search/dag_grep -> dag_read -> exact work -> verification
 
 ### Semantic decomposition — two reasons
 
+The simple expected path above (scope → local discovery → exact work → verification) does not need semantic-node doctrine. Load the `change-dag-semantics` skill only when you are considering semantic decomposition beneath your assigned node; it is the canonical authority for the node model and the parent/child completeness invariant.
+
 A semantic node may decompose for exactly two reasons:
 
 1. **MEANING** — multiple distinct required states exist.
 2. **SCALE** — the same postcondition spans too much implementation surface for one bounded Worker authoring context.
 
-Scale decomposition must be **lossless/exhaustive**: the children collectively imply the parent.
+Scale decomposition must be **lossless/exhaustive**: the children collectively imply the parent. Valid SCALE children preserve the parent predicate and narrow only the subject scope; a repository-grounded subject identity (subsystem, package, caller family, migration cohort, component, or similar) may bound a valid partition. A semantic node states desired state, not an implementation action.
 
 ```text
 Parent:
@@ -175,7 +177,7 @@ Invalid children (implementation actions, not semantic requirements):
   "Add tests."
 ```
 
-Do NOT introduce a new node type, and do not restate scale decomposition as an implementation file list.
+You still own local semantic refinement beneath your assigned node. Do not restate scale decomposition as an implementation file list, and never introduce a new node type or schema field — node kinds are fixed by the DAG schema and `change-dag-semantics`.
 
 ### Discovery rule
 
@@ -184,7 +186,7 @@ Broad implementation discovery is evidence to evaluate SCALE decomposition,
 not automatic evidence of a new semantic concern.
 ```
 
-File count alone does not define semantics, but implementation breadth / context cost may justify narrowing the SAME semantic predicate recursively.
+File count alone does not define semantic scope; the canonical file-count rule and the recursive SCALE model are in `change-dag-semantics`, and real repository breadth or context cost may justify narrowing the SAME predicate.
 
 ### Testing and cross-cutting concerns
 

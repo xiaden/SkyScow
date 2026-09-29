@@ -5,7 +5,7 @@ How an accepted DD becomes an executable **Change DAG**, and how that DAG is exe
 Four roles, deliberately separated:
 
 - `change-dag-author` **constructs** the DAG — manager role: semantic graph, service-derived decomposition-frontier loop, reconciliation, validation — and amends mutable work during recovery. It never executes.
-- `change-dag-worker` **lowers** one assigned semantic node into exact work, meaning decomposition, or lossless SCALE decomposition, and may selectively dispatch the two read-only researchers; it is dispatched internally by the author manager and retrieves its own scope with `dag_decomposition_scope`. It never manages the frontier, mutates source, or executes.
+- `change-dag-worker` **lowers** one assigned semantic node into exact work, meaning decomposition, or lossless SCALE decomposition (per the `config/skills/change-dag-semantics/SKILL.md` doctrine), and may selectively dispatch the two read-only researchers; it is dispatched internally by the author manager and retrieves its own scope with `dag_decomposition_scope`. It never manages the frontier, mutates source, or executes.
 - `nyx` **operates** the lifecycle tools (`dag_start`, `dag_status`, `dag_stop`, `dag_archive`).
 - `dag_executor` **applies** terminal work deterministically and serially.
 
@@ -31,7 +31,7 @@ flowchart TD
     CTX["Bounded repository evidence<br/>live source • DD • request context"] -.-> F
 ```
 
-- The initial semantic structure is the smallest skeleton grounded in known correctness/causal structure, submitted atomically through `dag_create(slug, semantic_graph)`; the Author does not pre-size nodes for one Worker context. Semantic nodes express postconditions, not implementation actions. Worker-discovered breadth may be refined later through lossless SCALE decomposition.
+- The initial semantic structure is the smallest skeleton grounded in known correctness/causal structure, submitted atomically through `dag_create(slug, semantic_graph)`; the Author does not pre-size nodes for one Worker context. Semantic nodes express postconditions, not implementation actions. Worker-discovered breadth may be refined later through lossless SCALE decomposition. The canonical semantic-node doctrine (MEANING vs SCALE, parent/child completeness, sibling/causal semantics, semantic/terminal boundary) is `config/skills/change-dag-semantics/SKILL.md`.
 - The DAG's only edge is `requires`, and it is ALL-of: `requires` expresses what must become true for a semantic requirement to be fulfilled. A semantic node is satisfied only when every node it directly requires is satisfied. Nodes on the same semantic frontier assert authoring independence; the frontier service derives the frontier from `requires` edges only and never infers a missing causal relationship. Semantic siblings imply no authoring dependency through each other; if correct authoring of B requires accepted work from A, B must have a `requires` path to A rather than being represented as an independent sibling.
 - Exact work is lowered one **decomposition frontier** at a time, from the deepest semantic nodes upward. The author manager queries `dag_decomposition_frontier(slug)` and dispatches one fresh bounded `change-dag-worker` per returned node; a frontier is the service-derived scheduling/reconciliation unit and a semantic node is the worker/context unit. The Worker retrieves its own scope with `dag_decomposition_scope(slug, node_id)`. The author reconciles only when results or conflicts require it, re-queries the frontier rather than tracking progress locally, and must not load the entire repository into one session.
 - A semantic node may record persisted authoring intent with `dag_set_decomposition_only(slug, node_id, true)` when its obligation is fully decomposed into the semantic requirements it directly `requires` and it intentionally owns no direct terminal work. It is semantic-only: the node must directly require at least one semantic child, and a direct create/edit/remove/move/run child makes the DAG structurally invalid. `value=false` reopens the judgment. The field never affects runtime satisfaction, which still derives only from the satisfaction of `requires` children; only a bounded worker may call the setter.
@@ -99,5 +99,6 @@ QA is not a Change DAG phase and is not an archive gate. An archived DAG is neve
 - `config/agents/change-dag-author.md` — construction management, frontiers, amendment
 - `config/agents/change-dag-worker.md` — bounded single-semantic-node lowering/decomposition
 - `config/skills/change-dag-lifecycle/SKILL.md` — lifecycle operation
+- `config/skills/change-dag-semantics/SKILL.md` — canonical semantic-node doctrine
 - `config/tools/common/tools/dag_start.py`, `dag_status.py`, `dag_stop.py`, `dag_archive.py` — lifecycle tools
 - `config/tools/common/tools/dag_executor.py`, `config/tools/common/helpers/change_dag_control.py` — execution and queue control

@@ -41,7 +41,7 @@ You must NEVER mutate the DAG, add semantic nodes, wire edges, rewrite requireme
 
 ## Semantic structure only
 
-Reason about semantic nodes and their `requires` relationships, including parent and ancestor relationships returned by the semantic tools. Terminal implementation detail is out of your lens by construction. Report graph facts and relationships only: no implementation decisions, no node creation, no edge wiring, no requirement rewriting, no completion judgement, and no patch suggestions.
+Your interpretation of semantic nodes and their relationships is governed by the canonical `change-dag-semantics` skill; use its node model, MEANING/SCALE distinction, and completeness/causality rules when reasoning about what you find. Reason about semantic nodes and their `requires` relationships, including parent and ancestor relationships returned by the semantic tools. Terminal implementation detail is out of your lens by construction. Report graph facts and relationships only: no implementation decisions, no node creation, no edge wiring, no requirement rewriting, no completion judgement, and no patch suggestions.
 
 ## Input contract
 

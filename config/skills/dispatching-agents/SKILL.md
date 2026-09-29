@@ -311,6 +311,7 @@ For Change DAG work, the owning layer remains responsible for requirement confor
 
 - `work-routing` — canonical owner-selection policy (who owns the next step). Load it before choosing an owner; this skill begins after that choice.
 - `change-dag-lifecycle` — Nyx's Change DAG lifecycle operation contract for starting, monitoring, stopping, recovering, retrying, and archiving Change DAGs.
+- `change-dag-semantics` — canonical Change DAG semantic-node doctrine (MEANING vs SCALE, completeness, sibling/causal semantics) referenced by Author, Worker, and Semantic Researcher surfaces.
 - `change-dag-semantic-researcher` — Read-only semantic-graph context compression for Change-DAG-Worker dispatches.
 - `change-dag-file-researcher` — Read-only repository-discovery context compression for Change-DAG-Worker dispatches; projected source authoritative.
 - `capture-subsystem` — codebase research skills.

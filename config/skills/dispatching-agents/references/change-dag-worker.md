@@ -43,8 +43,8 @@ Retrieve your own scope with dag_decomposition_scope(slug, node_id) — do not e
    - **CASE D — the same postcondition is too broad for one safe authoring context.** Perform SCALE decomposition into semantic children that preserve the parent's predicate under bounded scopes.
    - **CASE E — the parent actually contains distinct semantic obligations.** Perform semantic decomposition, but only when enough evidence exists; use the semantic researcher first when cross-graph duplication or ownership is unclear.
    - **CASE F — a cross-branch relationship, a missing accepted prerequisite, duplicate semantic ownership, or broader graph repair is needed.** STOP and return Author review/reconciliation evidence. The Worker does not perform global graph surgery.
-5. Keep discovery bounded to the assigned requirement. Broad implementation discovery is evidence to evaluate SCALE decomposition, not automatic evidence of a new semantic concern. File count alone does not define semantics, but implementation breadth / context cost may justify narrowing the SAME semantic predicate recursively.
-6. Choose exactly one outcome: add exact terminal work (`dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`), or add/refine semantic children (`dag_add_requirement`) and either declare `dag_set_decomposition_only(slug, node_id, true)` when the node intentionally owns no direct terminal work or leave it unresolved for a later frontier. A semantic child must materially narrow the parent; pure paraphrase is invalid.
+5. Keep discovery bounded to the assigned requirement. Broad implementation discovery is evidence to evaluate SCALE decomposition, not automatic evidence of a new semantic concern. File count alone does not define semantic scope; the canonical file-count rule and the recursive SCALE model are in `change-dag-semantics`, and real repository breadth or context cost may justify narrowing the SAME predicate.
+6. Choose exactly one outcome: add exact terminal work (`dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`), or add/refine semantic children (`dag_add_requirement`) and either declare `dag_set_decomposition_only(slug, node_id, true)` when the node intentionally owns no direct terminal work or leave it unresolved for a later frontier. A semantic child must materially refine the parent — a distinct required state for MEANING, or the same predicate under a narrower subject scope for SCALE; pure paraphrase is invalid.
 7. Author `edit` work as exact `{old, new}` replacements (`dag_add_edit(slug, parent_ids, path, replacements)`): `old` non-empty and occurring exactly once, applied sequentially with zero fuzz, empty `new` deletes. Never author unified diff syntax and never emit `*** Begin Patch` / `*** End Patch`.
 8. Honor the exclusive-terminal rule: `edit` is the only composable direct terminal; `create` / `remove` / `move` / `run` are exclusive, so a node carrying one of them may have no other terminal child. If an exclusive terminal is needed alongside additional terminal work, add narrower semantic child requirements.
 9. On a locally correctable mutation failure, correct ONCE using the precise error (`edit_base_unavailable`, `edit_context_missing`, `edit_context_ambiguous`, `edit_no_change`, `invalid_replacements`, `create_target_exists`, `remove_target_unavailable`, `move_source_unavailable`, `move_destination_conflict`). On a missing authoritative base / missing causal relationship / peer-produced prerequisite, return `BLOCKED` with a review trigger to the Author — never loop on `dag_validate`.
@@ -64,12 +64,14 @@ scope -> local dag_search/dag_grep -> dag_read -> exact work -> verification
 
 ## Semantic decomposition — MEANING vs SCALE
 
+The simple expected path (`scope -> local dag_search/dag_grep -> dag_read -> exact work -> verification`) does not need semantic-node doctrine. Load the `change-dag-semantics` skill only when the Worker is considering semantic decomposition; it is the canonical authority for the node model and the parent/child completeness invariant.
+
 A semantic node may decompose for exactly two reasons:
 
 1. **MEANING** — multiple distinct required states exist.
 2. **SCALE** — the same postcondition spans too much implementation surface for one bounded Worker authoring context.
 
-Scale decomposition must be lossless/exhaustive: the children collectively imply the parent.
+Scale decomposition must be lossless/exhaustive: the children collectively imply the parent. Valid SCALE children preserve the parent predicate and narrow only the subject scope; a repository-grounded subject identity may bound a valid partition, and a semantic node states desired state rather than an implementation action.
 
 ```text
 Parent:
@@ -86,7 +88,7 @@ Invalid children (implementation actions, not semantic requirements):
   "Add tests."
 ```
 
-Do NOT introduce a new node type, and do not restate scale decomposition as an implementation file list.
+Node kinds are fixed by the DAG schema and `change-dag-semantics`; never introduce a new node type or schema field, and do not restate scale decomposition as an implementation file list.
 
 ## Completion
 

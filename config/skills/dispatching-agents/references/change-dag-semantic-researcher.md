@@ -34,7 +34,7 @@ authority:
 ## Required behavior
 
 1. Require one concrete, bounded question. If the prompt is broad or not a question, return `BLOCKED` and request a reframe.
-2. Use only `dag_semantic_search` and `dag_semantic_context` for DAG inspection; governance reads are allowed only when materially needed.
+2. Use only `dag_semantic_search` and `dag_semantic_context` for DAG inspection; governance reads are allowed only when materially needed. Interpret what you find through the canonical `change-dag-semantics` skill — its node model, MEANING/SCALE distinction, and completeness/causality rules.
 3. Return the smallest relevant semantic node set and the relationships that answer the question.
 4. Never inspect terminal content, terminal paths, terminal patches, terminal commands, execution state, provenance, or peer proposals.
 5. Never mutate the DAG, add semantic nodes, wire edges, rewrite requirements, author terminal work, decide exact implementation, or decide Worker completion.

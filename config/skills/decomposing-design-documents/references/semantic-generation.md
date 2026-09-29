@@ -5,6 +5,13 @@ Canonical procedure for turning an authoritative request or accepted DD into the
 `change-dag-author` initial-generation pass. Other surfaces summarize and link
 here rather than restating the doctrine.
 
+General semantic-node doctrine — what a semantic node is, MEANING versus SCALE,
+parent/child completeness, sibling/causal semantics, and the semantic/terminal
+boundary — is defined once in the canonical `change-dag-semantics` skill
+(`config/skills/change-dag-semantics/SKILL.md`). This reference covers only the
+Author-specific initial-generation procedure and links that doctrine rather than
+restating it.
+
 ## Core principle
 
 The initial semantic graph is a **semantic skeleton, not an implementation
@@ -74,9 +81,12 @@ The rule:
 > represent it, unless that representation is itself required by authoritative
 > input.
 
-If a candidate mentions a file, class, function, module, command, specific test
-file, or implementation mechanism that is not explicitly authoritative, rewrite
-it to the semantic state it represents.
+Naming an established repository or domain subject is valid when it bounds the
+postcondition — a service, package, consumer family, component, or contract whose
+behavior the requirement constrains. Prescribing the implementation action, or
+gratuitously choosing the representation that satisfies the postcondition, is not.
+A file, symbol, or mechanism is not semantic merely because it is the artifact
+expected to be edited; generalize that to the required behavior.
 
 ### Stage 3 — Remove duplicates and accidental restatements
 
@@ -91,8 +101,10 @@ implementation-detail variants of another obligation
 semantic dependency exists
 ```
 
-Merge candidates that express the same required state. The graph must not grow
-merely because several implementation surfaces may later satisfy one obligation.
+Merge candidates that express the same required state. Do not create SCALE
+children speculatively here merely because several implementation surfaces may
+later satisfy one obligation; the Worker may still refine the SAME predicate by
+lossless SCALE decomposition after repository discovery.
 
 ### Stage 4 — Split compound obligations
 
@@ -110,8 +122,12 @@ Requirements persist according to the required lifecycle.
 Read operations expose applicable current requirements.
 ```
 
-Do not split merely because multiple files might be touched. Semantic
-independence — not file count — determines splitting.
+File count alone does not determine semantic decomposition. During INITIAL
+Author generation do not speculate about implementation scale merely because
+multiple files may exist; a MEANING split requires distinct required states.
+Real repository breadth or context cost discovered later may justify lossless
+SCALE decomposition of the SAME predicate by the Worker, under the canonical
+semantic-node model.
 
 ### Stage 5 — Derive causal structure (separately from node generation)
 
@@ -206,8 +222,10 @@ BOUNDARY                   Is it one coherent required state rather than a
                            bundle of unrelated obligations? It may be broader
                            than one Worker context; the Worker can refine it by
                            lossless SCALE decomposition.
-REPRESENTATION-INDEPENDENCE Does it avoid assuming a file / symbol / mechanism
-                           unless authoritative?
+REPRESENTATION-INDEPENDENCE Does it state a postcondition over a bounded subject
+                           (an established repository subject may bound it)
+                           rather than prescribing the implementation action or
+                           gratuitously choosing the representation?
 AUTHORING-INDEPENDENCE     If it is a sibling, can it be correctly authored
                            without another sibling's accepted result?
 CAUSALITY                  If it cannot, is that dependency expressed with
@@ -221,7 +239,23 @@ NON-CEREMONY               Was it created because the root actually needs it,
 
 ## Decomposition reasons
 
-Decompose for **MEANING** when distinct required states or causal obligations need separate nodes, or for **SCALE** when the same coherent postcondition is too broad for one bounded Worker context. SCALE decomposition must be lossless and exhaustive: children collectively imply the parent. A broad initial node is acceptable when it remains one coherent required state; it is not a generation-time failure merely because one Worker may later refine it.
+Decompose for **MEANING** or for **SCALE**; neither is a generation-time
+obligation. SCALE decomposition must be lossless and exhaustive: children
+collectively imply the parent. A broad initial node is acceptable when it remains
+one coherent required state; it is not a generation-time failure merely because
+one Worker may later refine it. The canonical MEANING/SCALE model, the
+completeness invariant, and the subject-scope rules are in
+`change-dag-semantics`.
+
+## Author pre-sizing
+
+The Author does not pre-size every initial semantic node for one Worker context.
+Known semantic distinctions and known causal structure belong in the initial
+graph; unknown implementation breadth is intentionally deferred. A coherent
+postcondition may remain broad at `dag_create` time — a Worker may later
+recursively SCALE-decompose it after repository discovery. See
+`change-dag-semantics` for the canonical MEANING/SCALE model and completeness
+invariant.
 
 ## Initial graph depth
 
