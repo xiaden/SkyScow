@@ -7,7 +7,7 @@ import json
 
 from common.helpers.change_dag import atomic_write_json
 from common.helpers.change_dag_ops_views import preview
-from common.helpers.change_dag_projection import live_paths, projected_source
+from common.helpers.change_dag_projection import live_paths, projected_source, search_score, search_score_stream
 from common.tools.dag_grep import dag_grep
 from common.tools.dag_read import dag_read
 from common.tools.dag_search import dag_search
@@ -71,6 +71,23 @@ def test_projected_tools_expose_only_deeper_work(tmp_path):
     assert dag_read("demo", "N3", "assigned.txt", workspace_root=root)["present"] is True
 
 
+def test_grep_paginates_deterministically(tmp_path):
+    root = _setup(tmp_path)
+    (root / "source.txt").write_text("target\ntarget\ntarget\n", encoding="utf-8")
+    first = dag_grep("demo", "N3", "target", offset=0, limit=2, workspace_root=root)
+    second = dag_grep("demo", "N3", "target", offset=2, limit=2, workspace_root=root)
+    assert first["matches"] == [{"path": "source.txt", "line": 1}, {"path": "source.txt", "line": 2}]
+    assert first["has_more"] is True
+    assert second["matches"] == [{"path": "source.txt", "line": 3}]
+    assert second["has_more"] is False
+
+
+def test_grep_rejects_invalid_pagination(tmp_path):
+    root = _setup(tmp_path)
+    assert dag_grep("demo", "N3", "target", offset=-1, workspace_root=root)["error"] == "invalid_bounds"
+    assert dag_grep("demo", "N3", "target", limit=0, workspace_root=root)["error"] == "invalid_bounds"
+
+
 def test_read_range_and_grep_are_compact(tmp_path):
     root = _setup(tmp_path)
     (root / "source.txt").write_text("one\ntarget here\nthree\n", encoding="utf-8")
@@ -100,6 +117,43 @@ def test_search_ranks_and_reports_compact_scores(tmp_path):
     results = dag_search("demo", "N3", "lower", path="other.txt", workspace_root=root)["results"]
     assert results == [{"path": "other.txt", "score": 12.0}]
     assert all(set(entry) == {"path", "score"} for entry in results)
+
+
+def test_search_streams_large_live_text_and_matches_reference(tmp_path, monkeypatch):
+    root = _setup(tmp_path)
+    large = "prefix phrase " * 6000
+    (root / "large.txt").write_text(large, encoding="utf-8")
+    monkeypatch.setattr("common.helpers.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 10)
+    result = dag_search("demo", "N3", "phrase", path="large.txt", workspace_root=root)
+    assert result["results"] == [{"path": "large.txt", "score": search_score(large, "large.txt", "phrase")}]
+
+
+def test_search_stream_matches_reference_with_small_chunks(tmp_path):
+    path = tmp_path / "chunked.txt"
+    content = "oaaafb" * 20
+    path.write_text(content, encoding="utf-8")
+    expected = search_score(content, "chunked.txt", "aa")
+    assert search_score_stream(path, "chunked.txt", "aa", chunk_size=1) == expected
+
+
+def test_search_bounded_top_k_keeps_global_path_order(tmp_path):
+    root = _setup(tmp_path)
+    for name in ("a.txt", "b.txt", "c.txt"):
+        (root / name).write_text("needle\n", encoding="utf-8")
+    result = dag_search("demo", "N3", "needle", limit=2, workspace_root=root)
+    assert result["results"] == [
+        {"path": "a.txt", "score": 4.0},
+        {"path": "b.txt", "score": 4.0},
+    ]
+
+
+def test_broad_grep_paginates_projected_and_live_paths_in_one_order(tmp_path):
+    root = _setup(tmp_path)
+    (root / "source.txt").write_text("target\n", encoding="utf-8")
+    first = dag_grep("demo", "N3", "lower|target", offset=0, limit=1, workspace_root=root)
+    second = dag_grep("demo", "N3", "lower|target", offset=1, limit=1, workspace_root=root)
+    assert first["matches"] == [{"path": "generated.txt", "line": 1}]
+    assert second["matches"] == [{"path": "source.txt", "line": 1}]
 
 
 def test_search_ignores_a_removed_path(tmp_path):
@@ -219,7 +273,7 @@ def test_large_live_read_streams_bounded_range(tmp_path, monkeypatch):
     root = _setup(tmp_path)
     target = root / "source.txt"
     target.write_text("\n".join(f"line {i}" for i in range(1, 8)) + "\n", encoding="utf-8")
-    monkeypatch.setattr("common.tools.dag_read.change_dag_patch.MAX_MATERIALIZED_TEXT_BYTES", 10)
+    monkeypatch.setattr("common.tools.dag_read.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 10)
     result = dag_read("demo", "N3", "source.txt", 6, 99, workspace_root=root)
     assert result["content"] == "line 6\nline 7\n"
     assert result["end_line"] == 7
@@ -228,7 +282,7 @@ def test_large_live_read_streams_bounded_range(tmp_path, monkeypatch):
 def test_large_full_read_reports_range_required(tmp_path, monkeypatch):
     root = _setup(tmp_path)
     (root / "source.txt").write_text("line\n" * 10, encoding="utf-8")
-    monkeypatch.setattr("common.tools.dag_read.change_dag_patch.MAX_MATERIALIZED_TEXT_BYTES", 10)
+    monkeypatch.setattr("common.tools.dag_read.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 10)
     result = dag_read("demo", "N3", "source.txt", workspace_root=root)
     assert result["error"] == "range_required"
 
@@ -236,7 +290,7 @@ def test_large_full_read_reports_range_required(tmp_path, monkeypatch):
 def test_broad_grep_streams_late_match_in_large_live_file(tmp_path, monkeypatch):
     root = _setup(tmp_path)
     (root / "late.txt").write_text("quiet\n" * 10 + "needle\n", encoding="utf-8")
-    monkeypatch.setattr("common.helpers.change_dag_patch.MAX_MATERIALIZED_TEXT_BYTES", 10)
+    monkeypatch.setattr("common.helpers.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 10)
     result = dag_grep("demo", "N3", "needle", workspace_root=root)
     assert {tuple(match.values()) for match in result["matches"]} == {("late.txt", 11)}
 
@@ -244,16 +298,26 @@ def test_broad_grep_streams_late_match_in_large_live_file(tmp_path, monkeypatch)
 def test_broad_search_reports_oversized_candidate_explicitly(tmp_path, monkeypatch):
     root = _setup(tmp_path)
     (root / "large.txt").write_text("needle\n" * 10, encoding="utf-8")
-    monkeypatch.setattr("common.helpers.change_dag_patch.MAX_MATERIALIZED_TEXT_BYTES", 10)
+    monkeypatch.setattr("common.helpers.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 10)
     result = dag_search("demo", "N3", "needle", workspace_root=root)
-    assert result["error"] == "search_incomplete"
-    assert result["path"] == "large.txt"
+    assert result["results"] == [{"path": "large.txt", "score": 40.0}]
+
+
+def test_projected_exact_read_uses_exact_threshold_not_discovery_threshold(tmp_path, monkeypatch):
+    root = _setup(tmp_path)
+    monkeypatch.setattr("common.helpers.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 10)
+    monkeypatch.setattr("common.helpers.change_dag_patch.EXACT_MAX_MATERIALIZED_TEXT_BYTES", 256)
+    dag = _dag()
+    dag["nodes"]["N6"] = {"type": "create", "path": "projected.txt", "content": "needle\n" * 10}
+    _write_bundle(root, "projected-exact", {**dag, "slug": "projected-exact"})
+    result = dag_read("projected-exact", "N3", "projected.txt", workspace_root=root)
+    assert result["content"] == "needle\n" * 10
 
 
 def test_projected_oversized_path_reports_incomplete(tmp_path, monkeypatch):
     root = _setup(tmp_path)
     (root / "source.txt").write_text("live\n", encoding="utf-8")
-    monkeypatch.setattr("common.helpers.change_dag_patch.MAX_MATERIALIZED_TEXT_BYTES", 10)
+    monkeypatch.setattr("common.helpers.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 10)
     dag = _dag()
     dag["nodes"]["N6"] = {"type": "create", "path": "projected.txt", "content": "needle\n" * 10}
     _write_bundle(root, "projected-large", {**dag, "slug": "projected-large"})

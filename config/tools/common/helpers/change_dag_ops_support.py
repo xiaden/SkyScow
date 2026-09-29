@@ -16,7 +16,7 @@ from . import change_dag
 from . import change_dag_control
 from . import change_dag_state
 from .caller_identity import current_caller_identity, take_caller_identity
-from .change_dag_mutation_log import append_mutation_event
+from .change_dag_mutation_log import append_mutation_event, mutation_logging_enabled
 
 
 def _error(code: str, message: str, **extra: Any) -> dict[str, Any]:
@@ -93,8 +93,9 @@ def _locked_mutation(func):
             # directory. Successful creation still has no pre-state and is
             # intentionally recorded as the first event.
             should_log = before is not None or success
-            try:
-                if should_log:
+            logging_warning: str | None = None
+            if should_log and mutation_logging_enabled():
+                try:
                     append_mutation_event(
                         root,
                         slug,
@@ -107,11 +108,12 @@ def _locked_mutation(func):
                         error=result if not success else None,
                         caller_identity=caller_identity,
                     )
-            except (OSError, ValueError) as exc:
-                if success:
-                    raise RuntimeError("mutation persisted but provenance logging failed") from exc
-                # A failed mutation must retain its original tool result if the
-                # optional failure record cannot be written.
+                except Exception as exc:
+                    logging_warning = f"mutation provenance was not recorded: {exc}"
+            if logging_warning and success and isinstance(result, dict):
+                metadata = result.setdefault("metadata", {})
+                if isinstance(metadata, dict):
+                    metadata["warning"] = logging_warning
             return result
 
         try:

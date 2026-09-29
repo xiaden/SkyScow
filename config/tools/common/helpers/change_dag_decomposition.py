@@ -144,7 +144,7 @@ def consume_branch_ref(ref: str, slug: str, dag: Any) -> tuple[str, ...] | None:
     return _BRANCH_REFS.pop(ref)[3]
 
 
-def decomposition_frontier(dag: Any) -> dict[str, Any]:
+def decomposition_frontier(dag: Any, *, include_branch_claims: bool = False) -> dict[str, Any]:
     """Return the deepest unresolved frontier as opaque, ephemeral branch refs.
 
     The unresolved-node/depth derivation is unchanged. Branch components are
@@ -161,16 +161,19 @@ def decomposition_frontier(dag: Any) -> dict[str, Any]:
         return {"resolved": False, "frontier": None}
     frontier_depth = max(depths[node_id] for node_id in located)
     frontier_nodes = [node_id for node_id in located if depths[node_id] == frontier_depth]
+    components = _branch_components(dag, frontier_nodes)
+    if include_branch_claims:
+        fingerprint = _dag_fingerprint(dag)
+        branches = [{"branch_claim": {"slug": str(dag.get("slug", "")), "fingerprint": fingerprint, "nodes": list(nodes)}, "available_work": len(nodes)} for nodes in components]
+    else:
+        branches = _issue_branch_refs(dag, components)
     return {
         "resolved": False,
-        "frontier": {
-            "depth": frontier_depth,
-            "branches": _issue_branch_refs(dag, _branch_components(dag, frontier_nodes)),
-        },
+        "frontier": {"depth": frontier_depth, "branches": branches},
     }
 
 
-def decomposition_frontier_view(workspace_root: Path, slug: str) -> dict[str, Any]:
+def decomposition_frontier_view(workspace_root: Path, slug: str, *, include_branch_claims: bool = False) -> dict[str, Any]:
     """Read-only tool projection: load ``slug`` and return its frontier."""
     workspace_root = Path(workspace_root)
     dag, _state, _location, err = _load(workspace_root, slug)
@@ -178,7 +181,7 @@ def decomposition_frontier_view(workspace_root: Path, slug: str) -> dict[str, An
         return err
     assert dag is not None
     return change_dag.output(
-        decomposition_frontier(dag),
+        decomposition_frontier(dag, include_branch_claims=include_branch_claims),
         "Change DAG Decomposition Frontier",
         {"slug": slug},
     )

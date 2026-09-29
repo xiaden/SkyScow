@@ -27,6 +27,7 @@ surface those conflicts rather than hiding them.
 from __future__ import annotations
 
 import difflib
+import heapq
 import os
 import re
 import subprocess
@@ -469,3 +470,39 @@ def search_score(content: str, path: str, query: str) -> float:
     score += sum(folded.count(term) for term in terms)
     score += sum(path.casefold().count(term) * 0.25 for term in terms)
     return score
+
+
+def search_score_stream(path: Path, display_path: str, query: str, *, chunk_size: int = 64 * 1024) -> float:
+    """Score UTF-8 live text incrementally with exact ``search_score`` semantics."""
+    phrase = query.casefold().strip()
+    terms = [term.casefold() for term in _TOKEN_RE.findall(query)]
+    needles = [(needle, 3.0 if needle == phrase else 1.0) for needle in ([phrase] if phrase else [])]
+    needles.extend((term, 1.0) for term in terms)
+    if not needles:
+        return sum(display_path.casefold().count(term) * 0.25 for term in terms)
+    carry = ""
+    score = 0.0
+    max_len = max(len(needle) for needle, _weight in needles)
+    processed = 0
+    next_start = [0] * len(needles)
+    with path.open("r", encoding="utf-8", newline="") as stream:
+        while True:
+            chunk = stream.read(chunk_size)
+            if not chunk:
+                break
+            folded_chunk = chunk.casefold()
+            combined = carry + folded_chunk
+            base = processed - len(carry)
+            processed += len(folded_chunk)
+            for index, (needle, weight) in enumerate(needles):
+                start = max(0, next_start[index] - base)
+                while True:
+                    found = combined.find(needle, start)
+                    if found < 0:
+                        break
+                    absolute_start = base + found
+                    score += weight
+                    next_start[index] = absolute_start + len(needle)
+                    start = found + len(needle)
+            carry = combined[-(max_len - 1):] if max_len > 1 else ""
+    return score + sum(display_path.casefold().count(term) * 0.25 for term in terms)

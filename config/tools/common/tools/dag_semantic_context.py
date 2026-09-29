@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..helpers.caller_identity import set_caller_identity
 from ..helpers.change_dag_decomposition import semantic_context_view
 from ..helpers.worker_resolution import worker_binding_for_call
 
@@ -24,6 +25,7 @@ def dag_semantic_context(
 
 if __name__ == "__main__":
     args = json.loads(input())
+    set_caller_identity(args)
     print(json.dumps(dag_semantic_context(
         args["slug"], args["node_ids"], workspace_root=Path(args["workspace_root"]),
     )))

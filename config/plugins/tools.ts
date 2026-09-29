@@ -1,16 +1,24 @@
 import { type Plugin, tool, type ToolContext } from "@opencode-ai/plugin"
 import path from "path"
+import crypto from "crypto"
 import os from "os"
 import { createCaptureRequestContextTool } from "./capture_request_context"
 import { createFixerCapabilityService, fixerCaller } from "./lib/fixer-capability"
 
-const TOOLS_DIR = path.join(os.homedir(), ".config/opencode/tools")
+function toolsDir(): string {
+  return process.env.SKYSCOW_TOOLS_DIR ?? path.join(os.homedir(), ".config/opencode/tools")
+}
 
 type ToolArgs = Record<string, unknown>
 type CallerIdentity = {
   agent: string
   session: string
   message: string
+}
+
+type SessionState = {
+  branchClaims: Map<string, Record<string, unknown>>
+  workerBindings: Map<string, Record<string, unknown>>
 }
 
 const INTERNAL_CALLER_METADATA = "__skyscow_internal"
@@ -106,17 +114,32 @@ function callerIdentity(context: ToolContext): CallerIdentity {
 
 // ── Runner ───────────────────────────────────────────────────────────────────
 
-async function runPythonTool(moduleName: string, args: ToolArgs, context: ToolContext) {
+async function runPythonTool(moduleName: string, args: ToolArgs, context: ToolContext, state?: SessionState, repairGrant?: Record<string, unknown>) {
+  const identity = callerIdentity(context)
+  const internal: Record<string, unknown> = { caller_identity: identity }
+  if (state && moduleName === "common.tools.dag_decomposition_frontier") internal.frontier_claims = true
+  if (repairGrant) internal.repair_grant = repairGrant
+  const branchRef = typeof args.branch_ref === "string" ? args.branch_ref : undefined
+  if (state && moduleName === "common.tools.dag_worker_resolve" && branchRef) {
+    const claim = state.branchClaims.get(branchRef)
+    if (claim) internal.branch_claim = claim
+    else throw new Error(`[${moduleName}] invalid_branch_ref: branch_ref is unknown, stale, or already consumed`)
+  }
+  if (state && moduleName !== "common.tools.dag_worker_resolve" && moduleName !== "common.tools.dag_decomposition_frontier") {
+    const binding = state.workerBindings.get(identity.session)
+    if (binding) internal.worker_binding = { ...binding, session_id: identity.session, session: identity.session }
+  }
   const input = JSON.stringify({
     ...args,
+
     workspace_root: workspaceRoot(context),
     // This service-owned field is written after public args so callers cannot forge it.
-    [INTERNAL_CALLER_METADATA]: { caller_identity: callerIdentity(context) },
+    [INTERNAL_CALLER_METADATA]: internal,
   })
 
   const proc = Bun.spawn({
     cmd: ["python3", "-m", moduleName],
-    cwd: TOOLS_DIR,
+    cwd: toolsDir(),
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
@@ -158,28 +181,44 @@ async function runPythonTool(moduleName: string, args: ToolArgs, context: ToolCo
     throw new Error(`[${moduleName}] ${err.error}: ${err.message ?? "unknown error"}`)
   }
 
-  // If the Python tool already returns { output, title, metadata }, use it directly
-  if (result && typeof result === "object" && "output" in result) {
-    const r = result as { output: unknown; title?: string; metadata?: Record<string, unknown> }
-    return {
-      output: typeof r.output === "string" ? r.output : JSON.stringify(r.output),
-      title: r.title ?? "",
-      metadata: r.metadata ?? {},
+  const wrapped = result && typeof result === "object" && "output" in result
+  const r = wrapped ? result as { output: unknown; title?: string; metadata?: Record<string, unknown> } : undefined
+  let output: unknown = wrapped ? r?.output : result
+  if (typeof output === "string") {
+    try { output = JSON.parse(output) } catch { /* preserve scalar tool output */ }
+  }
+  if (state && moduleName === "common.tools.dag_decomposition_frontier" && output && typeof output === "object") {
+    const frontier = output as { frontier?: { branches?: Array<{ branch_claim?: Record<string, unknown>; branch_ref?: string; available_work?: number }> } }
+    for (const branch of frontier.frontier?.branches ?? []) {
+      const claim = branch.branch_claim
+      if (claim) {
+        const ref = crypto.randomBytes(24).toString("base64url")
+        state.branchClaims.set(ref, claim)
+        branch.branch_ref = ref
+        delete branch.branch_claim
+      }
     }
   }
-
-  // Fallback: raw JSON (should not be reached for properly configured tools)
+  if (state && moduleName === "common.tools.dag_worker_resolve" && output && typeof output === "object") {
+    const binding = output as Record<string, unknown>
+    const session = identity.session
+    if (session) {
+      binding.session_id = session
+      state.workerBindings.set(session, { ...binding, session_id: session, session })
+      if (branchRef) state.branchClaims.delete(branchRef)
+    }
+  }
   const toolName = moduleName.startsWith("common.tools.") ? moduleName.slice("common.tools.".length) : moduleName
   return {
-    output: typeof result === "string" ? result : JSON.stringify(result, null, 2),
-    title: toolName,
-    metadata: {},
+    output: typeof output === "string" ? output : JSON.stringify(output, null, 2),
+    title: r?.title ?? toolName,
+    metadata: r?.metadata ?? {},
   }
 }
 
 // ── Tool definitions ─────────────────────────────────────────────────────────
 
-const tools = {
+const tools = (sessionState: SessionState) => ({
   adr_read: tool({
     description: "Read and parse an existing Architecture Decision Record.",
     args: {
@@ -315,16 +354,6 @@ const tools = {
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_create", args, context) },
   }),
-  dag_mutation_log: tool({
-    description:
-      "Read a bounded, newest-first slice of a Change DAG mutation log without mutating or exposing unbounded file contents.",
-    args: {
-      slug: requiredString("Change DAG slug"),
-      offset: optionalNumber("Number of newest entries to skip (nonnegative)"),
-      limit: optionalNumber("Maximum entries to return (positive, capped at 50)"),
-    },
-    async execute(args, context) { return runPythonTool("common.tools.dag_mutation_log", args, context) },
-  }),
   dag_show: tool({
     description: "Show the whole Change DAG or a bounded centered view around one node.",
     args: {
@@ -353,7 +382,7 @@ const tools = {
       path: requiredString("Workspace-relative path to create"),
       content: requiredString("Full file content"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_add_create", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_create", args, context, sessionState) },
   }),
   dag_add_edit: tool({
     description: "Attach an edit node under the given parents.",
@@ -363,7 +392,7 @@ const tools = {
       path: requiredString("Workspace-relative path to edit"),
       replacements: replacementArray("Ordered exact replacements applied sequentially against the accepted base"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_add_edit", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_edit", args, context, sessionState) },
   }),
   dag_add_remove: tool({
     description: "Attach a remove node under the given parents.",
@@ -372,7 +401,7 @@ const tools = {
       parent_ids: stringArray("Semantic parent node IDs"),
       path: requiredString("Workspace-relative path to remove"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_add_remove", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_remove", args, context, sessionState) },
   }),
   dag_add_move: tool({
     description: "Attach a move node under the given parents.",
@@ -383,7 +412,7 @@ const tools = {
       to_path: requiredString("Workspace-relative destination path"),
       overwrite: optionalBoolean("Replace an existing destination (default false)"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_add_move", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_move", args, context, sessionState) },
   }),
   dag_add_run: tool({
     description: "Attach a bounded verification run node under the given parents.",
@@ -393,7 +422,7 @@ const tools = {
       command: stringArray("Command argv (no shell)"),
       exclusive: optionalBoolean("Require exclusive execution"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_add_run", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_run", args, context, sessionState) },
   }),
   dag_update_requirement: tool({
     description: "Update the requirement text of a mutable semantic node.",
@@ -412,7 +441,7 @@ const tools = {
       path: optionalString("Replacement path"),
       content: optionalString("Replacement content"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_update_create", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_create", args, context, sessionState) },
   }),
   dag_update_edit: tool({
     description: "Update a mutable edit node (at least one field).",
@@ -422,7 +451,7 @@ const tools = {
       path: optionalString("Replacement path"),
       replacements: optionalReplacementArray("Exact replacements reinterpreted against the node's current self-view"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_update_edit", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_edit", args, context, sessionState) },
   }),
   dag_update_remove: tool({
     description: "Update a mutable remove node (at least one field).",
@@ -431,7 +460,7 @@ const tools = {
       node_id: requiredString("Node ID"),
       path: optionalString("Replacement path"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_update_remove", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_remove", args, context, sessionState) },
   }),
   dag_update_move: tool({
     description: "Update a mutable move node (at least one field).",
@@ -442,7 +471,7 @@ const tools = {
       to_path: optionalString("Replacement destination path"),
       overwrite: optionalBoolean("Replacement overwrite flag"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_update_move", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_move", args, context, sessionState) },
   }),
   dag_update_run: tool({
     description: "Update a mutable run node (at least one field).",
@@ -470,7 +499,7 @@ const tools = {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Node ID to remove"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_remove", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_remove", args, context, sessionState) },
   }),
   dag_link_requirement: tool({
     description: "Add exactly one requires edge from an existing semantic parent to an existing required child node. The child may be semantic or terminal; the resulting DAG must satisfy all canonical structural invariants.",
@@ -517,7 +546,7 @@ const tools = {
       branch_ref: requiredString("Opaque one-use branch reference"),
     },
     async execute(args, context) {
-      return runPythonTool("common.tools.dag_worker_resolve", args, context)
+      return runPythonTool("common.tools.dag_worker_resolve", args, context, sessionState)
     },
   }),
   dag_decomposition_frontier: tool({
@@ -527,7 +556,7 @@ const tools = {
     args: {
       slug: requiredString("Change DAG slug"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_frontier", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_frontier", args, context, sessionState) },
   }),
   dag_decomposition_scope: tool({
     description:
@@ -538,7 +567,7 @@ const tools = {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Assigned semantic node ID"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_scope", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_scope", args, context, sessionState) },
   }),
   dag_semantic_search: tool({
     description: "Search reachable semantic DAG requirements only using deterministic textual scoring; never returns terminal work details.",
@@ -555,7 +584,7 @@ const tools = {
       slug: requiredString("Change DAG slug"),
       node_ids: stringArray("Bounded semantic node IDs"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_semantic_context", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_semantic_context", args, context, sessionState) },
   }),
   dag_read: tool({
     description:
@@ -569,7 +598,7 @@ const tools = {
       start_line: optionalNumber("1-indexed inclusive start line"),
       end_line: optionalNumber("1-indexed inclusive end line"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_read", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_read", args, context, sessionState) },
   }),
   dag_grep: tool({
     description:
@@ -581,22 +610,24 @@ const tools = {
       node_id: requiredString("Semantic authoring boundary node ID"),
       pattern: requiredString("Regular expression to match"),
       path: optionalString("Optional workspace-relative projected file path"),
-      ignore_case: optionalBoolean("Case-insensitive matching"),
-    },
-    async execute(args, context) { return runPythonTool("common.tools.dag_grep", args, context) },
+       ignore_case: optionalBoolean("Case-insensitive matching"),
+       offset: optionalNumber("Nonnegative number of matches to skip"),
+       limit: optionalNumber("Positive page size, capped at 200"),
+     },
+     async execute(args, context) { return runPythonTool("common.tools.dag_grep", args, context, sessionState) },
   }),
   dag_search: tool({
     description:
       "Rank projected source files using deterministic textual scoring over a semantic authoring boundary's SELF view: live repository state plus accepted lower work strictly deeper than the boundary, plus the boundary node's own persisted terminal work. " +
-      "Same-frontier peers and shallower/future work stay excluded; an unreproducible projected path or unsafe oversized candidate fails explicitly rather than silently truncating the ranking. No semantic/vector retrieval.",
+      "Same-frontier peers and shallower/future work stay excluded; an unreproducible projected path fails explicitly rather than silently truncating the ranking. Results are exact global top-K with bounded ranking memory; no semantic/vector retrieval.",
     args: {
       slug: requiredString("Change DAG slug"),
       node_id: requiredString("Semantic authoring boundary node ID"),
       query: requiredString("Text query"),
       path: optionalString("Optional workspace-relative projected file path"),
-      limit: optionalNumber("Maximum result count"),
-    },
-    async execute(args, context) { return runPythonTool("common.tools.dag_search", args, context) },
+       limit: optionalNumber("Positive maximum result count, capped at 200"),
+     },
+     async execute(args, context) { return runPythonTool("common.tools.dag_search", args, context, sessionState) },
   }),
   dag_start: tool({
     description: "Execute a Change DAG, optionally retrying previously failed nodes.",
@@ -742,7 +773,7 @@ const tools = {
       return { output: args.text, title: "echo", metadata: {} }
     },
   })
-}
+})
 
 /**
  * Registers SkyScow's custom tools, including the native request-context capture tool.
@@ -752,13 +783,14 @@ const tools = {
  */
 export const ToolsPlugin: Plugin = async (input) => {
   const fixerCapabilities = createFixerCapabilityService()
+  const sessionState: SessionState = { branchClaims: new Map(), workerBindings: new Map() }
 
   return {
     dispose: async () => {
       console.log("[ToolsPlugin] Disposing")
     },
     tool: {
-      ...tools,
+      ...tools(sessionState),
       capture_request_context: createCaptureRequestContextTool(input),
       dag_issue_repair_grant: tool({
         description: "Issue an ephemeral, session-bound repair grant to the Change-DAG-Fixer.",
@@ -773,7 +805,6 @@ export const ToolsPlugin: Plugin = async (input) => {
             ...args,
             workspace: workspaceRoot(context),
             caller: fixerCaller(context),
-            session: typeof context.sessionID === "string" ? context.sessionID : context.sessionId,
           })
         },
       }),
@@ -796,7 +827,7 @@ export const ToolsPlugin: Plugin = async (input) => {
             caller: fixerCaller(context),
             session: typeof context.sessionID === "string" ? context.sessionID : context.sessionId,
           })
-          return runPythonTool("common.tools.dag_fixer_mutate", { ...args, _repair_grant: grant }, context)
+          return runPythonTool("common.tools.dag_fixer_mutate", args, context, sessionState, grant)
         },
       }),
     },

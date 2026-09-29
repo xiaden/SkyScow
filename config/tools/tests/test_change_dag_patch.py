@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from common.helpers.change_dag_patch import (
+    EXACT_MAX_MATERIALIZED_TEXT_BYTES,
     FilePatch,
     PatchContextError,
     PatchError,
@@ -162,7 +163,16 @@ def test_classify_file_distinguishes_binary_and_invalid_utf8(tmp_path: Path):
     assert classify_file(invalid) == "invalid_utf8"
 
 
-def test_read_text_preserving_oversized_fails_before_read_bytes(tmp_path: Path, monkeypatch):
+def test_read_text_preserving_ignores_discovery_threshold_for_exact_io(tmp_path: Path, monkeypatch):
+    target = tmp_path / "large.txt"
+    target.write_text("x" * 128, encoding="utf-8")
+    monkeypatch.setattr("common.helpers.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 16)
+    monkeypatch.setattr("common.helpers.change_dag_patch.EXACT_MAX_MATERIALIZED_TEXT_BYTES", 256)
+    assert read_text_preserving(target) == "x" * 128
+    assert classify_file(target) == "oversized"
+
+
+def test_classify_file_oversized_does_not_materialize(tmp_path: Path, monkeypatch):
     target = tmp_path / "large.txt"
     with target.open("wb") as stream:
         stream.truncate(MAX_MATERIALIZED_TEXT_BYTES + 1)
@@ -171,8 +181,7 @@ def test_read_text_preserving_oversized_fails_before_read_bytes(tmp_path: Path, 
         raise AssertionError("oversized files must not call read_bytes")
 
     monkeypatch.setattr(Path, "read_bytes", fail_read_bytes)
-    with pytest.raises(PatchError, match="maximum materialized text size"):
-        read_text_preserving(target)
+    assert classify_file(target) == "binary"
 
 
 def test_read_text_preserving_missing_raises(tmp_path: Path):

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from . import change_dag
-from .caller_identity import current_caller_identity
+from .caller_identity import current_caller_identity, current_internal_metadata
 from .change_dag_decomposition import consume_branch_ref
 
 WORKER_AGENT = "change-dag-worker"
@@ -65,6 +65,22 @@ def _consume_branch_ref(workspace_root: Path, slug: str, agent: str, session_id:
     _check_agent(agent)
     if not isinstance(branch_ref, str) or not branch_ref:
         raise ValueError("invalid_branch_ref: opaque branch_ref is required")
+    internal = current_internal_metadata() or {}
+    claim = internal.get("branch_claim")
+    if isinstance(claim, dict):
+        try:
+            dag, _path, _location = change_dag.read_dag(Path(workspace_root), slug)
+        except (FileNotFoundError, ValueError) as exc:
+            raise ValueError(f"invalid_branch_ref: {exc}") from exc
+        import hashlib, json
+        fingerprint = hashlib.sha256(json.dumps(dag, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+        nodes = claim.get("nodes")
+        if claim.get("slug") != slug or claim.get("fingerprint") != fingerprint or not isinstance(nodes, list) or not all(isinstance(node, str) for node in nodes):
+            raise ValueError("invalid_branch_ref: branch_ref does not authorize this request")
+        with _LOCK:
+            _issued.pop(branch_ref, None)
+            _issued_nodes.pop(branch_ref, None)
+        return tuple(nodes)
     with _LOCK:
         issued = _issued.get(branch_ref)
         if issued is not None:
@@ -127,6 +143,14 @@ def require_worker_session(workspace_root: Path, slug: str, node_id: str, agent:
     with _LOCK:
         binding = _bindings.get(session_id)
     if binding is None:
+        internal = current_internal_metadata() or {}
+        scope = internal.get("worker_binding")
+        if isinstance(scope, dict) and scope.get("session_id", scope.get("session")) == session_id:
+            binding = WorkerBinding(
+                str(scope.get("workspace")), str(scope.get("slug")), str(scope.get("node_id")),
+                str(scope.get("branch_ref")), str(scope.get("agent")), session_id,
+            )
+    if binding is None:
         raise ValueError("session_unbound: worker session has no resolution binding")
     if (binding.workspace, binding.slug, binding.node_id, binding.agent) != (
         _workspace_key(workspace_root), slug, node_id, agent
@@ -135,24 +159,22 @@ def require_worker_session(workspace_root: Path, slug: str, node_id: str, agent:
     return binding
 
 
-def worker_binding_for_call(workspace_root: Path, slug: str) -> WorkerBinding | None:
-    """Return the service-bound scope, preserving direct calls without identity."""
-    identity = current_caller_identity()
-    if identity is None or identity.get("agent") != WORKER_AGENT:
-        return None
-    return require_worker_session(
-        workspace_root, slug, "__bound_node__", WORKER_AGENT, identity["session"]
-    ) if False else _binding_for_identity(workspace_root, slug, identity)
-
-
 def _binding_for_identity(workspace_root: Path, slug: str, identity: dict[str, str]) -> WorkerBinding:
     with _LOCK:
         binding = _bindings.get(identity["session"])
     if binding is None:
+        internal = current_internal_metadata() or {}
+        scope = internal.get("worker_binding")
+        if isinstance(scope, dict) and scope.get("session_id", scope.get("session")) == identity["session"]:
+            binding = WorkerBinding(
+                str(scope.get("workspace")), str(scope.get("slug")), str(scope.get("node_id")),
+                str(scope.get("branch_ref")), str(scope.get("agent", WORKER_AGENT)), identity["session"],
+            )
+    if binding is None:
         raise ValueError("session_unbound: worker session has no resolution binding")
-    if binding.workspace != _workspace_key(workspace_root) or binding.slug != slug:
+    if binding.workspace != _workspace_key(workspace_root) or binding.slug != slug or binding.agent != WORKER_AGENT:
         raise ValueError("session_scope_mismatch: scoped use is outside the bound worker scope")
-    return require_worker_session(workspace_root, slug, binding.node_id, WORKER_AGENT, identity["session"])
+    return binding
 
 
 def worker_binding_for_call(workspace_root: Path, slug: str) -> WorkerBinding | None:
@@ -160,13 +182,7 @@ def worker_binding_for_call(workspace_root: Path, slug: str) -> WorkerBinding | 
     identity = current_caller_identity()
     if identity is None or identity.get("agent") != WORKER_AGENT:
         return None
-    with _LOCK:
-        binding = _bindings.get(identity["session"])
-    if binding is None:
-        raise ValueError("session_unbound: worker session has no resolution binding")
-    if binding.workspace != _workspace_key(workspace_root) or binding.slug != slug:
-        raise ValueError("session_scope_mismatch: scoped use is outside the bound worker scope")
-    return binding
+    return _binding_for_identity(workspace_root, slug, identity)
 
 
 def authorize_worker_read(workspace_root: Path, slug: str, node_id: str) -> str:

@@ -11,7 +11,14 @@ from typing import Any
 from . import change_dag
 
 MUTATION_LOG_FILENAME = "DAG_MUTATIONS.jsonl"
+MUTATION_LOG_ENV = "SKYSCOW_CHANGE_DAG_MUTATION_LOGGING"
+_SEQUENCE_TAIL_BYTES = 64 * 1024
 _SECRET_WORDS = ("secret", "token", "password", "credential", "api_key", "apikey")
+
+
+def mutation_logging_enabled() -> bool:
+    """Return whether optional mutation provenance logging is enabled."""
+    return os.environ.get(MUTATION_LOG_ENV, "1").strip().lower() not in {"0", "false", "off"}
 
 
 def mutation_log_path(workspace_root: Path, slug: str) -> Path:
@@ -77,15 +84,20 @@ def _edge_delta(before: dict[str, Any] | None, after: dict[str, Any] | None) -> 
 
 
 def _next_sequence(path: Path) -> int:
+    """Allocate from the newest valid tail entry without materializing history."""
     if not path.exists():
         return 1
-    sequence = 0
-    for line in path.read_text(encoding="utf-8").splitlines():
+    with path.open("rb") as stream:
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(max(0, size - _SEQUENCE_TAIL_BYTES))
+        tail = stream.read().decode("utf-8", errors="ignore")
+    for line in reversed(tail.splitlines()):
         try:
-            sequence = max(sequence, int(json.loads(line).get("sequence", 0)))
-        except (ValueError, TypeError, json.JSONDecodeError):
+            return int(json.loads(line).get("sequence", 0)) + 1
+        except (ValueError, TypeError, json.JSONDecodeError, AttributeError):
             continue
-    return sequence + 1
+    return 1
 
 
 def append_mutation_event(
@@ -101,11 +113,7 @@ def append_mutation_event(
     error: dict[str, Any] | None = None,
     caller_identity: dict[str, str] | None = None,
 ) -> None:
-    """Append one event; callers invoke this while holding the DAG mutation lock.
-
-    DAG.json is written first. If this append fails, the mutation remains persisted
-    but the caller receives the logging exception rather than a false success.
-    """
+    """Append one event while the caller holds the DAG mutation lock."""
     path = mutation_log_path(workspace_root, slug)
     path.parent.mkdir(parents=True, exist_ok=True)
     before_ids = set((before or {}).get("nodes", {}))

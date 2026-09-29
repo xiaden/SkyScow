@@ -58,6 +58,19 @@ def _write(workspace: Path, name: str, content: str) -> Path:
 # ---------------------------------------------------------------------------
 # Coalescing / conflicts
 # ---------------------------------------------------------------------------
+def test_exact_edit_ignores_discovery_threshold(tmp_path: Path, monkeypatch):
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    original = "line\n" + ("padding\n" * 20)
+    _write(workspace, "f.txt", original)
+    monkeypatch.setattr("common.helpers.change_dag_patch.DISCOVERY_MAX_TEXT_BYTES", 8)
+    dag = dag_with({"N1": semantic("root", ["N2"]), "N2": semantic("implementation", ["N3"]), "N3": edit("f.txt", "--- a/f.txt\n+++ b/f.txt\n@@ -1,1 +1,1 @@\n-line\n+changed\n")})
+    ops, conflicts, blocked = compile_operations(dag, {}, workspace)
+    assert not conflicts and not blocked
+    assert all(result["ok"] for result in apply_compiled(ops, workspace))
+    assert (workspace / "f.txt").read_text(encoding="utf-8").startswith("changed\n")
+
+
 def test_same_file_two_edits_coalesce_into_one_op(tmp_path: Path):
     workspace = tmp_path / "ws"
     workspace.mkdir()

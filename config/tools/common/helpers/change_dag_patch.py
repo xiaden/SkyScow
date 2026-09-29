@@ -40,9 +40,13 @@ __all__ = [
 
 _HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 _BINARY_PROBE_BYTES = 8192
-# Whole-file text materialization is deliberately bounded. Callers that need
-# larger files can use the classification result and choose a streaming path.
-MAX_MATERIALIZED_TEXT_BYTES = 16 * 1024 * 1024
+# Discovery readers use this bound to avoid unbounded inspection. Canonical DAG
+# I/O is exact and deliberately does not use this discovery ceiling.
+DISCOVERY_MAX_TEXT_BYTES = 16 * 1024 * 1024
+# Exact materialization has its own policy; discovery limits never control it.
+EXACT_MAX_MATERIALIZED_TEXT_BYTES = 16 * 1024 * 1024
+# Compatibility name retained for exact materialization callers.
+MAX_MATERIALIZED_TEXT_BYTES = EXACT_MAX_MATERIALIZED_TEXT_BYTES
 
 
 class PatchError(Exception):
@@ -498,7 +502,7 @@ def classify_file(path: Path) -> str:
         decoder.decode(probe, final=False)
     except UnicodeDecodeError:
         return "invalid_utf8"
-    if metadata.st_size > MAX_MATERIALIZED_TEXT_BYTES:
+    if metadata.st_size > DISCOVERY_MAX_TEXT_BYTES:
         return "oversized"
     return "text"
 
@@ -506,8 +510,9 @@ def classify_file(path: Path) -> str:
 def read_text_preserving(path: Path) -> str:
     """Read bounded UTF-8 text without universal-newline translation.
 
-    Raises :class:`PatchError` when the file is missing, oversized,
-    undecodable, or looks binary (a NUL byte in the first 8 KiB).
+    Raises :class:`PatchError` when the file is missing, undecodable, or looks
+    binary (a NUL byte in the first 8 KiB). Exact compiler/executor I/O is not
+    subject to the bounded discovery limit.
     """
     path = Path(path)
     try:
@@ -518,28 +523,18 @@ def read_text_preserving(path: Path) -> str:
         raise PatchError(f"cannot read file {path}: {exc}") from exc
     if not stat.S_ISREG(metadata.st_mode):
         raise PatchError(f"file is not a regular file: {path}")
-    if metadata.st_size > MAX_MATERIALIZED_TEXT_BYTES:
-        raise PatchError(
-            f"file exceeds maximum materialized text size of "
-            f"{MAX_MATERIALIZED_TEXT_BYTES} bytes: {path}"
-        )
     try:
         with path.open("rb") as stream:
             probe = stream.read(_BINARY_PROBE_BYTES)
             if b"\x00" in probe:
                 raise PatchError(f"refusing to read binary file: {path}")
-            data = probe + stream.read(MAX_MATERIALIZED_TEXT_BYTES - len(probe) + 1)
+            data = probe + stream.read()
     except FileNotFoundError as exc:
         raise PatchError(f"file does not exist: {path}") from exc
     except PatchError:
         raise
     except OSError as exc:
         raise PatchError(f"cannot read file {path}: {exc}") from exc
-    if len(data) > MAX_MATERIALIZED_TEXT_BYTES:
-        raise PatchError(
-            f"file exceeds maximum materialized text size of "
-            f"{MAX_MATERIALIZED_TEXT_BYTES} bytes: {path}"
-        )
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError as exc:

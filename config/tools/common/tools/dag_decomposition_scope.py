@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..helpers.caller_identity import set_caller_identity
 from ..helpers.change_dag_decomposition import decomposition_scope_view
 from ..helpers.worker_resolution import authorize_worker_read
 
@@ -22,6 +23,7 @@ def dag_decomposition_scope(
 
 if __name__ == "__main__":
     args = json.loads(input())
+    set_caller_identity(args)
     print(
         json.dumps(
             dag_decomposition_scope(

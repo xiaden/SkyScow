@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from ..helpers import change_dag_patch
+from ..helpers.caller_identity import set_caller_identity
 from ..helpers.change_dag_projection import canonical_query_path, line_content, projected_self_source
 from ..helpers.worker_resolution import authorize_worker_read
 
@@ -86,7 +87,7 @@ def dag_read(
             "provenance": provenance,
         }
     content = source.content(canonical)
-    if content is not None and len(content.encode("utf-8")) > change_dag_patch.MAX_MATERIALIZED_TEXT_BYTES:
+    if content is not None and len(content.encode("utf-8")) > change_dag_patch.EXACT_MAX_MATERIALIZED_TEXT_BYTES:
         return {"error": "file_too_large", "path": canonical, "size": len(content.encode("utf-8")),
                 "reason": "projected content exceeds maximum materialized text size"}
     start, end, selected, error = line_content(content, start_line, end_line)
@@ -112,6 +113,7 @@ def dag_read(
 
 if __name__ == "__main__":
     args = json.loads(input())
+    set_caller_identity(args)
     print(json.dumps(dag_read(
         args["slug"], args["node_id"], args["path"],
         args.get("start_line"), args.get("end_line"),
