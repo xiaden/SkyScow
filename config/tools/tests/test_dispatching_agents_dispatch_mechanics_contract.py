@@ -29,6 +29,8 @@ REFERENCE_AGENTS = [
     "change-dag-author",
     "change-dag-worker",
     "change-dag-reviewer",
+    "change-dag-semantic-researcher",
+    "change-dag-file-researcher",
     "rnd-manager",
     "rnd-refiner",
     "rnd-dd-author",

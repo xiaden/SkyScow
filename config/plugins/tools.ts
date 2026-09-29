@@ -452,6 +452,24 @@ const tools = {
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_remove", args, context) },
   }),
+  dag_link_requirement: tool({
+    description: "Add exactly one causal requires edge from an existing semantic parent to an existing semantic child. Rejects terminal endpoints, duplicate edges, self-edges, and cycles.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      parent_id: requiredString("Existing semantic parent node ID"),
+      child_id: requiredString("Existing semantic child node ID"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_link_requirement", args, context) },
+  }),
+  dag_unlink_requirement: tool({
+    description: "Remove exactly one causal requires edge between two existing semantic nodes. Pops the requires field when it was the last edge; rejects an edge that would strand a node or invalidate the graph.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      parent_id: requiredString("Existing semantic parent node ID"),
+      child_id: requiredString("Existing semantic child node ID"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_unlink_requirement", args, context) },
+  }),
   dag_preview: tool({
     description:
       "Preview a Change DAG without executing. No args: whole-DAG inspection (all specified work simulated across run barriers). " +
@@ -491,6 +509,23 @@ const tools = {
       node_id: requiredString("Assigned semantic node ID"),
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_scope", args, context) },
+  }),
+  dag_semantic_search: tool({
+    description: "Search reachable semantic DAG requirements only using deterministic textual scoring; never returns terminal work details.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      query: requiredString("Requirement text query"),
+      limit: optionalNumber("Maximum result count"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_semantic_search", args, context) },
+  }),
+  dag_semantic_context: tool({
+    description: "Return compact semantic-only context for bounded semantic node IDs; never returns terminal work details.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      node_ids: stringArray("Bounded semantic node IDs"),
+    },
+    async execute(args, context) { return runPythonTool("common.tools.dag_semantic_context", args, context) },
   }),
   dag_read: tool({
     description:

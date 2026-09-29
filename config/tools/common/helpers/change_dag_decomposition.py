@@ -166,6 +166,146 @@ def decomposition_scope(dag: Any, node_id: str) -> dict[str, Any]:
     }
 
 
+def semantic_search(
+    dag: Any, query: str, limit: int = 20
+) -> dict[str, Any]:
+    """Search reachable semantic requirements without exposing work nodes."""
+    nodes = change_dag.node_map(dag)
+    depths = change_dag.derived_depth(dag)
+    reachable = change_dag.reachable_from_root(dag)
+    query_text = query.casefold()
+    tokens = {token for token in query_text.split() if token}
+    matches: list[tuple[int, str]] = []
+    for node_id, node in nodes.items():
+        if node.get("type") != change_dag.SEMANTIC_TYPE or node_id not in reachable:
+            continue
+        requirement = node.get("requirement")
+        if not isinstance(requirement, str):
+            continue
+        text = requirement.casefold()
+        score = sum(1 for token in tokens if token in text)
+        if query_text and query_text in text:
+            score += 1
+        if score:
+            matches.append((score, node_id))
+    matches.sort(key=lambda item: (-item[0], _numeric(item[1])))
+    return {
+        "results": [
+            {
+                "node_id": node_id,
+                "requirement": nodes[node_id].get("requirement"),
+                "depth": depths[node_id],
+            }
+            for _score, node_id in matches[: max(0, limit)]
+            if node_id in depths
+        ]
+    }
+
+
+def semantic_search_view(
+    workspace_root: Path, slug: str, query: str, limit: int = 20
+) -> dict[str, Any]:
+    workspace_root = Path(workspace_root)
+    dag, _state, _location, err = _load(workspace_root, slug)
+    if err is not None:
+        return err
+    assert dag is not None
+    payload = semantic_search(dag, query, limit)
+    return change_dag.output(
+        {"slug": slug, "query": query, **payload},
+        "Change DAG Semantic Search",
+        {"slug": slug, "query": query},
+    )
+
+
+def semantic_context(dag: Any, node_ids: list[str]) -> dict[str, Any]:
+    """Return compact semantic-only context for requested reachable nodes."""
+    if len(node_ids) > 25:
+        return _error("too_many_nodes", "node_ids must contain no more than 25 nodes")
+    nodes = change_dag.node_map(dag)
+    reachable = change_dag.reachable_from_root(dag)
+    for node_id in node_ids:
+        if node_id not in nodes:
+            return _error("unknown_node", f"node not found: {node_id}")
+        if nodes[node_id].get("type") != change_dag.SEMANTIC_TYPE:
+            return _error(
+                "invalid_target_node",
+                f"semantic context requires a semantic node; {node_id} is {nodes[node_id].get('type')!r}",
+            )
+        if node_id not in reachable:
+            return _error("invalid_target_node", f"node is not reachable from the DAG root: {node_id}")
+
+    depths = change_dag.derived_depth(dag)
+    requested = set(node_ids)
+    parent_ids: set[str] = set()
+    require_ids: set[str] = set()
+    for parent_id, parent in nodes.items():
+        if parent.get("type") != change_dag.SEMANTIC_TYPE or parent_id not in reachable:
+            continue
+        children = change_dag.direct_children(dag, parent_id)
+        if any(child in requested for child in children):
+            parent_ids.add(parent_id)
+    for node_id in node_ids:
+        require_ids.update(
+            child for child in change_dag.direct_children(dag, node_id)
+            if child in nodes and nodes[child].get("type") == change_dag.SEMANTIC_TYPE
+            and child in reachable
+        )
+
+    ancestor_ids: set[str] = set()
+    frontier = set(parent_ids)
+    while frontier:
+        ancestor_ids.update(frontier)
+        next_frontier: set[str] = set()
+        for candidate in frontier:
+            for parent_id, parent in nodes.items():
+                if parent.get("type") == change_dag.SEMANTIC_TYPE and parent_id in reachable and candidate in change_dag.direct_children(dag, parent_id):
+                    next_frontier.add(parent_id)
+        frontier = next_frontier - ancestor_ids
+    return {
+        "nodes": [
+            {
+                "id": node_id,
+                "requirement": nodes[node_id].get("requirement"),
+                "depth": depths.get(node_id),
+                "decomposition_only": nodes[node_id].get("decomposition_only") is True,
+                "resolved": change_dag.semantic_node_resolved(dag, node_id),
+            }
+            for node_id in sorted(requested, key=_numeric)
+        ],
+        "parents": [
+            {"id": node_id, "requirement": nodes[node_id].get("requirement")}
+            for node_id in sorted(parent_ids, key=_numeric)
+        ],
+        "requires": [
+            {"id": node_id, "type": "semantic", "requirement": nodes[node_id].get("requirement")}
+            for node_id in sorted(require_ids, key=_numeric)
+        ],
+        "ancestors": [
+            {"id": node_id, "requirement": nodes[node_id].get("requirement"), "depth": depths.get(node_id)}
+            for node_id in sorted(ancestor_ids - parent_ids, key=_numeric)
+        ],
+    }
+
+
+def semantic_context_view(
+    workspace_root: Path, slug: str, node_ids: list[str]
+) -> dict[str, Any]:
+    workspace_root = Path(workspace_root)
+    dag, _state, _location, err = _load(workspace_root, slug)
+    if err is not None:
+        return err
+    assert dag is not None
+    payload = semantic_context(dag, node_ids)
+    if "error" in payload:
+        return payload
+    return change_dag.output(
+        {"slug": slug, **payload},
+        "Change DAG Semantic Context",
+        {"slug": slug, "node_ids": node_ids},
+    )
+
+
 def decomposition_scope_view(
     workspace_root: Path, slug: str, node_id: str
 ) -> dict[str, Any]:

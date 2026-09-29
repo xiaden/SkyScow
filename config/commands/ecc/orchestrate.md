@@ -39,8 +39,10 @@ Owner selection belongs to the `work-routing` skill; load it before choosing an 
 | Agent | Specialty | Use For |
 |-------|-----------|---------|
 | change-dag-author | Change DAG construction manager | Creates/amends one Change DAG — semantic decomposition, service-derived decomposition-frontier loop, bounded worker dispatch, reconciliation, validation; never writes source |
-| change-dag-worker | Bounded semantic-node author (internal) | Lowers one assigned semantic node into exact work or further decomposition; dispatched only by change-dag-author; leaf agent |
+| change-dag-worker | Bounded semantic-node author (internal) | Lowers one assigned semantic node into exact work, meaning/scale decomposition, or selective dispatch of its two read-only researchers; dispatched only by change-dag-author |
 | change-dag-reviewer | Dynamically selected read-only reviewer | Bounded semantic/work/conflict/run-barrier/DD-consistency judgment when an observable trigger exists; external evidence only, stored nowhere in DAG state |
+| change-dag-semantic-researcher | Read-only semantic researcher | Dispatched only by change-dag-worker; answers one concrete semantic-graph question for context compression; semantic graph only |
+| change-dag-file-researcher | Read-only repository researcher | Dispatched only by change-dag-worker; answers one concrete repository-discovery question for context compression; DAG-projected source is authoritative |
 
 ### QA Department
 

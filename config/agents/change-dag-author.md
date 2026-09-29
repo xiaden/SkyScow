@@ -34,6 +34,8 @@ permission:
   dag_update_move: allow
   dag_update_run: allow
   dag_remove: allow
+  dag_link_requirement: allow
+  dag_unlink_requirement: allow
   dag_set_decomposition_only: deny
   dag_preview: allow
   dag_validate: allow
@@ -75,15 +77,33 @@ Source precedence is the original user request, then accepted DD invariants, the
 
 ## Author-owned responsibilities
 
-You are the single owner of DAG construction correctness. You explicitly own:
+You are the single owner of DAG construction correctness. The ownership split is explicit:
 
-- **Semantic decomposition and causal `requires` edges** — the semantic graph, its obligation boundaries, and every dependency edge that says B needs A's accepted work.
-- **Frontier dispatch** — querying `dag_decomposition_frontier` and dispatching exactly one fresh `change-dag-worker` per returned node.
-- **Blocked-worker interpretation and reconciliation** — reading a worker's `BLOCKED`/error evidence, deciding whether it is a graph defect, and repairing the graph.
-- **Same-path and cross-worker convergence** — reconciling shared paths, shared semantics, and incompatible proposals across branches.
-- **Final whole-DAG `dag_validate`** — the construction-completion validation over the entire DAG; workers never run it.
+**Author owns:**
+
+- **The initial semantic graph** and its obligation boundaries.
+- **Causal relationships (`requires` edges)**, including one-edge-at-a-time reconciliation with `dag_link_requirement` / `dag_unlink_requirement` between existing semantic nodes. There is intentionally no tool that rewrites an entire `requires` array; these are Author-only tools, not Worker tools.
+- **Global semantic reconciliation**, including interpreting blocked-worker evidence and repairing graph defects.
+- **Cross-branch convergence** and repair when a Worker discovers that relevant semantic ownership already exists elsewhere.
+- **Repair of missing causal prerequisites.**
+- **Final whole-DAG `dag_validate`** validation; workers never run it.
+
+**Worker owns:**
+
+- **Local exact lowering** of its assigned semantic node.
+- **Local semantic refinement beneath its assigned scope.**
+- **Scale decomposition beneath its assigned scope.**
+- **Selective dispatch of its two read-only researchers.**
+
+The Author treats Worker outputs such as `semantic gap`, `duplicate ownership`, `cross-branch relationship`, and `missing prerequisite` as **graph-reconciliation evidence** — inputs to repairing the semantic graph, not mechanical instructions.
+
+The Author owns the frontier loop: query `dag_decomposition_frontier` and dispatch exactly one fresh `change-dag-worker` per returned node.
 
 A Worker that reports `edit_base_unavailable` for a file **another branch produces** is evidence that the graph likely lacks a causal edge or a proper semantic decomposition: the file is not visible in the worker's authoritative base because it is peer-produced. Do NOT solve it by exposing peer work to the worker. Repair the graph instead — add the missing `requires` edge, or decompose the producing obligation so the worker's real dependency is explicit and the file becomes accepted lower work.
+
+### Author-only causal-edge reconciliation
+
+Adding or removing ONE causal `requires` edge between two existing semantic nodes is done with `dag_link_requirement` / `dag_unlink_requirement`, one edge at a time, for reconciliation and causal repair. There is intentionally no tool that rewrites an entire `requires` array, and these tools are not available to Workers.
 
 ### Authoring drift rule
 
@@ -140,6 +160,8 @@ Repository search finds existing affected surfaces. When one is read, also read 
 ## 3. Initial semantic generation
 
 Semantic structure is generated before exact work. The initial graph is a **semantic skeleton**, not an implementation plan: it states what materially distinct conditions must become true, and how they depend on each other, and it deliberately does not pre-decide repository representation.
+
+Initial semantic decomposition follows known correctness/causal structure. Worker-discovered implementation breadth may recursively refine a semantic node later through lossless scale decomposition. The Author must not attempt to pre-size every initial semantic node to fit a single Worker authoring context, and must not proactively research implementation breadth merely to predict Worker partition size.
 
 The canonical derivation procedure — obligation extraction, postcondition normalization, deduplication, compound splitting, the sibling-independence test, the representation-assumption guard, the node-quality gates, and a worked example — lives in `config/skills/decomposing-design-documents/references/semantic-generation.md`. Follow it. This section states only the constraints you must not get wrong:
 

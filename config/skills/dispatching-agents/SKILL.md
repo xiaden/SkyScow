@@ -123,9 +123,12 @@ structure, exact work, the service-derived decomposition-frontier loop
 (`dag_decomposition_frontier`), convergence/reconciliation, preview, validation,
 and mutable correction without mutating source. It dispatches one bounded
 `change-dag-worker` per returned semantic node via native `task`; the Worker
-retrieves its own scope with `dag_decomposition_scope`. Change-DAG-Worker is a leaf
-construction capability — **Nyx never dispatches Change-DAG-Worker directly** for
-normal DAG construction. Only the orchestrator/controller (Nyx) selects
+retrieves its own scope with `dag_decomposition_scope`. Change-DAG-Worker is a
+bounded single-semantic-node construction capability that may selectively dispatch
+its two read-only researchers (`change-dag-semantic-researcher`,
+`change-dag-file-researcher`) for disposable exploration — **Nyx never dispatches Change-DAG-Worker directly**
+for normal DAG construction. Only the
+orchestrator/controller (Nyx) selects
 Change-DAG-Reviewer, and only for observable coordination or authority triggers;
 reviewer evidence is never persisted DAG state and does not authorize execution.
 Nyx owns Change DAG lifecycle control through `dag_start`, `dag_status`,
@@ -135,8 +138,10 @@ does not dispatch or record QA.
 | Agent | Dispatch reference | Dispatch role / boundary |
 |-------|--------------------|--------------------------|
 | `change-dag-author` | [`change-dag-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) | Construction manager; owns the decomposition-frontier loop and internal worker dispatch |
-| `change-dag-worker` | [`change-dag-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) | Bounded single-semantic-node lowering; dispatched only by Change-DAG-Author |
+| `change-dag-worker` | [`change-dag-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) | Bounded single-semantic-node construction; dispatches its two read-only researchers; dispatched only by Change-DAG-Author |
 | `change-dag-reviewer` | [`change-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) | Dynamically selected read-only review; selected by Nyx only for observable triggers |
+| `change-dag-semantic-researcher` | [`change-dag-semantic-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-semantic-researcher.md) | Read-only semantic-graph context compression; dispatched only by Change-DAG-Worker |
+| `change-dag-file-researcher` | [`change-dag-file-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-file-researcher.md) | Read-only repository-discovery context compression; dispatched only by Change-DAG-Worker; projected source authoritative |
 
 ### R&D Dispatch
 
@@ -306,4 +311,6 @@ For Change DAG work, the owning layer remains responsible for requirement confor
 
 - `work-routing` — canonical owner-selection policy (who owns the next step). Load it before choosing an owner; this skill begins after that choice.
 - `change-dag-lifecycle` — Nyx's Change DAG lifecycle operation contract for starting, monitoring, stopping, recovering, retrying, and archiving Change DAGs.
+- `change-dag-semantic-researcher` — Read-only semantic-graph context compression for Change-DAG-Worker dispatches.
+- `change-dag-file-researcher` — Read-only repository-discovery context compression for Change-DAG-Worker dispatches; projected source authoritative.
 - `capture-subsystem` — codebase research skills.

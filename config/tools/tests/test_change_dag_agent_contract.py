@@ -77,6 +77,8 @@ WORKER_DENIED_TOOLS = (
     "dag_show",
     "dag_preview",
     "dag_validate",
+    "dag_semantic_search",
+    "dag_semantic_context",
     "read",
     "grep",
     "glob",
@@ -177,6 +179,14 @@ class TestNyxLifecycleAuthority:
             "Nyx must not dispatch Change-DAG-Worker directly; worker dispatch is "
             "internal to Change-DAG-Author"
         )
+        for researcher in (
+            "change-dag-semantic-researcher",
+            "change-dag-file-researcher",
+        ):
+            assert not _can_spawn("nyx", researcher), (
+                f"Nyx must not dispatch {researcher}; the research children are "
+                "internal to Change-DAG-Worker"
+            )
 
 
 class TestAuthorAuthority:
@@ -232,9 +242,13 @@ class TestWorkerAuthority:
     def test_worker_agent_file_exists(self):
         assert (AGENTS / "change-dag-worker.md").exists()
 
-    def test_worker_is_a_leaf(self):
+    def test_worker_spawns_only_the_two_researchers(self):
         permission = _permission("change-dag-worker")
-        assert not _allowed(permission, "task"), "Worker must not spawn other agents"
+        assert _task_map("change-dag-worker") == {
+            "*": "deny",
+            "change-dag-semantic-researcher": "allow",
+            "change-dag-file-researcher": "allow",
+        }, "Worker may spawn only its two read-only researchers"
         for tool in ("edit", "write", "bash"):
             assert not _allowed(permission, tool), f"Worker must not own {tool}"
 
@@ -332,7 +346,8 @@ class TestReviewerAuthority:
 
     def test_reviewer_not_spawnable_by_author_or_worker(self):
         assert not _can_spawn("change-dag-author", "change-dag-reviewer")
-        assert not _allowed(_permission("change-dag-worker"), "task")
+        assert not _can_spawn("change-dag-worker", "change-dag-reviewer")
+        assert "change-dag-reviewer" not in _task_map("change-dag-worker")
 
 
 class TestRunnerRemoval:

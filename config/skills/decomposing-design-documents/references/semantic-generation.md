@@ -202,9 +202,10 @@ POSTCONDITION              Can it be stated as a condition that will be true
                            when satisfied?
 DISTINCTNESS               Does it add meaning not already represented by its
                            parent or siblings?
-BOUNDARY                   Is it narrow enough that one Worker can reason about
-                           the requirement without loading unrelated repository
-                           concerns?
+BOUNDARY                   Is it one coherent required state rather than a
+                           bundle of unrelated obligations? It may be broader
+                           than one Worker context; the Worker can refine it by
+                           lossless SCALE decomposition.
 REPRESENTATION-INDEPENDENCE Does it avoid assuming a file / symbol / mechanism
                            unless authoritative?
 AUTHORING-INDEPENDENCE     If it is a sibling, can it be correctly authored
@@ -217,6 +218,10 @@ NON-CEREMONY               Was it created because the root actually needs it,
                            not because a generic category like docs/tests/
                            migration exists?
 ```
+
+## Decomposition reasons
+
+Decompose for **MEANING** when distinct required states or causal obligations need separate nodes, or for **SCALE** when the same coherent postcondition is too broad for one bounded Worker context. SCALE decomposition must be lossless and exhaustive: children collectively imply the parent. A broad initial node is acceptable when it remains one coherent required state; it is not a generation-time failure merely because one Worker may later refine it.
 
 ## Initial graph depth
 

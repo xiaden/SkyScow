@@ -762,3 +762,127 @@ def remove_node(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any]
         "Remove Node",
         {"slug": slug, "node_id": node_id},
     )
+
+
+@_locked_mutation
+def link_requirement(
+    workspace_root: Path, slug: str, parent_id: str, child_id: str
+) -> dict[str, Any]:
+    """Add exactly one causal ``requires`` edge between existing semantic nodes.
+
+    Author graph-surgery reconciliation: it edits a single edge on the persisted
+    semantic graph and never replaces a whole ``requires`` array. Both endpoints
+    must already exist and be semantic, the edge must not already exist, and the
+    candidate must not introduce a self-reference or cycle. Every structural
+    invariant (root, exclusive-terminal, reachability, ID/path usability) is
+    enforced by ``change_dag.validate_dag`` on the candidate before persistence,
+    so a rejected link leaves ``DAG.json`` byte-for-byte unchanged.
+    """
+    workspace_root = Path(workspace_root)
+    dag, _state, err = _mutation_context(workspace_root, slug)
+    if err is not None:
+        return err
+    assert dag is not None
+
+    nodes = change_dag.node_map(dag)
+    for endpoint in (parent_id, child_id):
+        if endpoint not in nodes:
+            return _error("unknown_node", f"node not found: {endpoint}")
+    if parent_id == child_id:
+        return _error(
+            "self_reference",
+            f"cannot link {parent_id} to itself; requires edges relate distinct nodes",
+        )
+    for endpoint in (parent_id, child_id):
+        if change_dag.node_type(dag, endpoint) != change_dag.SEMANTIC_TYPE:
+            return _error(
+                "invalid_node",
+                f"node {endpoint} is not semantic; requires edges are semantic-to-semantic",
+            )
+    if child_id in change_dag.direct_children(dag, parent_id):
+        return _error("duplicate_edge", f"edge already exists: {parent_id} -> {child_id}")
+
+    candidate = copy.deepcopy(dag)
+    refs = list(candidate["nodes"][parent_id].get("requires", []))
+    refs.append(child_id)
+    candidate["nodes"][parent_id]["requires"] = refs
+
+    # Surface the cycle precisely; the validator would otherwise only report the
+    # graph as invalid, and the Author needs to know which edge is the cause.
+    if not change_dag.is_acyclic(candidate):
+        return _error(
+            "cycle_detected",
+            f"linking {parent_id} -> {child_id} would create a requires cycle",
+        )
+
+    errors = change_dag.validate_dag(candidate)
+    if errors:
+        return _error("invalid_graph", "; ".join(errors), errors=errors)
+
+    _persist(candidate, workspace_root, slug)
+    return change_dag.output(
+        {"slug": slug, "parent_id": parent_id, "child_id": child_id},
+        "Link Requirement",
+        {"slug": slug, "parent_id": parent_id, "child_id": child_id},
+    )
+
+
+@_locked_mutation
+def unlink_requirement(
+    workspace_root: Path, slug: str, parent_id: str, child_id: str
+) -> dict[str, Any]:
+    """Remove exactly one causal ``requires`` edge between existing semantic nodes.
+
+    The mirror of :func:`link_requirement`: one edge at a time, never a whole
+    array. Both endpoints must already exist and be semantic and the edge must
+    currently exist. Removing the last edge pops ``requires`` so the node becomes
+    an unresolved semantic node -- the same behavior as :func:`remove_node`'s
+    reference filtering. A removal that would strand a node or otherwise
+    invalidate the graph is rejected by the candidate validator before
+    persistence, so a rejected unlink leaves ``DAG.json`` byte-for-byte unchanged.
+    """
+    workspace_root = Path(workspace_root)
+    dag, _state, err = _mutation_context(workspace_root, slug)
+    if err is not None:
+        return err
+    assert dag is not None
+
+    nodes = change_dag.node_map(dag)
+    for endpoint in (parent_id, child_id):
+        if endpoint not in nodes:
+            return _error("unknown_node", f"node not found: {endpoint}")
+    if parent_id == child_id:
+        return _error(
+            "self_reference",
+            f"cannot unlink {parent_id} from itself; requires edges relate distinct nodes",
+        )
+    for endpoint in (parent_id, child_id):
+        if change_dag.node_type(dag, endpoint) != change_dag.SEMANTIC_TYPE:
+            return _error(
+                "invalid_node",
+                f"node {endpoint} is not semantic; requires edges are semantic-to-semantic",
+            )
+    if child_id not in change_dag.direct_children(dag, parent_id):
+        return _error("unknown_edge", f"no requires edge {parent_id} -> {child_id}")
+
+    candidate = copy.deepcopy(dag)
+    refs = [
+        ref
+        for ref in candidate["nodes"][parent_id].get("requires", [])
+        if ref != child_id
+    ]
+    if refs:
+        candidate["nodes"][parent_id]["requires"] = refs
+    else:
+        candidate["nodes"][parent_id].pop("requires", None)
+
+    errors = change_dag.validate_dag(candidate)
+    if errors:
+        return _error("invalid_graph", "; ".join(errors), errors=errors)
+
+    _persist(candidate, workspace_root, slug)
+    return change_dag.output(
+        {"slug": slug, "parent_id": parent_id, "child_id": child_id},
+        "Unlink Requirement",
+        {"slug": slug, "parent_id": parent_id, "child_id": child_id},
+    )

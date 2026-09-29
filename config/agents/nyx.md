@@ -12,6 +12,8 @@ permission:
   task:
     "*": allow
     change-dag-worker: deny
+    change-dag-semantic-researcher: deny
+    change-dag-file-researcher: deny
     support-pattern-enforcer: allow
   log_read: allow
   log_write: allow
