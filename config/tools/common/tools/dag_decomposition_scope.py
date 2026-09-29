@@ -6,11 +6,17 @@ from pathlib import Path
 from typing import Any
 
 from ..helpers.change_dag_decomposition import decomposition_scope_view
+from ..helpers.worker_resolution import authorize_worker_read
 
 
 def dag_decomposition_scope(
     slug: str, node_id: str, *, workspace_root: Path
 ) -> dict[str, Any]:
+    try:
+        node_id = authorize_worker_read(workspace_root, slug, node_id)
+    except ValueError as exc:
+        code, _, message = str(exc).partition(": ")
+        return {"error": code, "message": message or code}
     return decomposition_scope_view(workspace_root, slug, node_id)
 
 

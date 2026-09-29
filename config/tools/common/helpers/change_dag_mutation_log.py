@@ -99,6 +99,7 @@ def append_mutation_event(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
     error: dict[str, Any] | None = None,
+    caller_identity: dict[str, str] | None = None,
 ) -> None:
     """Append one event; callers invoke this while holding the DAG mutation lock.
 
@@ -125,7 +126,7 @@ def append_mutation_event(
         "requires_added": additions,
         "requires_removed": removals,
         "operation_args": sanitized_args(args, kwargs),
-    "caller_identity": None,
+        "caller_identity": caller_identity,
     }
     if success:
         event["after_digest"] = dag_digest(after)

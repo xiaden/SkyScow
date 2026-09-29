@@ -13,7 +13,12 @@ from pathlib import Path
 
 import yaml
 
-from common.helpers.change_dag_decomposition import decomposition_frontier
+from common.helpers.change_dag_decomposition import (
+    _branch_components,
+    consume_branch_ref,
+    decomposition_frontier,
+    validate_branch_ref,
+)
 from common.helpers.change_dag_ops_create import create_dag
 from common.helpers.change_dag_ops_mutation import add_requirement
 from common.tools.dag_decomposition_frontier import dag_decomposition_frontier
@@ -70,10 +75,10 @@ def test_deepest_unresolved_selected_shallower_wait_resolved_excluded():
     # N7 is the deepest unresolved node (depth 3). Its same-depth sibling N4 is
     # excluded because it resolves through a terminal child; the shallower
     # unresolved N1/N2/N3/N5/N6 wait.
-    assert payload == {
-        "resolved": False,
-        "frontier": {"depth": 3, "branches": [{"node_id": "N7"}]},
-    }
+    assert payload["resolved"] is False
+    assert payload["frontier"]["depth"] == 3
+    assert payload["frontier"]["branches"][0]["available_work"] == 1
+    assert set(payload["frontier"]["branches"][0]) == {"branch_ref", "available_work"}
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +98,10 @@ def test_shared_descendant_returned_once():
 
     assert payload["resolved"] is False
     assert payload["frontier"]["depth"] == 2
-    assert payload["frontier"]["branches"] == [{"node_id": "N4"}]
+    branch = payload["frontier"]["branches"]
+    assert len(branch) == 1
+    assert branch[0]["available_work"] == 1
+    assert "node_id" not in branch[0]
 
 
 # ---------------------------------------------------------------------------
@@ -123,19 +131,113 @@ def test_newly_introduced_deeper_semantics_become_next_frontier(workspace):
     )
 
     first = _payload(dag_decomposition_frontier("demo", workspace_root=workspace))
-    assert first == {
-        "resolved": False,
-        "frontier": {"depth": 2, "branches": [{"node_id": "N3"}]},
-    }
+    assert first["resolved"] is False
+    assert first["frontier"]["depth"] == 2
+    assert first["frontier"]["branches"][0]["available_work"] == 1
+    first_ref = first["frontier"]["branches"][0]["branch_ref"]
+    assert validate_branch_ref(first_ref, "demo", json.loads((workspace / "artifacts/change-dags/pending/demo/DAG.json").read_text()))
+    assert consume_branch_ref(first_ref, "demo", json.loads((workspace / "artifacts/change-dags/pending/demo/DAG.json").read_text())) == ("N3",)
+    assert not validate_branch_ref(first_ref, "demo", json.loads((workspace / "artifacts/change-dags/pending/demo/DAG.json").read_text()))
 
     added = add_requirement(workspace, "demo", "deeper", ["N3"])
     assert _payload(added)["node_id"] == "N4"
 
     second = _payload(dag_decomposition_frontier("demo", workspace_root=workspace))
-    assert second == {
-        "resolved": False,
-        "frontier": {"depth": 3, "branches": [{"node_id": "N4"}]},
-    }
+    assert second["resolved"] is False
+    assert second["frontier"]["depth"] == 3
+    assert second["frontier"]["branches"][0]["available_work"] == 1
+
+
+def test_layered_diamond_components_are_graph_sized_and_opaque():
+    # Two independent branch topologies, each with repeated diamond convergence.
+    nodes = {"N1": _semantic("root", ["N2", "N3"])}
+    next_id = 2
+    for branch in ("left", "right"):
+        starts = [f"N{next_id}", f"N{next_id + 1}"]
+        nodes["N1"]["requires"].extend(starts)
+        next_id += 2
+        previous = starts
+        for layer in range(8):
+            merge = f"N{next_id}"
+            next_id += 1
+            nodes[merge] = _semantic(f"{branch}-merge-{layer}")
+            for parent in previous:
+                nodes[parent] = _semantic(parent, [merge])
+            previous = [merge]
+    # Only the two deepest merges are unresolved; they remain separate components.
+    dag = _dag(nodes)
+    payload = decomposition_frontier(dag)
+    branches = payload["frontier"]["branches"]
+    assert len(branches) == 2
+    assert sorted(item["available_work"] for item in branches) == [1, 1]
+    assert all(set(item) == {"branch_ref", "available_work"} for item in branches)
+
+
+def test_frontier_incidence_keeps_three_root_branches_separate():
+    dag = _dag(
+        {
+            "N1": _semantic("root", ["N2", "N3", "N4"]),
+            "N2": _semantic("A", ["N5", "N6"]),
+            "N3": _semantic("B", ["N7"]),
+            "N4": _semantic("C", ["N8", "N9"]),
+            "N5": _semantic("A1"),
+            "N6": _semantic("A2"),
+            "N7": _semantic("B1"),
+            "N8": _semantic("C1"),
+            "N9": _semantic("C2"),
+        }
+    )
+
+    assert _branch_components(dag, ["N5", "N6", "N7", "N8", "N9"]) == [
+        ("N5", "N6"),
+        ("N7",),
+        ("N8", "N9"),
+    ]
+
+
+def test_frontier_incidence_collapses_convergence_and_cross_links():
+    dag = _dag(
+        {
+            "N1": _semantic("root", ["N2", "N3", "N4"]),
+            "N2": _semantic("A", ["N5"]),
+            "N3": _semantic("B", ["N6"]),
+            # A and B converge through N10, so their frontier groups collapse.
+            "N4": _semantic("C", ["N7"]),
+            "N5": _semantic("A1", ["N10"]),
+            "N6": _semantic("B1", ["N10"]),
+            "N7": _semantic("C1"),
+            "N10": _semantic("shared"),
+        }
+    )
+
+    assert _branch_components(dag, ["N5", "N6", "N7"]) == [("N5", "N6"), ("N7",)]
+
+    # A cross-link from C into the shared convergence makes C part of the
+    # affected component as well.
+    dag["nodes"]["N4"]["requires"].append("N10")
+    assert _branch_components(dag, ["N5", "N6", "N7"]) == [("N5", "N6", "N7")]
+
+
+def test_branch_components_scales_with_graph_not_root_paths():
+    branch_count = 120
+    depth = 24
+    nodes = {"N1": _semantic("root", [])}
+    frontier = []
+    next_id = 2
+    for branch in range(branch_count):
+        parent = "N1"
+        for layer in range(depth):
+            node_id = f"N{next_id}"
+            next_id += 1
+            nodes[node_id] = _semantic(f"branch-{branch}-layer-{layer}")
+            nodes[parent].setdefault("requires", []).append(node_id)
+            parent = node_id
+        frontier.append(parent)
+
+    components = _branch_components(_dag(nodes), frontier)
+
+    assert len(components) == branch_count
+    assert all(len(component) == 1 for component in components)
 
 
 def test_resolved_dag_tool_reports_no_frontier(workspace):

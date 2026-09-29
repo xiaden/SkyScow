@@ -8,6 +8,7 @@ from common.helpers.change_dag import dag_json_path
 from common.helpers.change_dag_ops_create import create_dag
 from common.helpers.change_dag_ops_mutation import add_requirement, link_requirement
 from common.helpers.change_dag_mutation_log import mutation_log_path
+from common.helpers.caller_identity import caller_identity_from_args, set_caller_identity
 
 
 def _events(workspace: Path, slug: str = "demo") -> list[dict]:
@@ -49,6 +50,24 @@ def test_creation_and_successful_mutation_log_sequence_and_snapshots(workspace):
     assert "semantic_graph" not in mutation["operation_args"]["kwargs"] or "secret" not in json.dumps(mutation["operation_args"])
     dag = json.loads(dag_json_path(workspace, "demo").read_text())
     assert dag["nodes"]["N3"]["requirement"] == "new child"
+
+
+def test_public_args_cannot_forge_caller_identity():
+    assert caller_identity_from_args({"agent": "forged", "session": "forged", "message": "forged"}) is None
+
+
+def test_plugin_caller_identity_is_logged_and_direct_calls_are_unattributed(workspace):
+    _create(workspace)
+    set_caller_identity({"__skyscow_internal": {"caller_identity": {"agent": "change-dag-author", "session": "ses_1", "message": "msg_1"}}})
+    add_requirement(workspace, "demo", "plugin child", ["N2"])
+    assert _events(workspace)[1]["caller_identity"] == {
+        "agent": "change-dag-author",
+        "session": "ses_1",
+        "message": "msg_1",
+    }
+
+    add_requirement(workspace, "demo", "direct child", ["N2"])
+    assert _events(workspace)[2]["caller_identity"] is None
 
 
 def test_failed_mutation_logs_without_changing_dag_or_claiming_success(workspace):

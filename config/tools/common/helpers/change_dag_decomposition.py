@@ -9,6 +9,11 @@ infers a dependency the graph does not already express through ``requires``.
 """
 from __future__ import annotations
 
+from collections import OrderedDict
+import hashlib
+import json
+import secrets
+import time
 from pathlib import Path
 from typing import Any
 
@@ -16,35 +21,151 @@ from . import change_dag
 from .change_dag_ops_support import _error, _load, _numeric
 
 
-def decomposition_frontier(dag: Any) -> dict[str, Any]:
-    """Return the deepest unresolved semantic frontier of ``dag``.
+# This service is deliberately process-local and bounded. Refs are capabilities for
+# the next authoring call, not DAG state; Task C can replace this implementation
+# without changing the frontier payload or its consumer-facing API.
+_BRANCH_REF_LIMIT = 256
+_BRANCH_REF_TTL_SECONDS = 15 * 60
+_BRANCH_REFS: OrderedDict[str, tuple[float, str, str, tuple[str, ...]]] = OrderedDict()
 
-    Derivation is exactly the existing strict depth/frontier model: reachable
-    unresolved semantic nodes, their derived construction depth (longest path
-    from the root, the same depth frontier-bounded preview uses), the maximum
-    applicable unresolved depth, then the canonical node identities at that
-    depth. Depth is never persisted and no dependency is inferred beyond
-    ``requires``; a shared descendant appears once by canonical node identity.
+
+def _dag_fingerprint(dag: Any) -> str:
+    encoded = json.dumps(dag, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _prune_branch_refs(now: float | None = None) -> None:
+    now = time.monotonic() if now is None else now
+    expired = [ref for ref, entry in _BRANCH_REFS.items() if now - entry[0] >= _BRANCH_REF_TTL_SECONDS]
+    for ref in expired:
+        _BRANCH_REFS.pop(ref, None)
+    while len(_BRANCH_REFS) > _BRANCH_REF_LIMIT:
+        _BRANCH_REFS.popitem(last=False)
+
+
+def _branch_components(dag: Any, frontier_nodes: list[str]) -> list[tuple[str, ...]]:
+    """Partition frontier nodes by their graph-local branch incidence.
+
+    A branch is seeded by the immediate semantic parents of the current
+    frontier. Frontier siblings sharing a parent therefore start in one
+    component, while root children remain separate because the root is a
+    boundary, not a branch vertex. From those seeds, walk forward through the
+    affected graph: convergence, shared descendants, and cross-links join the
+    affected parent groups, but unrelated reachable subgraphs cannot join them.
+    This is linear in the affected graph and never enumerates root-to-frontier
+    paths.
+    """
+    root = dag.get("root")
+    reachable = change_dag.reachable_from_root(dag)
+    frontier = [node_id for node_id in frontier_nodes if node_id in reachable]
+    if not frontier:
+        return []
+
+    parents: dict[str, list[str]] = {node_id: [] for node_id in frontier}
+    for node_id in reachable:
+        for child in change_dag.direct_children(dag, node_id):
+            if child in parents:
+                parents[child].append(node_id)
+
+    component_parent = {node_id: node_id for node_id in frontier}
+
+    def find(node_id: str) -> str:
+        while component_parent[node_id] != node_id:
+            component_parent[node_id] = component_parent[component_parent[node_id]]
+            node_id = component_parent[node_id]
+        return node_id
+
+    def ensure(node_id: str) -> None:
+        component_parent.setdefault(node_id, node_id)
+
+    def union(left: str, right: str) -> None:
+        ensure(left)
+        ensure(right)
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            component_parent[right_root] = left_root
+
+    # The first union is the required frontier-incidence seed. The root is a
+    # boundary: do not let it join otherwise independent root branches.
+    stack: list[str] = []
+    queued: set[str] = set()
+    for node_id in frontier:
+        for parent_node in parents.get(node_id, ()):
+            if parent_node == root:
+                continue
+            union(node_id, parent_node)
+            if parent_node not in queued:
+                queued.add(parent_node)
+                stack.append(parent_node)
+
+    # Walk forward from frontier nodes and their immediate parents. This catches
+    # shared descendants and cross-links without traversing unrelated branches.
+    queued.update(frontier)
+    stack.extend(frontier)
+    while stack:
+        node_id = stack.pop()
+        for child in change_dag.direct_children(dag, node_id):
+            if child == root or child not in reachable:
+                continue
+            union(node_id, child)
+            if child not in queued:
+                queued.add(child)
+                stack.append(child)
+
+    groups: dict[str, list[str]] = {}
+    for node_id in frontier:
+        groups.setdefault(find(node_id), []).append(node_id)
+    return [tuple(sorted(nodes, key=change_dag._numeric_id)) for nodes in groups.values()]
+
+
+def _issue_branch_refs(dag: Any, components: list[tuple[str, ...]]) -> list[dict[str, Any]]:
+    fingerprint = _dag_fingerprint(dag)
+    _prune_branch_refs()
+    result = []
+    for nodes in sorted(components, key=lambda group: change_dag._numeric_id(group[0])):
+        ref = secrets.token_urlsafe(24)
+        _BRANCH_REFS[ref] = (time.monotonic(), str(dag.get("slug", "")), fingerprint, nodes)
+        result.append({"branch_ref": ref, "available_work": len(nodes)})
+    _prune_branch_refs()
+    return result
+
+
+def validate_branch_ref(ref: str, slug: str, dag: Any) -> bool:
+    """Return whether an unconsumed ref belongs to this unchanged DAG and slug."""
+    _prune_branch_refs()
+    entry = _BRANCH_REFS.get(ref)
+    return bool(entry and entry[1] == slug and entry[2] == _dag_fingerprint(dag))
+
+
+def consume_branch_ref(ref: str, slug: str, dag: Any) -> tuple[str, ...] | None:
+    """Validate and consume a ref, returning its ephemeral semantic node IDs once."""
+    if not validate_branch_ref(ref, slug, dag):
+        return None
+    return _BRANCH_REFS.pop(ref)[3]
+
+
+def decomposition_frontier(dag: Any) -> dict[str, Any]:
+    """Return the deepest unresolved frontier as opaque, ephemeral branch refs.
+
+    The unresolved-node/depth derivation is unchanged. Branch components are
+    graph connected components after removing the root, so convergence and
+    cross-links collapse without path enumeration. Refs are process-local,
+    single-use capabilities and no ref or component is persisted.
     """
     unresolved = change_dag.unresolved_semantic_nodes(dag)
     if not unresolved:
         return {"resolved": True, "frontier": None}
-
     depths = change_dag.derived_depth(dag)
-    # An unresolved node with no derived depth has no root path under the
-    # existing model (e.g. a malformed cyclic graph); it cannot anchor a
-    # bounded frontier.
     located = [node_id for node_id in unresolved if node_id in depths]
     if not located:
         return {"resolved": False, "frontier": None}
-
     frontier_depth = max(depths[node_id] for node_id in located)
-    branches = [node_id for node_id in located if depths[node_id] == frontier_depth]
+    frontier_nodes = [node_id for node_id in located if depths[node_id] == frontier_depth]
     return {
         "resolved": False,
         "frontier": {
             "depth": frontier_depth,
-            "branches": [{"node_id": node_id} for node_id in branches],
+            "branches": _issue_branch_refs(dag, _branch_components(dag, frontier_nodes)),
         },
     }
 

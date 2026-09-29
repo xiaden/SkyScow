@@ -709,7 +709,7 @@ def set_decomposition_only(
 
 
 @_locked_mutation
-def remove_node(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any]:
+def remove_node(workspace_root: Path, slug: str, node_id: str, allowed_node_ids: set[str] | None = None) -> dict[str, Any]:
     workspace_root = Path(workspace_root)
     dag, state, err = _mutation_context(workspace_root, slug)
     if err is not None:
@@ -745,6 +745,9 @@ def remove_node(workspace_root: Path, slug: str, node_id: str) -> dict[str, Any]
         (candidate_id for candidate_id in candidate["nodes"] if candidate_id not in reachable),
         key=_numeric,
     )
+    if allowed_node_ids is not None and any(stranded_id not in allowed_node_ids for stranded_id in stranded):
+        return _error("scope_violation", "removal would affect terminal work outside grant")
+
     for stranded_id in stranded:
         stranded_mutable, _ = change_dag.mutability(candidate, state, stranded_id)
         if not stranded_mutable:

@@ -1,15 +1,19 @@
-import { type Plugin, tool } from "@opencode-ai/plugin"
+import { type Plugin, tool, type ToolContext } from "@opencode-ai/plugin"
 import path from "path"
 import os from "os"
 import { createCaptureRequestContextTool } from "./capture_request_context"
+import { createFixerCapabilityService, fixerCaller } from "./lib/fixer-capability"
 
 const TOOLS_DIR = path.join(os.homedir(), ".config/opencode/tools")
 
 type ToolArgs = Record<string, unknown>
-type ToolContext = {
-  directory?: string
-  [key: string]: unknown
+type CallerIdentity = {
+  agent: string
+  session: string
+  message: string
 }
+
+const INTERNAL_CALLER_METADATA = "__skyscow_internal"
 
 function requiredString(description: string) {
   return tool.schema.string().describe(description)
@@ -89,11 +93,15 @@ const semanticGraphSchema = tool.schema.object({
 })
 
 function workspaceRoot(context: ToolContext): string {
-  if (typeof context.directory === "string" && context.directory.length > 0) {
-    return context.directory
-  }
+  return context.directory
+}
 
-  return process.cwd()
+function callerIdentity(context: ToolContext): CallerIdentity {
+  return {
+    agent: context.agent,
+    session: context.sessionID,
+    message: context.messageID,
+  }
 }
 
 // ── Runner ───────────────────────────────────────────────────────────────────
@@ -102,6 +110,8 @@ async function runPythonTool(moduleName: string, args: ToolArgs, context: ToolCo
   const input = JSON.stringify({
     ...args,
     workspace_root: workspaceRoot(context),
+    // This service-owned field is written after public args so callers cannot forge it.
+    [INTERNAL_CALLER_METADATA]: { caller_identity: callerIdentity(context) },
   })
 
   const proc = Bun.spawn({
@@ -500,6 +510,16 @@ const tools = {
     },
     async execute(args, context) { return runPythonTool("common.tools.dag_validate", args, context) },
   }),
+  dag_worker_resolve: tool({
+    description: "Resolve one current authorable Worker node and bind it to the caller session. Caller identity is supplied by the service boundary.",
+    args: {
+      slug: requiredString("Change DAG slug"),
+      branch_ref: requiredString("Opaque one-use branch reference"),
+    },
+    async execute(args, context) {
+      return runPythonTool("common.tools.dag_worker_resolve", args, context)
+    },
+  }),
   dag_decomposition_frontier: tool({
     description:
       "Return the deepest unresolved semantic frontier of a Change DAG — the canonical semantic node identities currently ready for bounded Worker authoring. " +
@@ -731,6 +751,8 @@ const tools = {
  * whose public arguments are exactly `{ from: string }`.
  */
 export const ToolsPlugin: Plugin = async (input) => {
+  const fixerCapabilities = createFixerCapabilityService()
+
   return {
     dispose: async () => {
       console.log("[ToolsPlugin] Disposing")
@@ -738,6 +760,45 @@ export const ToolsPlugin: Plugin = async (input) => {
     tool: {
       ...tools,
       capture_request_context: createCaptureRequestContextTool(input),
+      dag_issue_repair_grant: tool({
+        description: "Issue an ephemeral, session-bound repair grant to the Change-DAG-Fixer.",
+        args: {
+          slug: requiredString("Change DAG slug"),
+          semantic_node_id: requiredString("Semantic boundary node ID"),
+          terminal_node_ids: stringArray("Existing terminal node IDs allowed by this grant"),
+          paths: stringArray("Workspace-relative paths allowed by this grant"),
+        },
+        async execute(args, context) {
+          return fixerCapabilities.issue({
+            ...args,
+            workspace: workspaceRoot(context),
+            caller: fixerCaller(context),
+            session: typeof context.sessionID === "string" ? context.sessionID : context.sessionId,
+          })
+        },
+      }),
+      dag_fixer_mutate: tool({
+        description: "Apply one authorized update or removal to existing mutable terminal work.",
+        args: {
+          repair_ref: requiredString("Opaque author-issued repair grant"),
+          slug: requiredString("Change DAG slug"),
+          semantic_node_id: requiredString("Semantic boundary node ID"),
+          operation: requiredString("Terminal operation: update or remove"),
+          node_id: requiredString("Existing terminal node ID"),
+          path: optionalString("Replacement workspace-relative path"),
+          content: optionalString("Replacement create content"),
+          replacements: optionalReplacementArray("Exact edit replacements"),
+        },
+        async execute(args, context) {
+          const grant = fixerCapabilities.authorize({
+            ...args,
+            workspace: workspaceRoot(context),
+            caller: fixerCaller(context),
+            session: typeof context.sessionID === "string" ? context.sessionID : context.sessionId,
+          })
+          return runPythonTool("common.tools.dag_fixer_mutate", { ...args, _repair_grant: grant }, context)
+        },
+      }),
     },
   }
 }

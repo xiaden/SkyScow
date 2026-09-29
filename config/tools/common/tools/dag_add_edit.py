@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..helpers.caller_identity import set_caller_identity
 from ..helpers.change_dag_ops_mutation import add_work
 
 
@@ -21,6 +22,7 @@ def dag_add_edit(
 
 if __name__ == "__main__":
     args = json.loads(input())
+    set_caller_identity(args)
     print(
         json.dumps(
             dag_add_edit(

@@ -7,6 +7,7 @@ from typing import Any
 
 from ..helpers import change_dag_patch
 from ..helpers.change_dag_projection import canonical_query_path, line_content, projected_self_source
+from ..helpers.worker_resolution import authorize_worker_read
 
 
 def _range_error(start_line: int | None, end_line: int | None) -> dict[str, Any] | None:
@@ -56,6 +57,11 @@ def dag_read(
     *,
     workspace_root: Path,
 ) -> dict[str, Any]:
+    try:
+        node_id = authorize_worker_read(workspace_root, slug, node_id)
+    except ValueError as exc:
+        code, _, message = str(exc).partition(": ")
+        return {"error": code, "message": message or code}
     source, error = projected_self_source(workspace_root, slug, node_id)
     if error is not None:
         return error

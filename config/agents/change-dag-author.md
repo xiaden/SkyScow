@@ -35,6 +35,7 @@ permission:
   dag_update_remove: allow
   dag_update_move: allow
   dag_update_run: allow
+  dag_issue_repair_grant: allow
   dag_remove: allow
   dag_link_requirement: allow
   dag_unlink_requirement: allow

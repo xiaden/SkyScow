@@ -15,6 +15,7 @@ from typing import Any
 from . import change_dag
 from . import change_dag_control
 from . import change_dag_state
+from .caller_identity import current_caller_identity, take_caller_identity
 from .change_dag_mutation_log import append_mutation_event
 
 
@@ -56,7 +57,22 @@ def _locked_mutation(func):
 
     @functools.wraps(func)
     def wrapper(workspace_root: Path, slug: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        identity = current_caller_identity()
         root = Path(workspace_root)
+        from .worker_resolution import WORKER_AGENT, worker_binding_for_call
+        try:
+            worker_binding = worker_binding_for_call(root, slug) if identity and identity.get("agent") == WORKER_AGENT else None
+        except ValueError as exc:
+            code, _, message = str(exc).partition(": ")
+            return _error(code, message or code)
+        if worker_binding is not None:
+            if func.__name__ == "add_work":
+                args = (args[0], [worker_binding.node_id], *args[2:])
+            elif func.__name__ in {"update_node", "remove_node"}:
+                args = (worker_binding.node_id, *args[1:])
+            elif func.__name__ in {"add_requirement", "link_requirement", "unlink_requirement", "set_decomposition_only"}:
+                return _error("worker_scope_forbidden", f"{func.__name__} is not allowed for workers")
+        caller_identity = take_caller_identity()
 
         def invoke() -> dict[str, Any]:
             before: dict[str, Any] | None = None
@@ -89,6 +105,7 @@ def _locked_mutation(func):
                         args=args,
                         kwargs=kwargs,
                         error=result if not success else None,
+                        caller_identity=caller_identity,
                     )
             except (OSError, ValueError) as exc:
                 if success:

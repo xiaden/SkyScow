@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..helpers.caller_identity import set_caller_identity
 from ..helpers.change_dag_ops_create import create_dag
 
 
@@ -14,4 +15,5 @@ def dag_create(slug: str, semantic_graph: dict[str, Any], *, workspace_root: Pat
 
 if __name__ == "__main__":
     args = json.loads(input())
+    set_caller_identity(args)
     print(json.dumps(dag_create(args["slug"], args["semantic_graph"], workspace_root=Path(args["workspace_root"]))))

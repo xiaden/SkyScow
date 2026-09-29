@@ -22,6 +22,7 @@ permission:
   dag_update_move: allow
   dag_update_run: allow
   dag_remove: allow
+  dag_fixer_mutate: allow
   log_read: allow
   adr_read: allow
   dd_read: allow

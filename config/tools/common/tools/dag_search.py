@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from ..helpers import change_dag_patch
+from ..helpers.worker_resolution import authorize_worker_read
 from ..helpers.change_dag_projection import (
     canonical_query_path,
     effective_content,
@@ -25,6 +26,11 @@ def dag_search(
     workspace_root: Path,
 ) -> dict[str, Any]:
     workspace_root = Path(workspace_root)
+    try:
+        node_id = authorize_worker_read(workspace_root, slug, node_id)
+    except ValueError as exc:
+        code, _, message = str(exc).partition(": ")
+        return {"error": code, "message": message or code}
     source, error = projected_self_source(workspace_root, slug, node_id)
     if error is not None:
         return error
