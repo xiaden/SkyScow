@@ -121,9 +121,11 @@ choice of which agent to dispatch comes from `work-routing`.
 Change-DAG-Author owns construction end-to-end: bounded discovery, semantic
 structure, exact work, the service-derived decomposition-frontier loop
 (`dag_decomposition_frontier`), convergence/reconciliation, preview, validation,
-and mutable correction without mutating source. It dispatches one bounded
-`change-dag-worker` per returned semantic node via native `task`; the Worker
-retrieves its own scope with `dag_decomposition_scope`. Change-DAG-Worker is a
+and mutable correction without mutating source. It dispatches at most one bounded
+`change-dag-worker` per returned opaque `branch_ref` per round via native `task`;
+the Worker first resolves the branch with `dag_worker_resolve`, then retrieves its
+service-bound scope with `dag_decomposition_scope`.
+service-bound scope with `dag_decomposition_scope`. Change-DAG-Worker is a
 bounded single-semantic-node construction capability that may selectively dispatch
 its two read-only researchers (`change-dag-semantic-researcher`,
 `change-dag-file-researcher`) for disposable exploration — **Nyx never dispatches Change-DAG-Worker directly**
@@ -315,7 +317,7 @@ Spawning a manager (RnD-Manager)?
 
 Every design, decomposition, or execution dispatch must validate DD status and requirement conformance before handing work downstream. Accept a DD only with a recognized accepted status (`Complete (accepted)`, `Approved`, or `Completed`), normalizing repository wording `Complete (accepted)` as accepted; an accepted DD intentionally held in `pending/` must name the prerequisite disposition, responsible owner, and transition condition. Reject `Draft`, `Rejected`, stale/invalid pending DDs, and any execution or archival of an unaccepted DD.
 
-For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Change-DAG-Author owns construction end-to-end, including the service-derived decomposition-frontier loop, and dispatches one fresh bounded Change-DAG-Worker per returned frontier node; only the orchestrator/controller (Nyx) selects Change-DAG-Reviewer, and only for observable coordination or authority triggers. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings and reviewer verdicts are evidence for owner/controller disposition only; `BLOCKING`, confidence, closure, PASS, and routing ownership do not authorize implementation.
+For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Change-DAG-Author owns construction end-to-end, including the service-derived decomposition-frontier loop, and dispatches at most one fresh bounded Change-DAG-Worker per returned opaque branch per round; the service selects the concrete node after `dag_worker_resolve`. Only the orchestrator/controller (Nyx) selects Change-DAG-Reviewer, and only for observable coordination or authority triggers. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings and reviewer verdicts are evidence for owner/controller disposition only; `BLOCKING`, confidence, closure, PASS, and routing ownership do not authorize implementation.
 
 ## Related Skills
 

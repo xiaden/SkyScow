@@ -69,7 +69,7 @@ Owner selection belongs to the `work-routing` skill; load it before choosing an 
 
 ### Dependency-ordered execution
 ```
-rnd-manager (owns DAG_ONLY/DD_REQUIRED/RESEARCH_ONLY) → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → Nyx (reads route/status/phase; dispatches change-dag-author only on DONE + READY_FOR_AUTHORING) → change-dag-author (manager; queries dag_decomposition_frontier, dispatches one change-dag-worker per returned node, and may trigger incomplete-dag-reviewer or change-dag-fixer) → [optional final change-dag-reviewer selected by Nyx for a completed executable DAG when triggered] → Nyx consumes disposition and owns lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
+rnd-manager (owns DAG_ONLY/DD_REQUIRED/RESEARCH_ONLY) → selected R&D capabilities → rnd-dd-author (DD_REQUIRED only) → Nyx (reads route/status/phase; dispatches change-dag-author only on DONE + READY_FOR_AUTHORING) → change-dag-author (manager; queries dag_decomposition_frontier, dispatches at most one change-dag-worker per opaque branch per round, and may trigger incomplete-dag-reviewer or change-dag-fixer) → [optional final change-dag-reviewer selected by Nyx for a completed executable DAG when triggered] → Nyx consumes disposition and owns lifecycle (dag_start/dag_status/dag_stop/dag_archive) → independent QA (qa-reviewer)
 ```
 Use when: Later tasks depend on earlier results. The Manager selects the smallest
 sufficient graph; independent Librarian/Researcher work may run concurrently.

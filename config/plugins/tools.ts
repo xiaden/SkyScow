@@ -551,7 +551,7 @@ const tools = (sessionState: SessionState) => ({
   }),
   dag_decomposition_frontier: tool({
     description:
-      "Return the deepest unresolved semantic frontier of a Change DAG — the canonical semantic node identities currently ready for bounded Worker authoring. " +
+      "Return opaque branch capabilities for the current Change DAG frontier; each branch is ready for at most one bounded Worker per round, and the service selects the concrete semantic node after `dag_worker_resolve`. " +
       "Derived from the existing graph depth and resolution semantics; never infers dependencies. Read-only.",
     args: {
       slug: requiredString("Change DAG slug"),

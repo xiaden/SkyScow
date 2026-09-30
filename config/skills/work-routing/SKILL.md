@@ -97,7 +97,7 @@ Where:
 | Weighted chars | Action |
 |----------------|--------|
 | < 32K (TRIVIAL or SMALL) | Edit directly — the Direct-Work Invariant applies; a Change DAG at this scope adds more noise than signal |
-| ≥ 32K (MEDIUM) | Change-DAG-Author authors the Change DAG; it lowers exact work by querying the service-derived decomposition frontier and dispatching one fresh bounded Change-DAG-Worker per returned node — never a single session reasoning over the whole repository |
+| ≥ 32K (MEDIUM) | Change-DAG-Author authors the Change DAG; it lowers exact work by querying the service-derived decomposition frontier and dispatching at most one fresh bounded Change-DAG-Worker per returned opaque `branch_ref` per round; the service selects the concrete node after `dag_worker_resolve`, never one Worker per frontier node or one session reasoning over the whole repository |
 | ≥ 80K (LARGE) or architecturally novel or requirements unclear | Route to RnD-Manager for evidence-based R&D evaluation |
 
 ## Architectural / R&D Routing

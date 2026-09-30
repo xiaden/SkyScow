@@ -88,3 +88,19 @@ def test_scale_doctrine_is_present_on_decomposition_surfaces():
     assert "Broad implementation discovery is evidence to evaluate SCALE decomposition" in skill
     assert "SCALE decomposition must be lossless and exhaustive" in generation
     assert "A broad initial node is acceptable" in generation
+
+
+def test_author_dispatches_branch_capabilities_not_selected_nodes():
+    author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+    worker = (AGENTS / "change-dag-worker.md").read_text(encoding="utf-8")
+    dispatch = (REPO_ROOT / "config/skills/dispatching-agents/references/change-dag-author.md").read_text(encoding="utf-8")
+    for text in (author, dispatch):
+        assert "branch_ref" in text
+        assert "at most one" in text
+        assert "branch" in text and "per" in text
+        assert "dag_worker_resolve" in text
+    assert "branch_ref" in worker
+    assert "dag_worker_resolve(slug, branch_ref)" in worker
+    assert "branch_ref" in worker and "service-assigned" in worker
+    assert "one Worker per returned semantic node" not in author
+    assert "one Worker per returned semantic node" not in dispatch
