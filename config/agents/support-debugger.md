@@ -155,7 +155,7 @@ rootCause:
   
 fixComplexity: SIMPLE | NEEDS_DAG
   # SIMPLE: Root cause clear, fix is a single section (function/method) → a bounded raw edit can handle
-  # NEEDS_DAG: Fix requires coordinated changes across multiple sections or layers → Change-DAG-Author needed
+  # NEEDS_DAG: Fix requires coordinated changes across multiple sections or layers → return to the controller for bounded Change DAG repair routing
 ```
 
 ## Output
@@ -225,7 +225,7 @@ openQuestions:
 
 ## Rules
 
-1. **No fixing** — You diagnose only. A bounded raw edit or Change-DAG-Author (for a DAG amendment) handles repairs.
+1. **No fixing** — You diagnose only. A bounded raw edit handles local repairs; for a stopped Change DAG, return the diagnosis to the controller for `change-dag-fixer` or `change-dag-semantic-repairer` routing.
 2. **Evidence over intuition** — Every hypothesis needs evidence to confirm/eliminate
 3. **Trace backwards** — Start from symptom, work back to cause
 4. **Multiple hypotheses** — Don't tunnel vision on first guess

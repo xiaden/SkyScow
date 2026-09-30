@@ -17,6 +17,7 @@ def dag_fixer_mutate(
     semantic_node_id: str,
     operation: str,
     node_id: str,
+    checkpoint_identity: str,
     *,
     workspace_root: Path,
     **fields: Any,
@@ -27,6 +28,9 @@ def dag_fixer_mutate(
         return _error("unbound", "authorized repair grant is required")
     if grant.get("slug") != slug or grant.get("semantic_node_id") != semantic_node_id:
         return _error("scope_violation", "repair grant does not match this DAG boundary")
+    internal_grant = (current_internal_metadata() or {}).get("repair_grant") or {}
+    if checkpoint_identity != internal_grant.get("checkpoint_identity"):
+        return _error("scope_violation", "repair grant does not match this checkpoint")
     allowed_nodes = grant.get("terminal_node_ids")
     allowed_paths = grant.get("paths")
     if not isinstance(allowed_nodes, list) or node_id not in allowed_nodes:
@@ -51,6 +55,10 @@ def dag_fixer_mutate(
     for key in change_dag.node_path_fields(str(node["type"])):
         if key in node and (not isinstance(allowed_paths, list) or node[key] not in allowed_paths):
             return _error("scope_violation", f"existing {key} is outside grant")
+    # Controller-only scope metadata is validated before this boundary and must
+    # never be interpreted as terminal-node fields by the mutation helper.
+    for key in ("parent_session", "checkpoint_identity", "repair_ref", "semantic_node_id", "operation", "node_id"):
+        provided.pop(key, None)
     return update_node(workspace_root, slug, node_id, **provided)
 
 

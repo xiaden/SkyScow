@@ -84,7 +84,7 @@ request. Link governing decisions and requirements through the workspace-local
 `architecture-decisions` and `system-requirements` skills (read a specific record
 by identity) instead of restating or paraphrasing them.
 
-For DD creation/amendment and Change DAG create/amend, the handoff must also
+For DD creation/amendment, initial semantic Change DAG creation, and controller-routed stopped-DAG repair, the handoff must also
 include a readable `request_context.path` to an `artifacts/requests/CTX_*.md`
 conversation snapshot created by Nyx with `capture_request_context`. The capture
 is primary-source conversation evidence; `handoff_goal` and constraints are
@@ -118,42 +118,20 @@ choice of which agent to dispatch comes from `work-routing`.
 
 ### Change DAG Dispatch
 
-Change-DAG-Author owns construction end-to-end: bounded discovery, semantic
-structure, exact work, the service-derived decomposition-frontier loop
-(`dag_decomposition_frontier`), convergence/reconciliation, preview, validation,
-and mutable correction without mutating source. It dispatches at most one bounded
-`change-dag-worker` per returned opaque `branch_ref` per round via native `task`;
-the Worker first resolves the branch with `dag_worker_resolve`, then retrieves its
-service-bound scope with `dag_decomposition_scope`.
-service-bound scope with `dag_decomposition_scope`. Change-DAG-Worker is a
-bounded single-semantic-node construction capability that may selectively dispatch
-its two read-only researchers (`change-dag-semantic-researcher`,
-`change-dag-file-researcher`) for disposable exploration — **Nyx never dispatches Change-DAG-Worker directly**
-for normal DAG construction. Only the
-orchestrator/controller (Nyx) selects
-Change-DAG-Reviewer, and only for observable coordination or authority triggers
-on a completed, resolved, executable DAG. During construction, Author may
-optionally dispatch `incomplete-dag-reviewer` for a bounded trigger-driven
-question and route a known exact-work defect to `change-dag-fixer`; neither is a
-mandatory frontier stage. Nyx never dispatches the internal Worker or Worker-only
-researchers. Final-review evidence is consumed by Nyx: `BLOCK_RUN` routes exact
-work to Fixer, semantic/graph defects to Author, and authority/DD problems
-upstream; `ALLOW_WITH_FOLLOWUP` permits execution and preserves evidence for
-post-run QA/follow-on repair, while `ALLOW` is informational. Reviewer evidence
-is never persisted DAG state and does not authorize execution. Nyx owns Change DAG
-lifecycle control through `dag_start`, `dag_status`, `dag_stop`, and
-`dag_archive`; `dag_executor` performs deterministic execution and does not
-dispatch or record QA.
+Change-DAG-Author performs exactly one atomic initial semantic `dag_create`, verifies creation, hands construction authority to the controller, and exits. It does not own frontier motion, Worker scheduling, review routing, reconciliation, exact-work repair, semantic/graph repair, or recovery. The controller derives the current deepest frontier through service queries, admits one prepared native Worker at a time, requires independent review after every completed frontier, routes exact defects to `change-dag-fixer`, semantic/graph defects to `change-dag-semantic-repairer`, authority issues to escalation, and performs final validation without inventing semantic requirements, edges, work, or meaning. The controller is Nyx-invoked through `dag_construction_state`, `dag_construction_review`, `dag_construction_start`, and `dag_semantic_repair_start`, plus `dag_semantic_repair_resolve` for the repair child.
+
+Change-DAG-Worker is a bounded opaque branch capability/session-bound local lowerer. It may selectively dispatch its two read-only researchers (`change-dag-semantic-researcher`, `change-dag-file-researcher`) for disposable exploration, but never performs global graph surgery, exact repair, lifecycle, recovery, or other agent spawning. Native v1 prepared startup is a native child session plus an awaited prompt adapter; there is no plugin-level Task lifecycle callback or persistent Worker registry. The controller is the only normal construction dispatcher. Nyx owns lifecycle control through `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, may select the independent reviewer and handle authority escalation, but does not make construction semantic decisions. Reviewer evidence is external and does not authorize execution. `dag_executor` performs deterministic execution and does not dispatch or record QA.
 
 | Agent | Dispatch reference | Dispatch role / boundary |
 |-------|--------------------|--------------------------|
-| `change-dag-author` | [`change-dag-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) | Construction manager; owns the decomposition-frontier loop and internal worker dispatch |
-| `change-dag-worker` | [`change-dag-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) | Bounded single-semantic-node construction; dispatches its two read-only researchers; dispatched only by Change-DAG-Author |
+| `change-dag-author` | [`change-dag-author`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-author.md) | Initial semantic `dag_create` and controller handoff; exits after creation |
+| `change-dag-worker` | [`change-dag-worker`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-worker.md) | Opaque branch/session-bound local lowering; dispatched only by the controller |
 | `change-dag-reviewer` | [`change-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-reviewer.md) | Dynamically selected read-only review; selected by Nyx only for observable triggers |
-| `incomplete-dag-reviewer` | [`incomplete-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/incomplete-dag-reviewer.md) | Author-callable bounded construction review; read-only evidence for incomplete DAG state |
+| `incomplete-dag-reviewer` | [`incomplete-dag-reviewer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/incomplete-dag-reviewer.md) | Controller-callable bounded construction review; read-only evidence for incomplete DAG state |
 | `change-dag-semantic-researcher` | [`change-dag-semantic-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-semantic-researcher.md) | Read-only semantic-graph context compression; dispatched only by Change-DAG-Worker |
 | `change-dag-file-researcher` | [`change-dag-file-researcher`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-file-researcher.md) | Read-only repository-discovery context compression; dispatched only by Change-DAG-Worker; projected source authoritative |
-| `change-dag-fixer` | [`change-dag-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-fixer.md) | Bounded mutable terminal-work repair; preserves semantic intent and escalates semantic/graph changes |
+| `change-dag-fixer` | [`change-dag-fixer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-fixer.md) | Bounded mutable terminal-work repair; preserves semantic intent and escalates semantic/graph findings |
+| `change-dag-semantic-repairer` | [`change-dag-semantic-repairer`](file:///home/opencode/.config/opencode/skills/dispatching-agents/references/change-dag-semantic-repairer.md) | Bounded semantic/graph repair from opaque independent-review findings; stopped-DAG leaf |
 
 ### R&D Dispatch
 
@@ -317,7 +295,7 @@ Spawning a manager (RnD-Manager)?
 
 Every design, decomposition, or execution dispatch must validate DD status and requirement conformance before handing work downstream. Accept a DD only with a recognized accepted status (`Complete (accepted)`, `Approved`, or `Completed`), normalizing repository wording `Complete (accepted)` as accepted; an accepted DD intentionally held in `pending/` must name the prerequisite disposition, responsible owner, and transition condition. Reject `Draft`, `Rejected`, stale/invalid pending DDs, and any execution or archival of an unaccepted DD.
 
-For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Change-DAG-Author owns construction end-to-end, including the service-derived decomposition-frontier loop, and dispatches at most one fresh bounded Change-DAG-Worker per returned opaque branch per round; the service selects the concrete node after `dag_worker_resolve`. Only the orchestrator/controller (Nyx) selects Change-DAG-Reviewer, and only for observable coordination or authority triggers. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings and reviewer verdicts are evidence for owner/controller disposition only; `BLOCKING`, confidence, closure, PASS, and routing ownership do not authorize implementation.
+For Change DAG work, the owning layer remains responsible for requirement conformance and DAG artifact lifecycle. Change-DAG-Author performs one initial semantic `dag_create` and hands construction to the controller; the controller derives the service frontier, admits one prepared Worker at a time, routes review and repair, and validates without inventing semantic meaning. The service selects the concrete node after `dag_worker_resolve`. Only the orchestrator/controller selects Change-DAG-Reviewer, and only for observable coordination or authority triggers. Support-PatternEnforcer does not validate requirement conformance, emit `REQUIREMENT_DRIFT`, prescribe tests, resolve unresolved nodes, or validate supersession. Its impact findings and reviewer verdicts are evidence for owner/controller disposition only; `BLOCKING`, confidence, closure, PASS, and routing ownership do not authorize implementation.
 
 ## Related Skills
 

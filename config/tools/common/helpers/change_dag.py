@@ -12,6 +12,7 @@ module never gains a hard runtime dependency.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -216,6 +217,12 @@ def _atomic_write_text(path: Path, text: str) -> None:
             os.unlink(temp_name)
         except FileNotFoundError:
             pass
+
+
+def canonical_dag_digest(dag: Any) -> str:
+    """Return the deterministic identity of the canonical DAG object."""
+    encoded = json.dumps(dag, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def resolve_anchor_commit(workspace_root: Path) -> str:

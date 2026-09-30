@@ -39,6 +39,11 @@ permission:
   dag_stop: allow
   dag_archive: allow
   dag_set_decomposition_only: deny
+  dag_construction_state: allow
+  dag_construction_review: allow
+  dag_construction_start: allow
+  dag_semantic_repair_start: allow
+  dag_issue_repair_grant: allow
 ---
 
 # Agent Instructions
@@ -94,17 +99,17 @@ If 10+ non-trivial tool calls without delegation, pause. "Non-trivial" excludes:
 
 ## Request-Context Authority (Nyx-owned capture)
 
-Before dispatching `RnD-Manager` for R&D evaluation (whose route may produce a DD), or `Change-DAG-Author` for Change DAG creation or amendment, capture the relevant visible conversation with `capture_request_context({ from: <distinctive earliest user text> })`. Include the returned `artifacts/requests/CTX_*.md` path as `request_context` in the downstream dispatch and keep `handoff_goal` as a separate operational instruction. The capture is the primary source evidence; a paraphrased request or agent summary does not replace it.
+Before dispatching `RnD-Manager` for R&D evaluation (whose route may produce a DD), or `Change-DAG-Author` for initial semantic Change DAG creation, capture the relevant visible conversation with `capture_request_context({ from: <distinctive earliest user text> })`. Include the returned `artifacts/requests/CTX_*.md` path as `request_context` in the downstream dispatch and keep `handoff_goal` as a separate operational instruction. The capture is the primary source evidence; a paraphrased request or agent summary does not replace it.
 
-The `work-routing` skill owns when request context is required; Nyx owns the capture operation. If capture fails, is ambiguous, or no valid context artifact can be supplied, do not dispatch R&D evaluation or Change DAG authoring work; report the blocker. When the same request is clarified, capture again from the original relevant anchor so the new snapshot contains the evolved conversation. This gate applies to R&D evaluation and DD authoring and to Change DAG creation/amendment, not Change DAG execution or independent QA.
+The `work-routing` skill owns when request context is required; Nyx owns the capture operation. If capture fails, is ambiguous, or no valid context artifact can be supplied, do not dispatch R&D evaluation or Change DAG authoring work; report the blocker. When the same request is clarified, capture again from the original relevant anchor so the new snapshot contains the evolved conversation. This gate applies to R&D evaluation, DD authoring, initial semantic Change DAG creation, and controller-routed stopped-DAG repair, not Change DAG execution or independent QA.
 
 ### Change DAG lifecycle
 
-Nyx owns `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, and loads the `change-dag-lifecycle` skill before operating them; the detailed lifecycle procedure lives there, not here. Nyx never authors or mutates a DAG: Change-DAG-Author owns construction and amendment and cannot execute it. Once running, a DAG is immutable; failed or stopped execution returns to Change-DAG-Author for amendment, then Nyx retries. Independent QA runs afterward and never reopens a completed DAG.
+Nyx owns `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, and loads the `change-dag-lifecycle` skill before operating them; the detailed lifecycle procedure lives there, not here. Nyx never authors or mutates a DAG and never decides semantic construction meaning. Once running, a DAG is immutable; failed or stopped execution returns to the controller-owned construction path for bounded correction before Nyx retries with `dag_start(retry=true)`. Independent QA runs afterward and never reopens a completed DAG.
 
-Construction dispatch is authority-bound: Change-DAG-Author may dispatch bounded `change-dag-worker` instances for new semantic work, optionally dispatch `incomplete-dag-reviewer` for a trigger-driven construction question, and route a known exact-work defect to `change-dag-fixer`. Nyx must not dispatch the internal Worker or either Worker-only researcher directly. Nyx alone selects the final `change-dag-reviewer`, and only for a completed, resolved, executable DAG when an observable coordination or authority trigger exists; final review is not mandatory at every frontier.
+Construction authority belongs to the controller after `Change-DAG-Author` performs its one atomic semantic `dag_create` and exits. The controller serializes construction motion, derives the current deepest frontier through service queries, admits one prepared native Worker at a time, requires independent review after every completed frontier, routes exact defects to `change-dag-fixer`, semantic/graph defects to `change-dag-semantic-repairer`, authority issues to escalation, and performs final validation. The controller must not invent semantic requirements, causal edges, terminal work, or semantic meaning. Native v1 prepared startup is a native child session plus an awaited prompt adapter; no plugin-level Task lifecycle callback or persistent Worker registry is assumed.
 
-Consume final-review evidence explicitly. A `BLOCK_RUN` finding routes a known exact-work defect to `change-dag-fixer` when semantic and graph validity remain intact; semantic or graph defects return to Change-DAG-Author; authority, DD, or architectural contradictions return upstream to the governing DD/R&D/user owner. Do not start execution until a `BLOCK_RUN` disposition is resolved and any required revalidation is complete. `ALLOW_WITH_FOLLOWUP` permits execution, preserves the review evidence, and schedules normal post-run QA/follow-on repair against the real repository. `ALLOW` is informational and does not require repair. After execution, route follow-on repair through normal work-routing: small/local work may be direct, larger or cross-layer work requires a new Change DAG, and architectural work requires R&D evaluation.
+Nyx invokes the construction controller through `dag_construction_state`, `dag_construction_review`, `dag_construction_start`, and `dag_semantic_repair_start`, and may select the independent reviewer and handle authority/lifecycle escalation, but it does not itself choose Workers, node IDs, or branches — the controller performs Worker selection and admission. Nyx does not perform construction reconciliation or grant the Author scheduler/repair authority. Review evidence is external; a blocked result is routed by the controller to the owning repairer or escalation path before execution. `ALLOW_WITH_FOLLOWUP` permits execution with preserved evidence; `ALLOW` is informational. After execution, route follow-on repair through normal work-routing and lifecycle procedures.
 
 ---
 

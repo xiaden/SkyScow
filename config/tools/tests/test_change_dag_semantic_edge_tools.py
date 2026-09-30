@@ -311,10 +311,10 @@ def test_plugin_registers_both_edge_tools():
 # ---------------------------------------------------------------------------
 # authority
 # ---------------------------------------------------------------------------
-def test_author_owns_edge_tools_and_worker_explicitly_denies_them():
+def test_author_and_worker_explicitly_deny_edge_tools():
     author = _permission("change-dag-author")
-    assert author.get("dag_link_requirement") == "allow"
-    assert author.get("dag_unlink_requirement") == "allow"
+    assert author.get("dag_link_requirement", "deny") == "deny"
+    assert author.get("dag_unlink_requirement", "deny") == "deny"
 
     worker = _permission("change-dag-worker")
     assert worker.get("dag_link_requirement") == "deny"

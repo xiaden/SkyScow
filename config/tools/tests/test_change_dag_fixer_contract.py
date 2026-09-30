@@ -66,9 +66,9 @@ def test_fixer_is_read_only_for_repository_and_cannot_spawn():
 
 
 def test_fixer_has_dag_lensed_reads_and_terminal_mutations_only():
-    for tool in ("dag_read", "dag_grep", "dag_search", *TERMINAL_MUTATIONS):
+    for tool in ("dag_read", "dag_grep", "dag_search", "dag_fixer_mutate"):
         assert _allowed(tool), f"fixer needs {tool}"
-    for tool in (*SEMANTIC_GRAPH, *LIFECYCLE):
+    for tool in (*SEMANTIC_GRAPH, *LIFECYCLE, *TERMINAL_MUTATIONS):
         assert not _allowed(tool), f"fixer must not own {tool}"
 
 
@@ -78,7 +78,8 @@ def test_contract_preserves_semantics_and_escalates_graph_changes():
         assert "existing mutable terminal" in text
         assert "semantic intent" in text.lower()
         assert "requires" in text
-        assert "Change-DAG-Author" in text
+        assert "change-dag-semantic-repairer" in text
+        assert "controller" in text
         assert "DONE | BLOCKED" in text
         assert "review_triggers" in text
         assert "dag_update_edit" in text

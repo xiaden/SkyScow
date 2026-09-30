@@ -24,7 +24,7 @@ Do not ask Support-Librarian to find governing ADRs/ASRs, and do not load a gove
  | You're about to... | Use this skill |
  | -------------------- | --------------- |
   | Design a feature (RnD-Manager) | Conditional — select only when prior process artifacts materially constrain the route |
-  | Create a Change DAG (Change-DAG-Author) | Conditional — select only when prior process artifacts materially constrain the Change DAG |
+  | Create the initial semantic Change DAG (Change-DAG-Author) | Conditional — select only when prior process artifacts materially constrain the Change DAG |
   | Route work to a department (Nyx, RnD-Manager) | Conditional — select only when prior process artifacts materially constrain routing |
   | Execute a Change DAG (Nyx lifecycle control) | No — the Change DAG should already reflect artifact context |
  | Do a quick fact check | No — overhead not worth it |
@@ -98,4 +98,4 @@ gates; do not dispatch DDAuthor directly for a new formal DD.
 - **Don't delegate governance to the Librarian** — Load the workspace-local `architecture-decisions` / `system-requirements` skill for current ADRs/ASRs; the Librarian navigates process history only.
 - **Don't re-search what the Librarian already found** — Trust the briefing. Read cited artifacts only if you need more detail.
 - **Don't ignore `no_relevant_artifacts`** — An empty briefing is signal: you're in uncharted territory. Log your decisions for future sessions.
-- **Don't spawn Librarian during mechanical execution** — If you're following a Change DAG's exact work, the Change-DAG-Author should have already gathered context.
+- **Don't spawn Librarian during mechanical execution** — If you're following a Change DAG's exact work, the initial semantic author should have already gathered context.

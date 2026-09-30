@@ -47,7 +47,7 @@ SkyScow is not just a container full of tools — it ships a complete multi-agen
 |---|---|---|
 | Orchestration | `nyx` | Default entry point; applies project rules and routes work before acting |
 | R&D | `rnd-manager`, `rnd-dd-author`, `rnd-architect`, `rnd-ideator`, `rnd-refiner`, `rnd-counter-ideator`, `rnd-counter-improver`, `rnd-improver`, `rnd-estimator`, `rnd-complexity-advisor` | Research, adversarial design, design documents, and effort sizing |
-| Execution | `change-dag-author`, `change-dag-reviewer` | Author and optionally review a Change DAG; Nyx controls lifecycle |
+| Execution | `change-dag-author`, `change-dag-reviewer`, `incomplete-dag-reviewer`, `change-dag-worker`, `change-dag-fixer`, `change-dag-semantic-repairer` | Author creates the initial semantic graph; controller routes construction and repair; Nyx controls lifecycle |
 | QA | `qa-reviewer` (+ correctness, boundary, journey, domain-risk lenses), `qa-push-manager`, `qa-repo-review-manager` (+ whole-tree reviewers), `qa-test-analyzer` / `qa-test-generator`, `qa-docs-analyzer` / `qa-docs-generator` | Independent review, test and docs gap repair, and publication gating |
 | Support | `support-researcher`, `support-librarian`, `support-pattern-enforcer`, `support-debugger` | Research, artifact navigation, impact analysis, and root-cause debugging |
 

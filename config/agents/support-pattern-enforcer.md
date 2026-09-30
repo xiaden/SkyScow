@@ -37,7 +37,7 @@ permission:
 **Responsibilities:**
 - Run `impact_closure` by default against an accepted change
 - Run `migration_scan` only for explicitly bounded Manager-accepted migration scope
-- Report evidence-backed findings and route them to the owning manager or Change-DAG-Author
+- Report evidence-backed findings and route them to the owning manager or controller; the controller selects semantic-repairer or Fixer for DAG repair
 **Constraints:**
 - Read-only — does not implement, migrate, amend Change DAGs, or authorize work
 - Discovery establishes possible impact, not migration scope

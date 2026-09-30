@@ -35,50 +35,36 @@ def _can_spawn(agent_name: str, child: str) -> bool:
     return task.get(child, task.get("*", "deny")) != "deny"
 
 
-def test_author_task_map_allows_worker_optional_review_and_fixer():
-    assert _task_map("change-dag-author") == {
-        "*": "deny",
-        "change-dag-worker": "allow",
-        "incomplete-dag-reviewer": "allow",
-        "change-dag-fixer": "allow",
-    }
-    for child in ("change-dag-semantic-researcher", "change-dag-file-researcher", "change-dag-reviewer", "nyx"):
+def test_author_cannot_spawn_construction_agents():
+    assert _task_map("change-dag-author") == {"*": "deny"}
+    for child in ("change-dag-worker", "incomplete-dag-reviewer", "change-dag-fixer", "change-dag-semantic-repairer", "change-dag-reviewer", "nyx"):
         assert not _can_spawn("change-dag-author", child)
 
 
-def test_link_unlink_are_author_only():
+def test_author_cannot_repair_semantic_edges():
     for tool in ("dag_link_requirement", "dag_unlink_requirement"):
+        assert not _allowed("change-dag-author", tool)
+
+
+def test_author_only_has_initial_creation_tools():
+    for tool in ("dag_create", "dag_show", "dag_preview", "dag_validate"):
         assert _allowed("change-dag-author", tool)
-        for agent in ("change-dag-worker", "nyx", "change-dag-reviewer"):
-            assert not _allowed(agent, tool)
-
-
-def test_author_does_not_get_semantic_read_tools():
-    for tool in ("dag_semantic_search", "dag_semantic_context"):
+    for tool in ("dag_decomposition_frontier", "dag_link_requirement", "dag_unlink_requirement", "dag_add_requirement", "dag_add_edit", "dag_update_edit", "dag_remove"):
         assert not _allowed("change-dag-author", tool)
 
 
 def test_author_boundary_prose():
     author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
-    assert "optionally dispatch `incomplete-dag-reviewer`" in author
-    assert "`change-dag-fixer`" in author
-    assert "semantic/graph correction" in author
-    assert "final/controller-level `Change-DAG-Reviewer`" in author
-    assert "Initial semantic decomposition follows known correctness/causal structure" in author
-    assert "must not attempt to pre-size every initial semantic node" in author
-    for phrase in (
-        "The initial semantic graph",
-        "Causal relationships (`requires` edges)",
-        "Global semantic reconciliation",
-        "Cross-branch convergence",
-        "Local exact lowering",
-        "Scale decomposition beneath its assigned scope",
-        "Selective dispatch of its two read-only researchers",
-    ):
-        assert phrase in author
-    for signal in ("semantic gap", "duplicate ownership", "cross-branch relationship", "missing prerequisite"):
-        assert signal in author
-    assert "graph-reconciliation evidence" in author
+    reference = (REPO_ROOT / "config/skills/dispatching-agents/references/change-dag-author.md").read_text(encoding="utf-8")
+    for text in (author, reference):
+        assert "exactly one" in text
+        assert "dag_create" in text
+        assert "controller" in text.lower()
+        assert "exit" in text.lower()
+        assert "must not" in text
+    for phrase in ("frontier", "worker", "reconciliation", "repair"):
+        assert phrase in author.lower()  # explicit negative boundary remains documented
+    assert "do not own frontier" in author
 
 
 def test_scale_doctrine_is_present_on_decomposition_surfaces():
@@ -90,17 +76,13 @@ def test_scale_doctrine_is_present_on_decomposition_surfaces():
     assert "A broad initial node is acceptable" in generation
 
 
-def test_author_dispatches_branch_capabilities_not_selected_nodes():
+def test_controller_owns_opaque_branch_admission():
     author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
     worker = (AGENTS / "change-dag-worker.md").read_text(encoding="utf-8")
     dispatch = (REPO_ROOT / "config/skills/dispatching-agents/references/change-dag-author.md").read_text(encoding="utf-8")
-    for text in (author, dispatch):
-        assert "branch_ref" in text
-        assert "at most one" in text
-        assert "branch" in text and "per" in text
-        assert "dag_worker_resolve" in text
+    assert "branch_ref" not in author
+    assert "branch_ref" not in dispatch
     assert "branch_ref" in worker
-    assert "dag_worker_resolve(slug, branch_ref)" in worker
-    assert "branch_ref" in worker and "service-assigned" in worker
+    assert "dag_worker_resolve" in worker
     assert "one Worker per returned semantic node" not in author
     assert "one Worker per returned semantic node" not in dispatch

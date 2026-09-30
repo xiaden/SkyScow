@@ -65,7 +65,7 @@ failure:
 | Complexity | Meaning | Action |
 |------------|---------|--------|
 | `SIMPLE` | Root cause clear, fix scoped to a single section (function/method) | Apply the bounded raw edit with `suggestedFix`, run lint and tests, then QA review |
-| `NEEDS_DAG` | Fix requires coordinated changes across multiple sections or layers | Dispatch Change-DAG-Author to amend the stopped Change DAG with `rootCause`, re-run, then QA review |
+| `NEEDS_DAG` | Fix requires coordinated changes across multiple sections or layers | Return the diagnosis to the controller; it routes exact terminal defects to `change-dag-fixer`, semantic/graph defects to `change-dag-semantic-repairer`, or authority issues upstream, then retries and sends the result to QA review |
 | `INCONCLUSIVE` | Debugger couldn't determine root cause | Escalate to Nyx with full debugger report. Do NOT attempt random fixes. |
 
 ## Dispatch Examples

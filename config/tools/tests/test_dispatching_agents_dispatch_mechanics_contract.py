@@ -33,6 +33,7 @@ REFERENCE_AGENTS = [
     "change-dag-semantic-researcher",
     "change-dag-file-researcher",
     "change-dag-fixer",
+    "change-dag-semantic-repairer",
     "rnd-manager",
     "rnd-refiner",
     "rnd-dd-author",

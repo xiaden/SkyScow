@@ -219,7 +219,7 @@ Every exclusion includes a positive routing instruction — "X → use Y."
 |------------------------|---------------------|-----|
 | Design features or create design documents | RnD-Manager | `task(subagent_type="rnd-manager")` |
 | Perform QA review | QA-Reviewer | `task(subagent_type="qa-reviewer")` |
-| Create or amend a Change DAG | Change-DAG-Author | `task(subagent_type="change-dag-author")` |
+| Create the initial semantic Change DAG | Change-DAG-Author | `task(subagent_type="change-dag-author")` |
 | Root cause analysis on failures | Support-Debugger | `task(subagent_type="support-debugger")` |
 | Deep codebase research | Support-Researcher | `task(subagent_type="support-researcher")` |
 ```
@@ -246,7 +246,7 @@ with the available subagent type list.
 # ❌ No condition — applies even when it shouldn't
 Treat all lint errors in the repository as yours to fix.
 ```
-When a change-dag-author creates a Change DAG and lint reports pre-existing errors in untouched
+When a change-dag-author creates the initial semantic DAG and lint reports pre-existing errors in untouched
 code, this instruction forces the authoring agent to fix them — violating its read-only scope.
 
 **Fix:** Scope the mandate and classify failures by baseline/causality.

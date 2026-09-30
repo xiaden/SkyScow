@@ -43,7 +43,7 @@ Nyx performs execution admission and artifact lifecycle (through `dag_start`/`da
 
 ## Authoring and execution separation
 
-Authoring stops after DAG creation/amendment and deterministic validation. Execution then:
+Initial semantic authoring stops after DAG creation; post-create construction repair is controller-routed and deterministic validation remains required. Execution then:
 
 1. runs a pre-execution conflict/applicability check;
 2. executes satisfied/terminal nodes in dependency order under a workspace-wide lock, one DAG at a time;

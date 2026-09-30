@@ -4,6 +4,7 @@ import crypto from "crypto"
 import os from "os"
 import { createCaptureRequestContextTool } from "./capture_request_context"
 import { createFixerCapabilityService, fixerCaller } from "./lib/fixer-capability"
+import { createConstructionContextProjectionAdapter, createConstructionControllerAdapter, createConstructionReviewAdapter, createSemanticRepairAdapter, createConstructionCapabilityService, createSemanticRepairCapabilityService } from "./lib/construction-controller"
 
 function toolsDir(): string {
   return process.env.SKYSCOW_TOOLS_DIR ?? path.join(os.homedir(), ".config/opencode/tools")
@@ -19,6 +20,10 @@ type CallerIdentity = {
 type SessionState = {
   branchClaims: Map<string, Record<string, unknown>>
   workerBindings: Map<string, Record<string, unknown>>
+  constructionCapabilities: ReturnType<typeof createConstructionCapabilityService>
+  semanticRepairCapabilities: ReturnType<typeof createSemanticRepairCapabilityService>
+  constructionReviews: Map<string, { checkpoint: string; route: string }>
+  semanticRepairBindings: Map<string, { slug: string; checkpoint_identity: string }>
 }
 
 const INTERNAL_CALLER_METADATA = "__skyscow_internal"
@@ -117,18 +122,40 @@ function callerIdentity(context: ToolContext): CallerIdentity {
 async function runPythonTool(moduleName: string, args: ToolArgs, context: ToolContext, state?: SessionState, repairGrant?: Record<string, unknown>) {
   const identity = callerIdentity(context)
   const internal: Record<string, unknown> = { caller_identity: identity }
-  if (state && moduleName === "common.tools.dag_decomposition_frontier") internal.frontier_claims = true
   if (repairGrant) internal.repair_grant = repairGrant
   const branchRef = typeof args.branch_ref === "string" ? args.branch_ref : undefined
+  let admittedBranchRef: string | undefined
   if (state && moduleName === "common.tools.dag_worker_resolve" && branchRef) {
     const claim = state.branchClaims.get(branchRef)
     if (claim) internal.branch_claim = claim
     else throw new Error(`[${moduleName}] invalid_branch_ref: branch_ref is unknown, stale, or already consumed`)
+    const constructionRef = typeof args.construction_ref === "string" ? args.construction_ref : undefined
+      if (moduleName === "common.tools.dag_worker_resolve" && !constructionRef) {
+        throw new Error(`[${moduleName}] construction_scope_violation: construction_ref is required for controller-admitted workers`)
+      }
+    if (constructionRef) {
+      try {
+        state.constructionCapabilities.consume({
+          constructionRef,
+           slug: args.slug,
+           branchRef,
+           checkpointIdentity: args.checkpoint_identity,
+            parentSession: identity.session,
+           session: identity.session,
+         })
+      } catch (error) {
+        throw error
+      }
+      admittedBranchRef = branchRef
+    }
   }
-  if (state && moduleName !== "common.tools.dag_worker_resolve" && moduleName !== "common.tools.dag_decomposition_frontier") {
+  if (state && moduleName !== "common.tools.dag_worker_resolve") {
     const binding = state.workerBindings.get(identity.session)
     if (binding) internal.worker_binding = { ...binding, session_id: identity.session, session: identity.session }
+    const repairBinding = state.semanticRepairBindings.get(identity.session)
+    if (repairBinding) internal.semantic_repair_binding = { ...repairBinding, session_id: identity.session }
   }
+  try {
   const input = JSON.stringify({
     ...args,
 
@@ -183,21 +210,16 @@ async function runPythonTool(moduleName: string, args: ToolArgs, context: ToolCo
 
   const wrapped = result && typeof result === "object" && "output" in result
   const r = wrapped ? result as { output: unknown; title?: string; metadata?: Record<string, unknown> } : undefined
+  if (state && r?.metadata && moduleName !== "common.tools.dag_semantic_repair_resolve") {
+    const binding = state.semanticRepairBindings.get(identity.session)
+    const nextCheckpoint = r.metadata.semantic_repair_checkpoint_identity
+    if (binding && typeof nextCheckpoint === "string") {
+      state.semanticRepairBindings.set(identity.session, { ...binding, checkpoint_identity: nextCheckpoint })
+    }
+  }
   let output: unknown = wrapped ? r?.output : result
   if (typeof output === "string") {
     try { output = JSON.parse(output) } catch { /* preserve scalar tool output */ }
-  }
-  if (state && moduleName === "common.tools.dag_decomposition_frontier" && output && typeof output === "object") {
-    const frontier = output as { frontier?: { branches?: Array<{ branch_claim?: Record<string, unknown>; branch_ref?: string; available_work?: number }> } }
-    for (const branch of frontier.frontier?.branches ?? []) {
-      const claim = branch.branch_claim
-      if (claim) {
-        const ref = crypto.randomBytes(24).toString("base64url")
-        state.branchClaims.set(ref, claim)
-        branch.branch_ref = ref
-        delete branch.branch_claim
-      }
-    }
   }
   if (state && moduleName === "common.tools.dag_worker_resolve" && output && typeof output === "object") {
     const binding = output as Record<string, unknown>
@@ -213,6 +235,13 @@ async function runPythonTool(moduleName: string, args: ToolArgs, context: ToolCo
     output: typeof output === "string" ? output : JSON.stringify(output, null, 2),
     title: r?.title ?? toolName,
     metadata: r?.metadata ?? {},
+  }
+  } catch (error) {
+    if (state && admittedBranchRef) {
+      state.branchClaims.delete(admittedBranchRef)
+      state.workerBindings.delete(identity.session)
+    }
+    throw error
   }
 }
 
@@ -372,7 +401,7 @@ const tools = (sessionState: SessionState) => ({
       parent_ids: stringArray("Semantic parent node IDs"),
       child_ids: optionalStringArray("Current direct children to move beneath the new requirement"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_add_requirement", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_add_requirement", args, context, sessionState) }
   }),
   dag_add_create: tool({
     description: "Attach a create node under the given parents.",
@@ -431,7 +460,7 @@ const tools = (sessionState: SessionState) => ({
       node_id: requiredString("Node ID"),
       requirement: requiredString("Replacement requirement statement"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_update_requirement", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_requirement", args, context, sessionState) }
   }),
   dag_update_create: tool({
     description: "Update a mutable create node (at least one field).",
@@ -481,7 +510,7 @@ const tools = (sessionState: SessionState) => ({
       command: optionalStringArray("Replacement command argv"),
       exclusive: optionalBoolean("Replacement exclusivity flag"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_update_run", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_update_run", args, context, sessionState) },
   }),
   dag_set_decomposition_only: tool({
     description:
@@ -491,7 +520,7 @@ const tools = (sessionState: SessionState) => ({
       node_id: requiredString("Semantic node ID"),
       value: requiredBoolean("true to declare fully decomposed into semantic children; false to reopen the judgment"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_set_decomposition_only", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_set_decomposition_only", args, context, sessionState) }
   }),
   dag_remove: tool({
     description: "Remove a mutable node, preserving shared descendants and garbage-collecting mutable unreachable work.",
@@ -508,7 +537,7 @@ const tools = (sessionState: SessionState) => ({
       parent_id: requiredString("Existing semantic parent node ID"),
       child_id: requiredString("Existing required child node ID"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_link_requirement", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_link_requirement", args, context, sessionState) },
   }),
   dag_unlink_requirement: tool({
     description: "Remove exactly one requires edge from a semantic parent to a semantic or terminal child. Pops requires when it was the last edge; rejects a result that strands work or invalidates the DAG.",
@@ -517,7 +546,7 @@ const tools = (sessionState: SessionState) => ({
       parent_id: requiredString("Existing semantic parent node ID"),
       child_id: requiredString("Existing required child node ID"),
     },
-    async execute(args, context) { return runPythonTool("common.tools.dag_unlink_requirement", args, context) },
+    async execute(args, context) { return runPythonTool("common.tools.dag_unlink_requirement", args, context, sessionState) },
   }),
   dag_preview: tool({
     description:
@@ -544,19 +573,12 @@ const tools = (sessionState: SessionState) => ({
     args: {
       slug: requiredString("Change DAG slug"),
       branch_ref: requiredString("Opaque one-use branch reference"),
+       construction_ref: requiredString("Opaque construction capability"),
+       checkpoint_identity: requiredString("Exact construction checkpoint identity"),
     },
     async execute(args, context) {
       return runPythonTool("common.tools.dag_worker_resolve", args, context, sessionState)
     },
-  }),
-  dag_decomposition_frontier: tool({
-    description:
-      "Return opaque branch capabilities for the current Change DAG frontier; each branch is ready for at most one bounded Worker per round, and the service selects the concrete semantic node after `dag_worker_resolve`. " +
-      "Derived from the existing graph depth and resolution semantics; never infers dependencies. Read-only.",
-    args: {
-      slug: requiredString("Change DAG slug"),
-    },
-    async execute(args, context) { return runPythonTool("common.tools.dag_decomposition_frontier", args, context, sessionState) },
   }),
   dag_decomposition_scope: tool({
     description:
@@ -783,7 +805,18 @@ const tools = (sessionState: SessionState) => ({
  */
 export const ToolsPlugin: Plugin = async (input) => {
   const fixerCapabilities = createFixerCapabilityService()
-  const sessionState: SessionState = { branchClaims: new Map(), workerBindings: new Map() }
+  const constructionCapabilities = createConstructionCapabilityService()
+  const constructionAdapter = createConstructionControllerAdapter(input.client as never, constructionCapabilities)
+  const contextProjectionAdapter = createConstructionContextProjectionAdapter()
+  const semanticRepairCapabilities = createSemanticRepairCapabilityService()
+  const sessionState: SessionState = {
+    branchClaims: new Map(),
+    workerBindings: new Map(),
+    constructionCapabilities,
+    semanticRepairCapabilities,
+    constructionReviews: new Map(),
+    semanticRepairBindings: new Map(),
+  }
 
   return {
     dispose: async () => {
@@ -791,43 +824,171 @@ export const ToolsPlugin: Plugin = async (input) => {
     },
     tool: {
       ...tools(sessionState),
+      dag_construction_state: tool({
+        description: "Derive current controller construction state and return a typed review challenge or admission decision.",
+        args: { slug: requiredString("Change DAG slug") },
+        async execute(args, context) {
+          if (context.agent !== "nyx") throw new Error("scope_violation: only the controller may inspect construction state")
+          return runPythonTool("common.tools.dag_construction_state", args, context, sessionState)
+        },
+      }),
+      dag_construction_review: tool({
+        description: "Submit typed independent review evidence for the exact current construction checkpoint.",
+        args: {
+          slug: requiredString("Change DAG slug"),
+          checkpoint_identity: requiredString("Exact current DAG checkpoint identity"),
+          outcome: requiredString("Typed reviewer outcome: PASS or a routed defect outcome"),
+        },
+        async execute(args, context) {
+          if (context.agent !== "nyx") throw new Error("scope_violation: only the controller may accept construction review")
+          const outcome = args.outcome as string
+          if (!["PASS", "EXACT_WORK_DEFECT", "SEMANTIC_DEFECT", "GRAPH_DEFECT", "AUTHORITY_ISSUE", "BLOCKED"].includes(outcome)) {
+            throw new Error("construction_review_invalid: unknown reviewer outcome")
+          }
+          const review = createConstructionReviewAdapter(async (request) => {
+            const reviewed = await runPythonTool("common.tools.dag_construction_review", {
+              slug: request.slug,
+              checkpoint_identity: request.checkpointIdentity,
+              outcome,
+            }, context, sessionState)
+            const parsed = JSON.parse(reviewed.output as string) as { checkpoint_identity?: string; route?: string; message?: string }
+            return {
+              kind: outcome as "PASS" | "EXACT_WORK_DEFECT" | "SEMANTIC_DEFECT" | "GRAPH_DEFECT" | "AUTHORITY_ISSUE" | "BLOCKED",
+              outcome: outcome as "PASS" | "EXACT_WORK_DEFECT" | "SEMANTIC_DEFECT" | "GRAPH_DEFECT" | "AUTHORITY_ISSUE" | "BLOCKED",
+              checkpointIdentity: parsed.checkpoint_identity ?? "",
+              route: parsed.route,
+              message: parsed.message,
+            }
+          })
+          const typed = await review.review({
+            directory: context.directory,
+            slug: args.slug as string,
+            checkpointIdentity: args.checkpoint_identity as string,
+            parentSession: context.sessionID,
+          })
+          const reviewed = { output: JSON.stringify(typed), title: "dag_construction_review", metadata: {} }
+          const result = typed as { route?: string; checkpointIdentity?: string }
+
+          if (result.route && result.checkpointIdentity === args.checkpoint_identity) sessionState.constructionReviews.set(args.slug as string, { checkpoint: args.checkpoint_identity as string, route: result.route })
+          else sessionState.constructionReviews.delete(args.slug as string)
+          return reviewed
+        },
+      }),
+      dag_construction_start: tool({
+        description: "Start one native v1 Change-DAG Worker child; the controller derives the current frontier and the awaited prompt owns construction lifetime.",
+        args: {
+          directory: requiredString("Workspace directory"),
+          slug: requiredString("Change DAG slug"),
+          branch_ref: optionalString("Previously issued opaque branch capability"),
+          checkpoint_identity: optionalString("Exact current DAG checkpoint identity"),
+        },
+        async execute(args, context) {
+          if (context.agent !== "nyx") throw new Error("scope_violation: only the controller may start construction")
+          const reviewed = sessionState.constructionReviews.get(args.slug as string)
+          if (!reviewed || reviewed.route !== "advance") throw new Error("construction_blocked: an independently recorded PASS is required for the current checkpoint")
+          if (args.checkpoint_identity && args.checkpoint_identity !== reviewed.checkpoint) throw new Error("construction_stale: supplied checkpoint_identity does not match the recorded review")
+          const stateResult = await runPythonTool("common.tools.dag_construction_state", { slug: args.slug, review_checkpoint_identity: reviewed.checkpoint }, context, sessionState)
+          const state = JSON.parse(stateResult.output as string) as { dag_checkpoint_identity?: unknown; decision?: { kind?: unknown; route?: unknown; branch_claim?: Record<string, unknown> } }
+          const current = state
+          if (typeof current.dag_checkpoint_identity !== "string") throw new Error(`construction_blocked: current checkpoint is unavailable (${JSON.stringify(current)})`)
+          if (args.checkpoint_identity && args.checkpoint_identity !== current.dag_checkpoint_identity) throw new Error("construction_stale: supplied checkpoint_identity does not match current DAG state")
+          const decision = current.decision
+          if (!decision || decision.kind === "review_required") {
+            const contextProjection = contextProjectionAdapter.project({
+              checkpointIdentity: current.dag_checkpoint_identity,
+              frontierIdentity: current.dag_checkpoint_identity,
+              nextAction: String(decision?.kind ?? "review_required"),
+            })
+            return { output: JSON.stringify({ ...current, review_required: true, context: contextProjection }), title: "dag_construction_start", metadata: {} }
+          }
+           if (decision.kind === "complete" && decision.route === "advance") {
+             return {
+               output: JSON.stringify({ ...current, completed: true, status: "complete", review_required: false }),
+               title: "dag_construction_start",
+               metadata: {},
+             }
+           }
+           if (decision.kind !== "admit_worker" || decision.route !== "advance" || !decision.branch_claim) throw new Error(`construction_${String(decision?.kind ?? "blocked")}: controller did not admit a worker`)
+           const branchRef = crypto.randomBytes(24).toString("base64url")
+          sessionState.branchClaims.set(branchRef, decision.branch_claim)
+           return constructionAdapter.start({ directory: args.directory as string, slug: args.slug as string, branchRef, checkpointIdentity: current.dag_checkpoint_identity, parentSession: context.sessionID }).then((result) => {
+             sessionState.constructionReviews.delete(args.slug as string)
+             return { output: JSON.stringify(result), title: "dag_construction_start", metadata: {} }
+           }).catch((error) => { sessionState.branchClaims.delete(branchRef); throw error })
+        },
+      }),
+      dag_semantic_repair_start: tool({
+        description: "Route a typed semantic or graph construction defect to a single-use native repair child.",
+        args: {
+          directory: requiredString("Workspace directory"),
+          slug: requiredString("Change DAG slug"),
+          checkpoint_identity: requiredString("Exact current DAG checkpoint identity"),
+          opaque_finding: requiredString("Opaque reviewer finding"),
+        },
+        async execute(args, context) {
+           if (context.agent !== "nyx") throw new Error("scope_violation: only the invoking controller may start semantic repair")
+          const reviewed = sessionState.constructionReviews.get(args.slug as string)
+          if (!reviewed || reviewed.route !== "semantic_repair" || reviewed.checkpoint !== args.checkpoint_identity) throw new Error("construction_blocked: semantic repair requires a recorded semantic/graph review for the exact current checkpoint")
+           const repair = createSemanticRepairAdapter((request) => constructionAdapter.startSemanticRepair(request, semanticRepairCapabilities).then((result) => ({
+             checkpointIdentity: request.checkpointIdentity,
+             childSession: result.child_session,
+           })))
+             return repair.invoke({
+             directory: args.directory as string, slug: args.slug as string, checkpointIdentity: args.checkpoint_identity as string,
+             parentSession: context.sessionID, opaqueFinding: args.opaque_finding as string,
+           }).then((result) => {
+             sessionState.constructionReviews.delete(args.slug as string)
+             return { output: JSON.stringify(result), title: "dag_semantic_repair_start", metadata: {} }
+           })
+        },
+      }),
+      dag_semantic_repair_resolve: tool({
+        description: "Consume the opaque, single-use semantic repair capability in the bound child session.",
+        args: {
+           semantic_repair_ref: requiredString("Opaque semantic repair capability"),
+           slug: requiredString("Change DAG slug"),
+             checkpoint_identity: requiredString("Exact repair checkpoint identity"),
+           },
+        async execute(args, context) {
+          if (context.agent !== "change-dag-semantic-repairer") throw new Error("scope_violation: semantic repairer-only capability")
+           const capability = sessionState.semanticRepairCapabilities.consume({ repairRef: args.semantic_repair_ref, slug: args.slug, checkpointIdentity: args.checkpoint_identity, session: context.sessionID })
+           sessionState.semanticRepairBindings.set(context.sessionID, { slug: capability.slug, checkpoint_identity: capability.checkpointIdentity })
+           return { output: JSON.stringify({ slug: capability.slug, checkpoint_identity: capability.checkpointIdentity, parent_session: capability.parentSession }), title: "dag_semantic_repair_resolve", metadata: {} }
+        },
+      }),
       capture_request_context: createCaptureRequestContextTool(input),
       dag_issue_repair_grant: tool({
         description: "Issue an ephemeral, session-bound repair grant to the Change-DAG-Fixer.",
         args: {
           slug: requiredString("Change DAG slug"),
           semantic_node_id: requiredString("Semantic boundary node ID"),
-          terminal_node_ids: stringArray("Existing terminal node IDs allowed by this grant"),
-          paths: stringArray("Workspace-relative paths allowed by this grant"),
-        },
+           terminal_node_ids: stringArray("Existing terminal node IDs allowed by this grant"),
+           paths: stringArray("Workspace-relative paths allowed by this grant"),
+           checkpoint_identity: requiredString("Exact repair checkpoint identity"),
+           intended_child_session: optionalString("Authenticated fixer child session identity"),
+         },
         async execute(args, context) {
-          return fixerCapabilities.issue({
-            ...args,
-            workspace: workspaceRoot(context),
-            caller: fixerCaller(context),
-          })
+          if (context.agent !== "nyx") throw new Error("scope_violation: only Nyx may issue repair grants")
+            const issued = fixerCapabilities.issue({ ...args, parent_session: context.sessionID, workspace: workspaceRoot(context), caller: fixerCaller(context) })
+           return { output: JSON.stringify(issued), title: "dag_issue_repair_grant", metadata: {} }
         },
       }),
       dag_fixer_mutate: tool({
         description: "Apply one authorized update or removal to existing mutable terminal work.",
         args: {
-          repair_ref: requiredString("Opaque author-issued repair grant"),
+          repair_ref: requiredString("Opaque Nyx-issued, controller-routed repair grant"),
           slug: requiredString("Change DAG slug"),
           semantic_node_id: requiredString("Semantic boundary node ID"),
           operation: requiredString("Terminal operation: update or remove"),
-          node_id: requiredString("Existing terminal node ID"),
-          path: optionalString("Replacement workspace-relative path"),
-          content: optionalString("Replacement create content"),
+           node_id: requiredString("Existing terminal node ID"),
+           checkpoint_identity: requiredString("Exact repair checkpoint identity"),
+           path: optionalString("Replacement workspace-relative path"),
+           content: optionalString("Replacement create content"),
           replacements: optionalReplacementArray("Exact edit replacements"),
         },
         async execute(args, context) {
-          const grant = fixerCapabilities.authorize({
-            ...args,
-            workspace: workspaceRoot(context),
-            caller: fixerCaller(context),
-            session: typeof context.sessionID === "string" ? context.sessionID : context.sessionId,
-          })
-          return runPythonTool("common.tools.dag_fixer_mutate", args, context, sessionState, grant)
+           const grant = fixerCapabilities.authorize({ ...args, workspace: workspaceRoot(context), caller: fixerCaller(context), session: typeof context.sessionID === "string" ? context.sessionID : context.sessionId })
+           return runPythonTool("common.tools.dag_fixer_mutate", args, context, sessionState, grant)
         },
       }),
     },

@@ -5,7 +5,7 @@ description: Operate an authored Change DAG through dag_start, dag_status, dag_s
 
 # Change DAG lifecycle
 
-Nyx owns lifecycle control. `dag_executor` owns deterministic application. Change-DAG-Author owns DAG construction and amendment; it cannot execute. Change-DAG-Reviewer is optional, bounded, and read-only. This skill operates the existing runtime; it does not define or modify it.
+Nyx owns lifecycle control. `dag_executor` owns deterministic application. Change-DAG-Author performs one initial semantic `dag_create` and exits; the controller — the deterministic, Nyx-invoked construction-control surface (`dag_construction_state`, `dag_construction_review`, `dag_construction_start`, `dag_semantic_repair_start`) — owns construction motion, serialized Worker admission, mandatory review, repair routing, and final validation. Change-DAG-Reviewer is optional, bounded, and read-only. This skill operates the existing runtime; it does not define or modify it.
 
 ## Start
 
@@ -22,10 +22,10 @@ Poll `dag_status(slug?)` until the DAG is `root_satisfied` or idle/not active. I
 
 ## Stop and recovery
 
-- `dag_stop(slug)` is lifecycle control, not rollback. Satisfied work remains satisfied; a queued DAG may be removed.
+- `dag_stop(slug)` is lifecycle control, not rollback. Satisfied work remains satisfied; a queued DAG may be removed. Nyx owns this operation but does not decide semantic construction or repair content.
 - The runtime handles process termination and interrupted-work reconciliation. Interrupted mechanical work is reconciled; an interrupted `run` becomes failed.
 - A running DAG is immutable. Do not mutate nodes or work while it runs.
-- When execution stops with failed mutable work, route the bounded scope to Change-DAG-Author. After amendment and validation, call `dag_start(slug, retry=true)` to retry the whole DAG.
+- When execution stops with failed mutable work, route the bounded scope through the controller: exact terminal defects to `change-dag-fixer`, semantic/graph defects to `change-dag-semantic-repairer`, and authority issues to escalation. After the stopped DAG is repaired and validated, call `dag_start(slug, retry=true)` to retry the whole DAG.
 - There is no node- or subgraph-execution mode.
 
 ## Completion and archive

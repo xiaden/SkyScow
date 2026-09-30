@@ -14,16 +14,16 @@ accepted request / accepted DD
         ↓
 bounded live-repository discovery
         ↓
-change-dag-author (manager: semantic graph, dag_decomposition_frontier loop, reconciliation, validation)
-        ↓
-one bounded change-dag-worker per opaque branch_ref per round (lower to exact work, or decompose further)
+change-dag-author (one atomic semantic dag_create, then exits)
+         ↓
+ controller-owned serialized frontier motion and one bounded change-dag-worker per opaque branch_ref per round (lower to exact work, or decompose further)
         ↓
 observable independent-review trigger?
    ├─ no → Nyx: dag_start / dag_status
    └─ yes → change-dag-reviewer (bounded external evidence)
                       ↓
                   PASS → Nyx lifecycle control
-                 FINDINGS → route by category: Fixer for exact work, Author for semantic/graph, upstream for authority
+                 FINDINGS → route by category: Fixer for exact work, semantic-repairer for semantic/graph, upstream for authority
         ↓
 independent post-change QA (separate lifecycle, not a DAG phase)
 ```
@@ -47,7 +47,7 @@ The Change DAG bundle keeps construction and execution records separate: `DAG.js
 1. Read the authoritative request, the accepted DD when present, repository facts, and relevant live surfaces. Discovery always reads the live repository; there is no projected planning worktree.
 2. Generate the smallest complete semantic graph as an initial **semantic skeleton** grounded in known correctness/causal structure: distinct obligations stated as postconditions, with causal edges derived as a separate judgment. Do not pre-size nodes for one Worker context; Worker-discovered breadth may be refined later through lossless SCALE decomposition. Follow the canonical derivation procedure in `references/semantic-generation.md` — obligation extraction, postcondition normalization, deduplication, compound splitting, the sibling-independence test, and the representation-assumption guard. State a condition/postcondition per semantic node — never an implementation action, and never an assumed file/symbol/mechanism unless authoritative. Pure paraphrase or recursive restatement is invalid decomposition.
 3. Submit the whole semantic graph atomically through `dag_create(slug, semantic_graph)`. Initial semantic construction is not a loop of `dag_add_requirement` calls; incremental insertion is reserved for later review, reconciliation, and recovery.
-4. The author runs the decomposition-frontier loop by querying the DAG service: `dag_decomposition_frontier(slug)` returns opaque `branch_ref` entries. The Author dispatches at most one fresh bounded `change-dag-worker` per returned branch in that round; the packet contains `slug` and `branch_ref`, not a selected node ID. The Worker first calls `dag_worker_resolve(slug, branch_ref)`, and the service selects/binds one currently authorable semantic node before the Worker uses `dag_decomposition_scope` and lowers the returned node's requirement. After the batch, the Author re-queries the frontier; another round may consume more work from the same branch. into exact terminal work (`create`, `edit`, `remove`, `move`, `run`, attached with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`) or refines it into further semantic decomposition. The author never computes depths itself, never keeps a processed-frontier registry, and reconciles a frontier only when worker results or conflicts require it. Edit work is authored as exact `{old, new}` replacements (`dag_add_edit(slug, parent_ids, path, replacements)`); the service generates the internal unified diff, so agents never author diff syntax. A worker that reports `edit_base_unavailable` for a peer-produced file signals a missing causal edge or decomposition defect, which the author repairs by adding a `requires` edge or decomposing the producing obligation — never by exposing peer work.
+4. After the atomic create, the controller queries the decomposition frontier and admits at most one fresh bounded `change-dag-worker` per opaque branch in each serialized round. The packet contains `slug`, `branch_ref`, the opaque capability `construction_ref`, and `checkpoint_identity`, not a selected node ID. The Worker first calls `dag_worker_resolve(slug, branch_ref, construction_ref)`, and the service selects/binds one currently authorable semantic node before the Worker uses `dag_decomposition_scope` and lowers the returned node's requirement into exact terminal work (`create`, `edit`, `remove`, `move`, `run`, attached with `dag_add_create` / `dag_add_edit` / `dag_add_remove` / `dag_add_move` / `dag_add_run`) or refines it into further semantic decomposition. The controller never computes depths itself, never keeps a processed-frontier registry, and reconciles a frontier only when worker results or conflicts require it. Edit work is authored as exact `{old, new}` replacements (`dag_add_edit(slug, parent_ids, path, replacements)`); the service generates the internal unified diff, so agents never author diff syntax. A worker that reports `edit_base_unavailable` for a peer-produced file signals a missing causal edge or decomposition defect, which the author repairs by adding a `requires` edge or decomposing the producing obligation — never by exposing peer work.
 5. For affected paths, combine live source with applicable accepted lower DAG work through `dag_read` / `dag_grep` / `dag_search` at `node_id=<boundary semantic node>`. These return that boundary's SELF view — live source, strictly-deeper accepted work, and the boundary node's own persisted terminal work — while same-frontier peers and shallower/future work stay excluded. The narrower BASE lens (accepted lower work only, without the boundary's own work) is what a new mutation is validated against, so an operation never becomes its own base. `dag_preview(path=..., node_id=...)` remains available for compiled operation/conflict metadata. New files, renamed paths, and planned-only symbols are read from DAG work, not rediscovered by repository search.
 6. Correct proposed mutable nodes with the typed `dag_update_*` tools or `dag_remove`. `dag_add_requirement` may insert a requirement between existing parents and selected children (convergence) and is also the recovery tool.
 7. Validate with `dag_validate` and inspect with `dag_show` and `dag_preview`. Authoring stops at a validated DAG; it never edits repository source.
@@ -65,11 +65,11 @@ The Change DAG bundle keeps construction and execution records separate: `DAG.js
 
 ## Optional independent review
 
-Dispatch `change-dag-author` to create or amend the Change DAG. The author is the construction manager: it owns bounded discovery, semantic decomposition, the service-derived decomposition-frontier loop (`dag_decomposition_frontier`), per-branch `change-dag-worker` dispatch, exact-work lowering, convergence/reconciliation, `dag_preview`, `dag_validate`, and mutable correction/recovery. It uses authoring tools only, never mutates source, and never dispatches `change-dag-reviewer` (it surfaces review triggers for Nyx).
+Dispatch `change-dag-author` for one initial semantic `dag_create`; it verifies creation and exits. The controller owns frontier motion, serialized Worker admission, mandatory review, exact-work routing to `change-dag-fixer`, semantic/graph routing to `change-dag-semantic-repairer`, authority escalation, reconciliation, `dag_preview`, `dag_validate`, and mutable recovery. The Author uses semantic authoring tools only, never mutates source, and never dispatches agents.
 
 The orchestrator/controller selects `change-dag-reviewer` only when observable conditions justify independent judgment: shared semantic convergence, incompatible cross-branch proposals, nontrivial behavior-changing ordering, producer/consumer or interface migration, shared schema/registry/persistence/migration work, request/DD decomposition ambiguity, DD authority ambiguity, materially useful recovery amendment, or an explicit user request. Do not invoke it for node count, node types, ordinary run barriers, mechanically independent branches, or ordinary author-correctable mechanical errors.
 
-Reviewer input includes the DAG slug, relevant node IDs/bounded scope, source context, a concrete review question, the observable trigger, and `review_kind` (`SEMANTIC`, `EXACT_WORK`, `DD_CONSISTENCY`, or `COMBINED`). The reviewer is read-only (`dag_show`, `dag_preview`, `dag_validate`). `PASS` means only that the requested scope found no material issue; it is not persisted DAG state, execution authorization, or a mandatory lifecycle transition. Final review uses `BLOCK_RUN`, `ALLOW_WITH_FOLLOWUP`, or `ALLOW`: Nyx routes exact-work defects to `change-dag-fixer`, semantic/graph defects to the Author, and authority issues upstream. `ALLOW_WITH_FOLLOWUP` preserves evidence for post-run QA or follow-on repair; ordinary repairable correctness defects do not automatically block execution.
+Reviewer input includes the DAG slug, relevant node IDs/bounded scope, source context, a concrete review question, the observable trigger, and `review_kind` (`SEMANTIC`, `EXACT_WORK`, `DD_CONSISTENCY`, or `COMBINED`). The reviewer is read-only (`dag_show`, `dag_preview`, `dag_validate`). `PASS` means only that the requested scope found no material issue; it is not persisted DAG state, execution authorization, or a mandatory lifecycle transition. Final review uses `BLOCK_RUN`, `ALLOW_WITH_FOLLOWUP`, or `ALLOW`: Nyx routes exact-work defects to `change-dag-fixer`, semantic/graph defects to `change-dag-semantic-repairer`, and authority issues upstream. `ALLOW_WITH_FOLLOWUP` preserves evidence for post-run QA or follow-on repair; ordinary repairable correctness defects do not automatically block execution.
 
 ## Lifecycle boundary
 
@@ -94,14 +94,14 @@ A DD may be archived through `dd_archive` only after every Change DAG bundle lin
 - [ ] Exact work is authored against live source plus applicable accepted lower DAG patches.
 - [ ] No `GRAPH.json`, task plan, phase letter, or `CONTRACTS.md` authority is created.
 - [ ] `dag_validate` reports the DAG as schema-valid (and executable when execution is intended).
-- [ ] `dag_decomposition_frontier` reports `resolved=true` before construction is declared complete.
+- [ ] `dag_construction_state` reports completion and `dag_validate` confirms resolved before construction is declared complete.
 
 ## References
 
 - `file://config/skills/decomposing-design-documents/references/subagent-protocol.md` — Change DAG authoring and handoff protocol.
 - `file://config/skills/decomposing-design-documents/references/semantic-generation.md` — canonical initial semantic-graph derivation procedure.
 - `file://config/skills/dispatching-agents/references/change-dag-author.md` — author dispatch contract.
-- `file://config/skills/dispatching-agents/references/change-dag-worker.md` — bounded single-node worker dispatch contract (internal to the author manager).
+- `file://config/skills/dispatching-agents/references/change-dag-worker.md` — bounded opaque/session-bound Worker dispatch contract (internal to the controller).
 - `file://config/skills/dispatching-agents/references/change-dag-reviewer.md` — read-only review dispatch contract.
 - `file://artifacts/SkyScow_Change_DAG_Agents.md` — Change DAG agent construction protocol.
 - `file://artifacts/SkyScow_Change_DAG_Toolset.md` — Change DAG tool contract.

@@ -6,10 +6,9 @@ Pins the settled architecture where there is no ``change-dag-runner`` agent:
                   (``dag_start`` / ``dag_status`` / ``dag_stop`` / ``dag_archive``)
                   but never authors or mutates a DAG, and never dispatches
                   node-level workers
-    Author     -- construction manager: owns DAG construction/amendment and the
-                  service-derived decomposition-frontier loop
-                  (``dag_decomposition_frontier``); dispatches only
-                  Change-DAG-Worker; never executes
+    Author     -- performs one atomic initial semantic ``dag_create`` and hands
+                   construction authority to the controller; never schedules or
+                   repairs construction
     Worker     -- bounded leaf: lowers exactly one assigned semantic node, never
                   mutates source, never executes, never spawns agents
     Reviewer   -- optional, read-only, bounded; Nyx-selected only
@@ -157,6 +156,11 @@ def _documented_surfaces() -> list[Path]:
 
 
 class TestNyxLifecycleAuthority:
+    def test_nyx_owns_controller_construction_review_and_repair_tools(self):
+        permission = _permission("nyx")
+        for tool in ("dag_construction_state", "dag_construction_review", "dag_construction_start", "dag_semantic_repair_start", "dag_issue_repair_grant"):
+            assert _allowed(permission, tool), f"Nyx must own {tool}"
+
     def test_nyx_owns_all_lifecycle_tools(self):
         permission = _permission("nyx")
         for tool in LIFECYCLE_TOOLS:
@@ -190,10 +194,12 @@ class TestNyxLifecycleAuthority:
 
 
 class TestAuthorAuthority:
-    def test_author_keeps_mutation_preview_validate(self):
+    def test_author_keeps_only_initial_creation_and_validation_tools(self):
         permission = _permission("change-dag-author")
-        for tool in (*MUTATION_TOOLS, "dag_preview", "dag_validate"):
-            assert _allowed(permission, tool), f"Author must keep {tool}"
+        for tool in ("dag_create", "dag_show", "dag_preview", "dag_validate"):
+            assert _allowed(permission, tool), f"Author needs {tool}"
+        for tool in (*MUTATION_TOOLS[1:], "dag_decomposition_frontier"):
+            assert not _allowed(permission, tool), f"Author must not own {tool}"
 
     def test_author_cannot_execute(self):
         permission = _permission("change-dag-author")
@@ -205,40 +211,30 @@ class TestAuthorAuthority:
         for tool in ("edit", "write", "bash"):
             assert not _allowed(permission, tool), f"Author must not own {tool}"
 
-    def test_author_task_map_allows_worker_optional_review_and_fixer(self):
-        assert _task_map("change-dag-author") == {
-            "*": "deny",
-            "change-dag-worker": "allow",
-            "incomplete-dag-reviewer": "allow",
-            "change-dag-fixer": "allow",
-        }
-        assert not _can_spawn("change-dag-author", "change-dag-reviewer")
+    def test_author_cannot_spawn_or_route_construction_agents(self):
+        assert _task_map("change-dag-author") == {"*": "deny"}
+        for child in ("change-dag-worker", "incomplete-dag-reviewer", "change-dag-fixer", "change-dag-semantic-repairer"):
+            assert not _can_spawn("change-dag-author", child)
 
-    def test_author_retains_whole_dag_validate(self):
-        permission = _permission("change-dag-author")
-        assert _allowed(permission, "dag_validate"), (
-            "Author owns final whole-DAG validation"
-        )
+    def test_author_exits_after_controller_handoff(self):
         text = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
-        assert "Final whole-DAG `dag_validate`" in text
+        assert "exactly one initial semantic construction" in text
+        assert "After successful creation and handoff, you exit" in text
+        assert "controller" in text.lower()
+        assert "do not own frontier" in text
 
-    def test_author_owns_blocked_worker_causal_repair(self):
-        author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
-        assert "edit_base_unavailable" in author
-        assert "lacks a causal edge" in author
-        assert "Do NOT solve it by exposing peer work" in author
-        reference = (
-            SKILLS / "dispatching-agents" / "references" / "change-dag-author.md"
-        ).read_text(encoding="utf-8")
-        assert "edit_base_unavailable" in reference
-        assert "causal edge" in reference
+    def test_author_handoff_names_controller_routes(self):
+        combined = "\n".join([
+            (AGENTS / "change-dag-author.md").read_text(encoding="utf-8"),
+            (SKILLS / "dispatching-agents" / "references" / "change-dag-author.md").read_text(encoding="utf-8"),
+        ])
+        for phrase in ("exact-work routing", "semantic/graph routing", "authority issues", "final `dag_validate`"):
+            assert phrase in combined
 
-    def test_author_contract_teaches_exclusive_terminals(self):
+    def test_author_contract_does_not_reintroduce_worker_or_repair_doctrine(self):
         author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
-        assert "`edit` is composable" in author
-        assert "exclusive" in author
-        # the run invariant is retained under the broader exclusive-terminal rule
-        assert "no `create`/`edit`/`remove`/`move` siblings" in author
+        for phrase in ("frontier loop", "reconcile worker"):
+            assert phrase not in author
 
 
 class TestWorkerAuthority:
@@ -263,7 +259,7 @@ class TestWorkerAuthority:
 
     def test_worker_has_bounded_authoring_permissions(self):
         permission = _permission("change-dag-worker")
-        for tool in WORKER_TOOLS:
+        for tool in (*WORKER_TOOLS, "dag_worker_resolve"):
             assert _allowed(permission, tool), f"Worker needs {tool}"
 
     def test_worker_has_dag_read_lens_and_lacks_raw_or_whole_dag_tools(self):
@@ -431,21 +427,19 @@ class TestManagerWorkerRouting:
         assert reference.exists()
         text = reference.read_text(encoding="utf-8")
         assert "one assigned semantic node" in text
-        assert "never spawns another worker" in text
+        assert "never spawns another worker" in text or "never call each other" in text or "Do not dispatch any agent other than" in text
 
-    def test_dispatching_skill_routes_through_author(self):
+    def test_dispatching_skill_routes_through_controller(self):
         text = (SKILLS / "dispatching-agents" / "SKILL.md").read_text(encoding="utf-8")
         assert "change-dag-worker" in text
-        assert "Nyx never dispatches Change-DAG-Worker directly" in text
+        assert "controller" in text.lower()
+        assert "dispatched only by the controller" in text
 
-    def test_author_contract_names_worker_optional_review_and_fixer(self):
+    def test_author_contract_names_controller_handoff(self):
         text = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
-        assert "change-dag-worker" in text
-        assert "incomplete-dag-reviewer" in text
-        assert "change-dag-fixer" in text
-        assert "review_trigger" in text
-        assert "final/controller-selected `change-dag-reviewer`" in text
-        assert "semantic/graph correction" in text
+        assert "controller" in text.lower()
+        assert "handoff" in text
+        assert "do not own frontier" in text
 
     def test_no_stale_single_session_frontier_wording(self):
         offenders: list[str] = []
@@ -492,10 +486,12 @@ class TestLifecycleDocumentation:
         text = (COMMANDS / "ecc" / "orchestrate.md").read_text(encoding="utf-8")
         assert "change-dag-worker" in text
 
-    def test_recovery_routes_to_author_then_lifecycle_retry(self):
-        text = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
-        assert "dag_start(retry=true)" in text
-        assert "Change-DAG-Author" in text
+    def test_recovery_routes_to_controller_then_nyx_lifecycle_retry(self):
+        author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+        nyx = (AGENTS / "nyx.md").read_text(encoding="utf-8")
+        assert "recovery" in author.lower()
+        assert "dag_start" in nyx
+        assert "retry" in nyx.lower()
 
     def test_qa_is_independent_and_never_reopens_completed_dag(self):
         nyx = (AGENTS / "nyx.md").read_text(encoding="utf-8")
@@ -513,21 +509,23 @@ class TestServiceDerivedDecomposition:
     and the dispatch contract must not copy semantic packets into the child.
     """
 
-    def test_author_queries_the_frontier_service(self):
-        text = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
-        assert "dag_decomposition_frontier" in text
-        assert "resolved=true" in text
-        assert "requires` path to A" in text
+    def test_controller_owns_frontier_derivation(self):
+        author = (AGENTS / "change-dag-author.md").read_text(encoding="utf-8")
+        plugin = (REPO_ROOT / "config" / "plugins" / "tools.ts").read_text(encoding="utf-8")
+        assert "dag_decomposition_frontier" not in author
+        assert "dag_decomposition_frontier:" not in plugin
+        assert "controller" in author.lower()
+        assert "deepest-frontier" in author
 
     def test_worker_retrieves_its_own_scope(self):
         text = (AGENTS / "change-dag-worker.md").read_text(encoding="utf-8")
-        assert "dag_decomposition_scope(slug, node_id)" in text
+        assert "dag_decomposition_scope" in text
 
     def test_worker_dispatch_reference_retrieves_scope(self):
         text = (
             SKILLS / "dispatching-agents" / "references" / "change-dag-worker.md"
         ).read_text(encoding="utf-8")
-        assert "dag_decomposition_scope(slug, node_id)" in text
+        assert "dag_decomposition_scope" in text
 
     def test_no_copied_semantic_packet_fields(self):
         paths = (

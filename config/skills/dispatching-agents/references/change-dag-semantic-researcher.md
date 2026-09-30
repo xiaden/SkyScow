@@ -14,7 +14,7 @@ A read-only semantic researcher that lets a Worker collapse expensive semantic-t
 - For exploration without a concrete question.
 - To make implementation decisions.
 - To obtain terminal proposals or patches.
-- To repair the graph; that is the Author's job.
+- To repair the graph; route the finding through the controller to `change-dag-semantic-repairer`.
 - To replace the Worker's own local discovery.
 
 ## Dispatch Template

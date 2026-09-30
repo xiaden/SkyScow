@@ -18,7 +18,7 @@ Before changing code:
 ## Phase 2: Route and author
 
 - For a genuinely local, low-risk correction with no contract or lifecycle impact, proceed with a bounded implementation through the **Direct / Bounded Edit Route** below.
-- For a correction spanning multiple layers, modules, state stores, or lifecycle boundaries, route through `Change-DAG-Author`; after optional bounded review, Nyx owns lifecycle control through the **Change DAG Route** below. The author must create or amend a verifiable Change DAG.
+- For a correction spanning multiple layers, modules, state stores, or lifecycle boundaries, route initial semantic creation through `Change-DAG-Author`; the controller owns post-create construction and repair routing, while Nyx owns lifecycle control through the **Change DAG Route** below. The Author must create the initial verifiable semantic graph only.
 - For high-risk work, require the Change DAG's requirements to include security implications, failure/partial-operation behavior, concurrency considerations, rollback or recovery semantics, and restart/reload behavior where applicable.
 - If investigation reveals an architectural mismatch, unclear ownership, missing contract, migration requirement, contradictory governance record, or an unresolved requirement that cannot be safely implemented locally, stop and escalate to `RnD-Manager` or request user clarification. Do not silently choose an architectural shortcut.
 
@@ -33,7 +33,7 @@ Implement only the approved scope. Re-read files immediately before editing and 
 Have `QA-Reviewer` perform a full review after all implementation phases. For the Change DAG Route, this means **after the executor's successful-root checkpoint**. Provide the original request, requirement ledger, risk classification, Change DAG, changed-file set, invariants, test results, and diff context. The full QA gate is mandatory for every meaningful implementation change, and independent correctness review is always required. Invoke the security review, test analysis, and documentation analysis lenses only when their canonical triggers in `/home/opencode/.config/opencode/instructions/qa-applicability.md` are met; do not restate those triggers here.
 
 - `MINOR` findings: route to a bounded raw edit, then rerun the full QA review. If that edit follows a Change DAG checkpoint, use the **Post-Checkpoint QA Corrections** rules below.
-- Planning gaps, requirement drift, architectural issues, critical/security findings, or unresolved partial-failure behavior: stop; author a remediation Change DAG (or a bounded correction) through `Change-DAG-Author`; never reopen a completed DAG, and do not paper over them with a local patch.
+- Planning gaps, requirement drift, architectural issues, critical/security findings, or unresolved partial-failure behavior: stop; route a stopped-DAG repair through the controller, or create a new remediation Change DAG through `Change-DAG-Author` when appropriate; never reopen a completed DAG, and do not paper over them with a local patch.
 - QA is independent of Change DAG archival. Do not make QA a DAG archive gate.
 - Do not report completion until QA explicitly passes, all required checks pass, and no high-severity findings remain.
 

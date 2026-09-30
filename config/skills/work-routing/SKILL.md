@@ -66,7 +66,7 @@ The Direct-Work Invariant is evaluated before this matrix; when it holds, no row
 | If... | Then the owner is... |
 |-------|----------------------|
 | You need R&D evaluation or design (architectural novelty, unclear architectural requirements, design uncertainty, large scope), or the user explicitly requested a DD | **RnD-Manager**, which owns the evidence-based route (`DAG_ONLY` / `DD_REQUIRED` / `RESEARCH_ONLY`), selects the design-evidence graph, and returns the result to the router |
-| Implementation spans 3+ phases across layers | **Change-DAG-Author** (owns construction end-to-end and dispatches bounded Change-DAG-Workers internally) |
+| Implementation spans 3+ phases across layers | **Change-DAG-Author** (performs one initial semantic `dag_create`; the controller owns construction motion and bounded Worker admission) |
 | A Change DAG needs independent structural/work review | **Change-DAG-Reviewer** — only for observable coordination or authority triggers, never for node count, node types, ordinary run barriers, or mechanically independent branches |
 | Implementation is done, needs review | **QA-Reviewer** |
 | 3+ fix attempts failed, root cause unclear | **Support-Debugger** |
@@ -97,7 +97,7 @@ Where:
 | Weighted chars | Action |
 |----------------|--------|
 | < 32K (TRIVIAL or SMALL) | Edit directly — the Direct-Work Invariant applies; a Change DAG at this scope adds more noise than signal |
-| ≥ 32K (MEDIUM) | Change-DAG-Author authors the Change DAG; it lowers exact work by querying the service-derived decomposition frontier and dispatching at most one fresh bounded Change-DAG-Worker per returned opaque `branch_ref` per round; the service selects the concrete node after `dag_worker_resolve`, never one Worker per frontier node or one session reasoning over the whole repository |
+| ≥ 32K (MEDIUM) | Change-DAG-Author authors the Change DAG with one initial semantic `dag_create`; the controller lowers exact work by querying the service-derived decomposition frontier and admitting at most one fresh bounded opaque/session-bound Change-DAG-Worker per returned `branch_ref` per serialized round; the service selects the concrete node after `dag_worker_resolve` |
 | ≥ 80K (LARGE) or architecturally novel or requirements unclear | Route to RnD-Manager for evidence-based R&D evaluation |
 
 ## Architectural / R&D Routing
@@ -166,9 +166,9 @@ A user question is also appropriate for `BROADER_SAME_REQUIREMENT` when the disc
 
 ## Change DAG review and repair routing
 
-- Change-DAG-Author owns construction and may dispatch `change-dag-worker` for new semantic work, optionally dispatch `incomplete-dag-reviewer` for a trigger-driven construction question, and route known exact-work defects to `change-dag-fixer`.
-- Nyx remains the top-level controller and lifecycle owner. Nyx alone selects the final `change-dag-reviewer`; it is optional and applies only to a completed, resolved, executable DAG when an observable coordination or authority trigger exists. It is not a mandatory review at every frontier, and Nyx never directly dispatches the internal Worker or Worker-only researchers.
-- Final-review dispositions are consumed by Nyx: `BLOCK_RUN` sends exact-work defects to `change-dag-fixer`, semantic/graph defects to Change-DAG-Author, and authority/DD/architectural contradictions upstream; `ALLOW_WITH_FOLLOWUP` permits execution while preserving evidence for post-run QA/follow-on repair; `ALLOW` is informational.
+- Change-DAG-Author performs one atomic initial semantic `dag_create`, verifies creation, and exits. It does not own frontier motion, Worker admission, review routing, reconciliation, or repair.
+- The controller owns serialized construction motion, one opaque/session-bound Worker admission at a time, mandatory review after each completed frontier, final validation, and routing: exact-work defects to `change-dag-fixer`, semantic/graph defects to `change-dag-semantic-repairer`, and authority issues to escalation. The controller must not invent semantic requirements, causal edges, terminal work, or semantic meaning.
+- Nyx remains the top-level lifecycle owner. Nyx operates `dag_start`, `dag_status`, `dag_stop`, and `dag_archive`, but does not make semantic construction decisions or dispatch internal Workers. Final-review dispositions are consumed by the controller: `BLOCK_RUN` follows the exact, semantic/graph, or authority route; `ALLOW_WITH_FOLLOWUP` permits execution while preserving evidence; `ALLOW` is informational.
 - Follow-on repair after the execution boundary is routed normally against the real repository: small/local work may be direct, larger or cross-layer work starts a new Change DAG, and architectural work routes to R&D evaluation. Independent QA remains separate and never reopens a completed DAG.
 
 ## QA / Support Owner Selection
@@ -189,7 +189,8 @@ The router does not perform work it routes. It does **not**:
 | This router does NOT... | Route instead to... |
 |-------------------------|---------------------|
 | Design features or create design documents | RnD-Manager |
-| Create or amend a Change DAG | Change-DAG-Author |
+| Create the initial semantic Change DAG | Change-DAG-Author |
+| Repair a stopped Change DAG | Construction controller (semantic-repairer or Fixer) |
 | Independently review a Change DAG's structure and work | Change-DAG-Reviewer |
 | Perform QA review | QA-Reviewer |
 | Perform root cause analysis on failures | Support-Debugger |

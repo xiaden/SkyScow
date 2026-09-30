@@ -7,7 +7,10 @@ type GrantRequest = {
   terminal_node_ids: unknown
   paths: unknown
   caller: unknown
-  session: unknown
+  session?: unknown
+  parent_session?: unknown
+  checkpoint_identity: unknown
+  intended_child_session?: unknown
 }
 
 type Grant = {
@@ -18,6 +21,9 @@ type Grant = {
   paths: string[]
   caller: string
   session?: string
+  parent_session: string
+  checkpoint_identity: string
+  intended_child_session?: string
 }
 
 const grants = new Map<string, Grant>()
@@ -40,8 +46,9 @@ export function createFixerCapabilityService() {
   return {
     issue(request: GrantRequest) {
       const caller = text(request.caller, "caller")
-      if (caller !== "change-dag-author") throw new Error("scope_violation: only the Change-DAG-Author may issue repair grants")
+      if (caller !== "nyx") throw new Error("scope_violation: only Nyx may issue repair grants")
       const session = request.session === undefined ? undefined : text(request.session, "session")
+      const intendedChildSession = request.intended_child_session === undefined ? undefined : text(request.intended_child_session, "intended_child_session")
       const ref = crypto.randomBytes(24).toString("base64url")
       grants.set(ref, {
         workspace: text(request.workspace, "workspace"),
@@ -51,6 +58,9 @@ export function createFixerCapabilityService() {
         paths: [...list(request.paths, "paths")],
         caller,
         session,
+        parent_session: text(request.parent_session, "parent_session"),
+        checkpoint_identity: text(request.checkpoint_identity, "checkpoint_identity"),
+        ...(intendedChildSession === undefined ? {} : { intended_child_session: intendedChildSession }),
       })
       return { repair_ref: ref }
     },
@@ -60,14 +70,17 @@ export function createFixerCapabilityService() {
       if (!grant) throw new Error("unbound: unknown repair_ref")
       if (text(request.caller, "caller") !== "change-dag-fixer") throw new Error("scope_violation: fixer-only capability")
       const session = text(request.session, "session")
-      if (grant.session !== undefined && session !== grant.session) throw new Error("scope_violation: repair_ref is bound to another session")
-      grant.session ??= session
+      if (grant.intended_child_session !== undefined && grant.intended_child_session !== session) throw new Error("scope_violation: repair_ref is not intended for this child session")
+      if (grant.session !== undefined && grant.session !== session) throw new Error("scope_violation: repair_ref is bound to another session")
+      if (text(request.checkpoint_identity, "checkpoint_identity") !== grant.checkpoint_identity) throw new Error("scope_violation: repair_ref is outside its controller checkpoint")
       if (text(request.workspace, "workspace") !== grant.workspace || text(request.slug, "slug") !== grant.slug) throw new Error("scope_violation: workspace or slug is outside grant")
       if (text(request.semantic_node_id, "semantic_node_id") !== grant.semantic_node_id) throw new Error("scope_violation: semantic boundary is outside grant")
       const node = text(request.node_id, "node_id")
       if (!grant.terminal_node_ids.includes(node)) throw new Error("scope_violation: terminal node is outside grant")
       if (request.path !== undefined && !grant.paths.includes(text(request.path, "path"))) throw new Error("scope_violation: path is outside grant")
       if (request.operation !== "update" && request.operation !== "remove") throw new Error("scope_violation: only terminal update/remove are allowed")
+      grant.session = session
+      grants.delete(ref)
       return grant
     },
   }

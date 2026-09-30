@@ -4,12 +4,15 @@ How an accepted DD becomes an executable **Change DAG**, and how that DAG is exe
 
 Four roles, deliberately separated:
 
-- `change-dag-author` **constructs** the DAG — manager role: semantic graph, service-derived decomposition-frontier loop, reconciliation, validation — and amends mutable work during recovery. It never executes.
-- `change-dag-worker` **lowers** one assigned semantic node into exact work, meaning decomposition, or lossless SCALE decomposition (per the `config/skills/change-dag-semantics/SKILL.md` doctrine), and may selectively dispatch the two read-only researchers; it is dispatched internally by the author manager and retrieves its own scope with `dag_decomposition_scope`. It never manages the frontier, mutates source, or executes.
-- `nyx` **operates** the lifecycle tools (`dag_start`, `dag_status`, `dag_stop`, `dag_archive`).
+- `change-dag-author` performs one initial semantic `dag_create`, verifies creation, and exits. It never manages construction motion, dispatches Workers, reconciles, repairs, or executes.
+- The controller owns serialized frontier motion, one opaque/session-bound Worker admission at a time, mandatory review, exact-work routing to `change-dag-fixer`, semantic/graph routing to `change-dag-semantic-repairer`, authority escalation, reconciliation, and final validation.
+- `change-dag-worker` **lowers** one assigned semantic node into exact work, meaning decomposition, or lossless SCALE decomposition (per the `config/skills/change-dag-semantics/SKILL.md` doctrine), and may selectively dispatch the two read-only researchers; it is admitted only by the controller and retrieves its own scope with `dag_decomposition_scope`. It never manages the frontier, mutates source, or executes.
+- `nyx` **operates** the lifecycle tools (`dag_start`, `dag_status`, `dag_stop`, `dag_archive`) and invokes the construction-control surface; it does not choose Workers, node IDs, or branches and does not make semantic construction decisions.
 - `dag_executor` **applies** terminal work deterministically and serially.
 
-`incomplete-dag-reviewer` is optional, bounded, read-only, and may be selected by Change-DAG-Author for a trigger-driven construction question; it is not a mandatory review at every frontier. `change-dag-fixer` may be routed by Author for a known exact-work defect in mutable terminal work. The final `change-dag-reviewer` is optional, bounded, read-only, and selected by Nyx only for a completed, resolved, executable DAG when an observable coordination or authority trigger exists. Its evidence does not become DAG state. Nyx consumes its disposition: `BLOCK_RUN` routes exact-work defects to Fixer, semantic/graph defects to Author, and authority/DD problems upstream; `ALLOW_WITH_FOLLOWUP` permits execution while preserving evidence for post-run QA/follow-on repair; `ALLOW` is informational.
+The controller is the deterministic construction-control surface invoked by Nyx: the plugin tools `dag_construction_state`, `dag_construction_review`, `dag_construction_start`, and `dag_semantic_repair_start` (plus `dag_semantic_repair_resolve` for the repair child), implemented by `config/tools/common/tools/dag_construction_state.py`, `config/tools/common/tools/dag_construction_review.py`, and `config/tools/common/helpers/change_dag_controller.py`, with the native child adapter in `config/plugins/lib/construction-controller.ts`.
+
+`incomplete-dag-reviewer` is bounded and read-only; the controller may select it for a construction question, and mandatory review follows each completed frontier. `change-dag-fixer` handles known exact-work defects, while `change-dag-semantic-repairer` handles bounded semantic/graph defects. The final `change-dag-reviewer` is optional, bounded, read-only, and selected by Nyx only for a completed, resolved, executable DAG when an observable coordination or authority trigger exists. Its evidence does not become DAG state. The controller consumes its disposition: `BLOCK_RUN` routes exact-work defects to Fixer, semantic/graph defects to the semantic repairer, and authority/DD problems upstream; `ALLOW_WITH_FOLLOWUP` permits execution while preserving evidence for post-run QA/follow-on repair; `ALLOW` is informational.
 
 ## Building the DAG
 
@@ -17,8 +20,8 @@ Four roles, deliberately separated:
 flowchart TD
     DD["Accepted Design Document"] --> S["dag_create with semantic graph"]
     S --> SEM["Semantic requirements<br/>postconditions, not actions"]
-    SEM --> F{"dag_decomposition_frontier<br/>deepest unresolved nodes"}
-    F --> W["change-dag-worker<br/>one per opaque branch per round"]
+    SEM --> F{"dag_construction_state<br/>next admission or completion"}
+    F --> W["controller admits change-dag-worker<br/>one opaque branch at a time"]
     W --> R["optional semantic/file<br/>researchers"]
     R --> W
     W --> X["Exact work nodes<br/>create • edit • remove • move • run"]
@@ -34,10 +37,10 @@ flowchart TD
 
 - The initial semantic structure is the smallest skeleton grounded in known correctness/causal structure, submitted atomically through `dag_create(slug, semantic_graph)`; the Author does not pre-size nodes for one Worker context. Semantic nodes express postconditions, not implementation actions. Worker-discovered breadth may be refined later through lossless SCALE decomposition. The canonical semantic-node doctrine (MEANING vs SCALE, parent/child completeness, sibling/causal semantics, semantic/terminal boundary) is `config/skills/change-dag-semantics/SKILL.md`.
 - The DAG's only edge is `requires`, and it is ALL-of: `requires` expresses what must become true for a semantic requirement to be fulfilled. A semantic node is satisfied only when every node it directly requires is satisfied. Opaque branch components are serialized authoring units; nodes grouped in one branch are not necessarily independently dispatchable. The frontier service derives branches from the graph and never infers a missing causal relationship. If correct authoring of B requires accepted work from A, B must have a `requires` path to A rather than being treated as an independent sibling.
-- Exact work is lowered one **decomposition frontier** at a time, from the deepest semantic nodes upward. The Author queries `dag_decomposition_frontier(slug)` and receives opaque `branch_ref` entries. It dispatches at most one fresh bounded `change-dag-worker` per returned branch per round with `slug + branch_ref`; the Worker first calls `dag_worker_resolve`, and the service selects/binds the concrete node before `dag_decomposition_scope`. The Author re-queries after the batch, so a branch may yield more work in a later round. The author reconciles only when results or conflicts require it, re-queries the frontier rather than tracking progress locally, and must not load the entire repository into one session.
-- A semantic node may record persisted authoring intent with `dag_set_decomposition_only(slug, node_id, true)` when its obligation is fully decomposed into the semantic requirements it directly `requires` and it intentionally owns no direct terminal work. It is semantic-only: the node must directly require at least one semantic child, and a direct create/edit/remove/move/run child makes the DAG structurally invalid. `value=false` reopens the judgment. The field never affects runtime satisfaction, which still derives only from the satisfaction of `requires` children; only a bounded worker may call the setter.
+- Exact work is lowered one controller admission at a time, from the service-derived next branch. `dag_construction_state(slug)` returns the current decision, node/branch claim, and checkpoint identity; `dag_construction_start` mints capability references and admits exactly one worker for that claim in a serialized round with `slug + branch_ref + construction_ref + checkpoint_identity`; the Worker first calls `dag_worker_resolve` with the construction capability, and the service selects/binds the concrete node before `dag_decomposition_scope`. The controller re-queries after the batch, performs mandatory review, reconciles only when results or conflicts require it, and must not load the entire repository into one session.
+- A semantic node may record persisted authoring intent with `dag_set_decomposition_only(slug, node_id, true)` when its obligation is fully decomposed into the semantic requirements it directly `requires` and it intentionally owns no direct terminal work. It is semantic-only: the node must directly require at least one semantic child, and a direct create/edit/remove/move/run child makes the DAG structurally invalid. `value=false` reopens the judgment. The field never affects runtime satisfaction, which still derives only from the satisfaction of `requires` children; only a bounded Worker or the bounded semantic repairer may call the setter.
 - `dag_validate` reports `schema_valid`, `executable`, and `resolved`. A semantic node is locally resolved when it directly requires at least one terminal work node, or when it declares `decomposition_only=true` over semantic children only; `resolved` means every reachable semantic node is locally resolved. `executable` is the aggregate execution-admission/lint result: a DAG is executable only when it is structurally valid, `resolved`, and free of deterministic compiler/context admission conflicts. A DAG can be schema-valid and still unresolved; unresolved DAGs are valid authoring artifacts but are not executable.
-- Final review is trigger-driven, not a mandatory every-frontier stage. Nyx may select it for observable coordination or authority risks such as shared convergence, interface migrations, shared schemas, recovery amendments, or explicit user request. The Author surfaces `review_triggers`; neither the Author nor a Worker dispatches the final reviewer. Author may separately select the incomplete reviewer for one bounded construction question and may route Fixer for known exact-work defects.
+- Construction review is mandatory after each completed frontier and is consumed by the controller. Nyx may additionally select final review for observable coordination or authority risks such as shared convergence, interface migrations, shared schemas, recovery amendments, or explicit user request. The Author surfaces `review_triggers`; neither the Author nor a Worker dispatches reviewers. The controller routes Fixer for known exact-work defects and the semantic repairer for semantic/graph defects.
 
 ## Executing the DAG
 
@@ -60,7 +63,7 @@ flowchart TD
     STATE -->|stopped or failed| REC["Reconcile interrupted work<br/>satisfied work preserved • interrupted run becomes failed"]
     STATE -->|yes| CKPT["Executor-owned local checkpoint<br/>starting-worktree evidence in Work Log (not publication)"]
 
-    REC --> AMEND["change-dag-author amends semantic/graph region or routes Fixer for exact work"]
+    REC --> AMEND["controller routes semantic/graph repairer or Fixer for exact work"]
     AMEND --> START
     CKPT --> ARCH["dag_archive(slug, reason)"]
 ```
@@ -80,7 +83,7 @@ Status values are `queued`, `running`, `root_satisfied`, and `idle`. There is no
 
 - `dag_stop(slug)` is lifecycle control, not rollback. Satisfied work remains satisfied; a queued DAG can be removed. Interrupted mechanical work is reconciled; an interrupted `run` becomes failed.
 - **A running DAG is immutable.** Do not mutate nodes or work while it runs.
-- Recovery sequence: execution stops or fails → the executor reconciles interrupted work → Author amends the mutable semantic/graph region or routes Fixer for known exact-work repair → `dag_validate` → `dag_start(slug, retry=true)` retries the whole DAG. There is no node- or subgraph-execution mode. Follow-on repair after the execution boundary is not a DAG amendment: normal work-routing sends small/local work direct, larger or cross-layer work to a new Change DAG, and architectural work to R&D.
+- Recovery sequence: execution stops or fails → the executor reconciles interrupted work → the controller routes semantic/graph findings to `change-dag-semantic-repairer` or known exact-work defects to `change-dag-fixer` → `dag_validate` → `dag_start(slug, retry=true)` retries the whole DAG. There is no node- or subgraph-execution mode. Follow-on repair after the execution boundary is not a DAG amendment: normal work-routing sends small/local work direct, larger or cross-layer work to a new Change DAG, and architectural work to R&D.
 - `anchor_commit` is provenance, not a commit binding. Live repository drift can produce ordinary terminal failure and recovery.
 
 ## Completion and archive
@@ -97,9 +100,10 @@ QA is not a Change DAG phase and is not an archive gate. An archived DAG is neve
 
 ## Canonical sources
 
-- `config/agents/change-dag-author.md` — construction management, frontiers, amendment
+- `config/agents/change-dag-author.md` — initial semantic creation and controller handoff
 - `config/agents/change-dag-worker.md` — bounded single-semantic-node lowering/decomposition
 - `config/skills/change-dag-lifecycle/SKILL.md` — lifecycle operation
 - `config/skills/change-dag-semantics/SKILL.md` — canonical semantic-node doctrine
 - `config/tools/common/tools/dag_start.py`, `dag_status.py`, `dag_stop.py`, `dag_archive.py` — lifecycle tools
 - `config/tools/common/tools/dag_executor.py`, `config/tools/common/helpers/change_dag_control.py` — execution and queue control
+- `config/tools/common/tools/dag_construction_state.py`, `config/tools/common/tools/dag_construction_review.py`, `config/tools/common/helpers/change_dag_controller.py`, `config/plugins/lib/construction-controller.ts` — deterministic construction-control surface invoked by Nyx

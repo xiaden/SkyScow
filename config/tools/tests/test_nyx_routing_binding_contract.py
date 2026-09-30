@@ -147,7 +147,7 @@ class TestNyxStillOwnsRequestContextCapture:
     def test_capture_precedes_authoring_dispatches(self):
         text = _norm(NYX)
         assert "Before dispatching `RnD-Manager`" in text
-        assert "`Change-DAG-Author` for Change DAG creation or amendment" in text
+        assert "`Change-DAG-Author` for initial semantic Change DAG creation" in text
 
 
 class TestNyxStillOwnsChangeDagLifecycle:

@@ -88,7 +88,7 @@ Confirm the DAG does not contradict accepted architecture, DD invariants, or exp
 2. Run `dag_validate(slug)` and verify `schema_valid`, `resolved=true`, and `executable=true`; report those fields and issues as mechanical context. `resolved=false`, `executable=false`, unresolved nodes, or incomplete construction state are not final-review success and are `BLOCKED`/`MISSING_ARTIFACT`, not automatic perfection findings.
 3. Inspect the complete DAG and supplied bounded scope with `dag_show` and scoped `dag_preview`; use whole-DAG preview for `COMBINED`.
 4. Classify each finding by execution consequence. Use `BLOCK_RUN` only for invalid lower assumptions/dependency, mechanical incoherence, dangerous destructive/irreversible behavior, material request/DD contradiction, or materially worsening safety/repairability. Use `ALLOW_WITH_FOLLOWUP` for bounded defects safely repairable against the real repository after execution. Use `ALLOW` for informational/non-blocking findings.
-5. Return exact node IDs, requirement text, path scopes, the review question, trigger, execution consequence, category, and route guidance for every finding. Route graph/work repair to Change-DAG-Author or the bounded post-execution owner; contradictions/decisions to the DD/R&D owner or user; missing input/completion/tooling failures as `BLOCKED`. The controller owns lifecycle disposition.
+5. Return exact node IDs, requirement text, path scopes, the review question, trigger, execution consequence, category, and route guidance for every finding. Route exact terminal-work repair to `change-dag-fixer`, semantic/graph repair to `change-dag-semantic-repairer`, and contradictions/decisions to authority escalation; missing input/completion/tooling failures are `BLOCKED`. The controller owns construction and lifecycle disposition.
 
 ## Verdicts
 
@@ -130,7 +130,7 @@ findings:
     severity: BLOCKING | WARNING | INFORMATIONAL
     node_ids: ["N1"]
     detail: "Specific actionable finding"
-    route: CHANGE_DAG_AUTHOR | POST_EXECUTION_OWNER | DD_OWNER | USER | NONE
+    route: CHANGE_DAG_FIXER | CHANGE_DAG_SEMANTIC_REPAIRER | AUTHORITY_ESCALATION | POST_EXECUTION_OWNER | DD_OWNER | USER | NONE
 rerun_required: true | false
 ```
 

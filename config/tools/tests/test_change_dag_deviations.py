@@ -395,25 +395,20 @@ def test_orchestration_never_reopens_completed_dag():
     assert "A completed DAG is never amended" in orchestrate
 
 
-def test_author_contract_owns_frontier_loop_and_worker_dispatch():
+def test_author_contract_hands_construction_to_controller():
     author = _read("config/agents/change-dag-author.md")
-    assert "change-dag-worker" in author
-    assert "dag_decomposition_frontier" in author
+    assert "exactly one initial semantic construction" in author
+    assert "After successful creation and handoff, you exit" in author
+    assert "do not own frontier" in author
+    assert "dispatch Workers" in author
     assert "fresh Change-DAG-Author invocation" not in author
     assert "one bounded invocation per frontier" not in author
 
 
-def test_author_contract_owns_blocked_worker_causal_repair():
+def test_author_contract_exits_and_routes_defects_outward():
     author = _read("config/agents/change-dag-author.md")
-    assert "edit_base_unavailable" in author
-    assert "lacks a causal edge or a proper semantic decomposition" in author
-    assert "exposing peer work" in author
-    assert "Final whole-DAG `dag_validate`" in author
-
-
-def test_author_contract_teaches_exclusive_terminals():
-    author = _read("config/agents/change-dag-author.md")
-    assert "`edit` is composable" in author
-    assert "exclusive" in author
-    # the run-barrier phrasing is retained under the broader exclusive rule
-    assert "no `create`/`edit`/`remove`/`move` siblings" in author
+    assert "exactly one initial semantic construction" in author
+    assert "After successful creation and handoff, you exit" in author
+    assert "repair" in author
+    assert "controller" in author.lower()
+    assert "Final whole-DAG `dag_validate`" not in author

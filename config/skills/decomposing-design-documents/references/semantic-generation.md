@@ -305,8 +305,7 @@ Stop discovery once the semantic skeleton and the causal graph are grounded.
 
 ## Recovery: interpreting a blocked Worker
 
-The Author already owns causal repair after Worker feedback — align it with this
-procedure. When a Worker reports:
+The controller owns causal repair after Worker feedback and routes semantic/graph findings to `change-dag-semantic-repairer`; align it with this procedure. When a Worker reports:
 
 ```text
 edit_base_unavailable

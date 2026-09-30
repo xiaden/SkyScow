@@ -47,9 +47,11 @@ def test_contract_names_normal_incomplete_state_and_bounded_scope():
 
 def test_reference_defines_author_routing_and_non_mutating_boundary():
     text = REFERENCE.read_text(encoding="utf-8")
-    assert "Change-DAG-Author" in text
+    assert "change-dag-semantic-repairer" in text
+    assert "controller" in text
     assert "EXACT_WORK_FIXER" in text
-    assert "AUTHOR_FIX" in text
+    assert "SEMANTIC_REPAIRER" in text
+    assert "EXACT_WORK_DEFECT" in text
     assert "AUTHORITY_ESCALATION" in text
     assert "Do not amend the DAG" in text
     assert "does not gate archival" in text

@@ -65,6 +65,40 @@ def mutation_lock(workspace_root: Path, slug: str):
     return _exclusive_file_lock(control_dir(workspace_root) / f"dag-{change_dag._safe_slug(slug)}.lock")
 
 
+def construction_lock_path(workspace_root: Path, slug: str) -> Path:
+    """Return the OS-lock file used for one slug's construction lifetime."""
+    return control_dir(workspace_root) / "construction" / f"dag-{change_dag._safe_slug(slug)}.lock"
+
+
+def acquire_construction_lock(workspace_root: Path, slug: str) -> tuple[bool, int | None]:
+    """Acquire a nonblocking per-slug lock whose fd may span a child lifetime.
+
+    Ownership is represented only by the open fd and kernel flock. The lock file is
+    an inert synchronization primitive; it contains no owner, task, or recovery
+    metadata and may remain after the process exits.
+    """
+    path = construction_lock_path(workspace_root, slug)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (BlockingIOError, OSError):
+        os.close(fd)
+        return False, None
+    return True, fd
+
+
+def construction_lock(workspace_root: Path, slug: str):
+    """Context-manager form of the per-slug construction lock."""
+    acquired, fd = acquire_construction_lock(workspace_root, slug)
+    if not acquired or fd is None:
+        raise BlockingIOError(f"construction lock is held for DAG slug {slug!r}")
+    try:
+        yield fd
+    finally:
+        release_lock(fd)
+
+
 def acquire_lock(workspace_root: Path) -> tuple[bool, int | None]:
     path = lock_path(workspace_root)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -75,6 +109,9 @@ def acquire_lock(workspace_root: Path) -> tuple[bool, int | None]:
         os.close(fd)
         return False, None
     return True, fd
+
+
+construction_lock = contextlib.contextmanager(construction_lock)
 
 
 def release_lock(fd: int | None) -> None:
@@ -247,6 +284,33 @@ def checkpoint_commit(workspace_root: Path, slug: str, inherited: dict[str, Any]
         return {"committed": True, "sha": sha.stdout.strip() if sha.returncode == 0 else None, "message": message, "inherited": inherited, "stdout": commit.stdout, "stderr": commit.stderr}
     except (OSError, subprocess.SubprocessError) as exc:
         return {"committed": False, "sha": None, "message": message, "inherited": inherited, "stdout": "", "stderr": str(exc)}
+
+
+def checkpoint_identity(dag: dict[str, Any], frontier: dict[str, Any] | None = None) -> str:
+    """Return stable identity for a DAG revision and its derived frontier."""
+    if frontier is None:
+        from .change_dag_decomposition import decomposition_frontier
+        frontier = decomposition_frontier(dag, include_branch_claims=True)
+    payload = {"dag_digest": change_dag.canonical_dag_digest(dag), "frontier": frontier}
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def inspect_current_state(workspace_root: Path, slug: str) -> dict[str, Any]:
+    """Inspect and mechanically validate only current DAG construction state."""
+    dag, _path, location = change_dag.read_dag(Path(workspace_root), slug)
+    errors = change_dag.validate_dag(dag)
+    if errors:
+        raise ValueError("invalid current DAG: " + "; ".join(errors))
+    from .change_dag_decomposition import decomposition_frontier
+    frontier = decomposition_frontier(dag, include_branch_claims=True)
+    return {
+        "slug": slug,
+        "location": location,
+        "dag_digest": change_dag.canonical_dag_digest(dag),
+        "frontier": frontier,
+        "checkpoint_identity": checkpoint_identity(dag, frontier),
+    }
 
 
 def stop_process_group(pid: int) -> bool:

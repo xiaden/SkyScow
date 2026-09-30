@@ -47,7 +47,7 @@ task:
 |---|---|
 | `PASS` / `ALLOW` | Return external evidence; the controller may consider execution, but this is not persisted lifecycle authorization |
 | `FINDINGS` / `ALLOW_WITH_FOLLOWUP` | Return the bounded repairable finding and route it to the named post-execution owner |
-| `FINDINGS` / `BLOCK_RUN` | Do not start execution; route exact-work defects to Change-DAG-Fixer, semantic/graph defects to Change-DAG-Author, authority issues to DD/R&D owner or user, and safety/repairability issues to the controller/owner |
+| `FINDINGS` / `BLOCK_RUN` | Do not start execution; route exact-work defects to Change-DAG-Fixer, semantic/graph defects to Change-DAG-Semantic-Repairer, authority issues to DD/R&D owner or user, and safety/repairability issues to the controller/owner |
 | `DD_CONTRADICTION` | Normally `BLOCK_RUN`; escalate to DD/R&D owner or user |
 | `MISSING_ARTIFACT` | `BLOCK_RUN` until source/DAG/completion context is restored |
 | `NEEDS_DECISION` | `BLOCK_RUN` and ask for an explicit decision |
